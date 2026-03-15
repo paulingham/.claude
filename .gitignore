@@ -8,6 +8,10 @@
 !rules/**
 !skills/
 !skills/**
+!hooks/
+!hooks/**
+!agents/
+!agents/**
 !statusline-command.sh
 !statusline-robbyrussell.sh
 
