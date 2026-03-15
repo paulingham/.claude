@@ -1,0 +1,17 @@
+# Everything ignored by default
+*
+
+# Reusable config — explicitly tracked
+!.gitignore
+!settings.json
+!rules/
+!rules/**
+!skills/
+!skills/**
+!statusline-command.sh
+!statusline-robbyrussell.sh
+
+# Never track secrets or credentials
+credentials.json
+.claude.json
+.claude.json.backup
