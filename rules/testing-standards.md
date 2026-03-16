@@ -21,5 +21,14 @@ Never skip RED — if you didn't see it fail, you don't know the test works.
 - No warnings, deprecations, leaked test data, or pending specs
 - Redirect test IO to StringIO, not real stderr/stdout
 
+## Proof of Correctness (Beyond Tests)
+
+Tests passing is necessary but not sufficient. For every feature:
+- **Tier 1**: Contract tests against real boundaries (not mocks for critical paths)
+- **Tier 2**: Smoke tests that exercise the actual feature end-to-end
+- **Tier 3**: Targeted mutation testing on changed files (verify tests catch real bugs)
+
+Feature is VERIFIED when all three tiers pass. No tier is optional.
+
 ## Known Deprecations (append-only)
 - `:unprocessable_entity` → `:unprocessable_content` (Rack 3.x, HTTP 422)

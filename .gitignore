@@ -3,6 +3,7 @@
 
 # Reusable config — explicitly tracked
 !.gitignore
+!CLAUDE.md
 !settings.json
 !rules/
 !rules/**

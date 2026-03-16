@@ -115,4 +115,28 @@ Scan for patterns:
 
 ### Secrets Scan
 [Results of secrets detection]
+
+### Environment Segregation
+[Assessment of environment isolation]
 ```
+
+## Environment Segregation
+
+- Verify local/staging/production environments are isolated
+- No local config, credentials, or data leaks into other environments
+- Environment-specific secrets never shared across boundaries
+- Database connections, API endpoints, feature flags scoped to their environment
+- CI/CD pipelines verify environment isolation (no prod credentials in test)
+
+## Collaboration
+
+- **Reviewed by**: no one — security-engineer is the reviewer
+- **Reviews**: engineer's code for vulnerabilities, infrastructure configs for misconfigurations
+- **Escalate**: CRITICAL/HIGH findings block merge — engineer must fix before re-review
+- **Challenge**: reject code that violates security baseline, even if functionally correct
+
+## Receives / Produces
+
+- **Receives**: PR diff, feature code, infrastructure configs
+- **Produces**: Security assessment with severity ratings (CRITICAL/HIGH/MEDIUM/LOW)
+- **Handoff to**: engineer (if findings exist) or next pipeline phase (if clean)
