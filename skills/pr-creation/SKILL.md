@@ -157,12 +157,25 @@ Verify `gh auth status`, re-authenticate if needed, retry.
 ### Remote branch conflicts
 Pull latest main, rebase feature branch, resolve conflicts, push with `--force-with-lease`.
 
+## Decision Narrative
+
+Every PR includes a non-technical decision narrative section:
+
+1. **Collect agent summaries**: Each participating agent contributes 2-3 sentences explaining their reasoning
+2. **Assemble into PR body** under a "## Decision Log" section:
+   - **What**: What was built and why (business context)
+   - **Why**: Key decisions and trade-offs (what was considered and rejected)
+   - **How**: How each agent contributed (design rationale, review findings)
+   - **Verified**: Verification report summary in plain language
+3. Must be readable by non-technical stakeholders (product owners, designers)
+
 ## Best Practices
 
 - Always run validation before pushing
 - Use descriptive feature branch names
 - Write comprehensive PR descriptions
 - Include test results and coverage
+- Include decision narrative from participating agents
 - Reference tickets
 - Add co-authoring attribution
 - Never push to main/master
