@@ -1,21 +1,35 @@
 ---
 name: "Estimation"
-description: "Fibonacci estimation guidance for sizing epics and stories. Includes scale reference, complexity factors, and anti-patterns. Use during epic breakdown and story estimation."
+description: "Complexity Budget estimation for sizing stories. Scores 5 dimensions (scope, ambiguity, context pressure, novelty, coordination) 1-3 each, with Fibonacci mapping for human teams. Use during epic breakdown and story estimation."
 ---
 
-# Fibonacci Estimation Guide
+# Complexity Budget Estimation
 
-## Scale Reference
+## What This Skill Does
 
-| Points | Effort | Uncertainty | Duration Hint |
-|--------|--------|------------|---------------|
-| **1** | Trivial | None | Hours |
-| **2** | Simple | Minimal | Half day |
-| **3** | Standard | Low | 1 day |
-| **5** | Moderate | Some | 2-3 days |
-| **8** | Complex | Moderate | 3-5 days |
-| **13** | Very complex | High | 1-2 weeks |
-| **21** | Epic-sized | Very high | Must split |
+Sizes stories using a 5-dimension Complexity Budget that reflects AI-native work dimensions, with Fibonacci mapping for backward compatibility.
+
+## Complexity Budget
+
+Score each dimension 1-3:
+
+| Dimension | 1 (Low) | 2 (Medium) | 3 (High) |
+|-----------|---------|-----------|----------|
+| **Scope** (files to touch) | 1-3 files | 4-10 files | 11+ files |
+| **Ambiguity** (requirement clarity) | Fully specified ACs | Interpretation needed | Discovery required |
+| **Context Pressure** (codebase knowledge) | Single module | Cross-module | System-wide |
+| **Novelty** (precedent exists?) | Pattern to follow | Partial precedent | Greenfield |
+| **Coordination** (cross-cutting?) | Isolated | 2-3 concerns | Auth + data + UI + infra |
+
+## Thresholds
+
+| Budget | Action | Fibonacci |
+|--------|--------|-----------|
+| 5-6 | Single task, execute directly | 1-2 pts |
+| 7-8 | Compound task, plan first | 3-5 pts |
+| 9-10 | Compound task, plan first | 8 pts |
+| 11-12 | Multi-session, break into sub-tasks | 13 pts |
+| 13-15 | Must decompose before starting | 21+ pts (must split) |
 
 ## Estimation Guidelines
 
@@ -31,33 +45,36 @@ description: "Fibonacci estimation guidance for sizing epics and stories. Includ
 - Requirements change significantly
 - Discovery reveals hidden complexity
 - Dependencies shift or new blockers emerge
-- Team velocity data shows consistent miss
 
-### Estimation Anti-Patterns
-- Never estimate to precision (use Fibonacci, not hours)
-- Never pad estimates for "safety" - surface uncertainty instead
+### Anti-Patterns
+- Never estimate to precision — use the budget, not hours
+- Never pad estimates for "safety" — surface uncertainty instead
 - Never split into sub-tasks to reduce per-task size artificially
-- If story is 21+ points, it MUST be broken down further
-
-## Complexity Factors Checklist
-
-- [ ] New technology or pattern? (+1 level)
-- [ ] Cross-service integration? (+1 level)
-- [ ] Database migration? (+1 level)
-- [ ] External API dependency? (+1 level)
-- [ ] Security-sensitive? (+1 level)
-- [ ] Performance-critical? (+1 level)
+- Budget 13-15 MUST be decomposed before starting
 
 ## Output Format
 
-Include `story_points` in estimation output:
+```markdown
+### Complexity Budget: [total] / 15
+
+| Dimension | Score | Rationale |
+|-----------|-------|-----------|
+| Scope | X | [reason] |
+| Ambiguity | X | [reason] |
+| Context Pressure | X | [reason] |
+| Novelty | X | [reason] |
+| Coordination | X | [reason] |
+
+**Fibonacci mapping**: [X] points
+**Action**: [execute / plan first / break into sub-tasks / must decompose]
+```
 
 ```json
 {
   "stories_created": [
-    {"title": "...", "story_points": 5, "priority": "high"},
-    {"title": "...", "story_points": 3, "priority": "medium"}
+    {"title": "...", "complexity_budget": 7, "story_points": 5, "priority": "high"},
+    {"title": "...", "complexity_budget": 5, "story_points": 2, "priority": "medium"}
   ],
-  "engineering_estimate": "Total: 34 story points across 8 stories"
+  "engineering_estimate": "Total: 12 budget across 2 stories (7 Fibonacci points)"
 }
 ```
