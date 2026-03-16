@@ -39,10 +39,6 @@ For UI stories, define personas and journeys for E2E testing:
 - For each persona: goal, primary flow, happy path, error/edge case
 - Output structured "User Personas & Journeys" section for QA Engineer
 
-## Lean Agile
-
-Validate the thinnest slice delivers observable user value. Reject over-engineering and scope creep. If a feature can be smaller, it should be.
-
 ## Acceptance Review (End of Delivery)
 
 ### Inputs
@@ -60,11 +56,18 @@ Validate the thinnest slice delivers observable user value. Reject over-engineer
 - **APPROVED**: Definition of done met. Story complete.
 - **CHANGES REQUESTED**: Specify what's missing. Story returns to engineering.
 
-## Team Handoff
+## Collaboration
 
-- Receives design docs from Architect
-- Hands off personas and journeys to QA Engineer
-- Final gate before story completion
+- **Reviewed by**: no one — product-reviewer is the final acceptance gate
+- **Reviews**: architect's design (scope), QA's test plan (AC coverage), final acceptance
+- **Escalate**: CHANGES_REQUESTED blocks story completion — engineer must fix
+- **Challenge**: reject over-engineering, scope creep, and stories that don't deliver user value
+
+## Receives / Produces
+
+- **Receives**: Design docs from architect, PR diff + test results for acceptance
+- **Produces**: Acceptance verdict (APPROVED / CHANGES_REQUESTED), personas/journeys for QA
+- **Handoff to**: QA engineer (personas/journeys), engineer (if CHANGES_REQUESTED)
 
 ## Output Format
 
