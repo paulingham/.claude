@@ -82,6 +82,50 @@ Explore agents lack engineering rules context (SOLID, DRY, shape constraints, OW
 
 Every task has a specialized agent type that is better suited. Use the pattern-to-agent mapping above.
 
+## Agent Teams
+
+### Rule: Teammates Must Read Their Agent Definition
+
+Agent Team teammates do NOT auto-load agent definitions from `agents/*.md`. When creating a team, instruct each teammate to read its role file:
+
+> "You are the [role] on this team. Read ~/.claude/agents/[role].md for your full checklist and output format. Follow it completely."
+
+### What Teammates Get Automatically
+
+- CLAUDE.md and all `rules/` files (auto-loaded)
+- Hooks (enforced by platform)
+- Skills (available to invoke)
+
+### What Teammates Do NOT Get (must bridge via file read)
+
+- Agent definition content from `agents/*.md` (role-specific checklists, output formats)
+- Frontmatter settings: model, maxTurns, disallowedTools (platform constraint, not bridgeable)
+
+### How to Start a Team
+
+Teams are created via natural language — just describe what you want:
+
+> "Create a team: a software-engineer to build the API, a frontend-engineer for the UI, and a code-reviewer to audit both. Each should read their agent definition from ~/.claude/agents/."
+
+The orchestrator creates the team, spawns teammates, and sets up a shared task list. Teammates work independently and communicate with each other directly.
+
+### Interacting with Teammates
+
+- **Cycle teammates**: `Shift+Down` (in-process mode)
+- **Message a teammate**: cycle to them and type
+- **Assign tasks**: tell the lead to create tasks for specific teammates
+- **Shut down**: ask the lead to shut down a teammate
+- **Clean up**: "Clean up the team" removes all shared resources
+
+### When to Use Teams vs Sub-agents
+
+| Use | Mechanism | Why |
+|-----|-----------|-----|
+| Pipeline phases (build, review, verify, test, accept) | Sub-agents via skills | Full enforcement: agent definitions, frontmatter guardrails, skill protocols |
+| Parallel exploration, design debates | Agent Teams | Teammates communicate directly, challenge each other |
+| Multi-domain coordination (frontend + backend + DB) | Agent Teams | Shared task list, independent work with messaging |
+| Focused single task (bug fix, one review) | Sub-agent | Simpler, faster, full definition loaded automatically |
+
 ## Worktree Isolation
 
 ### Rule: Write-Capable Agents Use Worktree Isolation
