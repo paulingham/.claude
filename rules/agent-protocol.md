@@ -84,11 +84,13 @@ Every task has a specialized agent type that is better suited. Use the pattern-t
 
 ## Agent Teams
 
-### Rule: Teammates Must Read Their Agent Definition
+### Rule: Orchestrator Automatically Bridges Agent Definitions
 
-Agent Team teammates do NOT auto-load agent definitions from `agents/*.md`. When creating a team, instruct each teammate to read its role file:
+Agent Team teammates do NOT auto-load agent definitions from `agents/*.md`. The orchestrator MUST automatically append this to every teammate's spawn prompt — the user should never need to ask for it:
 
-> "You are the [role] on this team. Read ~/.claude/agents/[role].md for your full checklist and output format. Follow it completely."
+> "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format. Follow it completely."
+
+This is not optional. Every teammate gets this instruction, every time.
 
 ### What Teammates Get Automatically
 
