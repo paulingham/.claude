@@ -30,13 +30,7 @@ For each criterion, use Given/When/Then:
 
 ### 4. Estimate with Complexity Budget
 
-| Dimension | 1 (Low) | 2 (Medium) | 3 (High) |
-|-----------|---------|-----------|----------|
-| **Scope** | 1-3 files | 4-10 files | 11+ files |
-| **Ambiguity** | Fully specified ACs | Interpretation needed | Discovery required |
-| **Context Pressure** | Single module | Cross-module | System-wide |
-| **Novelty** | Pattern to follow | Partial precedent | Greenfield |
-| **Coordination** | Isolated | 2-3 concerns | Auth + data + UI + infra |
+See the Complexity Budget table in `rules/operational-protocol.md`. Score each dimension 1-3.
 
 ### 5. Check Anti-Patterns
 
@@ -72,4 +66,12 @@ Reject if:
 
 ### Notes
 [Implementation hints, dependencies, risks]
+```
+
+## Phase Output
+
+```
+Verdict: STORY_READY (informational — no gate)
+Next: /estimation if sizing needed, then /build-implementation
+Artifacts: [story with ACs, complexity budget, notes]
 ```

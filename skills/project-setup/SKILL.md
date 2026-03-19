@@ -64,3 +64,11 @@ Find test, build, lint, and dev server commands from:
 
 - Creates `.claude/CLAUDE.md` at project root
 - Reports what was detected and any gaps to fill manually
+
+## Phase Output
+
+```
+Verdict: PROJECT_SETUP_COMPLETE (informational — no gate)
+Next: Read generated CLAUDE.md, confirm no conflicts with global rules, then proceed to Plan phase
+Artifacts: [.claude/CLAUDE.md, detection report]
+```

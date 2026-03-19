@@ -36,23 +36,23 @@ For each story:
 
 ### 5. Estimate Stories
 
-Use Complexity Budget — score each dimension 1-3:
-
-| Dimension | 1 (Low) | 2 (Medium) | 3 (High) |
-|-----------|---------|-----------|----------|
-| **Scope** | 1-3 files | 4-10 files | 11+ files |
-| **Ambiguity** | Fully specified | Interpretation needed | Discovery required |
-| **Context Pressure** | Single module | Cross-module | System-wide |
-| **Novelty** | Pattern exists | Partial precedent | Greenfield |
-| **Coordination** | Isolated | 2-3 concerns | Auth + data + UI + infra |
+Use the Complexity Budget table in `rules/operational-protocol.md`. Score each dimension 1-3, apply thresholds and Fibonacci mapping.
 
 **Thresholds**: 5-6 execute, 7-10 plan first, 11-12 break down, 13-15 must decompose.
-**Fibonacci mapping**: 5-6→1-2pts, 7-8→3-5pts, 9-10→8pts, 11-12→13pts, 13-15→21+ (must split).
 
 ### 6. Order by Priority
 - Dependencies first (data model → API → UI)
 - Highest business value within each dependency tier
 - Risk-reduction stories early
+
+### 7. Identify Parallelizable Stories
+
+For each story, annotate whether it can be built in parallel with other stories:
+- **Independent**: No shared files with other stories → can run in parallel worktree
+- **Sequential**: Depends on another story's output (shared files, data model) → must wait
+- Group independent stories into parallel batches in the output
+
+Add a "### Parallel Batches" section to the output showing which stories can be built simultaneously.
 
 ## Output Format
 
@@ -93,3 +93,13 @@ Use Complexity Budget — score each dimension 1-3:
 - Never pad estimates — surface uncertainty instead
 - Never split into sub-tasks to reduce per-task size artificially
 - Never create horizontal slices (all DB, then all API, then all UI)
+
+## Phase Output
+
+```
+Verdict: STORIES_READY (informational — no gate)
+Next: /build-implementation (per story, or parallel for independent stories)
+      /estimation if sizing not yet done
+      /story-writing if individual stories need refinement
+Artifacts: [story list with ACs, points, parallel batches]
+```

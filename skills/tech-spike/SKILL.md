@@ -78,3 +78,11 @@ Build a minimal proof-of-concept for the top 1-2 options:
 - Don't build a real feature during a spike — prototypes are throwaway
 - Don't evaluate more than 4 options — narrow first, then spike
 - Don't skip the prototype — reading docs alone isn't sufficient
+
+## Phase Output
+
+```
+Verdict: SPIKE_COMPLETE (informational — no gate)
+Next: Depends on recommendation. Typically /build-implementation or /epic-breakdown.
+Artifacts: [findings doc with recommendation, prototype code (throwaway)]
+```

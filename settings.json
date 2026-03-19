@@ -10,6 +10,65 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/quality-gate.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/commit-checkpoint.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/orchestrator-discipline.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/orchestrator-discipline.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/agent-skill-reminder.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/code-shape-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/function-body-check.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/code-shape-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/function-body-check.sh"
           }
         ]
       }
@@ -20,8 +79,7 @@
     "command": "bash ~/.claude/statusline-robbyrussell.sh"
   },
   "enabledPlugins": {
-    "pyright-lsp@claude-plugins-official": true,
-    "ruby-lsp@claude-plugins-official": true
+    "pyright-lsp@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",

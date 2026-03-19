@@ -9,6 +9,22 @@ description: "Safe refactoring workflow: identify smell, write characterization 
 
 Guides safe refactoring: never change behavior without tests, commit after each step.
 
+## Worktree Isolation
+
+Spawn the refactoring engineer with `isolation: "worktree"`:
+
+```
+Agent({
+  subagent_type: "software-engineer",
+  isolation: "worktree",
+  prompt: "Refactor [target]: smell is [smell], characterization tests needed...
+    Also read the project's tech stack pattern file if one exists
+    at ~/.claude/skills/[stack]-patterns/SKILL.md for tech-specific guidance."
+})
+```
+
+If the refactoring is rejected, the worktree is discarded — no cleanup needed.
+
 ## Process
 
 ### 1. Identify the Smell
@@ -61,3 +77,23 @@ One transformation at a time. Run tests after each step.
 - NEVER skip the characterization test phase
 - Commit after every successful step — small, reversible commits
 - If unsure, revert and try a smaller step
+
+## Prerequisite
+
+- Smell identified (long method, large class, duplication, etc.)
+- Existing tests cover the code being changed (or characterization tests will be written first)
+
+## Verdict
+
+After the final check passes, produce:
+- **REFACTOR_COMPLETE**: All tests green, no behavior changes, code meets shape constraints.
+- **REFACTOR_FAILED**: Tests broken or behavior changed. Revert to last good commit.
+
+## Phase Output
+
+```
+Verdict: REFACTOR_COMPLETE / REFACTOR_FAILED
+Next: /code-review + /security-review (parallel, single message)
+Artifacts: [list of changed/created files]
+Agent summaries: [engineer's 2-3 sentence contribution summary]
+```

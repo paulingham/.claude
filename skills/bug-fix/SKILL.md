@@ -27,6 +27,20 @@ git status
 git log --oneline -5
 ```
 
+## Worktree Isolation
+
+Spawn the fixing engineer with `isolation: "worktree"`:
+
+```
+Agent({
+  subagent_type: "software-engineer",
+  isolation: "worktree",
+  prompt: "Fix bug: [description]. Root cause: [analysis]..."
+})
+```
+
+This ensures the fix is isolated and can be discarded if the approach is wrong.
+
 ## Root Cause Analysis Template
 
 - **Symptom**: What the user sees
@@ -52,49 +66,30 @@ git log --oneline -5
 - **Strategy**: Replace fragile conditionals with polymorphism
 - **Observer**: Decouple event handling to prevent cascading failures
 
-## Multi-Language Debugging
+## Tech-Stack-Specific Debugging
 
-- **Ruby**: Use `binding.irb`, trace with `caller`, check logs
-- **JavaScript**: Use `debugger`, check browser console, trace async flow
-- **Python**: Use `breakpoint()`, trace with `traceback`, check stack frames
+Read the project's tech stack pattern file for language-specific and framework-specific debugging guidance:
+- Check `~/.claude/skills/[stack]-patterns/SKILL.md` (e.g., `react-native-patterns/SKILL.md`)
+- The pattern file contains debugging strategies, common pitfalls, and framework-specific tools
+- If no pattern file exists, apply general debugging principles: trace the call stack, check error boundaries, verify state management
 
-## Async Debugging
+## Prerequisite
 
-- Trace promise chains: check for missing `.catch()` or unhandled rejection handlers
-- Verify async/await error boundaries: every `await` should be in a try/catch or the function should propagate
-- Check for fire-and-forget patterns: unresolved promises that silently fail
-- Verify callback ordering: ensure async operations complete before dependent code runs
-- Check event loop blocking: long synchronous operations preventing async callbacks
+- Bug reported with reproduction steps (or steps to be discovered)
+- Codebase accessible and tests runnable
 
-## Race Condition Diagnosis
+## Verdict
 
-- Check for shared mutable state accessed by concurrent processes/threads/requests
-- Verify database transactions wrap read-modify-write sequences
-- Look for TOCTOU (time-of-check-time-of-use): data changing between validation and action
-- Check for missing locks: concurrent job executions modifying same records
-- Verify optimistic locking for concurrent updates
-- Test with concurrent requests: use threading/async in tests to reproduce
+After the fix verification checklist passes, produce:
+- **BUG_FIXED**: Regression test written, fix minimal, all tests green, root cause documented.
+- **BUG_UNRESOLVED**: Cannot reproduce, or fix introduces regressions. Document findings.
 
-## Database Debugging
+## Phase Output
 
-- Run `EXPLAIN ANALYZE` on slow queries to identify missing indexes or full table scans
-- Check for N+1: enable query logging, count queries per request
-- Verify transaction isolation level matches requirements
-- Check for deadlocks: review lock ordering, minimize transaction scope
-- Verify connection pool size: check for pool exhaustion under load
-
-## State Management Bugs
-
-- Stale closures: check useEffect/useCallback dependency arrays for missing variables
-- Missing dependency arrays: empty `[]` in useEffect when deps change causes stale reads
-- Incorrect cache invalidation: mutations not invalidating affected queries
-- Race conditions in React: state updates from unmounted components (missing cleanup in useEffect)
-- Zustand selector issues: using whole store object instead of selecting specific slices
-
-## Log Analysis
-
-- Structured log queries: filter by correlation_id to trace a single request across services
-- Error clustering: group errors by error class and message to find the most common
-- Timeline reconstruction: sort logs by timestamp with correlation_id to see exact sequence
-- Compare before/after: check logs from when the feature worked vs when it broke
-- Check for silent swallowing: search for empty `rescue`/`catch` blocks that hide errors
+```
+Verdict: BUG_FIXED / BUG_UNRESOLVED
+Next: /code-review + /security-review (parallel, single message)
+Artifacts: [list of changed/created files, regression test file]
+Root cause: [1-2 sentence summary]
+Agent summaries: [engineer's 2-3 sentence contribution summary]
+```

@@ -47,15 +47,38 @@ Global wins for quality standards; project wins for project-specific conventions
 - CHANGES_REQUESTED means stop and fix, not ignore.
 - Quality gates are hard stops, not suggestions.
 
+**Orchestrator role:**
+- The orchestrator (Claude) NEVER writes or edits source files directly -- see `rules/agent-protocol.md`
+- ALL code changes go through agents, including bug fixes, one-liners, config, and debugging
+- The orchestrator reads, runs commands, invokes skills, and coordinates agents -- nothing else
+
 **Spawning guidance:**
-- Single-agent tasks (bug fix, quick query): use subagent
-- Multi-phase delivery (feature, epic): use agent team
-- Code review: always spawn code-reviewer + security-engineer as independent reviewers
+- Single-agent tasks (bug fix, quick query): use subagent with `isolation: "worktree"` -- still delegated, never direct
+- Multi-phase delivery (feature, epic): use agent team with worktrees for all write-capable agents
+- Code review: use Parallel Dispatch Protocol (`rules/parallel-dispatch-protocol.md`) -- agents read their own skill files
+- Debugging: spawn frontend-engineer or software-engineer with error details and `isolation: "worktree"`
+- Independent work: ALWAYS spawn in a single message for parallel execution
+
+## Worktree & Parallelism Protocol
+
+All write-capable agents MUST be spawned with `isolation: "worktree"` -- see `rules/agent-protocol.md`.
+
+**Write-capable agents** (worktree required): software-engineer, frontend-engineer, qa-engineer, database-engineer, infrastructure-engineer.
+
+**Read-only agents** (no worktree): code-reviewer, security-engineer, product-reviewer, architect.
+
+**Parallel execution opportunities** (see `rules/parallel-dispatch-protocol.md`):
+- **Review phase**: code-reviewer + security-engineer dispatched in parallel, each reading their own skill file
+- **Build phase**: independent slices -> separate worktrees spawned in one message, each loading tech stack patterns
+- **Test phase**: independent test suites -> parallel qa-engineer worktrees
+- **Verify phase**: Tier 1+2 can run in parallel where independent
+
+**Rule**: When spawning 2+ independent agents, ALWAYS use a single message with multiple Agent tool calls. Never spawn sequentially when parallel is possible.
 
 ## Delivery Pipeline
 
 1. **Plan** → Architect designs slices. Gate: product-reviewer validates scope, engineer confirms feasibility.
-2. **Build** → Engineers implement one slice via TDD. Gate: tests green, coverage >= 80%, no lint errors.
+2. **Build** → Engineers implement one slice via `/build-implementation` (incremental TDD + shape checks). Gate: tests green, coverage >= 80%, no lint errors, all files ≤ 50 lines, all functions ≤ 5 lines.
 3. **Review** → Code reviewer + security engineer audit. Gate: both APPROVE, all findings addressed.
 4. **Verify** → Run `/verify`: contract tests, smoke tests, mutation testing. Gate: report passes.
 5. **Test** → QA validates coverage, edge cases, error paths. Gate: all ACs have tests, no gaps.
@@ -63,6 +86,10 @@ Global wins for quality standards; project wins for project-specific conventions
 7. **Ship** → PR via `/pr-creation`. Quality gate hook enforces final checks.
 
 No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back. Gate scope scales with work size, but no gate is skipped. For small tasks, delegate gates to subagents (code-reviewer, security-engineer, `/verify`).
+
+**Skills are mandatory** -- see `rules/pipeline-protocol.md`. Sequential phases use the Skill tool. Parallel phases use Parallel Dispatch Protocol (`rules/parallel-dispatch-protocol.md`) where agents read their own skill files.
+
+**Autonomous pipeline**: For any implementation work, invoke `/intake` first. It classifies the work and routes to `/pipeline`, which drives all phases automatically. Pipeline state is tracked via `memory/pipeline_[feature].md` files. See `rules/pipeline-protocol.md` for state tracking and progress reporting, `rules/operational-protocol.md` for error recovery and escalation.
 
 ## Definition of Done
 
@@ -94,14 +121,22 @@ Every PR includes a non-technical decision narrative: what was built and why, ho
 | qa-engineer | ACs, code changes | Test strategy, integration/E2E tests |
 | product-reviewer | PR diff, ACs, test results | Acceptance verdict |
 
-| Skill | When to Invoke |
-|-------|----------------|
-| `/epic-breakdown` | Decomposing epics into stories |
-| `/estimation` | Sizing stories with Complexity Budget |
-| `/story-writing` | Writing individual user stories |
-| `/bug-fix` | Root cause analysis and TDD fix |
-| `/tech-spike` | Time-boxed technical research |
-| `/verify` | Proof of correctness after implementation |
-| `/pr-creation` | Creating production-ready pull requests |
-| `/project-setup` | Scaffolding project-level CLAUDE.md |
-| `/refactor` | Safe refactoring workflow |
+| Skill | When to Invoke | Verdict |
+|-------|----------------|---------|
+| `/intake` | **Entry point** — first skill for any user request | ROUTED |
+| `/pipeline` | **Conductor** — drives all phases in sequence | PIPELINE_COMPLETE |
+| `/epic-breakdown` | Decomposing epics into stories | STORIES_READY |
+| `/estimation` | Sizing stories with Complexity Budget | ESTIMATED |
+| `/story-writing` | Writing individual user stories | STORY_READY |
+| `/build-implementation` | Build phase: incremental TDD + shape checks | BUILD_COMPLETE |
+| `/refactor` | Build phase: safe refactoring workflow | REFACTOR_COMPLETE |
+| `/bug-fix` | Build phase: root cause analysis + TDD fix | BUG_FIXED |
+| `/code-review` | Review phase: SOLID/DRY/quality audit | APPROVE / CHANGES_REQUESTED |
+| `/security-review` | Review phase: OWASP/secrets/auth (parallel with code-review) | APPROVE / CHANGES_REQUESTED |
+| `/verify` | Verify phase: contract + smoke + mutation tests | VERIFIED / UNVERIFIED |
+| `/qa-test-strategy` | Test phase: coverage analysis + gap filling | COVERED / GAPS_FOUND |
+| `/product-acceptance` | Accept phase: AC validation + UX assessment | APPROVED / REJECTED |
+| `/pr-creation` | Ship phase: PR creation with narrative | PR_CREATED / PR_BLOCKED |
+| `/tech-spike` | Time-boxed technical research | SPIKE_COMPLETE |
+| `/project-setup` | Scaffolding project-level CLAUDE.md | PROJECT_SETUP_COMPLETE |
+| `/harness-config` | Modify hooks, settings.json, non-.md config in ~/.claude/ | CONFIG_APPLIED |
