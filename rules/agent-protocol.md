@@ -84,17 +84,9 @@ Every task has a specialized agent type that is better suited. Use the pattern-t
 
 ## Agent Teams
 
-### Rule: Orchestrator Automatically Creates Teams
+### Rule: Orchestrator Always Creates Teams
 
-The orchestrator assesses every task and creates an Agent Team when appropriate. The user never needs to request a team or specify roles.
-
-### Auto-Team Triggers
-
-Create a team when ANY of these apply:
-- Work spans 2+ domains (frontend + backend, API + DB, UI + infra)
-- Multiple competing approaches need exploration
-- Design decisions benefit from challenge/debate
-- Complexity Budget >= 9
+The orchestrator creates an Agent Team for ALL implementation tasks. The user never needs to request a team or specify roles — just describe the work.
 
 ### Role Selection
 
