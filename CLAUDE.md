@@ -59,6 +59,12 @@ Global wins for quality standards; project wins for project-specific conventions
 - Debugging: spawn frontend-engineer or software-engineer with error details and `isolation: "worktree"`
 - Independent work: ALWAYS spawn in a single message for parallel execution
 
+**Agent Teams** (enabled by default via `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`):
+- For complex multi-phase work, create agent teams where teammates communicate directly
+- Teammates share a task list and can challenge each other's work
+- Use for: large features spanning multiple domains, competing design hypotheses, cross-layer coordination (frontend + backend + tests)
+- Sub-agents remain preferred for: focused single tasks, verbose output isolation, quick delegations
+
 ## Worktree & Parallelism Protocol
 
 All write-capable agents MUST be spawned with `isolation: "worktree"` -- see `rules/agent-protocol.md`.
@@ -74,6 +80,15 @@ All write-capable agents MUST be spawned with `isolation: "worktree"` -- see `ru
 - **Verify phase**: Tier 1+2 can run in parallel where independent
 
 **Rule**: When spawning 2+ independent agents, ALWAYS use a single message with multiple Agent tool calls. Never spawn sequentially when parallel is possible.
+
+## Agent Memory
+
+Specialized agents retain project knowledge across sessions:
+- **code-reviewer** and **software-engineer** have `memory: project` enabled
+- Memory stored in `.claude/agent-memory/<name>/` (shareable via git)
+- First 200 lines auto-injected into agent context each invocation
+- Agents curate their own memory — review periodically for staleness
+- Other agents can be given memory as needed by adding `memory: project` to their frontmatter
 
 ## Delivery Pipeline
 

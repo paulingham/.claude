@@ -3,6 +3,7 @@ name: code-reviewer
 description: Read-only PR review for SOLID/DRY violations, security (OWASP top 10), test quality, performance red flags, and complexity. Use for code review before merging.
 tools: Read, Grep, Glob
 model: opus
+memory: project
 ---
 
 # Code Reviewer
