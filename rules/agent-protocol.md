@@ -84,49 +84,55 @@ Every task has a specialized agent type that is better suited. Use the pattern-t
 
 ## Agent Teams
 
-### Rule: Orchestrator Automatically Bridges Agent Definitions
+### Rule: Orchestrator Automatically Creates Teams
 
-Agent Team teammates do NOT auto-load agent definitions from `agents/*.md`. The orchestrator MUST automatically append this to every teammate's spawn prompt — the user should never need to ask for it:
+The orchestrator assesses every task and creates an Agent Team when appropriate. The user never needs to request a team or specify roles.
+
+### Auto-Team Triggers
+
+Create a team when ANY of these apply:
+- Work spans 2+ domains (frontend + backend, API + DB, UI + infra)
+- Multiple competing approaches need exploration
+- Design decisions benefit from challenge/debate
+- Complexity Budget >= 9
+
+### Role Selection
+
+The orchestrator picks teammates from the pattern-to-agent mapping above. Select only the roles the task requires — don't over-staff.
+
+### Bridging Agent Definitions
+
+Teammates do NOT auto-load `agents/*.md`. The orchestrator MUST append this to every teammate's spawn prompt:
 
 > "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format. Follow it completely."
 
-This is not optional. Every teammate gets this instruction, every time.
+This is automatic and mandatory — the user should never need to mention it.
 
-### What Teammates Get Automatically
+### What Teammates Get
 
-- CLAUDE.md and all `rules/` files (auto-loaded)
-- Hooks (enforced by platform)
-- Skills (available to invoke)
-
-### What Teammates Do NOT Get (must bridge via file read)
-
-- Agent definition content from `agents/*.md` (role-specific checklists, output formats)
-- Frontmatter settings: model, maxTurns, disallowedTools (platform constraint, not bridgeable)
-
-### How to Start a Team
-
-Teams are created via natural language — just describe what you want:
-
-> "Create a team: a software-engineer to build the API, a frontend-engineer for the UI, and a code-reviewer to audit both. Each should read their agent definition from ~/.claude/agents/."
-
-The orchestrator creates the team, spawns teammates, and sets up a shared task list. Teammates work independently and communicate with each other directly.
+| Source | Auto-loaded? |
+|--------|-------------|
+| CLAUDE.md + rules/ | Yes |
+| Hooks | Yes (enforced by platform) |
+| Skills | Yes (available to invoke) |
+| Agent definitions (agents/*.md) | No — bridged via spawn prompt file-read instruction |
+| Frontmatter (model, maxTurns, disallowedTools) | No — platform constraint |
 
 ### Interacting with Teammates
 
-- **Cycle teammates**: `Shift+Down` (in-process mode)
-- **Message a teammate**: cycle to them and type
-- **Assign tasks**: tell the lead to create tasks for specific teammates
+- **Cycle**: `Shift+Down` (in-process mode)
+- **Message**: cycle to a teammate and type
+- **Assign tasks**: tell the lead to create tasks
 - **Shut down**: ask the lead to shut down a teammate
-- **Clean up**: "Clean up the team" removes all shared resources
+- **Clean up**: "Clean up the team" when done
 
-### When to Use Teams vs Sub-agents
+### Teams vs Sub-agents
 
-| Use | Mechanism | Why |
-|-----|-----------|-----|
-| Pipeline phases (build, review, verify, test, accept) | Sub-agents via skills | Full enforcement: agent definitions, frontmatter guardrails, skill protocols |
-| Parallel exploration, design debates | Agent Teams | Teammates communicate directly, challenge each other |
-| Multi-domain coordination (frontend + backend + DB) | Agent Teams | Shared task list, independent work with messaging |
-| Focused single task (bug fix, one review) | Sub-agent | Simpler, faster, full definition loaded automatically |
+| Use | Mechanism |
+|-----|-----------|
+| Pipeline phases (build, review, verify, test, accept, ship) | Sub-agents via skills |
+| Parallel exploration, design debates, multi-domain coordination | Agent Teams |
+| Focused single task (bug fix, one review, one query) | Sub-agent |
 
 ## Worktree Isolation
 

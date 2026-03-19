@@ -40,18 +40,21 @@ Global wins for quality standards; project wins for project-specific conventions
 | qa-engineer | Test | Yes | sonnet |
 | product-reviewer | Accept | No | sonnet |
 
-### Using Agent Teams
+### Agent Teams (Automatic)
 
-When creating an Agent Team, the orchestrator MUST automatically include the agent definition read instruction for every teammate. The user should never need to specify this — just name the roles.
+The orchestrator MUST automatically create Agent Teams when the work involves 2+ domains or would benefit from parallel exploration. The user never needs to request a team or specify roles — the orchestrator assesses the task and decides.
 
-**Orchestrator rule**: When spawning any teammate, always append to their spawn prompt:
-> "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format. Follow it completely."
+**Auto-team triggers** (orchestrator creates a team when ANY apply):
+- Work spans 2+ domains (frontend + backend, API + DB, UI + infra)
+- Multiple competing approaches need exploration
+- Design decisions benefit from challenge/debate
+- Complexity Budget >= 9
 
-- **Teams** for: parallel exploration, design debates, multi-domain coordination
-- **Sub-agents** for: pipeline phases, TDD, review gates (full enforcement via agent definitions)
-- **Interact**: `Shift+Down` to cycle teammates, type to message them
+**Role selection**: The orchestrator picks teammates from the Agent Team table above based on what the task requires. Every teammate's spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format."
 
-See `rules/agent-protocol.md` for full team protocol.
+**Sub-agents remain preferred for**: pipeline phases, focused single tasks, TDD, review gates.
+
+**Interact**: `Shift+Down` to cycle teammates. See `rules/agent-protocol.md` for full protocol.
 
 ### Delivery Pipeline
 
