@@ -40,19 +40,11 @@ Global wins for quality standards; project wins for project-specific conventions
 | qa-engineer | Test | Yes | sonnet |
 | product-reviewer | Accept | No | sonnet |
 
-### Agent Teams (Automatic)
+### Agent Teams (Always On)
 
-The orchestrator MUST automatically create Agent Teams when the work involves 2+ domains or would benefit from parallel exploration. The user never needs to request a team or specify roles — the orchestrator assesses the task and decides.
+The orchestrator MUST create an Agent Team for ALL implementation tasks. The user never needs to request a team or specify roles — the orchestrator assesses the task and selects the right teammates automatically.
 
-**Auto-team triggers** (orchestrator creates a team when ANY apply):
-- Work spans 2+ domains (frontend + backend, API + DB, UI + infra)
-- Multiple competing approaches need exploration
-- Design decisions benefit from challenge/debate
-- Complexity Budget >= 9
-
-**Role selection**: The orchestrator picks teammates from the Agent Team table above based on what the task requires. Every teammate's spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format."
-
-**Sub-agents remain preferred for**: pipeline phases, focused single tasks, TDD, review gates.
+**Role selection**: Pick teammates from the Agent Team table above based on what the task requires. Every teammate's spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format."
 
 **Interact**: `Shift+Down` to cycle teammates. See `rules/agent-protocol.md` for full protocol.
 
