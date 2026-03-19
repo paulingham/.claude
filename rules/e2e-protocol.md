@@ -1,3 +1,10 @@
+---
+paths:
+  - "maestro/**"
+  - "**/*.tsx"
+  - "**/app/**"
+---
+
 # E2E Protocol
 
 Defines when Maestro E2E tests are required, which flows to run, prerequisites, and pass/fail criteria.

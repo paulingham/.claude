@@ -3,6 +3,10 @@ name: architect
 description: System architect for API design, data modeling, ADRs, dependency mapping, and vertical slice decomposition. Use when planning features, designing systems, or making technology decisions.
 tools: Read, Grep, Glob, Bash
 model: opus
+maxTurns: 25
+disallowedTools:
+  - Agent
+  - Skill
 ---
 
 # Architect

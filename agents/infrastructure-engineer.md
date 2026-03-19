@@ -3,6 +3,10 @@ name: infrastructure-engineer
 description: Infrastructure engineer for Dockerfiles, docker-compose, CI/CD pipelines, Terraform/IaC, deployment configs, and health check setup. Use for any infrastructure, container, or deployment work.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
+maxTurns: 25
+disallowedTools:
+  - Agent
+  - Skill
 ---
 
 # Infrastructure Engineer

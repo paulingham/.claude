@@ -2,6 +2,8 @@
 name: "Security Review"
 description: "Review phase skill: spawn security-engineer agent for OWASP Top 10 audit, dependency scanning, secrets detection, and auth/authz review. Runs in parallel with code-review."
 parallel_group: "review"
+context: fork
+agent: security-engineer
 ---
 
 # Security Review
@@ -9,6 +11,11 @@ parallel_group: "review"
 ## What This Skill Does
 
 Automates the Review phase security audit. Spawns a read-only security-engineer agent to assess security posture.
+
+## Current Context
+- Branch: !`git branch --show-current`
+- Changed files: !`git diff main...HEAD --name-only 2>/dev/null || echo 'N/A'`
+- Diff stats: !`git diff main...HEAD --stat 2>/dev/null || echo 'N/A'`
 
 ## When to Invoke
 

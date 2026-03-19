@@ -2,6 +2,8 @@
 name: "Code Review"
 description: "Review phase skill: spawn code-reviewer agent to audit code for SOLID/DRY violations, security issues, test quality, performance, and complexity. Produces APPROVE or CHANGES_REQUESTED verdict."
 parallel_group: "review"
+context: fork
+agent: code-reviewer
 ---
 
 # Code Review
@@ -9,6 +11,11 @@ parallel_group: "review"
 ## What This Skill Does
 
 Automates the Review phase code audit. Spawns a read-only code-reviewer agent to assess code quality against engineering standards.
+
+## Current Context
+- Branch: !`git branch --show-current`
+- Changed files: !`git diff main...HEAD --name-only 2>/dev/null || echo 'N/A'`
+- Diff stats: !`git diff main...HEAD --stat 2>/dev/null || echo 'N/A'`
 
 ## When to Invoke
 

@@ -1,6 +1,8 @@
 ---
 name: "Product Acceptance"
 description: "Accept phase skill: spawn product-reviewer to validate acceptance criteria are met, assess UX quality, and verify business value delivery. Produces APPROVED or APPROVED WITH CONDITIONS verdict."
+context: fork
+agent: product-reviewer
 ---
 
 # Product Acceptance
@@ -8,6 +10,11 @@ description: "Accept phase skill: spawn product-reviewer to validate acceptance 
 ## What This Skill Does
 
 Automates the Accept phase. Spawns a read-only product-reviewer to validate the feature meets business requirements.
+
+## Current Context
+- Branch: !`git branch --show-current`
+- Changed files: !`git diff main...HEAD --name-only 2>/dev/null || echo 'N/A'`
+- Diff stats: !`git diff main...HEAD --stat 2>/dev/null || echo 'N/A'`
 
 ## When to Invoke
 

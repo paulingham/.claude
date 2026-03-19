@@ -1,6 +1,9 @@
 ---
 name: "Project Setup"
 description: "Scaffold a project-level .claude/CLAUDE.md by detecting tech stack, commands, architecture, and conventions. Use when starting work in a repo that lacks a project CLAUDE.md."
+context: fork
+agent: infrastructure-engineer
+model: sonnet
 ---
 
 # Project Setup
