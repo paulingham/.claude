@@ -161,7 +161,7 @@ Pull latest main, rebase feature branch, resolve conflicts, push with `--force-w
 
 Every PR includes a non-technical decision narrative section:
 
-1. **Collect agent summaries**: Each participating agent contributes 2-3 sentences explaining their reasoning
+1. **Collect agent summaries**: Include a summary request in the original agent spawn prompt: "Before finishing, output a '## Agent Summary' section with 2-3 sentences on what you did, decisions made, and trade-offs." The orchestrator collects these summaries from agent outputs after completion.
 2. **Assemble into PR body** under a "## Decision Log" section:
    - **What**: What was built and why (business context)
    - **Why**: Key decisions and trade-offs (what was considered and rejected)
@@ -179,3 +179,22 @@ Every PR includes a non-technical decision narrative section:
 - Reference tickets
 - Add co-authoring attribution
 - Never push to main/master
+
+## Prerequisite
+
+- Accept phase complete: `/product-acceptance` returned APPROVED
+- All prior phase verdicts: BUILD_COMPLETE, APPROVE (both reviews), VERIFIED, COVERED, APPROVED
+
+## Verdict
+
+- **PR_CREATED**: PR URL returned, quality gate hook passed.
+- **PR_BLOCKED**: Quality gate failed. Fix issues and retry.
+
+## Phase Output
+
+```
+Verdict: PR_CREATED / PR_BLOCKED
+Next: Pipeline complete. Report PR URL to user.
+PR URL: [GitHub PR URL]
+Agent summaries: [assembled decision narrative from all participating agents]
+```
