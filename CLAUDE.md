@@ -40,6 +40,16 @@ Global wins for quality standards; project wins for project-specific conventions
 | qa-engineer | Test | Yes | sonnet |
 | product-reviewer | Accept | No | sonnet |
 
+### Using Agent Teams
+
+Create teams via natural language: "Create a team with a software-engineer, frontend-engineer, and code-reviewer." Each teammate must read its agent definition: "Read `~/.claude/agents/[role].md` for your checklist and output format."
+
+- **Teams** for: parallel exploration, design debates, multi-domain coordination
+- **Sub-agents** for: pipeline phases, TDD, review gates (full enforcement via agent definitions)
+- **Interact**: `Shift+Down` to cycle teammates, type to message them
+
+See `rules/agent-protocol.md` for full team protocol.
+
 ### Delivery Pipeline
 
 1. **Plan** → Architect designs slices. Gate: product-reviewer + engineer validate.
