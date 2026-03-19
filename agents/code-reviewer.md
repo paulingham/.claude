@@ -4,6 +4,10 @@ description: Read-only PR review for SOLID/DRY violations, security (OWASP top 1
 tools: Read, Grep, Glob
 model: opus
 memory: project
+maxTurns: 20
+disallowedTools:
+  - Agent
+  - Skill
 ---
 
 # Code Reviewer

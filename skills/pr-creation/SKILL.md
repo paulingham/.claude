@@ -1,9 +1,16 @@
 ---
 name: "PR Creation Workflow"
 description: "GitHub pull request workflow with validation, feature branch management, and automated PR creation. Use when completing features to create production-ready pull requests."
+context: fork
+agent: software-engineer
 ---
 
 # PR Creation Workflow
+
+## Current Context
+- Branch: !`git branch --show-current`
+- Changed files: !`git diff main...HEAD --name-only 2>/dev/null || echo 'N/A'`
+- Diff stats: !`git diff main...HEAD --stat 2>/dev/null || echo 'N/A'`
 
 ## What This Skill Does
 

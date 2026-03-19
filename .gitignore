@@ -15,6 +15,10 @@
 !agents/**
 !statusline-command.sh
 !statusline-robbyrussell.sh
+!agent-memory/
+!agent-memory/**
+!memory/
+!memory/**
 
 # Never track secrets or credentials
 credentials.json

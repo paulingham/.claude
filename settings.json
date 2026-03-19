@@ -3,7 +3,16 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
-    "defaultMode": "dontAsk"
+    "defaultMode": "dontAsk",
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~/*)",
+      "Bash(git branch -D main)",
+      "Bash(git branch -D master)"
+    ]
   },
   "hooks": {
     "PreToolUse": [
@@ -115,6 +124,56 @@
           {
             "type": "command",
             "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PermissionRequest\",\"decision\":{\"behavior\":\"allow\"}}}'"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'PRE-COMPACTION: Verify pipeline state is saved in memory/pipeline_*.md before context compression.'"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ls memory/pipeline_*.md 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'SESSION STOPPED DUE TO ERROR. If a pipeline is in progress, state should be in memory/pipeline_*.md. Resume in a new session.' >&2"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Session ending. Active worktrees:' && git worktree list 2>/dev/null | grep -v 'bare' || echo 'None'"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/intake-reminder.sh"
           }
         ]
       }

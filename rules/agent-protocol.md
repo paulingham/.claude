@@ -23,9 +23,10 @@ The orchestrator (Claude) coordinates agents. It does NOT write, edit, or create
 - **Explicitly NOT covered**: `settings.json`, `hooks/*.sh`, `*.yaml`, `*.yml` -- use `/harness-config` skill which delegates to infrastructure-engineer
 
 ### Enforcement Note
-- The PostToolUse shape-check hook runs after Write/Edit but cannot prevent the change
-- Orchestrator discipline is self-enforced -- no PreToolUse hook currently blocks it
-- If a PreToolUse hook is added in the future, it should allow `.md` files in config directories
+- The `orchestrator-discipline.sh` PreToolUse hook blocks Write/Edit on non-`.md` source files (exit 2)
+- The PostToolUse `code-shape-check.sh` hook blocks files exceeding 50 lines (exit 2)
+- The PostToolUse `function-body-check.sh` hook warns on functions exceeding 5 lines (exit 1)
+- All hooks are registered in settings.json and actively enforced
 
 ### Orchestrator CANNOT do:
 - Use Write tool on any source file (`.ts`, `.tsx`, `.js`, `.jsx`, `.css`, `.json`, `.yaml`, etc.)

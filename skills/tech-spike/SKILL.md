@@ -1,6 +1,9 @@
 ---
 name: "Tech Spike"
 description: "Time-boxed technical research workflow: question, explore, prototype, findings, recommendation. Use for evaluating technologies, investigating unknowns, or de-risking technical decisions."
+context: fork
+agent: architect
+argument-hint: "Technical question to investigate"
 ---
 
 # Tech Spike

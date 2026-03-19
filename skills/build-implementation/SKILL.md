@@ -1,6 +1,9 @@
 ---
 name: "Build Implementation"
 description: "Structured build phase: decompose ACs into test cases, implement via incremental TDD protocol, enforce shape constraints. Use at the start of any Build phase."
+context: fork
+agent: software-engineer
+argument-hint: "Acceptance criteria or story to implement"
 ---
 
 # Build Implementation

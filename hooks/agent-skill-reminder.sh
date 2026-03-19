@@ -20,7 +20,7 @@ fi
 
 TOOL_INPUT="${CLAUDE_TOOL_INPUT:-}"
 
-# Parse subagent_type and prompt from JSON using python3
+# Parse subagent_type, prompt, and isolation from JSON using python3
 PARSE_RESULT=$(python3 -c "
 import json, sys
 try:
@@ -29,13 +29,33 @@ except (json.JSONDecodeError, IndexError):
     data = {}
 agent_type = data.get('subagent_type', '') or ''
 prompt = data.get('prompt', '') or ''
+isolation = data.get('isolation', '') or ''
 print(agent_type)
+print(isolation)
 print(prompt)
 " "$TOOL_INPUT" 2>/dev/null)
 
 AGENT_TYPE=$(echo "$PARSE_RESULT" | head -n 1)
-PROMPT=$(echo "$PARSE_RESULT" | tail -n +2)
+ISOLATION=$(echo "$PARSE_RESULT" | sed -n '2p')
+PROMPT=$(echo "$PARSE_RESULT" | tail -n +3)
 PROMPT_LOWER=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]')
+
+# Worktree enforcement for write-capable agents
+WRITE_CAPABLE_TYPES="software-engineer frontend-engineer qa-engineer database-engineer infrastructure-engineer"
+IS_WRITE_CAPABLE=false
+for wc_type in $WRITE_CAPABLE_TYPES; do
+    if [[ "$AGENT_TYPE" == "$wc_type" ]]; then
+        IS_WRITE_CAPABLE=true
+        break
+    fi
+done
+
+if [[ "$IS_WRITE_CAPABLE" == true ]]; then
+    if [[ "$ISOLATION" != *"worktree"* ]]; then
+        echo "BLOCKED: Write-capable agent '$AGENT_TYPE' MUST be spawned with isolation: worktree. See rules/agent-protocol.md." >&2
+        exit 2
+    fi
+fi
 
 # Determine if this is an Explore or general-purpose agent
 IS_BLOCKED_TYPE=false

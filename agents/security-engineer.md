@@ -3,6 +3,10 @@ name: security-engineer
 description: Read-only security review covering OWASP Top 10, auth/authz, input validation, dependency scanning, and secrets detection. Use for security assessments before shipping.
 tools: Read, Grep, Glob, Bash
 model: sonnet
+maxTurns: 20
+disallowedTools:
+  - Agent
+  - Skill
 ---
 
 # Security Engineer

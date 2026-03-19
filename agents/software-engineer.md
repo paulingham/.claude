@@ -4,6 +4,10 @@ description: Feature implementation with TDD, service objects, SOLID, and DRY. H
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 memory: project
+maxTurns: 40
+disallowedTools:
+  - Agent
+  - Skill
 ---
 
 # Software Engineer

@@ -3,6 +3,10 @@ name: product-reviewer
 description: Product reviewer that verifies implementation matches business requirements, validates acceptance criteria, and assesses user experience and business value. Use for story acceptance review.
 tools: Read, Grep, Glob
 model: sonnet
+maxTurns: 15
+disallowedTools:
+  - Agent
+  - Skill
 ---
 
 # Product Reviewer

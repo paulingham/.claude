@@ -7,6 +7,11 @@ agent: software-engineer
 
 # Verification Workflow
 
+## Current Context
+- Branch: !`git branch --show-current`
+- Changed files: !`git diff main...HEAD --name-only 2>/dev/null || echo 'N/A'`
+- Diff stats: !`git diff main...HEAD --stat 2>/dev/null || echo 'N/A'`
+
 ## What This Skill Does
 
 Proves a feature works correctly beyond just passing tests. Runs three verification tiers and produces a verdict.

@@ -7,7 +7,7 @@ Consolidates: engineering standards, testing standards, security baseline, incre
 - Methods/functions: 5 lines max, CC <= 5, nesting <= 2
 - Classes/files: 50 lines max
 - Classes: single public entry point (`.call`/`.run`/`.execute`)
-- DRY: 3rd occurrence -> extract (Rule of Three)
+- DRY: 2nd occurrence -> extract immediately
 
 ## When to Use a Class vs Standalone Function
 

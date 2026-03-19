@@ -1,6 +1,9 @@
 ---
 name: "Story Writing"
 description: "Write a single well-formed user story with persona, Given/When/Then acceptance criteria, error paths, and Complexity Budget estimate. Use when creating individual stories."
+context: fork
+agent: architect
+model: sonnet
 ---
 
 # Story Writing
