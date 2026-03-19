@@ -1,6 +1,8 @@
 ---
 name: "QA Test Strategy"
 description: "Test phase skill: spawn qa-engineer to map acceptance criteria to tests, identify coverage gaps, and write integration/E2E tests. Uses worktree for test authoring."
+context: fork
+agent: qa-engineer
 ---
 
 # QA Test Strategy
