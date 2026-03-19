@@ -1,15 +1,15 @@
 #!/bin/bash
 # Agent Skill Reminder — PreToolUse hook for Agent tool
 #
-# Dual-mode behavior:
-#   1. HARD BLOCK (exit 2): Blocks Explore or general-purpose agents spawned
-#      with audit/review/compliance keywords. These tasks belong to specialist
-#      agents (code-reviewer, security-engineer, qa-engineer) via their skills.
-#   2. ADVISORY (exit 0): Reminds the orchestrator to check if a skill should
+# Three checks in order:
+#   1. HARD BLOCK (exit 2): Write-capable agents MUST use isolation: worktree.
+#   2. HARD BLOCK (exit 2): Explore and general-purpose agents are universally
+#      blocked. All tasks must use specialized agent types.
+#   3. ADVISORY (exit 0): Reminds the orchestrator to check if a skill should
 #      have been invoked before spawning any other agent.
 #
 # This hook fires BEFORE every Agent spawn. It reads CLAUDE_TOOL_INPUT (JSON)
-# to extract subagent_type and prompt for classification.
+# to extract subagent_type, prompt, and isolation for classification.
 
 TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
 
@@ -57,31 +57,10 @@ if [[ "$IS_WRITE_CAPABLE" == true ]]; then
     fi
 fi
 
-# Determine if this is an Explore or general-purpose agent
-IS_BLOCKED_TYPE=false
+# Universal block on Explore and general-purpose agents
 if [[ -z "$AGENT_TYPE" || "$AGENT_TYPE" == "Explore" || "$AGENT_TYPE" == "general-purpose" ]]; then
-    IS_BLOCKED_TYPE=true
-fi
-
-# Check for audit/review keywords and suggest the correct agent
-if [[ "$IS_BLOCKED_TYPE" == true ]]; then
-    SUGGESTION=""
-
-    if echo "$PROMPT_LOWER" | grep -qi "owasp\|security scan"; then
-        SUGGESTION="security-engineer (via /security-review skill)"
-    elif echo "$PROMPT_LOWER" | grep -qi "coverage analysis\|test gaps"; then
-        SUGGESTION="qa-engineer (via /qa-test-strategy skill)"
-    elif echo "$PROMPT_LOWER" | grep -qi "audit\|review\|compliance\|solid\|dry"; then
-        SUGGESTION="code-reviewer (via /code-review skill)"
-    fi
-
-    if [[ -n "$SUGGESTION" ]]; then
-        echo "BLOCKED: Explore/general-purpose agent spawned with audit/review keywords." >&2
-        echo "  Agent type: '${AGENT_TYPE:-<empty/general-purpose>}'" >&2
-        echo "  Use instead: $SUGGESTION" >&2
-        echo "  Invoke the corresponding skill — it will spawn the correct specialist agent." >&2
-        exit 2
-    fi
+    echo "BLOCKED: Explore and general-purpose agents are not permitted. Use a specialized agent type instead. See rules/agent-protocol.md for the pattern-to-agent mapping." >&2
+    exit 2
 fi
 
 # Suppress advisory for Parallel Dispatch Protocol

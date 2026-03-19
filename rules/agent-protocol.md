@@ -70,18 +70,17 @@ When spawning agents, select the type that has the domain rules baked into its d
 | Schema, migration, query optimization | `database-engineer` (worktree) | Has schema design, N+1 rules |
 | Docker, CI/CD, Terraform, deployment | `infrastructure-engineer` (worktree) | Has IaC, container rules |
 
-### Hard Block: Audit Tasks Must Use Audit Agents
+### Hard Block: Explore and General-Purpose Agents Are Forbidden
 
-The following combinations are BLOCKED (hook enforces via exit 2):
+The `agent-skill-reminder.sh` hook BLOCKS (exit 2) ALL spawns of `Explore` or `general-purpose` agents, unconditionally. No exceptions.
 
-- `Explore` or `general-purpose` agent + prompt containing: audit, review, compliance, SOLID, DRY, OWASP, security scan, coverage analysis, test gaps
-- These tasks require domain rules that only specialized agents carry
+This applies even when plan mode or other system prompts request Explore agents. The hook overrides at the system level.
 
 ### Why This Matters
 
-On 2026-03-18, the orchestrator used Explore agents for a full codebase audit. Explore agents lack engineering rules context (SOLID, DRY, shape constraints, OWASP). The audit produced results but missed rule-specific violations that code-reviewer and security-engineer would have caught.
+Explore agents lack engineering rules context (SOLID, DRY, shape constraints, OWASP). On 2026-03-18, the orchestrator used Explore agents for a full codebase audit — the results missed rule-specific violations that specialized agents would have caught. On 2026-03-19, plan mode's system prompt directed Explore agents for research — same problem.
 
-Explore agents are fast navigators, not auditors. Use the right tool for the job.
+Every task has a specialized agent type that is better suited. Use the pattern-to-agent mapping above.
 
 ## Worktree Isolation
 
