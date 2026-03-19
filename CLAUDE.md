@@ -42,7 +42,10 @@ Global wins for quality standards; project wins for project-specific conventions
 
 ### Using Agent Teams
 
-Create teams via natural language: "Create a team with a software-engineer, frontend-engineer, and code-reviewer." Each teammate must read its agent definition: "Read `~/.claude/agents/[role].md` for your checklist and output format."
+When creating an Agent Team, the orchestrator MUST automatically include the agent definition read instruction for every teammate. The user should never need to specify this — just name the roles.
+
+**Orchestrator rule**: When spawning any teammate, always append to their spawn prompt:
+> "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format. Follow it completely."
 
 - **Teams** for: parallel exploration, design debates, multi-domain coordination
 - **Sub-agents** for: pipeline phases, TDD, review gates (full enforcement via agent definitions)
