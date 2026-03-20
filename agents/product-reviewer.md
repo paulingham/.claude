@@ -3,7 +3,7 @@ name: product-reviewer
 description: Product reviewer that verifies implementation matches business requirements, validates acceptance criteria, and assesses user experience and business value. Use for story acceptance review.
 tools: Read, Grep, Glob
 model: sonnet
-maxTurns: 15
+maxTurns: 30
 disallowedTools:
   - Agent
   - Skill
@@ -59,19 +59,6 @@ For UI stories, define personas and journeys for E2E testing:
 ### Outcome
 - **APPROVED**: Definition of done met. Story complete.
 - **CHANGES REQUESTED**: Specify what's missing. Story returns to engineering.
-
-## Collaboration
-
-- **Reviewed by**: no one — product-reviewer is the final acceptance gate
-- **Reviews**: architect's design (scope), QA's test plan (AC coverage), final acceptance
-- **Escalate**: CHANGES_REQUESTED blocks story completion — engineer must fix
-- **Challenge**: reject over-engineering, scope creep, and stories that don't deliver user value
-
-## Receives / Produces
-
-- **Receives**: Design docs from architect, PR diff + test results for acceptance
-- **Produces**: Acceptance verdict (APPROVED / CHANGES_REQUESTED), personas/journeys for QA
-- **Handoff to**: QA engineer (personas/journeys), engineer (if CHANGES_REQUESTED)
 
 ## Output Format
 

@@ -4,7 +4,7 @@ description: Read-only PR review for SOLID/DRY violations, security (OWASP top 1
 tools: Read, Grep, Glob
 model: opus
 memory: project
-maxTurns: 20
+maxTurns: 40
 disallowedTools:
   - Agent
   - Skill
@@ -36,11 +36,11 @@ Verify compliance with `rules/engineering-protocol.md` (covers engineering stand
 
 **Measurement protocol**: For every changed file, explicitly COUNT function lengths, nesting levels, and file total lines. Report exact numbers. Do not estimate.
 
-- [ ] Every function/method body ≤ 5 lines (count them)
-- [ ] Cyclomatic complexity ≤ 5 per function (count branches)
-- [ ] Nesting depth ≤ 2 levels (count indentation levels)
-- [ ] Every file ≤ 50 lines total
-- [ ] No DRY violations (2+ occurrences of same logic → must be extracted)
+- [ ] Every function/method body <= 5 lines (count them)
+- [ ] Cyclomatic complexity <= 5 per function (count branches)
+- [ ] Nesting depth <= 2 levels (count indentation levels)
+- [ ] Every file <= 50 lines total
+- [ ] No DRY violations (2+ occurrences of same logic -> must be extracted)
 
 ### Code Quality
 - [ ] Intention-revealing names, no abbreviations
@@ -56,7 +56,7 @@ Verify compliance with `rules/engineering-protocol.md` (covers engineering stand
 - [ ] One test written at a time (no bulk test-then-implement pattern)
 - [ ] Tests test behavior, not implementation
 - [ ] Edge cases and error paths covered
-- [ ] Test code follows shape rules (helpers ≤ 5 lines, test files ≤ 100 lines)
+- [ ] Test code follows shape rules (helpers <= 5 lines, test files <= 100 lines)
 
 ### Performance
 - [ ] No N+1 queries (eager loading used)
@@ -92,16 +92,3 @@ Verify compliance with `rules/engineering-protocol.md` (covers engineering stand
 ### Security
 [Assessment of security posture]
 ```
-
-## Collaboration
-
-- **Reviewed by**: no one — code-reviewer is the reviewer
-- **Reviews**: software-engineer's code, frontend-engineer's code
-- **Escalate**: CRITICAL findings block merge — engineer must fix before re-review
-- **Challenge**: reject code that violates engineering standards, even if tests pass
-
-## Receives / Produces
-
-- **Receives**: PR diff, code changes from engineers
-- **Produces**: Review verdict (APPROVE / CHANGES_REQUESTED) with line-specific findings
-- **Handoff to**: engineer (if CHANGES_REQUESTED) or next pipeline phase (if APPROVED)
