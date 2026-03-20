@@ -116,8 +116,8 @@ Examples:
 When in a recovery loop (CHANGES_REQUESTED, GAPS_FOUND, etc.):
 
 ```
-[Review] LOOP 2/3 -- fixing: function body > 5 lines in useNavigationHandler.ts
-[Review] RE-DISPATCHING -- code-reviewer + security-engineer after fix...
+[Review] RE-REVIEW 2/2 -- fixing: function body > 5 lines in useNavigationHandler.ts
+[Review] RE-DISPATCHING -- targeted re-review of raising reviewer(s) after fix...
 ```
 
 ### Milestone Reports
@@ -141,6 +141,16 @@ Pipeline Progress: 4/6 phases complete
 - Do not ask for confirmation before standard phase transitions
 - Do not output full test results -- just pass/fail counts
 
+## Async Review
+
+When the orchestrator has other work available (e.g., multiple stories in a pipeline):
+1. Spawn review agents in background (`run_in_background: true`)
+2. Continue with the user on other tasks or stories
+3. When review agents complete, resume the pipeline
+4. Review is max 2 total rounds (initial + 1 targeted re-review), not 3 full re-audits
+
+The orchestrator should NOT block waiting for review results when there is other work to do.
+
 ## Anti-Patterns (from real incidents)
 
 ### "I have a detailed plan, I'll just spawn agents directly"
@@ -153,9 +163,9 @@ Pipeline Progress: 4/6 phases complete
 **Fix:** Every phase applies to every work type. The scope of each phase scales down for small tasks, but no phase is skipped.
 
 ### "CHANGES_REQUESTED, fixed it, moving on"
-**What happens:** Reviewers return CHANGES_REQUESTED. The orchestrator spawns an engineer to fix, trusts the fix agent's self-report, and moves on without re-dispatching the reviewers. This means no independent verification that the fix is correct, no check for new issues introduced by the fix, and the gate was never formally closed.
-**Fix:** After fix, re-dispatch both reviewers via Parallel Dispatch Protocol. The loop is: dispatch -> verdict -> fix -> dispatch -> verdict. It only ends at APPROVE.
-**Incident:** This happened on 2026-03-17 and is the reason the review loop rule exists.
+**What happens:** Reviewers return CHANGES_REQUESTED. The orchestrator spawns an engineer to fix, trusts the fix agent's self-report, and moves on without re-dispatching the reviewers. This means no independent verification that the fix is correct and the gate was never formally closed.
+**Fix:** After fix, targeted re-review: re-dispatch only the reviewer(s) who raised findings. They check the addressed findings plus immediate surrounding context. Max 2 total rounds (initial + 1 re-review). Async when other work is available.
+**Incident:** This happened on 2026-03-17 and is the reason the review protocol exists.
 
 ### "I'll spawn the reviewer agent directly -- same thing as the skill"
 **What happens:** The orchestrator spawns a `code-reviewer` agent with a prompt describing what to review, bypassing `/code-review`. The review happens but without the skill's structured checklist, severity framework, and verdict format.

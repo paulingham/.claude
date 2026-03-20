@@ -95,8 +95,8 @@ All other phases (Build single slice, Test, Accept, Ship) use sequential Skill t
 
 #### Review CHANGES_REQUESTED
 1. Spawn engineer (worktree) with specific findings
-2. After fix: re-dispatch BOTH code-reviewer + security-engineer via Parallel Dispatch Protocol
-3. Maximum 3 iterations. If unresolved after 3 rounds, escalate to user
+2. After fix: targeted re-review by raising reviewer(s) only, not full re-dispatch of both
+3. Maximum 2 total rounds (initial + 1 re-review). If unresolved, escalate to user
 
 #### Verify UNVERIFIED
 1. Return to Build phase to fix failing tiers

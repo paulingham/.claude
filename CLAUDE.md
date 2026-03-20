@@ -53,6 +53,7 @@ The orchestrator MUST create an Agent Team for ALL implementation tasks. The use
 1. **Plan** → Architect designs slices. Gate: product-reviewer + engineer validate.
 2. **Build** → `/build-implementation` (incremental TDD). Gate: tests green, shape constraints met.
 3. **Review** → `/code-review` + `/security-review` (parallel dispatch). Gate: both APPROVE.
+   - Review is 1-2 rounds max (targeted re-review, not full re-audit). Async when possible.
 4. **Verify** → `/verify` (contract + smoke + mutation). Gate: VERIFIED.
 5. **Test** → `/qa-test-strategy`. Gate: all ACs covered, no gaps.
 6. **Accept** → `/product-acceptance`. Gate: APPROVED.

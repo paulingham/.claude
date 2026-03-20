@@ -72,6 +72,19 @@ Follow shape constraints and all standards in `rules/engineering-protocol.md`.
 - Index recommendations with rationale
 - Schema diagrams when designing new models
 
+## Self-Review Before Completion
+
+Before signaling build complete, review your own work:
+1. Run `tsc --noEmit` — zero errors
+2. Run full test suite — all green
+3. Re-read every file you created or modified — check:
+   - Names reveal intent (no abbreviations, no `temp`, no `data`)
+   - No duplication (same logic in 2+ places → extract)
+   - Functions have single responsibility
+   - No dead code, unused imports, commented-out blocks
+4. Fix any issues found — do not leave them for the reviewer
+5. The code-reviewer should find only design-level concerns, never mechanical issues
+
 ## Work-In-Progress Protocol
 
 When approaching your turn limit (within last 10 turns):
