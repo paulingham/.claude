@@ -13,6 +13,8 @@
 !hooks/**
 !agents/
 !agents/**
+!orchestrator/
+!orchestrator/**
 !statusline-command.sh
 !statusline-robbyrussell.sh
 !agent-memory/

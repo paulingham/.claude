@@ -2,7 +2,7 @@
 # Function Body Length Check — PostToolUse hook (runs alongside code-shape-check.sh)
 # Checks TypeScript/JavaScript files for function bodies exceeding 5 lines.
 # Uses a heuristic: counts lines between function opening { and closing }.
-# WARN mode (exit 1) — advisory, not blocking. Shape check blocks on file size.
+# BLOCK mode (exit 2) — blocks writes that create functions exceeding limit.
 
 FILE_PATH="${CLAUDE_FILE_PATH:-}"
 
@@ -65,8 +65,8 @@ if [[ -n "$VIOLATIONS" ]]; then
     echo "$VIOLATIONS" >&2
     echo "Consider extracting helper functions or decomposing." >&2
     echo "" >&2
-    # Exit 1 = warning (shown to user but does not block)
-    exit 1
+    # Exit 2 = HARD BLOCK (must fix before continuing)
+    exit 2
 fi
 
 exit 0

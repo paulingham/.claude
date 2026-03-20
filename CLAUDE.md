@@ -98,9 +98,15 @@ A story is DONE when ALL are true:
 
 All detailed protocols are in `rules/` (auto-loaded each session):
 
-- `rules/agent-protocol.md` — Orchestrator discipline, agent selection, worktree isolation
-- `rules/pipeline-protocol.md` — Pipeline phases, state tracking, review loops, continuity
+- `rules/agent-protocol.md` — Worktree isolation, commit protocol, orchestrator code ban
+- `rules/pipeline-protocol.md` — Pipeline phases, review loop, enforcement
 - `rules/engineering-protocol.md` — Code shape, TDD, testing standards, security baseline
-- `rules/operational-protocol.md` — Complexity Budget, escalation, error recovery
-- `rules/parallel-dispatch-protocol.md` — Parallel agent execution for review/build
+- `rules/operational-protocol.md` — Complexity Budget, error recovery principles
+- `rules/parallel-dispatch-protocol.md` — Parallel phase map, agent prompt template
 - `rules/e2e-protocol.md` — Maestro E2E trigger matrix and prerequisites
+
+### Orchestrator-Only Protocols (not auto-loaded, read when needed)
+- `orchestrator/pipeline-orchestration.md` — State tracking, continuity, progress reporting, anti-patterns
+- `orchestrator/agent-orchestration.md` — Agent selection, team management, orchestrator discipline
+- `orchestrator/operational-details.md` — Escalation procedures, error recovery details
+- `orchestrator/parallel-dispatch-details.md` — Dispatch procedure, review loop management, audit trail

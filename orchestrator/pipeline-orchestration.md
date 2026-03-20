@@ -1,0 +1,169 @@
+# Pipeline Orchestration (Orchestrator-Only)
+
+Extracted from `rules/pipeline-protocol.md`. Agents do not need this content.
+
+## Pipeline State Tracking
+
+Pipeline state is tracked using `memory/pipeline_[feature_name].md` files. Each pipeline run creates a memory file with phase status, verdicts, artifacts, and agent summaries.
+
+### Memory File Structure
+
+```markdown
+---
+name: Pipeline State - [feature name]
+description: In-progress pipeline for [feature], phase: [current], started [date]
+type: project
+---
+
+## Pipeline: [feature name]
+Started: [date]
+Classification: [feature/refactor/bug]
+Branch: [branch name]
+Scale: [micro/small/medium/large]
+
+## Phases
+- Build: [pending/in_progress/completed] -- [verdict if completed]
+- Review: [pending/in_progress/completed] -- [verdict if completed]
+- Verify: [pending/in_progress/completed] -- [verdict if completed]
+- Test: [pending/in_progress/completed] -- [verdict if completed]
+- Accept: [pending/in_progress/completed] -- [verdict if completed]
+- Ship: [pending/in_progress/completed] -- [verdict if completed]
+
+## Completed Phases
+- Build: BUILD_COMPLETE -- [files], [test count] tests
+- Review: APPROVE -- [summary of findings addressed]
+
+## Current Phase
+- Verify: IN_PROGRESS -- Tier 1 passed, Tier 2 pending
+
+## Outstanding
+- [Any findings to address]
+- [Any conditions from prior phases]
+
+## Key Files
+- [list of files changed in this pipeline]
+
+## Agent Summaries
+- [agent type]: [2-3 sentence summary]
+```
+
+### State Transitions
+
+- `pending` -> `in_progress`: Phase skill invoked or agents dispatched
+- `in_progress` -> `completed`: Phase verdict is success
+- `in_progress` -> stays `in_progress`: Recovery loop (CHANGES_REQUESTED, GAPS_FOUND, etc.)
+
+### Updating State
+
+After each phase completes, update the memory file with:
+- Phase status changed to `completed`
+- Verdict recorded
+- Artifacts listed (files changed/created)
+- Agent summary appended
+- Current phase pointer advanced
+
+## Conversation Continuity
+
+### During Conversation
+Pipeline state lives in memory files (`memory/pipeline_[feature].md`). Each phase update writes verdicts, artifacts, and agent summaries to the file.
+
+### Before Context Compression
+When context is approaching limits:
+1. Verify pipeline state is saved in the memory file: `memory/pipeline_[feature].md`
+2. Ensure it includes: current phase, all verdicts so far, outstanding findings, key file paths
+3. The memory file IS the state -- no separate backup needed
+
+### On New Conversation Start
+1. Check memory for `pipeline_*.md` files
+2. If found, offer to resume: "Pipeline in progress for [feature]. Phase: [current]. Resume?"
+3. If user confirms, read the memory file and continue from the current phase
+
+### Phase Handoff Documents
+
+At each phase transition, the completing skill produces a structured output (see Phase Output in each skill). This output contains:
+- **Verdict**: The gate result
+- **Next**: Which skill to invoke next
+- **Artifacts**: Files changed/created
+- **Agent summaries**: 2-3 sentence contribution from each agent
+
+This output is recorded in the pipeline memory file and is available to the next phase.
+
+## Progress Reporting
+
+### Phase Transition Reports
+
+At each pipeline phase transition, output a brief status line. Do not ask for input -- just inform.
+
+```
+[Phase] STATUS -- verdict, key metric
+```
+
+Examples:
+
+```
+[Build] COMPLETE -- BUILD_COMPLETE, 6 files created, 23 tests green
+[Review] PARALLEL DISPATCH -- code-reviewer + security-engineer spawned
+[Review] CHANGES_REQUESTED -- 3 findings (1 critical, 2 suggestions). Spawning fix...
+[Review] COMPLETE -- both APPROVE on second round
+[Verify] COMPLETE -- VERIFIED (Tier 1: PASS, Tier 2: PASS, Tier 3: N/A)
+[Test] COMPLETE -- COVERED (92% on critical paths, 0 gaps)
+[Accept] COMPLETE -- APPROVED
+[Ship] COMPLETE -- PR_CREATED: https://github.com/org/repo/pull/42
+```
+
+### Recovery Loop Reports
+
+When in a recovery loop (CHANGES_REQUESTED, GAPS_FOUND, etc.):
+
+```
+[Review] LOOP 2/3 -- fixing: function body > 5 lines in useNavigationHandler.ts
+[Review] RE-DISPATCHING -- code-reviewer + security-engineer after fix...
+```
+
+### Milestone Reports
+
+At natural milestones (after Build, after Review, after all phases):
+
+```
+Pipeline Progress: 4/6 phases complete
+  Build:  BUILD_COMPLETE (6 files, 23 tests)
+  Review: APPROVE (both reviewers)
+  Verify: VERIFIED (3/3 tiers)
+  Test:   COVERED (92%)
+  Accept: [pending]
+  Ship:   [pending]
+```
+
+### When NOT to Report
+
+- Do not report on individual file reads/writes
+- Do not report on internal agent decisions
+- Do not ask for confirmation before standard phase transitions
+- Do not output full test results -- just pass/fail counts
+
+## Anti-Patterns (from real incidents)
+
+### "I have a detailed plan, I'll just spawn agents directly"
+**What happens:** The orchestrator has a plan with specific agent instructions, so it spawns frontend-engineer agents with detailed prompts, bypassing `/build-implementation` or `/refactor`. The code works, tests pass, but: no characterization tests were written (refactor safety), no RED-GREEN-REFACTOR audit trail (TDD), no structured verification, no formal gate closure.
+**Fix:** Invoke the skill. The skill structures the work. The plan informs the skill, it does not replace it.
+
+### "It's just a refactor, Verify/Test/Accept don't apply"
+**What happens:** The orchestrator decides that a "pure structural refactor" doesn't need `/verify` (no new boundaries to contract-test), `/qa-test-strategy` (existing tests pass), or `/product-acceptance` (no user-facing change). Three phases get skipped.
+**Why it's wrong:** `/verify` would catch that new extraction boundaries (hooks, helpers) have no dedicated tests -- mutation testing would reveal untested code. `/qa-test-strategy` would flag coverage gaps. `/product-acceptance` would verify the refactor didn't change behavior.
+**Fix:** Every phase applies to every work type. The scope of each phase scales down for small tasks, but no phase is skipped.
+
+### "CHANGES_REQUESTED, fixed it, moving on"
+**What happens:** Reviewers return CHANGES_REQUESTED. The orchestrator spawns an engineer to fix, trusts the fix agent's self-report, and moves on without re-dispatching the reviewers. This means no independent verification that the fix is correct, no check for new issues introduced by the fix, and the gate was never formally closed.
+**Fix:** After fix, re-dispatch both reviewers via Parallel Dispatch Protocol. The loop is: dispatch -> verdict -> fix -> dispatch -> verdict. It only ends at APPROVE.
+**Incident:** This happened on 2026-03-17 and is the reason the review loop rule exists.
+
+### "I'll spawn the reviewer agent directly -- same thing as the skill"
+**What happens:** The orchestrator spawns a `code-reviewer` agent with a prompt describing what to review, bypassing `/code-review`. The review happens but without the skill's structured checklist, severity framework, and verdict format.
+**Why it's wrong:** Skills embed protocols. The `/code-review` skill has a specific checklist (shape, DRY, SRP, test quality, error handling). Direct agent spawning lets the orchestrator define the review scope, which may omit checks.
+**Fix:** Use Parallel Dispatch Protocol. Agents read and execute the skill file themselves. The prompt must include the skill file path (`~/.claude/skills/code-review/SKILL.md`), not a paraphrased version of the checklist.
+
+### Continuity Anti-Patterns
+
+- **Never start a new pipeline without checking for in-progress ones.** One pipeline at a time per branch.
+- **Never discard pipeline state.** If the user wants to abandon, explicitly delete the memory file.
+- **Never assume prior context.** Always read state from the memory file, not from "I remember from last time."

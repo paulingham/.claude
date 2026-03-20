@@ -25,10 +25,11 @@ Changed files are checked against this matrix to determine if E2E flows are requ
 | Downloads/Cookies | `file-download.ts`, `cookie-manager.ts` |
 | Injection (behavioral) | `viewport-meta.ts`, `session-check.ts` |
 | Constants (domain) | `constants.ts` (only when `WEBVIEW_ORIGIN_WHITELIST` or domain URLs change) |
+| CSS Injection (layout) | `css-forms-buttons.ts`, `css-containers.ts`, `css-base-layout.ts`, `css-media-elements.ts`, `css-document-viewer.ts`, `css-assembly.ts` |
 
 ### E2E Not Required (NO)
 
-- CSS injection files (`css-base-layout.ts`, `css-containers.ts`, `css-forms-buttons.ts`, `css-typography-tables.ts`, `css-cookie-banner.ts`, `css-assembly.ts`, `css-injection.ts`) -- unless they modify viewport or session behavior
+- CSS injection files that are purely cosmetic (`css-typography-tables.ts`, `css-cookie-banner.ts`, `css-navigation-hide.ts`) -- unless they modify layout or element visibility
 - Visual-only components (e.g., `LoadingOverlay.tsx`, `BiometricOverlay.tsx`) -- unless they gate user access
 - Test files (`__tests__/**`)
 - Maestro flow files (`maestro/**`)
@@ -44,6 +45,8 @@ Which Maestro flows to run based on which files changed.
 | `adviser-login-flow.yaml` | URL/Navigation files, Auth/Session files, WebView Core files, Constants (domain), Injection (behavioral) |
 | `client-login-flow.yaml` | URL/Navigation files, Auth/Session files, WebView Core files, Constants (domain), Injection (behavioral) |
 | `offline-banner.yaml` | `NetworkBanner.tsx`, `useNetworkStatus.ts` |
+| `documents-page.yaml` | CSS Injection (layout) files, WebView Core files |
+| `document-viewer.yaml` | CSS Injection (layout) files, Downloads/Cookies files |
 
 When in doubt, run the full suite (`maestro test maestro/`). Targeted runs are an optimization, not a requirement.
 

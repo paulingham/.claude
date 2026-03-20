@@ -3,7 +3,7 @@ name: architect
 description: System architect for API design, data modeling, ADRs, dependency mapping, and vertical slice decomposition. Use when planning features, designing systems, or making technology decisions.
 tools: Read, Grep, Glob, Bash
 model: opus
-maxTurns: 25
+maxTurns: 40
 disallowedTools:
   - Agent
   - Skill
@@ -58,16 +58,3 @@ Detect language from codebase context. Apply language-appropriate conventions:
 - **Ruby**: Rails conventions, snake_case, ActiveRecord patterns
 - **JavaScript/TypeScript**: Node patterns, camelCase, Prisma/TypeORM
 - **Python**: PEP 8, snake_case, SQLAlchemy/Django ORM
-
-## Collaboration
-
-- **Reviewed by**: product-reviewer (scope validation) + software-engineer (feasibility)
-- **Reviews**: nothing — architect is the first phase
-- **Escalate**: when requirements are ambiguous — push back to user or product-reviewer
-- **Challenge**: reject scope creep, over-engineering, and stories with budget 13-15 (must decompose)
-
-## Receives / Produces
-
-- **Receives**: Epic/feature request, user requirements
-- **Produces**: Design doc, API contracts, data models, slice definitions
-- **Handoff to**: software-engineer, frontend-engineer, database-engineer, infrastructure-engineer
