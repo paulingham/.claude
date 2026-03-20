@@ -32,25 +32,40 @@ Before advancing to any phase, verify the previous gate passed AND invoke the re
 - **Accept**: `/product-acceptance` -- APPROVED required
 - **Ship**: `/pr-creation` -- PR with narrative, quality gate passes
 
-## Review Loop
+## Review Protocol
 
-The review phase is a loop, not a one-shot:
+### First Review
+Dispatch code-reviewer + security-engineer in parallel (per parallel dispatch protocol).
 
-```
-Parallel Dispatch (code-reviewer + security-engineer, each reading their skill file)
-  -> Both APPROVE? -> proceed to Verify
-  -> CHANGES_REQUESTED? -> spawn engineer to fix -> RE-DISPATCH BOTH reviewers -> repeat
-  -> Max 3 iterations -> escalate to user
-```
+### After CHANGES_REQUESTED
+- Spawn engineer to fix the specific findings
+- **Targeted re-review**: Only the reviewer who raised the finding re-reviews
+  - If code-reviewer raised findings and security-engineer APPROVED: only re-dispatch code-reviewer
+  - If both raised findings: re-dispatch both, but each only re-reviews their own findings
+- The re-reviewer checks ONLY the addressed findings plus immediate surrounding context
+- They do NOT re-review the entire codebase (tests prove no regressions)
+- Max 2 total rounds (initial + 1 re-review). If still not resolved, escalate to user.
 
-### Review Loop Rules
+### Why Single Re-Review
+The build agent self-reviews before completion. Hooks enforce shape compliance. Tests prove correctness. A fix to a specific finding should not require a full re-audit — that is the assembly-line anti-pattern.
 
-1. **Never trust a fix agent's self-report.** Re-dispatch reviewers independently after every fix.
+### Review Rules
+
+1. **Never trust a fix agent's self-report.** Re-dispatch the raising reviewer independently after fix.
 2. **Re-dispatch via Parallel Dispatch Protocol.** Each agent reads its own skill file. Do not paraphrase.
-3. **Re-review the full scope**, not just the fix. The fix may have introduced new issues.
-4. **Disputed findings require resolution, not dismissal.** The orchestrator cannot unilaterally dismiss.
-5. **Track the loop.** Record verdicts, findings, fix plans, and re-review results.
-6. **Maximum 3 iterations.** Escalate to user if not resolved.
+3. **Disputed findings require resolution, not dismissal.** The orchestrator cannot unilaterally dismiss.
+4. **Track the loop.** Record verdicts, findings, fix plans, and re-review results.
+5. **Maximum 2 total rounds.** Escalate to user if not resolved after 1 re-review.
+
+## Async Review (Orchestrator Pattern)
+
+When the orchestrator has other work available:
+1. Spawn review agents in background (`run_in_background: true`)
+2. Continue with the user on other tasks or stories
+3. When review agents complete, resume the pipeline
+4. This matches how real teams work: developer pushes PR, starts next story, reviewer reviews async
+
+The orchestrator should NOT block waiting for review results when there is other work to do.
 
 ## Enforcement
 

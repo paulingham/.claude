@@ -37,3 +37,11 @@ Agents working in worktrees MUST commit their work before completing:
 3. If work is incomplete (approaching turn limit): commit with `WIP:` prefix
 4. The orchestrator merges worktree branches via `git merge` or `git cherry-pick`
 5. Never leave uncommitted changes in a worktree -- uncommitted work cannot be merged reliably
+
+## Continuation From WIP
+
+When an agent's prior attempt was committed as WIP, the orchestrator includes in the continuation prompt:
+- The WIP commit message (lists completed and remaining work)
+- `git log --oneline -3` output (to orient the agent)
+- Do NOT re-explain the full feature spec — the agent reads existing code and tests
+- The continuation agent runs tests first to confirm the WIP state is green

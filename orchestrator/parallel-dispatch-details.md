@@ -64,20 +64,20 @@ Agent({
 
 ## Review Loop Integration
 
-The review loop follows the same dispatch pattern:
+The review follows targeted re-review, not full re-dispatch:
 
 ```
 Parallel Dispatch (code-reviewer + security-engineer)
   -> Both APPROVE? -> proceed to Verify
-  -> CHANGES_REQUESTED? -> spawn engineer to fix -> re-dispatch BOTH reviewers -> repeat
+  -> CHANGES_REQUESTED? -> spawn engineer to fix -> targeted re-review by raising reviewer(s) only
 ```
 
-Maximum 3 review loop iterations. If both reviewers have not returned APPROVE after 3 rounds, escalate to user:
+Maximum 2 total rounds (initial + 1 re-review). If not resolved, escalate to user:
 
 ```
-[ESCALATION] Review loop exceeded 3 iterations
+[ESCALATION] Review not resolved after 2 rounds
 
-Context: [findings still unresolved after 3 fix attempts]
+Context: [findings still unresolved after targeted re-review]
 Options:
 1. Continue with known findings documented
 2. Reassign to different engineer
@@ -86,6 +86,8 @@ Options:
 Recommendation: [based on finding severity]
 ```
 
+When other work is available, spawn review agents async (`run_in_background: true`) and continue with the user on other tasks.
+
 ## Audit Trail
 
 For each parallel dispatch, the orchestrator records:
@@ -93,7 +95,7 @@ For each parallel dispatch, the orchestrator records:
 ```
 [Review] PARALLEL DISPATCH -- code-reviewer + security-engineer spawned
 [Review] VERDICTS -- code-reviewer: APPROVE, security-engineer: CHANGES_REQUESTED (1 HIGH)
-[Review] LOOP 2/3 -- fixing: [finding description]. Re-dispatching...
-[Review] VERDICTS -- code-reviewer: APPROVE, security-engineer: APPROVE
-[Review] COMPLETE -- both APPROVE on round 2
+[Review] RE-REVIEW 2/2 -- fixing: [finding description]. Re-dispatching security-engineer...
+[Review] VERDICT -- security-engineer: APPROVE
+[Review] COMPLETE -- both APPROVE after targeted re-review
 ```

@@ -17,6 +17,19 @@ Automates the Review phase code audit. Spawns a read-only code-reviewer agent to
 - Changed files: !`git diff main...HEAD --name-only 2>/dev/null || echo 'N/A'`
 - Diff stats: !`git diff main...HEAD --stat 2>/dev/null || echo 'N/A'`
 
+## Review Focus
+
+The build agent has already passed: shape hooks (blocking), TypeScript strict, full test suite, and self-review. Do not re-verify these.
+
+Focus on what requires judgment:
+- Design decisions and abstractions
+- Naming clarity and intent
+- DRY/SOLID at the design level (not line counting)
+- Edge cases and untested scenarios
+- Integration with the broader codebase
+
+If shape violations reach you, flag it as a process issue ("build hooks should have caught this") rather than a code finding.
+
 ## When to Invoke
 
 - After Build phase completes (tests green, shape constraints met)
@@ -55,6 +68,8 @@ No `isolation: "worktree"` — code-reviewer is read-only.
 - **CHANGES_REQUESTED**: Spawn the original engineer (with worktree) to address findings. Then re-run this skill.
 
 ## Review Checklist
+
+Shape measurements are enforced by build hooks. Include measurements in your report for the audit trail, but do not flag passing measurements as findings. Only flag if a measurement EXCEEDS limits despite hooks — this indicates a hook bypass, and the finding severity is "process" (fix the hooks, not the code).
 
 - [ ] Shape constraints met (see `rules/engineering-protocol.md`)
 - [ ] No DRY violations (duplicated logic)

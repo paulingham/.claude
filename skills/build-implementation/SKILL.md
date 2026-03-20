@@ -81,6 +81,33 @@ Agent({
 - OR: refactoring target identified (use `/refactor` instead)
 - OR: bug reproduction steps known (use `/bug-fix` instead)
 
+## Self-Review Gate (Mandatory Before Completion)
+
+Before producing the Phase Output, the build agent MUST self-review:
+
+1. **Type safety**: Run `tsc --noEmit` — zero errors
+2. **Tests green**: Run full test suite — all passing
+3. **Re-read all changed files** and check:
+   - Function names reveal intent
+   - No duplication across files (extract on 2nd occurrence)
+   - Single responsibility per function/file
+   - No unused imports, dead code, or commented-out blocks
+   - Guard clauses over nested conditionals
+4. **Fix everything found** — do not leave mechanical issues for the reviewer
+5. **Shape compliance**: Hooks enforce this automatically. If a hook blocks your write, fix immediately.
+
+The goal: the code-reviewer should find ZERO mechanical issues. Only design-level feedback should survive to review.
+
+## Built-In Verification (Budget 5-8)
+
+For small tasks (Complexity Budget 5-8), the build agent performs its own verification before completing:
+
+1. **Contract tests**: Verify all new functions have tests that assert their contracts (inputs → outputs)
+2. **Mutation spot-check**: For each function with conditional logic, mentally check: "If I swapped the branches, would a test catch it?" If not, add the test.
+3. **Integration check**: If the change wires into an existing component, verify the integration test covers it.
+
+This reduces the need for separate Verify and QA phases on small tasks. For Budget 9+ tasks, separate Verify and QA phases still apply.
+
 ## Verdict
 
 After the self-review checklist passes, produce:
