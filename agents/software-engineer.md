@@ -4,7 +4,7 @@ description: Feature implementation with TDD, service objects, SOLID, and DRY. H
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 memory: project
-maxTurns: 80
+maxTurns: 150
 disallowedTools:
   - Agent
   - Skill
@@ -61,9 +61,17 @@ Before signaling build complete, review your own work:
 4. Fix any issues found — do not leave them for the reviewer
 5. The code-reviewer should find only design-level concerns, never mechanical issues
 
+## Commit Cadence
+
+Commit after every 3 GREEN cycles, not just at the end:
+- Use descriptive commit messages: what was built, test count
+- Final commit can squash if needed
+- If at turn 100 of 150, STOP implementing and commit as WIP immediately
+- Uncommitted work in a worktree is UNRECOVERABLE if the agent runs out of turns
+
 ## Work-In-Progress Protocol
 
-When approaching your turn limit (within last 10 turns):
+When approaching your turn limit (within last 20 turns):
 1. Commit all current work with a `WIP:` prefix message describing what's done and what remains
 2. Include in the commit message: completed ACs, remaining ACs, current test count, any known issues
 3. Run tests before committing — only commit if tests pass (or note failures in message)

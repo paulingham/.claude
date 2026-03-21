@@ -43,6 +43,16 @@ Consolidates: engineering standards, testing standards, security baseline, incre
 - Retry transient failures with exponential backoff
 - Guard clauses on public methods
 
+## Dependency Resolution
+
+When importing a new package:
+1. Verify the compiler/type-checker resolves it (`tsc`, `mypy`, `rubocop`, etc.)
+2. Verify the test runner resolves it (may need a mock or explicit install)
+3. If the module is transitively available (bundled inside a parent package),
+   install it explicitly as a direct dependency — transitive resolution is fragile
+4. If the test runner can't load the real module (native dependencies, font loading, etc.),
+   add a project-level mock (`__mocks__/`, `conftest.py`, `spec/support/`, etc.)
+
 ## Self-Sufficiency
 
 - Validate your own work before marking done

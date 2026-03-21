@@ -16,16 +16,16 @@ The orchestrator (Claude) coordinates agents. It does NOT write, edit, or create
 - Communicate with the user
 
 ### Config File Exception
-- The orchestrator MAY edit `.md` files in `.claude/`, `memory/`, and `rules/` directories
+- The orchestrator MAY edit `.md` files ONLY in `.claude/`, `memory/`, and `rules/` directories for documentation and state tracking
 - These are configuration and documentation files, not source code
 - TDD does not apply to markdown documentation
-- This exception does NOT extend to `.json`, `.yaml`, `.sh`, or any other non-markdown format -- delegate those via `/harness-config`
+- This exception does NOT extend to `.json`, `.yaml`, `.sh`, or any executable/config format — delegate those via `/harness-config` skill to infrastructure-engineer
 - **Explicitly NOT covered**: `settings.json`, `hooks/*.sh`, `*.yaml`, `*.yml` -- use `/harness-config` skill which delegates to infrastructure-engineer
 
 ### Enforcement Note
 - The `orchestrator-discipline.sh` PreToolUse hook blocks Write/Edit on non-`.md` source files (exit 2)
 - The PostToolUse `code-shape-check.sh` hook blocks files exceeding 50 lines (exit 2)
-- The PostToolUse `function-body-check.sh` hook warns on functions exceeding 5 lines (exit 1)
+- The PostToolUse `function-body-check.sh` hook warns on functions exceeding 5 lines (exit 0, advisory only)
 - All hooks are registered in settings.json and actively enforced
 
 ### Orchestrator CANNOT do:
