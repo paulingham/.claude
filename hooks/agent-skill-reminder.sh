@@ -63,6 +63,23 @@ if [[ -z "$AGENT_TYPE" || "$AGENT_TYPE" == "Explore" || "$AGENT_TYPE" == "genera
     exit 2
 fi
 
+# HARD BLOCK: Reviewers MUST receive pre-computed diff
+REVIEWER_TYPES="code-reviewer security-engineer"
+IS_REVIEWER=false
+for r_type in $REVIEWER_TYPES; do
+    if [[ "$AGENT_TYPE" == "$r_type" ]]; then
+        IS_REVIEWER=true
+        break
+    fi
+done
+
+if [[ "$IS_REVIEWER" == true ]]; then
+    if ! echo "$PROMPT_LOWER" | grep -qi "full diff\|changed file\|git diff"; then
+        echo "BLOCKED: Reviewer agent '$AGENT_TYPE' MUST receive pre-computed diff and changed file contents in the prompt. See rules/parallel-dispatch-protocol.md:19." >&2
+        exit 2
+    fi
+fi
+
 # Suppress advisory for Parallel Dispatch Protocol
 if echo "$PROMPT_LOWER" | grep -qi "skill.md"; then
     exit 0

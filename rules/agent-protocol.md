@@ -6,7 +6,7 @@ Detailed orchestrator procedures: see `~/.claude/orchestrator/agent-orchestratio
 
 The orchestrator coordinates agents. It does NOT write, edit, or create source files directly. This is why you (as an agent) are being spawned -- all implementation, fixes, and config changes go through agents.
 
-**Config exception**: The orchestrator MAY edit `.md` files in `.claude/`, `memory/`, and `rules/` directories. This does NOT extend to `.json`, `.yaml`, `.sh`, or any other non-markdown format.
+**Config exception**: The orchestrator MAY edit `.md` files ONLY in `.claude/`, `memory/`, and `rules/` directories for documentation and state tracking. This does NOT extend to `.json`, `.yaml`, `.sh`, or any executable/config format — delegate those via `/harness-config` skill to infrastructure-engineer.
 
 ## Worktree Isolation
 
@@ -45,3 +45,38 @@ When an agent's prior attempt was committed as WIP, the orchestrator includes in
 - `git log --oneline -3` output (to orient the agent)
 - Do NOT re-explain the full feature spec — the agent reads existing code and tests
 - The continuation agent runs tests first to confirm the WIP state is green
+
+## Worktree Lifecycle
+
+After merging a worktree branch:
+1. Remove the worktree: `git worktree remove .claude/worktrees/agent-XXXX --force`
+2. Delete the branch: `git branch -d worktree-agent-XXXX`
+3. Verify with `git worktree list` — only the main worktree should remain
+
+Never leave stale worktrees — they consume disk space and confuse test runners.
+
+## Shell Environment
+
+Agent shells may not inherit the user's version manager (nvm, rbenv, pyenv, rustup, etc.).
+
+Before running build/test commands, agents MUST:
+1. Check if the command exists: `which npm` / `which bundle` / `which python` (or equivalent)
+2. If not found, source the user's shell profile: `source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null`
+3. If still not found, report the error — do not retry blindly
+
+The project CLAUDE.md's Commands section is the source of truth for how to run tests.
+If commands fail with "command not found", check the project CLAUDE.md first.
+
+## Test Runner Isolation
+
+Worktrees are created inside `.claude/worktrees/` within the project directory.
+Test runners that use directory discovery (Jest, pytest, rspec, go test) WILL find
+test files in worktrees, causing duplicate runs and false failures.
+
+After the FIRST worktree creation in any project, verify the test runner's config
+excludes `.claude/worktrees/`. Add exclusion if missing:
+- **Jest**: `testPathIgnorePatterns: ["/.claude/worktrees/"]` in jest.config
+- **pytest**: `testpaths = ["tests"]` in pyproject.toml (explicit paths, not discovery)
+- **rspec**: `--exclude-pattern '.claude/**'` in .rspec
+- **Go**: Module-scoped by default (no issue unless using recursive `./...`)
+- **Other**: Add equivalent exclusion for the project's test runner

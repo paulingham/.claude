@@ -31,3 +31,25 @@ Score each dimension 1-3:
 - **Never resolve merge conflicts manually in the orchestrator.** Delegate to an agent.
 - **Worktree corruption**: Force-remove, delete branch, re-spawn agent with fresh worktree.
 - **Build tool failures**: Check `node_modules`, TypeScript config, Jest config before retrying agent.
+
+## Escalation Decision Tree
+
+| Situation | Action |
+|-----------|--------|
+| Command fails with "not found" | Source shell profile, retry once |
+| Test fails after merge | Identify which worktree introduced failure, revert merge, re-spawn |
+| Agent fails twice on same task | Escalate to user with context |
+| Merge conflict | Delegate to agent — orchestrator NEVER resolves manually |
+| Worktree corrupted | Force-remove worktree, delete branch, re-spawn fresh |
+| Review not resolved after 2 rounds | Escalate to user with options |
+| Context window approaching limit | Compress, use pipeline memory for continuity |
+
+## Complexity Budget Example
+
+Scoring a "biometric settings screen" feature:
+- **Scope**: 4-10 files (toggle component, hook, settings route, nav bar update) → 2
+- **Ambiguity**: ACs are clear (toggle on/off, disabled state) → 1
+- **Context Pressure**: Cross-module (components + hooks + routing) → 2
+- **Novelty**: No settings screen exists yet, but patterns available → 2
+- **Coordination**: UI + storage + navigation → 2
+- **Total**: 9 → Compound task, plan first → 8 Fibonacci points

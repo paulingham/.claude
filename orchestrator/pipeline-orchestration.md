@@ -141,6 +141,18 @@ Pipeline Progress: 4/6 phases complete
 - Do not ask for confirmation before standard phase transitions
 - Do not output full test results -- just pass/fail counts
 
+## Review Findings Log
+
+After each review round, record findings for attribution and re-review tracking:
+
+| ID | Reviewer | Severity | File:Line | Description | Status |
+|----|----------|----------|-----------|-------------|--------|
+| F1 | code-reviewer | critical | helpers.ts:43 | Missing try/catch | FIXED (commit abc) |
+| F2 | security-engineer | medium | state.ts:22 | Initial state race | DEFERRED |
+
+On re-review, dispatch ONLY the reviewer who raised unresolved findings.
+Each reviewer re-reviews ONLY their own findings, not the full diff.
+
 ## Async Review
 
 When the orchestrator has other work available (e.g., multiple stories in a pipeline):

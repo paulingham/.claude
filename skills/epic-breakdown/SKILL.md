@@ -24,11 +24,67 @@ Decomposes an epic or feature request into deployable vertical slices — each w
 - What are the happy path and error scenarios per persona?
 
 ### 3. Slice into Stories
-Apply elephant carpaccio — the thinnest possible slices:
-- Each story delivers end-to-end functionality (DB + API + UI + tests)
-- Each story is independently deployable and testable
-- Each story delivers observable user value
-- If a story has a budget of 13-15, it MUST be decomposed further
+
+#### Elephant Carpaccio Decomposition Procedure
+
+The goal is the THINNEST possible vertical slices — each deployable, each delivering
+observable user value. Most developers slice 3-5 times; aim for 10-20 slices.
+
+**Step 1: List the Cutting Dimensions**
+Every feature can be cut along these universal axes:
+- **Data scope**: All fields → subset of fields → single field → hardcoded
+- **User type**: All personas → single persona → single permission level
+- **Workflow step**: Full flow → single step → happy path only → read-only
+- **Error handling**: All errors → no error handling (happy path ships first)
+- **Volume**: Batch/collection → single item
+- **Fidelity**: Full production quality → minimal viable UI → CLI/stub output
+- **Integration**: Real dependency → fake/stub → in-memory
+- **Input source**: All inputs → single input type → hardcoded input
+- **Output target**: All consumers → single consumer → log output
+
+Not all dimensions apply to every feature. Pick the 3-4 that create
+the most meaningful cuts for THIS feature.
+
+**Step 2: Apply Cuts Recursively**
+1. Take the full feature
+2. Pick the dimension that removes the most scope while keeping user value
+3. Cut — you now have two halves. Take the smaller half.
+4. Can it be cut again on a DIFFERENT dimension? Cut again.
+5. Stop when the slice is ≤ 5 Complexity Budget points
+6. Each slice MUST still be end-to-end (input → logic → output → test)
+7. If a slice has no observable user value, it's a horizontal slice — merge it back
+
+**Step 3: Validate Independence for Parallel Dispatch**
+For each slice, list the files it will create or modify:
+- **Zero file overlap** with other slices → INDEPENDENT (parallel worktree)
+- **Any shared file** → SEQUENTIAL (must wait for predecessor)
+
+Group independent slices into parallel batches. This directly feeds
+the Parallel Dispatch Protocol for build phase execution.
+The thinner the slice, the more likely it's independent.
+
+**Step 4: Order by Dependency + Value**
+- Foundation slices first (types, storage, core abstractions)
+- High-value slices next (core happy path for primary persona)
+- Edge cases, error handling, and secondary personas last
+- Within each tier, highest business value first
+
+**The Test: Is This Slice Thin Enough?**
+- Can you describe what the user observes in ONE sentence?
+- Can you build it with ≤ 5 files changed?
+- Can you demo it to a stakeholder and they say "yes, that works"?
+- If no to any: cut thinner.
+
+**Anti-Pattern: Horizontal Slicing**
+NEVER slice by architectural layer:
+- "Story 1: Build all data models"
+- "Story 2: Build all business logic"
+- "Story 3: Build all UI"
+
+ALWAYS slice by user-observable behaviour:
+- "Story 1: User can see X (read path, end-to-end)"
+- "Story 2: User can change X (write path, end-to-end)"
+- "Story 3: System handles X failure (error path, end-to-end)"
 
 ### 4. Write Acceptance Criteria
 For each story:

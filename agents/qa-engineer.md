@@ -3,7 +3,7 @@ name: qa-engineer
 description: Test strategy design, gap analysis, integration/E2E test authoring, edge case coverage, and regression suites. Use for test planning and writing tests beyond unit level.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
-maxTurns: 60
+maxTurns: 100
 disallowedTools:
   - Agent
   - Skill
@@ -45,6 +45,9 @@ Follow shape constraints in `rules/engineering-protocol.md`. Test-specific relax
 - Keep E2E tests independent — no shared state between tests
 - Use page objects or screen objects for maintainability
 - Screenshot and trace capture for debugging failures
+
+For mobile E2E testing, read `rules/e2e-protocol.md` for the Maestro trigger matrix,
+prerequisite setup (simulator, env vars), and which flows to run based on changed files.
 
 ### Edge Cases
 - Boundary values (0, 1, max, max+1)
@@ -88,9 +91,17 @@ Before signaling build complete, review your own work:
 4. Fix any issues found — do not leave them for the reviewer
 5. The code-reviewer should find only design-level concerns, never mechanical issues
 
+## Commit Cadence
+
+Commit after every 3 GREEN cycles, not just at the end:
+- Use descriptive commit messages: what was built, test count
+- Final commit can squash if needed
+- If at turn 100 of 150, STOP implementing and commit as WIP immediately
+- Uncommitted work in a worktree is UNRECOVERABLE if the agent runs out of turns
+
 ## Work-In-Progress Protocol
 
-When approaching your turn limit (within last 10 turns):
+When approaching your turn limit (within last 20 turns):
 1. Commit all current work with a `WIP:` prefix message describing what's done and what remains
 2. Include in the commit message: completed ACs, remaining ACs, current test count, any known issues
 3. Run tests before committing — only commit if tests pass (or note failures in message)
