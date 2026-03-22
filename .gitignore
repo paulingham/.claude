@@ -11,6 +11,8 @@
 !skills/**
 !hooks/
 !hooks/**
+!hooks/tests/
+!hooks/tests/**
 !agents/
 !agents/**
 !orchestrator/

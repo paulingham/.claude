@@ -8,6 +8,10 @@ set -euo pipefail
 # jq needed only for stdin JSON fallback
 command -v jq >/dev/null 2>&1 || exit 0
 
+# Hook profile and loop guard
+source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+source ~/.claude/hooks/loop-guard.sh && check_loop_guard "tdd-guard" || exit 0
+
 # Extract file path — use env var (consistent with other Write/Edit hooks), fall back to stdin JSON
 FILE_PATH="${CLAUDE_FILE_PATH:-}"
 if [ -z "$FILE_PATH" ]; then

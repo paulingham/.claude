@@ -8,6 +8,9 @@
 #
 # Always exits 0 (advisory only, never blocking).
 
+# Hook profile
+source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+
 # Read JSON from stdin
 INPUT=$(cat)
 
