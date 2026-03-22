@@ -78,10 +78,21 @@ Before the Build phase, check whether the task requires infrastructure or API sc
 | Schema change, new table, add column | `/db-migration` | Migration files, index strategy |
 | No Dockerfile, no CI/CD, new project | `/infra-scaffold` | Dockerfile, docker-compose, CI/CD pipeline, health endpoints |
 | No logging/monitoring configured | `/observability-setup` | Logger config, metrics, tracing, alerting |
+| Voice skill/IVR needed | `/voice-scaffold` | Intent model, handler stubs, SSML templates |
+| New channel for existing product | `/bff-scaffold` | Channel-specific BFF layer, transformers, gateway route |
+| New microservice extraction | `/microservices-scaffold` | Service template, gateway config, tracing |
 
 Scaffolding is NOT a gate — it produces files and structure that the Build phase then fills with business logic via TDD. Invoke scaffolding skills via the Skill tool (they delegate to the appropriate agent in a worktree).
 
 If the task is a simple feature addition to an existing codebase with established patterns, skip scaffolding entirely.
+
+### Step 2c: Cross-Service Checks (Conditional)
+
+If the project CLAUDE.md contains a `## Service Context` section with upstream/downstream services:
+
+1. Read the service context to identify affected contracts
+2. If the current change modifies a contract file (OpenAPI spec, Protobuf, event schema): invoke `/cross-service-pipeline` BEFORE the Build phase to verify compatibility and generate a deployment plan
+3. After Ship phase, if cross-service deployment is needed: output the deployment plan with service order and flag any manual coordination required
 
 ### Step 3: Execute Phases in Order
 

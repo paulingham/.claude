@@ -82,6 +82,10 @@ Before starting implementation, read these pattern files for domain-specific gui
 - `~/.claude/knowledge/caching-patterns.md` — cache-aside, invalidation, stampede prevention
 - `~/.claude/knowledge/horizontal-scaling-patterns.md` — read replicas, connection pooling, CDN
 - `~/.claude/knowledge/state-machine-patterns.md` — FSM design, transitions, guards, audit trail
+- `~/.claude/knowledge/voice-patterns.md` — conversational design, intent modeling, SSML, VUI
+- `~/.claude/knowledge/device-iot-patterns.md` — MQTT, device shadow, OTA, constrained devices
+- `~/.claude/knowledge/omnichannel-patterns.md` — cross-channel identity, BFF, session continuity
+- `~/.claude/knowledge/multi-repo-patterns.md` — contract management, cross-repo testing, versioning
 - `~/.claude/knowledge/i18n-patterns.md` — localization, pluralization, RTL
 
 Read only the files relevant to your current task — not all of them.
