@@ -93,6 +93,9 @@ No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 | `/deployment-verification` | Post-deploy health checks, smoke tests, auto-rollback | DEPLOYMENT_VERIFIED |
 | `/load-test` | Performance testing: load, stress, baselines, SLA verification | PERFORMANCE_VERIFIED |
 | `/microservices-scaffold` | Service template, API gateway, service discovery, tracing | SERVICE_SCAFFOLDED |
+| `/voice-scaffold` | Scaffold voice skill/action (Alexa, Google, Twilio IVR) | VOICE_SCAFFOLDED |
+| `/bff-scaffold` | Backend for Frontend per channel (web, mobile, voice, device) | BFF_SCAFFOLDED |
+| `/cross-service-pipeline` | Cross-repo contract verification, deploy coordination | CROSS_SERVICE_VERIFIED |
 
 ### Definition of Done
 

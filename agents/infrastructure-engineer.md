@@ -91,6 +91,8 @@ Before signaling build complete, review your own work:
 
 - `~/.claude/knowledge/env-management-patterns.md` — .env hierarchy, secret management, vault integration
 - `~/.claude/knowledge/backup-dr-patterns.md` — backup strategies, disaster recovery, RTO/RPO
+- `~/.claude/knowledge/service-mesh-patterns.md` — API gateway, service mesh, mTLS, traffic routing
+- `~/.claude/knowledge/multi-repo-patterns.md` — cross-repo CI/CD, deployment coordination
 
 ## Commit Cadence
 

@@ -36,6 +36,37 @@ Find test, build, lint, and dev server commands from:
 - Database and ORM patterns
 - External service integrations
 
+### 3b. Classify Service Architecture
+
+Determine the project's role in a larger architecture:
+
+| Signal | Classification |
+|--------|---------------|
+| No references to other services, self-contained | **Standalone App** |
+| `docker-compose.yml` references other service containers | **Service in Multi-Service** |
+| Published as npm/gem/pip package, consumed by others | **Shared Library** |
+| Gateway/proxy config (Kong, Traefik, nginx config) | **API Gateway** |
+| BFF naming, channel-specific routes | **Backend for Frontend** |
+| Alexa skill.json, Google actions.yaml, Twilio config | **Voice Skill** |
+| MQTT, device shadow, firmware files | **IoT/Device Service** |
+
+For **Service in Multi-Service**, detect and document:
+- Upstream dependencies (services this one calls)
+- Downstream dependents (services that call this one)
+- Shared contracts (OpenAPI specs, Protobuf files, event schemas)
+- Deployment dependencies (which services must be healthy first)
+
+Add a `## Service Context` section to the generated CLAUDE.md:
+```markdown
+## Service Context
+- **Role**: [standalone | service | shared-library | gateway | bff | voice-skill | iot-service]
+- **Upstream**: [services this depends on, or "none"]
+- **Downstream**: [services that depend on this, or "none"]
+- **Contracts**: [paths to OpenAPI/Protobuf/event schema files, or "none"]
+- **Deploy Dependencies**: [services that must be healthy before deploying, or "none"]
+- **Channel**: [web | mobile | voice | device | all, if applicable]
+```
+
 ### 4. Generate CLAUDE.md and AGENTS.md
 
 Generate both files at the project root.

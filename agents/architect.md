@@ -55,6 +55,17 @@ Design documents include:
 - Sequence diagrams for key flows
 - Vertical slices with dependencies mapped
 
+## Knowledge References
+
+Before starting design work, read relevant pattern files:
+- `~/.claude/knowledge/omnichannel-patterns.md` — cross-channel architecture, BFF, unified identity
+- `~/.claude/knowledge/multi-repo-patterns.md` — monorepo vs polyrepo, contract management, versioning
+- `~/.claude/knowledge/service-mesh-patterns.md` — gateway vs mesh, traffic routing, mTLS
+- `~/.claude/knowledge/integration-patterns.md` — service boundaries, sagas, circuit breaker, outbox
+- `~/.claude/knowledge/horizontal-scaling-patterns.md` — read replicas, connection pooling, CDN
+
+Read only the files relevant to your current design task.
+
 ## Multi-Language Awareness
 
 Detect language from codebase context. Apply language-appropriate conventions:
