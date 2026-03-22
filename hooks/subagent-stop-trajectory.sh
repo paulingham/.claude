@@ -13,13 +13,22 @@ if [[ -z "$TASK_ID" ]]; then
   exit 0  # No active pipeline — skip
 fi
 
+# Sanitize TASK_ID to prevent path traversal
+TASK_ID="${TASK_ID//[^a-zA-Z0-9_.-]/}"
+
 TRAJECTORY_FILE="${HOME}/.claude/pipeline-state/${TASK_ID}-trajectory.jsonl"
+
+# Guard against path traversal — file must be under pipeline-state/
+case "$TRAJECTORY_FILE" in
+  "${HOME}/.claude/pipeline-state/"*) ;;
+  *) exit 0 ;;
+esac
 
 if [[ ! -d "${HOME}/.claude/pipeline-state" ]]; then
   exit 0
 fi
 
-TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
+TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 jq -n \
   --arg ts "$TIMESTAMP" \

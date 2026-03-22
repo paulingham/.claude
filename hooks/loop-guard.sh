@@ -8,7 +8,7 @@ check_loop_guard() {
   local window_secs="${3:-60}"
   local guard_dir="/tmp/claude-hook-guard"
   local guard_file="${guard_dir}/${hook_name}"
-  mkdir -p "$guard_dir"
+  mkdir -p -m 700 "$guard_dir"
   local now
   now=$(date +%s)
   local cutoff=$(( now - window_secs ))
@@ -17,9 +17,12 @@ check_loop_guard() {
   # Count calls within window
   local count
   count=$(awk -v cutoff="$cutoff" '$1 >= cutoff' "$guard_file" | wc -l | tr -d ' ')
-  # Trim file to only entries within window
-  awk -v cutoff="$cutoff" '$1 >= cutoff' "$guard_file" > "${guard_file}.tmp" \
-    && mv "${guard_file}.tmp" "$guard_file"
+  # Trim file to only entries within window (mktemp prevents symlink attacks)
+  local tmpfile
+  tmpfile=$(mktemp "${guard_dir}/${hook_name}.tmp.XXXXXX")
+  awk -v cutoff="$cutoff" '$1 >= cutoff' "$guard_file" > "$tmpfile" \
+    && mv "$tmpfile" "$guard_file" \
+    || rm -f "$tmpfile"
   if [[ "$count" -gt "$max_calls" ]]; then
     echo "LOOP GUARD: hook '$hook_name' has fired $count times in ${window_secs}s — skipping to prevent loop" >&2
     return 1
