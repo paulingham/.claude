@@ -26,7 +26,7 @@ Each pipeline run also produces a trajectory file: `{task-id}-trajectory.jsonl`
 
 Each line is a JSON record of an agent event:
 ```json
-{"timestamp":"2026-03-22T10:00:00Z","agent":"software-engineer","event":"agent_stopped","task_id":"auth-feature","phase":"build","outcome":"committed"}
+{"timestamp":"2026-03-22T10:00:00Z","agent":"software-engineer","event":"agent_stopped","task_id":"auth-feature"}
 ```
 
 Trajectory files enable:
