@@ -55,6 +55,15 @@ After merging a worktree branch:
 
 Never leave stale worktrees — they consume disk space and confuse test runners.
 
+## Dynamic Agents
+
+For complex tasks requiring specialist knowledge beyond the standard roster, the orchestrator can generate task-specific agents. See `~/.claude/orchestrator/agent-orchestration.md` § Dynamic Agent Generation for the full protocol.
+
+- Dynamic agents live in `agents/dynamic/` and are deleted after use
+- Archived in `agents/archive/` for future reference
+- Always use the standard agent template (see orchestrator doc)
+- Dynamic agents follow all the same rules: worktree isolation, commit protocol, shape constraints
+
 ## Shell Environment
 
 Agent shells may not inherit the user's version manager (nvm, rbenv, pyenv, rustup, etc.).

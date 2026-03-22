@@ -42,6 +42,14 @@ Follow shape constraints and all standards in `rules/engineering-protocol.md`.
 - **Form Object**: Complex validation extracted from models
 - **Query Object**: Reusable database queries
 
+## Knowledge References
+
+Before starting implementation, read these pattern files for domain-specific guidance:
+- `~/.claude/knowledge/testing-patterns.md` — test pyramid, factories, test doubles, mutation testing
+- `~/.claude/knowledge/integration-patterns.md` — service boundaries, retry, circuit breaker, idempotency
+- `~/.claude/knowledge/api-patterns.md` — REST conventions, pagination, error envelopes, auth patterns
+- `~/.claude/knowledge/database-patterns.md` — ORM usage, schema design, migration safety, N+1
+
 ## Output Format
 
 - Working code with passing tests
