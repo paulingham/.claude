@@ -112,6 +112,20 @@ After rollback:
 3. Create a bug fix story via `/intake`
 4. Re-enter pipeline from Build phase
 
+### Step 6: Post-Deploy Verification (Automatic)
+
+After successful deployment, invoke `/deployment-verification` with the deployed URL and environment. This runs health checks, smoke tests, and error rate monitoring for 5 minutes. If verification fails, it triggers automatic rollback.
+
+The deploy phase is only DEPLOYED after `/deployment-verification` returns DEPLOYMENT_VERIFIED.
+
+### Step 7: Migration Pre-Check
+
+Before deploying code with pending database migrations:
+1. Verify migrations are backwards-compatible with the currently running code
+2. For destructive migrations (column removal, rename): confirm the two-phase deployment is in progress (per `/db-migration` Step 4)
+3. Run migrations BEFORE deploying new code (if additive) or AFTER (if removing old columns)
+4. Verify migration completed successfully before proceeding with code deployment
+
 ## Deployment Strategies Reference
 
 ### Rolling Update (default)

@@ -79,6 +79,9 @@ Before starting implementation, read these pattern files for domain-specific gui
 - `~/.claude/knowledge/payment-patterns.md` — Stripe, webhooks, subscriptions
 - `~/.claude/knowledge/feature-flag-patterns.md` — rollout, A/B testing, cleanup
 - `~/.claude/knowledge/data-privacy-patterns.md` — GDPR, erasure, consent, retention
+- `~/.claude/knowledge/caching-patterns.md` — cache-aside, invalidation, stampede prevention
+- `~/.claude/knowledge/horizontal-scaling-patterns.md` — read replicas, connection pooling, CDN
+- `~/.claude/knowledge/state-machine-patterns.md` — FSM design, transitions, guards, audit trail
 - `~/.claude/knowledge/i18n-patterns.md` — localization, pluralization, RTL
 
 Read only the files relevant to your current task — not all of them.
