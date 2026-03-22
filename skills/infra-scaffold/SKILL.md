@@ -1,0 +1,248 @@
+---
+name: "Infrastructure Scaffold"
+description: "Generate production-ready infrastructure config: Dockerfile, docker-compose, CI/CD pipeline, health endpoints, env management. Delegates to infrastructure-engineer."
+context: fork
+agent: infrastructure-engineer
+argument-hint: "Tech stack and target platform (e.g., 'Node.js + PostgreSQL on Fly.io')"
+---
+
+# Infrastructure Scaffold
+
+## What This Skill Does
+
+Generates the infrastructure layer for a project: containerization, CI/CD pipeline, health check endpoints, environment variable management, and deployment configuration. Produces production-ready config, not stubs.
+
+## When to Invoke
+
+- New project needs infrastructure setup
+- Existing project lacks Docker, CI/CD, or deployment config
+- Migrating to a new deployment platform
+- Adding health checks or structured environment management
+
+## Process
+
+### Step 1: Detect Tech Stack
+
+Read `CLAUDE.md` and scan the project for:
+
+| Signal | Detection |
+|--------|-----------|
+| Language/runtime | `package.json` (Node), `Gemfile` (Ruby), `requirements.txt`/`pyproject.toml` (Python), `go.mod` (Go) |
+| Framework | `next.config.*` (Next.js), `config/routes.rb` (Rails), `manage.py` (Django), `main.go` (Go) |
+| Database | `prisma/schema.prisma`, `db/schema.rb`, `alembic/`, `docker-compose.yml` services |
+| Cache | `redis` in dependencies or docker-compose |
+| Queue | `sidekiq`, `bull`, `celery` in dependencies |
+
+### Step 2: Generate Dockerfile
+
+Multi-stage build following best practices:
+
+```dockerfile
+# Pattern: multi-stage for minimal production image
+# Stage 1: Dependencies
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Stage 2: Build
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+# Requires .dockerignore — see Step 2b
+RUN npm run build
+
+# Stage 3: Production
+FROM node:20-alpine AS production
+WORKDIR /app
+RUN addgroup -g 1001 -S app && adduser -S app -u 1001
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+USER app
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost:3000/health || exit 1
+CMD ["node", "dist/server.js"]
+```
+
+**Step 2b: Generate `.dockerignore`** (mandatory — prevents secrets leaking into image layers):
+```
+.env
+.env.*
+.git/
+*.key
+*.pem
+node_modules/
+coverage/
+tmp/
+.claude/
+```
+
+Adapt for each stack:
+- **Ruby/Rails**: `ruby:3.x-slim`, `bundle install --without development test`, precompile assets
+- **Python**: `python:3.x-slim`, `pip install --no-cache-dir`, gunicorn/uvicorn
+- **Go**: `golang:1.x` build stage, `scratch` or `alpine` production stage (single binary)
+
+### Step 3: Generate docker-compose.yml
+
+Local development environment with all services:
+
+```yaml
+services:
+  app:
+    build: .
+    ports: ["3000:3000"]
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/app_dev  # Local dev only — never use in staging/production
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+    volumes: ["./src:/app/src"]  # Hot reload in dev
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: app_dev
+      POSTGRES_PASSWORD: postgres
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+volumes:
+  pgdata:
+```
+
+### Step 4: Generate CI/CD Pipeline
+
+**GitHub Actions** (default):
+
+```yaml
+name: CI/CD
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: app_test }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --coverage
+      - run: npm audit --audit-level=moderate
+
+  image-scan:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t app:ci .
+      - uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: app:ci
+          exit-code: 1
+          severity: HIGH,CRITICAL
+
+  deploy-staging:
+    needs: [test, image-scan]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      # Platform-specific deploy steps
+
+  deploy-production:
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      # Platform-specific deploy steps with manual approval gate
+```
+
+Adapt per stack: Ruby uses `bundle exec rspec`, Python uses `pytest`, Go uses `go test ./...`.
+
+### Step 5: Health Check Endpoints
+
+Generate health and readiness endpoints:
+
+```
+GET /health          → 200 { "status": "ok", "version": "1.2.3" }
+GET /health/ready    → 200 { "status": "ready", "checks": { "database": "ok", "redis": "ok" } }
+GET /health/live     → 200 { "status": "alive" }
+```
+
+- `/health` — basic liveness (always returns 200 if process is running)
+- `/health/ready` — readiness (checks database connection, cache, external services)
+- `/health/live` — Kubernetes liveness probe (lightweight, no dependency checks)
+
+### Step 6: Environment Variable Management
+
+Generate `.env.example` with all required variables documented:
+
+```bash
+# Application
+NODE_ENV=development
+PORT=3000
+APP_URL=http://localhost:3000
+
+# Database
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/app_dev
+
+# Cache
+REDIS_URL=redis://localhost:6379
+
+# Authentication (obtain from provider dashboard)
+# JWT_SECRET=           # Generate: openssl rand -hex 32
+# OAUTH_CLIENT_ID=
+# OAUTH_CLIENT_SECRET=
+
+# External Services
+# STRIPE_SECRET_KEY=
+# SENDGRID_API_KEY=
+
+# Monitoring
+# SENTRY_DSN=
+# OTEL_EXPORTER_OTLP_ENDPOINT=
+```
+
+Add `.env` to `.gitignore` if not already present. Never commit actual secrets.
+
+### Step 7: Verify
+
+After generating all files:
+1. `docker compose build` — verify Dockerfile builds
+2. `docker compose up -d` — verify services start
+3. `curl localhost:3000/health` — verify health endpoint
+4. `docker compose down` — clean up
+
+## Phase Output
+
+```
+Verdict: INFRA_SCAFFOLDED
+Next: Verify locally with docker compose, then configure deployment platform credentials
+Artifacts: [Dockerfile, docker-compose.yml, .github/workflows/ci.yml, health endpoints, .env.example]
+```
