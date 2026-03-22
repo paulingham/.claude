@@ -4,9 +4,9 @@ Extracted from `rules/pipeline-protocol.md`. Agents do not need this content.
 
 ## Pipeline State Tracking
 
-Pipeline state is tracked using `memory/pipeline_[feature_name].md` files. Each pipeline run creates a memory file with phase status, verdicts, artifacts, and agent summaries.
+Pipeline state is tracked using `pipeline-state/[feature-name]-pipeline.md` files. Each pipeline run creates a state file with YAML frontmatter (task_id, phase, verdict, timestamp, scale, branch) plus phase status, verdicts, artifacts, and agent summaries. This is the single source of truth — do NOT dual-write to `memory/`.
 
-### Memory File Structure
+### State File Structure
 
 ```markdown
 ---
@@ -65,13 +65,13 @@ After each phase completes, update the memory file with:
 ## Conversation Continuity
 
 ### During Conversation
-Pipeline state lives in memory files (`memory/pipeline_[feature].md`). Each phase update writes verdicts, artifacts, and agent summaries to the file.
+Pipeline state lives in `pipeline-state/[feature-name]-pipeline.md`. Each phase update writes verdicts, artifacts, and agent summaries to this file.
 
 ### Before Context Compression
 When context is approaching limits:
-1. Verify pipeline state is saved in the memory file: `memory/pipeline_[feature].md`
+1. Verify pipeline state is saved in `pipeline-state/[feature-name]-pipeline.md`
 2. Ensure it includes: current phase, all verdicts so far, outstanding findings, key file paths
-3. The memory file IS the state -- no separate backup needed
+3. The pipeline-state file IS the state — use `/pipeline-resume` to recover on new session
 
 ### On New Conversation Start
 1. Check memory for `pipeline_*.md` files
