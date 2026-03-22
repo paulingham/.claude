@@ -1,5 +1,23 @@
 # Multi-Repo / Multi-Service Patterns
 
+## Extraction Signals (When to Split)
+
+A module is ready for extraction when 3+ of these signals are true:
+
+| Signal | How to Measure | Threshold |
+|--------|---------------|-----------|
+| Size | `find module/ -name "*.ts" | wc -l` | >20 files or >2000 LOC |
+| Data ownership | Module has tables no other module writes to | Own tables exist |
+| External integrations | Module wraps 3+ third-party APIs | 3+ integrations |
+| Churn rate | `git log --oneline --since="3 months" -- module/ | wc -l` | Changed in >50% of PRs |
+| Deployment independence | Module could deploy on a different cadence | Team/cadence mismatch |
+| API boundary | Module exposes service objects with defined inputs/outputs | Clear interface |
+| Team ownership | A different team works on this module | Team boundary exists |
+
+**The code-reviewer automatically flags these during review.** The pipeline surfaces extraction recommendations after the Accept phase. No human needs to remember to check.
+
+When 3+ signals trigger: the pipeline recommends `/service-extraction`. If `CLAUDE_AUTO_EXTRACT=true` is set, it runs automatically after the current feature ships.
+
 ## Monorepo vs Polyrepo Decision
 
 | Factor | Monorepo | Polyrepo |
