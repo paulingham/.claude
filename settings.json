@@ -34,6 +34,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash ~/.claude/hooks/tdd-guard.sh"
+          },
+          {
+            "type": "command",
             "command": "bash ~/.claude/hooks/orchestrator-discipline.sh"
           }
         ]
@@ -41,6 +45,10 @@
       {
         "matcher": "Edit",
         "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/tdd-guard.sh"
+          },
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/orchestrator-discipline.sh"
@@ -88,6 +96,11 @@
     "Stop": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/auto-pr.sh",
+            "timeout": 15
+          },
           {
             "type": "agent",
             "prompt": "Verify the current task is truly complete before stopping. Check: 1) Run the test suite if there are code changes and confirm all tests pass, 2) Run git status to check for uncommitted changes, 3) Look for TODO or FIXME comments in recently changed files (git diff --name-only | xargs grep -l 'TODO\\|FIXME' 2>/dev/null), 4) If a pipeline is in progress, verify memory/pipeline_*.md is up to date with current phase status. If anything is incomplete, respond with {\"ok\": false, \"reason\": \"what remains\"}. If this was just a question/conversation (no code changes), respond with {\"ok\": true}. IMPORTANT: Check the stop_hook_active field in your input - if true, respond with {\"ok\": true} immediately to avoid infinite loops.",
