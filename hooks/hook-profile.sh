@@ -3,7 +3,7 @@
 # Usage: check_hook_profile "standard" || exit 0
 #
 # Profiles (set via CLAUDE_HOOK_PROFILE env var, default: standard):
-#   minimal  — blocking/security hooks only (quality-gate, orchestrator-discipline, tdd-guard)
+#   minimal  — blocking/security hooks only (quality-gate, orchestrator-discipline)
 #   standard — all hooks (default)
 #   strict   — all hooks (same as standard; reserved for future stricter checks)
 check_hook_profile() {
