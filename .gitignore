@@ -15,6 +15,10 @@
 !agents/**
 !orchestrator/
 !orchestrator/**
+!knowledge/
+!knowledge/**
+!pipeline-state/
+!pipeline-state/**
 !statusline-command.sh
 !statusline-robbyrussell.sh
 !agent-memory/

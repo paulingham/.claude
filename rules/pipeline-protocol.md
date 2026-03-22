@@ -12,13 +12,54 @@ When a pipeline phase has a corresponding skill, invoking it via the Skill tool 
 
 For phases in the Parallel Phase Map (see `rules/parallel-dispatch-protocol.md`), agents read and execute their own skill files instead of the orchestrator invoking skills via the Skill tool.
 
+## Structured Pipeline State
+
+Phase results are persisted as files in `~/.claude/pipeline-state/` to survive context compaction and enable inter-phase communication.
+
+### File Convention
+- **Naming**: `{task-id}-{phase}.md` e.g. `auth-feature-build.md`, `PROJ-123-review.md`
+- **Lifecycle**: created by phase agent/skill, read by next phase, deleted after pipeline completes
+- **Why files, not memory**: files survive context compaction intact; orchestrator memory does not
+
+### Format
+```markdown
+---
+task_id: {task-id}
+phase: {build|review|verify|test|accept|ship}
+verdict: {BUILD_COMPLETE|APPROVE|VERIFIED|COVERED|APPROVED|PR_CREATED|etc}
+timestamp: {ISO 8601}
+---
+
+## Summary
+{1-3 sentence phase outcome}
+
+## Test Results
+- Passed: {N}
+- Failed: {N}
+- Coverage: {N}%
+
+## Key Findings
+- {finding 1}
+- {finding 2}
+
+## Next Phase Input
+{What the next phase needs to know from this phase}
+```
+
+### Orchestrator Responsibilities
+- Check `pipeline-state/` for in-progress work before starting any new pipeline
+- Pass the previous phase's state file path to the next phase agent
+- Delete all state files for a task after pipeline completion or abandonment
+- Never leave stale state files — they confuse future pipeline runs
+
 ## Pre-flight Protocol (MANDATORY before any work begins)
 
-1. **Classify the work**: feature, refactor, bug fix, or tech spike
-2. **Map to entry skill**: `/build-implementation`, `/refactor`, `/bug-fix`, or `/tech-spike`
-3. **Enumerate all pipeline phases** and the skill for each
-4. **Write the phase plan** as a visible message to the user
-5. **Execute phases in order**, invoking each skill via the Skill tool (or Parallel Dispatch for parallel phases)
+1. **Check `pipeline-state/`** for in-progress pipelines before starting new work
+2. **Classify the work**: feature, refactor, bug fix, or tech spike
+3. **Map to entry skill**: `/build-implementation`, `/refactor`, `/bug-fix`, or `/tech-spike`
+4. **Enumerate all pipeline phases** and the skill for each
+5. **Write the phase plan** as a visible message to the user
+6. **Execute phases in order**, invoking each skill via the Skill tool (or Parallel Dispatch for parallel phases)
 
 ## Phase Checklist (Summary)
 

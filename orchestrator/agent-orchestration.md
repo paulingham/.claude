@@ -125,3 +125,78 @@ This is automatic and mandatory -- the user should never need to mention it.
 | Pipeline phases (build, review, verify, test, accept, ship) | Sub-agents via skills |
 | Parallel exploration, design debates, multi-domain coordination | Agent Teams |
 | Focused single task (bug fix, one review, one query) | Sub-agent |
+
+## Dynamic Agent Generation
+
+### When to Create Dynamic Agents
+
+Create task-specific agent definitions when:
+- A task requires specialist knowledge not covered by the standard agent roster (e.g., a payment gateway specialist, a PDF generation expert)
+- Multiple parallel slices need agents with narrowly scoped, non-overlapping responsibilities
+- A complex ticket needs a custom blend of skills from multiple agent types
+
+Do NOT create dynamic agents for work that fits a standard agent type. The standard roster covers 95% of tasks.
+
+### How to Create
+
+1. Write a `.md` file to `~/.claude/agents/dynamic/{task-id}-{role}.md`
+2. Use the standard agent frontmatter format
+3. Include a system prompt scoped to the task
+4. Reference relevant skill and knowledge files
+
+### Dynamic Agent Template
+
+```markdown
+---
+name: {task-id}-{role}
+description: {One line describing the specialist purpose for this specific task}
+tools: Read, Write, Edit, Bash, Grep, Glob
+model: {sonnet or opus — sonnet for review/analysis, opus for implementation}
+maxTurns: 100
+disallowedTools:
+  - Agent
+  - Skill
+---
+
+# {Role Title} — {Task ID}
+
+You are a specialist {role} for task {task-id}.
+
+## Scope
+
+{What this agent is responsible for — be specific to the task}
+
+## Knowledge References
+
+Read these before starting:
+- `~/.claude/knowledge/{relevant-file}.md`
+- `~/.claude/rules/engineering-protocol.md`
+
+## Standards
+
+Follow shape constraints and all standards in `rules/engineering-protocol.md`.
+
+## Acceptance Criteria
+
+{Task-specific ACs this agent is responsible for}
+```
+
+### Lifecycle
+
+1. **Create**: Orchestrator writes the dynamic agent `.md` file before spawning
+2. **Spawn**: Use `subagent_type` matching the closest standard type; the agent reads its dynamic definition via the spawn prompt
+3. **Complete**: Agent commits work and signals completion
+4. **Archive**: Copy to `~/.claude/agents/archive/{timestamp}-{task-id}-{role}.md` for learning
+5. **Delete**: Remove from `~/.claude/agents/dynamic/` after merge
+
+### Archiving for Learning
+
+Archived agents serve as templates for future similar tasks. When creating a new dynamic agent, check `~/.claude/agents/archive/` for prior specialists in the same domain — adapt rather than reinvent.
+
+### Cleanup Protocol
+
+After every pipeline completion:
+1. Check `~/.claude/agents/dynamic/` for leftover agents
+2. Archive any that completed successfully
+3. Delete all files from `dynamic/`
+4. A leftover dynamic agent is a sign of incomplete cleanup — investigate before deleting

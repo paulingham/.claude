@@ -64,6 +64,11 @@ prerequisite setup (simulator, env vars), and which flows to run based on change
 - External service failures (timeout, 500, rate limit)
 - Database constraint violations
 
+## Knowledge References
+
+Before starting work, read these pattern files for domain-specific guidance:
+- `~/.claude/knowledge/testing-patterns.md` — test pyramid, factories, test doubles, contract testing, mutation testing, database cleaner strategies
+
 ## Test Data
 
 - Factory/fixture patterns for test data generation
