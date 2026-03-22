@@ -82,6 +82,12 @@ No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 | `/tech-spike` | Time-boxed technical research | SPIKE_COMPLETE |
 | `/project-setup` | Scaffolding project-level CLAUDE.md | PROJECT_SETUP_COMPLETE |
 | `/harness-config` | Modify hooks, settings.json, non-.md config | CONFIG_APPLIED |
+| `/deploy` | CD phase: staging/production deploy with rollback | DEPLOYED / ROLLED_BACK |
+| `/infra-scaffold` | Generate Dockerfile, docker-compose, CI/CD, health endpoints | INFRA_SCAFFOLDED |
+| `/api-scaffold` | Generate API endpoints, validation, pagination, rate limiting | API_SCAFFOLDED |
+| `/db-migration` | Schema changes, zero-downtime migrations, reversibility | MIGRATION_COMPLETE |
+| `/observability-setup` | Logging, metrics, tracing, alerting, dashboards | OBSERVABILITY_CONFIGURED |
+| `/web-frontend-patterns` | React/Next.js patterns, state, a11y, performance, caching | PATTERNS_APPLIED |
 
 ### Definition of Done
 
