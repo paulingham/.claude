@@ -27,6 +27,7 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 | "API", "endpoint", "resource" (new API) | **Feature + Scaffold** | `/pipeline` → `/api-scaffold` → `/build-implementation` |
 | "Migration", "schema", "add column" | **Feature + Scaffold** | `/pipeline` → `/db-migration` → `/build-implementation` |
 | "Docker", "CI/CD", "deploy", "infra" | **Infrastructure** | `/pipeline` → `/infra-scaffold` |
+| "Extract", "split out", "own repo", "separate service" | **Service Extraction** | `/pipeline` → `/service-extraction` |
 | "Logging", "monitoring", "observability" | **Infrastructure** | `/pipeline` → `/observability-setup` |
 
 ### Step 2: Complexity Budget (MANDATORY — score before routing)
