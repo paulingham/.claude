@@ -24,6 +24,10 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 | "Epic", "Feature set", multiple stories | **Epic** | `/epic-breakdown` → `/pipeline` per story |
 | Question, "How does", "Explain", "What is" | **Question** | Answer directly (no pipeline) |
 | "Set up", new repo, no CLAUDE.md | **Project Setup** | `/project-setup` → Plan phase |
+| "API", "endpoint", "resource" (new API) | **Feature + Scaffold** | `/pipeline` → `/api-scaffold` → `/build-implementation` |
+| "Migration", "schema", "add column" | **Feature + Scaffold** | `/pipeline` → `/db-migration` → `/build-implementation` |
+| "Docker", "CI/CD", "deploy", "infra" | **Infrastructure** | `/pipeline` → `/infra-scaffold` |
+| "Logging", "monitoring", "observability" | **Infrastructure** | `/pipeline` → `/observability-setup` |
 
 ### Step 2: Complexity Budget (MANDATORY — score before routing)
 

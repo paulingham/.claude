@@ -59,7 +59,7 @@ Before starting implementation, read these pattern files for domain-specific gui
 ## Self-Review Before Completion
 
 Before signaling build complete, review your own work:
-1. Run `tsc --noEmit` — zero errors
+1. Run the project's type checker — zero errors. Check project CLAUDE.md Commands section for the exact command (`tsc --noEmit` for TypeScript, `bundle exec rubocop` for Ruby, `mypy .` for Python, `go vet ./...` for Go)
 2. Run full test suite — all green
 3. Re-read every file you created or modified — check:
    - Names reveal intent (no abbreviations, no `temp`, no `data`)
@@ -68,6 +68,28 @@ Before signaling build complete, review your own work:
    - No dead code, unused imports, commented-out blocks
 4. Fix any issues found — do not leave them for the reviewer
 5. The code-reviewer should find only design-level concerns, never mechanical issues
+
+## Knowledge References
+
+Before starting implementation, read these pattern files for domain-specific guidance:
+- `~/.claude/knowledge/database-patterns.md` — ORM patterns, migrations, query optimization
+- `~/.claude/knowledge/api-patterns.md` — REST conventions, pagination, auth patterns
+- `~/.claude/knowledge/testing-patterns.md` — test pyramid, factories, test doubles
+- `~/.claude/knowledge/integration-patterns.md` — service boundaries, circuit breaker, retry
+- `~/.claude/knowledge/auth-patterns.md` — registration, login, JWT, RBAC, OAuth
+- `~/.claude/knowledge/env-management-patterns.md` — .env hierarchy, secret management
+- `~/.claude/knowledge/background-job-patterns.md` — Sidekiq/BullMQ/Celery, retry, idempotency
+- `~/.claude/knowledge/notification-patterns.md` — email delivery, templates, channels
+- `~/.claude/knowledge/file-upload-patterns.md` — presigned URLs, validation, CDN
+- `~/.claude/knowledge/multi-tenancy-patterns.md` — tenant scoping, data isolation
+- `~/.claude/knowledge/realtime-patterns.md` — WebSocket, SSE, scaling, presence
+- `~/.claude/knowledge/search-patterns.md` — PostgreSQL FTS, Elasticsearch, facets
+- `~/.claude/knowledge/payment-patterns.md` — Stripe, webhooks, subscriptions
+- `~/.claude/knowledge/feature-flag-patterns.md` — rollout, A/B testing, cleanup
+- `~/.claude/knowledge/data-privacy-patterns.md` — GDPR, erasure, consent, retention
+- `~/.claude/knowledge/i18n-patterns.md` — localization, pluralization, RTL
+
+Read only the files relevant to your current task — not all of them.
 
 ## Commit Cadence
 

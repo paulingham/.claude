@@ -48,15 +48,18 @@ timestamp: {ISO 8601}
 
 ### Orchestrator Responsibilities
 - Check `pipeline-state/` for in-progress work before starting any new pipeline
+- If in-progress state found: invoke `/pipeline-resume` to continue from the correct phase
+- `pipeline-state/` is the single source of truth — do NOT dual-write to `memory/`
 - Pass the previous phase's state file path to the next phase agent
 - Delete all state files for a task after pipeline completion or abandonment
 - Never leave stale state files — they confuse future pipeline runs
 
 ## Pre-flight Protocol (MANDATORY before any work begins)
 
-1. **Check `pipeline-state/`** for in-progress pipelines before starting new work
+1. **Check `pipeline-state/`** for in-progress pipelines before starting new work. If found, invoke `/pipeline-resume`
 2. **Classify the work**: feature, refactor, bug fix, or tech spike
 3. **Map to entry skill**: `/build-implementation`, `/refactor`, `/bug-fix`, or `/tech-spike`
+3b. **Check for scaffolding needs**: if the task requires new API endpoints, schema changes, infrastructure, or observability, flag the appropriate utility skill (see pipeline SKILL.md Step 2b)
 4. **Enumerate all pipeline phases** and the skill for each
 5. **Write the phase plan** as a visible message to the user
 6. **Execute phases in order**, invoking each skill via the Skill tool (or Parallel Dispatch for parallel phases)

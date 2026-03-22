@@ -77,7 +77,7 @@ Follow shape constraints and all standards in `rules/engineering-protocol.md`.
 ## Self-Review Before Completion
 
 Before signaling build complete, review your own work:
-1. Run `tsc --noEmit` — zero errors
+1. Run the project's type checker (check CLAUDE.md Commands) — zero errors
 2. Run full test suite — all green
 3. Re-read every file you created or modified — check:
    - Names reveal intent (no abbreviations, no `temp`, no `data`)
@@ -86,6 +86,11 @@ Before signaling build complete, review your own work:
    - No dead code, unused imports, commented-out blocks
 4. Fix any issues found — do not leave them for the reviewer
 5. The code-reviewer should find only design-level concerns, never mechanical issues
+
+## Knowledge References
+
+- `~/.claude/knowledge/env-management-patterns.md` — .env hierarchy, secret management, vault integration
+- `~/.claude/knowledge/backup-dr-patterns.md` — backup strategies, disaster recovery, RTO/RPO
 
 ## Commit Cadence
 

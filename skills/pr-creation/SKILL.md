@@ -73,7 +73,9 @@ Only proceed when all checks pass.
 
 ```bash
 # Stage all changes
-git add .
+git add [specific files by name — never use 'git add .' or 'git add -A']
+# Review staged files before committing: git diff --cached --name-only
+# Verify no .env, credentials, or binary artifacts are included
 
 # Commit with descriptive message
 git commit -m "$(cat <<'EOF'

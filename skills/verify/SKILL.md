@@ -56,9 +56,20 @@ Read the project's tech stack pattern file if one exists at `~/.claude/skills/[s
 
 ### 4. Run Tier 3: Mutation Testing (where applicable)
 
-- Mutate logic in changed files
-- Verify existing tests catch the mutations
-- Focus on business logic, skip trivial mutations
+**Check tool availability first:**
+- JavaScript/TypeScript: `which npx && npx stryker --version` (Stryker)
+- Ruby: `bundle show mutant` (Mutant)
+- Python: `which mutmut` (mutmut)
+
+**If mutation testing tool is available:** run it on changed files, verify existing tests catch mutations. Focus on business logic, skip trivial mutations.
+
+**If mutation testing tool is NOT installed (graceful fallback):** perform a manual mutation spot-check:
+1. For each function with conditional logic in the changed files, mentally (or via temporary edit) swap the condition (e.g., `>` → `<=`, `&&` → `||`)
+2. Verify that an existing test would catch the mutation
+3. If no test catches it: flag as a gap, report in verification output
+4. Report Tier 3 as PASS (manual spot-check, N mutations checked) or FAIL (gaps found)
+
+This fallback is explicitly approved — do not fail the pipeline just because mutation tooling is not installed.
 
 ### 4.5. Run Tier 4: E2E Tests (Conditional)
 

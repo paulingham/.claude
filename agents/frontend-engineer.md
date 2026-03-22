@@ -78,6 +78,10 @@ You are a Frontend Engineer. You build accessible, polished user interfaces.
 Before starting implementation, read these pattern files for domain-specific guidance:
 - `~/.claude/knowledge/api-patterns.md` — REST conventions, pagination, GraphQL N+1, auth patterns
 - `~/.claude/knowledge/testing-patterns.md` — test pyramid, factories, test doubles, async test patterns
+- `~/.claude/knowledge/auth-patterns.md` — token storage, session management, OAuth
+- `~/.claude/knowledge/realtime-patterns.md` — WebSocket, SSE, reconnection, scaling
+- `~/.claude/knowledge/i18n-patterns.md` — localization, pluralization, RTL
+- `~/.claude/knowledge/file-upload-patterns.md` — presigned URLs, validation, image processing
 
 ## Testing
 

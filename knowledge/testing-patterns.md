@@ -245,3 +245,40 @@ coverageThreshold:
 - Gate on critical paths: 100% for auth, payments, data migrations
 - Global gate: 80% minimum
 - Report by file to identify specific gaps
+
+## Load and Stress Testing
+
+### Tool Selection
+| Tool | Language | Strength |
+|------|---------|----------|
+| k6 | JavaScript | Developer-friendly, CI integration, cloud option |
+| Artillery | JavaScript/YAML | Easy config, multiple protocols |
+| Locust | Python | Distributed, programmable |
+| Apache Bench (ab) | CLI | Quick one-off endpoint tests |
+
+### Test Types
+```
+Load test:    expected traffic (verify SLAs hold under normal conditions)
+Stress test:  2-5x expected traffic (find the breaking point)
+Soak test:    sustained load for hours (detect memory leaks, connection pool exhaustion)
+Spike test:   sudden traffic burst (verify auto-scaling and recovery)
+```
+
+### Key Metrics
+```
+Throughput:     requests per second
+Latency:        p50, p95, p99 response times
+Error rate:     percentage of 5xx responses
+Saturation:     CPU, memory, DB connections at peak
+```
+
+### Process
+```
+1. Establish baseline (current performance under typical load)
+2. Define SLAs (p95 < 500ms, error rate < 0.1%, throughput > 100 rps)
+3. Write load test scripts (k6 or equivalent)
+4. Run against staging (never against production without coordination)
+5. Analyze results, identify bottlenecks
+6. Optimize and re-test
+7. Add to CI as regression gate (optional: run on merge to main)
+```
