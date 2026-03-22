@@ -86,7 +86,7 @@ Before starting work, read these pattern files for domain-specific guidance:
 ## Self-Review Before Completion
 
 Before signaling build complete, review your own work:
-1. Run `tsc --noEmit` — zero errors
+1. Run the project's type checker (check project CLAUDE.md Commands for the exact command) — zero errors
 2. Run full test suite — all green
 3. Re-read every file you created or modified — check:
    - Names reveal intent (no abbreviations, no `temp`, no `data`)
