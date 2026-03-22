@@ -63,7 +63,7 @@ When spawning agents, select the type that has the domain rules baked into its d
 | Audit, review, compliance check, SOLID/DRY analysis | `code-reviewer` | Has SOLID/DRY/shape checklist baked in |
 | Security audit, OWASP scan, secrets detection | `security-engineer` | Has OWASP top 10, auth/authz rules |
 | Test gaps, coverage analysis, test strategy | `qa-engineer` | Has test pyramid, coverage framework |
-| Find file, search code, explore codebase | `Explore` | Fast codebase navigation |
+| Find file, search code, explore codebase | Use Glob/Grep/Read directly | Orchestrator uses tools directly; Explore agents are hard-blocked |
 | System design, API contracts, architecture | `architect` | Has design principles, ADR format |
 | Implement, build, fix backend | `software-engineer` (worktree) | Has TDD, SOLID, DIP rules |
 | Implement, build, fix UI/frontend | `frontend-engineer` (worktree) | Has accessibility, React patterns |
