@@ -88,6 +88,23 @@ Shape compliance is enforced by build hooks. Do not re-measure. If shape violati
 - [ ] No blocking I/O in request path
 - [ ] Pagination for list endpoints
 
+### Extraction Signals (flag if ANY are true)
+Check modules/directories touched by this change for extraction readiness:
+- [ ] Module has >20 files or >2000 lines of source code (excluding tests)
+- [ ] Module has its own database tables that no other module writes to
+- [ ] Module has 3+ external API integrations (its own bounded context)
+- [ ] Module is changed in >50% of recent PRs (high churn = coupling magnet)
+- [ ] Module could have a different deployment cadence than the rest of the app
+- [ ] Module has a clear API boundary already (service objects with defined inputs/outputs)
+
+If 3+ signals are true, add to review output:
+```
+### Extraction Candidate: [module name]
+Signals: [list which signals triggered]
+Recommendation: Consider /service-extraction to split into independent service
+```
+This is advisory — it does not affect the APPROVE/CHANGES_REQUESTED verdict.
+
 ## Output Format
 
 ```markdown

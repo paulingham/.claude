@@ -152,10 +152,22 @@ All other phases (Build single slice, Test, Accept, Ship) use sequential Skill t
 1. Fix quality gate failures
 2. Re-run `/pr-creation`
 
+### Step 4b: Extraction Assessment (Automatic, Post-Accept)
+
+After Accept phase completes (APPROVED), check whether the codebase has grown to warrant service extraction:
+
+1. Check the code-reviewer's output for **Extraction Candidate** flags (from the Review phase)
+2. If extraction candidates were flagged with 3+ signals:
+   - Report to user: "[Module] has crossed extraction thresholds. Recommend running `/service-extraction` after this feature ships."
+   - If the user has previously configured auto-extraction (via `CLAUDE_AUTO_EXTRACT=true` in settings.json env), invoke `/service-extraction` automatically after Ship phase
+   - Otherwise: add to pipeline output as a recommended follow-up action
+
+This assessment is zero-cost — it reads the existing review output. No additional analysis needed.
+
 ### Step 5: Completion
 
 When Ship phase returns PR_CREATED:
-1. Update memory file: mark all phases as `completed`, record PR URL
+1. Update pipeline-state file: mark all phases as `completed`, record PR URL
 2. Report PR URL to user
 3. Output final pipeline summary with all agent contributions
 
