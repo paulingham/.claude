@@ -25,23 +25,33 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 | Question, "How does", "Explain", "What is" | **Question** | Answer directly (no pipeline) |
 | "Set up", new repo, no CLAUDE.md | **Project Setup** | `/project-setup` → Plan phase |
 
-### Step 2: Quick Complexity Assessment
+### Step 2: Complexity Budget (MANDATORY — score before routing)
 
-Before starting, estimate scope:
+Score each dimension 1-3 and sum. This is not optional — routing depends on the total.
 
-| Check | How | Result |
-|-------|-----|--------|
-| Files affected | `grep` for related code, count files | 1 (micro), 1-3 (small), 4-10 (medium), 11+ (large) |
-| Lines changed | Estimate delta | <5 (micro), 5-50 (small), 50+ (medium/large) |
-| Behavior change | Does it change observable behavior? | No (micro), Yes (small+) |
-| Test coverage | Check `__tests__/` for existing tests | Covered / Partial / None |
-| Cross-cutting | Does it span multiple directories? | Isolated / Cross-module / System-wide |
+| Dimension | 1 (Low) | 2 (Medium) | 3 (High) |
+|-----------|---------|-----------|----------|
+| **Scope** (files to touch) | 1-3 files | 4-10 files | 11+ files |
+| **Ambiguity** (requirement clarity) | Fully specified ACs | Interpretation needed | Discovery required |
+| **Context Pressure** (codebase knowledge) | Single module | Cross-module | System-wide |
+| **Novelty** (precedent exists?) | Pattern to follow | Partial precedent | Greenfield |
+| **Coordination** (cross-cutting?) | Isolated | 2-3 concerns | Auth + data + UI + infra |
 
-**Routing by complexity:**
-- **Micro** (1 file, <5 lines changed, no behavior change): `/pipeline` with Build + Review + Ship only
-- **Small** (1-3 files, isolated): `/pipeline` with Build + Review + Verify + Ship
-- **Medium** (4-10 files, cross-module): `/pipeline` with full phases
-- **Large** (11+ files, system-wide): `/epic-breakdown` first, then `/pipeline` per story
+**Thresholds → routing:**
+
+| Budget | Action | Pipeline Scale |
+|--------|--------|---------------|
+| 5-6 | Execute directly, no planning needed | Micro/Small |
+| 7-8 | Compound — plan first, then build | Small/Medium |
+| 9-10 | Compound — plan first, then build | Medium |
+| 11-12 | Multi-session — break into sub-tasks | Large |
+| 13-15 | **Must decompose** before starting — use `/epic-breakdown` | Epic |
+
+**Output the score explicitly:**
+```
+[Intake] CB Score: Scope=N, Ambiguity=N, Context=N, Novelty=N, Coordination=N → Total=N
+[Intake] Routing: [execute directly / plan first / decompose]
+```
 
 ### Step 3: Pre-flight Check
 

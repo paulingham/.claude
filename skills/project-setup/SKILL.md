@@ -36,7 +36,50 @@ Find test, build, lint, and dev server commands from:
 - Database and ORM patterns
 - External service integrations
 
-### 4. Generate CLAUDE.md
+### 4. Generate CLAUDE.md and AGENTS.md
+
+Generate both files at the project root.
+
+**AGENTS.md** is a cross-tool convention read by OpenHands, Codex, and other AI coding tools. It provides a minimal agent roster and pipeline overview so any tool can orient itself to this project's conventions.
+
+AGENTS.md template:
+```markdown
+# Agent Roster — [Project Name]
+
+This file follows the cross-tool AGENTS.md convention (readable by OpenHands, Codex, Claude Code, etc.).
+
+## Agent Roles
+
+| Agent | Purpose | Model |
+|-------|---------|-------|
+| architect | System design, API contracts, ADRs | opus |
+| software-engineer | Backend implementation, TDD, services | opus |
+| frontend-engineer | UI, accessibility (WCAG 2.1 AA), React | opus |
+| database-engineer | Schema, migrations, query optimisation | sonnet |
+| infrastructure-engineer | Docker, CI/CD, IaC | opus |
+| code-reviewer | SOLID/DRY/design audit (read-only) | opus |
+| security-engineer | OWASP Top 10 audit (read-only) | sonnet |
+| qa-engineer | Test strategy, integration/E2E tests | sonnet |
+| product-reviewer | AC validation, business value (read-only) | sonnet |
+
+## Pipeline Phases
+
+Build → Review → Verify → Test → Accept → Ship
+
+See `.claude/CLAUDE.md` for full orchestration protocol.
+
+## Tech Stack
+
+[Detected from codebase — fill in]
+
+## Key Commands
+
+- **Test**: [detected]
+- **Lint**: [detected]
+- **Dev**: [detected]
+```
+
+### 5. Generate CLAUDE.md
 
 ```markdown
 # [Project Name]
@@ -66,6 +109,7 @@ Find test, build, lint, and dev server commands from:
 ## Output
 
 - Creates `.claude/CLAUDE.md` at project root
+- Creates `AGENTS.md` at project root (cross-tool convention)
 - Reports what was detected and any gaps to fill manually
 
 ## Phase Output

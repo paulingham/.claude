@@ -7,6 +7,9 @@ maxTurns: 30
 disallowedTools:
   - Agent
   - Skill
+  - Write
+  - Edit
+  - MultiEdit
 ---
 
 # Product Reviewer

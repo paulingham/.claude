@@ -7,6 +7,9 @@ maxTurns: 40
 disallowedTools:
   - Agent
   - Skill
+  - Write
+  - Edit
+  - MultiEdit
 ---
 
 # Security Engineer
