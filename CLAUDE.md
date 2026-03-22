@@ -36,7 +36,7 @@ Global wins for quality standards; project wins for project-specific conventions
 | database-engineer | Build | Yes | sonnet |
 | infrastructure-engineer | Build | Yes | opus |
 | code-reviewer | Review | No | opus |
-| security-engineer | Review | No | sonnet |
+| security-engineer | Review | No | opus |
 | qa-engineer | Test | Yes | sonnet |
 | product-reviewer | Accept | No | sonnet |
 
@@ -58,6 +58,7 @@ The orchestrator MUST create an Agent Team for ALL implementation tasks. The use
 5. **Test** → `/qa-test-strategy`. Gate: all ACs covered, no gaps.
 6. **Accept** → `/product-acceptance`. Gate: APPROVED.
 7. **Ship** → `/pr-creation`. Gate: quality gate hook passes.
+8. **Deploy** → `/deploy` + `/deployment-verification`. Gate: DEPLOYMENT_VERIFIED.
 
 No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 
@@ -89,6 +90,9 @@ No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 | `/db-migration` | Schema changes, zero-downtime migrations, reversibility | MIGRATION_COMPLETE |
 | `/observability-setup` | Logging, metrics, tracing, alerting, dashboards | OBSERVABILITY_CONFIGURED |
 | `/web-frontend-patterns` | React/Next.js patterns, state, a11y, performance, caching | PATTERNS_APPLIED |
+| `/deployment-verification` | Post-deploy health checks, smoke tests, auto-rollback | DEPLOYMENT_VERIFIED |
+| `/load-test` | Performance testing: load, stress, baselines, SLA verification | PERFORMANCE_VERIFIED |
+| `/microservices-scaffold` | Service template, API gateway, service discovery, tracing | SERVICE_SCAFFOLDED |
 
 ### Definition of Done
 

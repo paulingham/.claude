@@ -22,10 +22,10 @@ The autonomous conductor for the delivery pipeline. Takes a task, determines whi
 |-----------|-------------|-----------------|
 | Feature (micro) | `/build-implementation` | Build → Review → Ship |
 | Feature (small) | `/build-implementation` | Build → Review → Verify → Ship |
-| Feature (medium) | `/build-implementation` | Build → Review → Verify → Test → Accept → Ship |
-| Feature (large) | `/build-implementation` | Build → Review → Verify → Test → Accept → Ship |
+| Feature (medium) | `/build-implementation` | Build → Review → Verify → Test → Accept → Ship → Deploy |
+| Feature (large) | `/build-implementation` | Build → Review → Verify → Load Test → Test → Accept → Ship → Deploy |
 | Refactor | `/refactor` | Build → Review → Verify → Test → Accept → Ship |
-| Bug Fix | `/bug-fix` | Build → Review → Verify → Test → Accept → Ship |
+| Bug Fix | `/bug-fix` | Build → Review → Verify → Test → Accept → Ship → Deploy |
 | Spike | `/tech-spike` | Spike only (no pipeline) |
 | Planning | `/epic-breakdown` | Plan only (produces stories for future pipelines) |
 
@@ -125,6 +125,16 @@ All other phases (Build single slice, Test, Accept, Ship) use sequential Skill t
 #### Accept REJECTED
 1. Return to Build phase with feedback
 2. Re-run full pipeline from Build
+
+#### Load Test PERFORMANCE_FAILED
+1. Identify bottlenecks (database queries, missing indexes, no caching)
+2. Return to Build phase to optimize
+3. Re-run `/load-test`
+
+#### Deploy DEPLOY_FAILED or AUTO_ROLLBACK
+1. `/deployment-verification` triggered automatic rollback
+2. Investigate failure cause from verification report
+3. Create bug fix via `/intake`, re-enter pipeline
 
 #### PR_BLOCKED
 1. Fix quality gate failures
