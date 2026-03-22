@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# Require jq — exit cleanly if not available (don't silently bypass)
+command -v jq >/dev/null 2>&1 || exit 0
+
 INPUT=$(cat)
 
 # Never block if stop_hook_active (avoid loops)
@@ -17,6 +20,11 @@ fi
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // empty')
 
 if [ -z "$FILE_PATH" ]; then
+  exit 0
+fi
+
+# Reject paths with newlines or control characters (safety against malformed JSON input)
+if [[ "$FILE_PATH" == *$'\n'* ]] || [[ "$FILE_PATH" == *$'\r'* ]]; then
   exit 0
 fi
 
@@ -80,7 +88,10 @@ case "$FILE_PATH" in
     ;;
   *.java)
     BASENAME=$(basename "$FILE_PATH" .java)
-    find . -name "${BASENAME}Test.java" -o -name "Test${BASENAME}.java" 2>/dev/null | grep -q . && TEST_FOUND=true
+    if [[ ! "$BASENAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+      exit 0
+    fi
+    find . -maxdepth 6 -name "${BASENAME}Test.java" -o -name "Test${BASENAME}.java" 2>/dev/null | grep -q . && TEST_FOUND=true
     EXPECTED="src/test/java/.../${BASENAME}Test.java"
     ;;
   *.swift|*.kt|*.cs)
@@ -94,5 +105,6 @@ if [ "$TEST_FOUND" = "true" ]; then
 fi
 
 # Block: no test file found
-echo "{\"decision\": \"block\", \"reason\": \"TDD Guard: No test file found for '${FILE_PATH}'. Write the test first (RED phase). Expected: ${EXPECTED}\"}"
+jq -n --arg path "$FILE_PATH" --arg expected "$EXPECTED" \
+  '{"decision":"block","reason":("TDD Guard: No test file found for \u0027" + $path + "\u0027. Write the test first (RED phase). Expected: " + $expected)}'
 exit 1

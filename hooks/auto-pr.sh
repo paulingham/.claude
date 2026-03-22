@@ -19,6 +19,9 @@ if [ -z "$BRANCH" ]; then
   exit 0
 fi
 
+# Sanitize branch name — strip anything that isn't alphanumeric, /, -, _, .
+BRANCH="${BRANCH//[^a-zA-Z0-9\/_.-]/}"
+
 # Skip if on main/master
 if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
   exit 0
