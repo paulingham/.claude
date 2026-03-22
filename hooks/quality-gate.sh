@@ -8,6 +8,9 @@
 
 set -e
 
+# Hook profile (minimal — always runs as a blocking hook)
+source ~/.claude/hooks/hook-profile.sh && check_hook_profile "minimal" || exit 0
+
 TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
 COMMAND="${CLAUDE_COMMAND:-}"
 

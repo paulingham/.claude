@@ -3,6 +3,9 @@
 # Lightweight quality check: warns on issues but does not block.
 # Catches problems earlier than the PR quality gate.
 
+# Hook profile and loop guard
+source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+
 TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
 COMMAND="${CLAUDE_COMMAND:-}"
 

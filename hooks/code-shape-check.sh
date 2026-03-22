@@ -3,6 +3,10 @@
 # Fires after Write/Edit on .ts/.tsx/.js/.jsx source files (not tests, not config)
 # HARD BLOCKS (exit 2) if file exceeds 50 lines — forces immediate decomposition
 
+# Hook profile and loop guard
+source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+source ~/.claude/hooks/loop-guard.sh && check_loop_guard "code-shape-check" || exit 0
+
 FILE_PATH="${CLAUDE_FILE_PATH:-}"
 
 # Only check if we have a file path

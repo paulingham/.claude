@@ -6,6 +6,9 @@
 set -uo pipefail
 # Deliberately omitting -e: this is advisory-only, individual command failures should not abort
 
+# Hook profile
+source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+
 INPUT=$(cat)
 
 # Never block if stop_hook_active (avoid loops)

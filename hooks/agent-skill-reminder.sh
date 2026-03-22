@@ -11,6 +11,9 @@
 # This hook fires BEFORE every Agent spawn. It reads CLAUDE_TOOL_INPUT (JSON)
 # to extract subagent_type, prompt, and isolation for classification.
 
+# Hook profile
+source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+
 TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
 
 # Only check Agent tool

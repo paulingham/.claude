@@ -6,6 +6,10 @@
 # in the codebase (documented in project CLAUDE.md Known Limitations) so this hook
 # surfaces shape drift as a warning rather than a hard block.
 
+# Hook profile and loop guard
+source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+source ~/.claude/hooks/loop-guard.sh && check_loop_guard "function-body-check" || exit 0
+
 FILE_PATH="${CLAUDE_FILE_PATH:-}"
 
 # Only check if we have a file path
