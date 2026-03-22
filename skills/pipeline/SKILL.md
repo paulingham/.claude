@@ -36,9 +36,7 @@ The autonomous conductor for the delivery pipeline. Takes a task, determines whi
 
 ### Step 2: Create Pipeline State
 
-**MANDATORY**: Create BOTH a structured pipeline state file AND a memory file at pipeline start.
-
-**1. Pipeline state file** (persists across context compaction — primary):
+**MANDATORY**: Create a structured pipeline state file at pipeline start. This is the single source of truth for pipeline state — it survives context compaction.
 
 ```
 pipeline-state/[feature-name]-pipeline.md
@@ -47,59 +45,43 @@ task_id: [feature-name]
 phase: build
 verdict: in_progress
 timestamp: [ISO 8601]
+scale: [micro/small/medium/large]
+branch: [branch name]
 ---
 
 ## Pipeline: [feature name]
 Started: [date]
 Classification: [feature/refactor/bug]
-Branch: [branch name]
-Scale: [micro/small/medium/large]
 
 ## Phases
+- Scaffold: pending (or N/A if no scaffolding needed)
 - Build: pending
 - Review: pending
-[...other phases...]
+[...other phases per scale...]
 - Ship: pending
 
 ## Key Files
 [list as discovered]
 ```
 
-**2. Memory file** (secondary — for session continuity):
-
-```
-memory/pipeline_[feature_name].md
----
-name: Pipeline State - [feature name]
-description: In-progress pipeline for [feature], phase: Build, started [date]
-type: project
----
-
-## Pipeline: [feature name]
-Started: [date]
-Classification: [feature/refactor/bug]
-Branch: [branch name]
-Scale: [micro/small/medium/large]
-
-## Phases
-- Build: pending
-- Review: pending
-- Verify: pending
-- Test: pending
-- Accept: pending
-- Ship: pending
-
-## Completed Phases
-(none yet)
-
-## Outstanding
-(none yet)
-
-## Key Files
-(none yet)
-```
-
 Update this file as each phase completes with verdict, artifacts, and agent summaries.
+
+**Do NOT dual-write to memory/.** The `pipeline-state/` file is the sole authority. Use `/pipeline-resume` to recover state across sessions.
+
+### Step 2b: Pre-Build Scaffolding (Conditional)
+
+Before the Build phase, check whether the task requires infrastructure or API scaffolding. If yes, invoke the relevant utility skills as pre-build steps:
+
+| Task Signals | Scaffold Skill | What It Produces |
+|-------------|---------------|-----------------|
+| New API endpoints, REST resource | `/api-scaffold` | Route stubs, controllers, validation, OpenAPI spec |
+| Schema change, new table, add column | `/db-migration` | Migration files, index strategy |
+| No Dockerfile, no CI/CD, new project | `/infra-scaffold` | Dockerfile, docker-compose, CI/CD pipeline, health endpoints |
+| No logging/monitoring configured | `/observability-setup` | Logger config, metrics, tracing, alerting |
+
+Scaffolding is NOT a gate — it produces files and structure that the Build phase then fills with business logic via TDD. Invoke scaffolding skills via the Skill tool (they delegate to the appropriate agent in a worktree).
+
+If the task is a simple feature addition to an existing codebase with established patterns, skip scaffolding entirely.
 
 ### Step 3: Execute Phases in Order
 

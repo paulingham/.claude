@@ -81,6 +81,7 @@ No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 | `/pr-creation` | Ship phase: PR creation with narrative | PR_CREATED / PR_BLOCKED |
 | `/tech-spike` | Time-boxed technical research | SPIKE_COMPLETE |
 | `/project-setup` | Scaffolding project-level CLAUDE.md | PROJECT_SETUP_COMPLETE |
+| `/pipeline-resume` | Resume interrupted pipeline from state files | RESUMED |
 | `/harness-config` | Modify hooks, settings.json, non-.md config | CONFIG_APPLIED |
 | `/deploy` | CD phase: staging/production deploy with rollback | DEPLOYED / ROLLED_BACK |
 | `/infra-scaffold` | Generate Dockerfile, docker-compose, CI/CD, health endpoints | INFRA_SCAFFOLDED |

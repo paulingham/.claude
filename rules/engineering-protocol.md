@@ -4,8 +4,9 @@ Consolidates: engineering standards, testing standards, security baseline, incre
 
 ## Code Shape
 
-- Methods/functions: 5 lines max, CC <= 5, nesting <= 2
-- Classes/files: 50 lines max
+- Methods/functions: 5 lines max (configurable per project via `CLAUDE_FUNCTION_LINE_LIMIT`), CC <= 5, nesting <= 2
+- Classes/files: 50 lines max (configurable per project via `CLAUDE_FILE_LINE_LIMIT`)
+- Project overrides: place a `shape-overrides.json` in the project's `.claude/` directory with per-glob limits (e.g., `{"*.rb": 80, "*.go": 100}`)
 - Classes: single public entry point (`.call`/`.run`/`.execute`)
 - DRY: 2nd occurrence -> extract immediately
 

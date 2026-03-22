@@ -101,6 +101,36 @@ case "$FILE_PATH" in
 esac
 
 if [ "$TEST_FOUND" = "true" ]; then
+  # Advisory check: warn if test file exists but contains no test declarations
+  TEST_FILE=""
+  case "$FILE_PATH" in
+    *.rb)
+      [ -f "$SPEC_MIRROR" ] && TEST_FILE="$SPEC_MIRROR"
+      [ -f "$SPEC_ROOT" ] && TEST_FILE="$SPEC_ROOT"
+      ;;
+    *.py)
+      [ -f "tests/test_${BASENAME}.py" ] && TEST_FILE="tests/test_${BASENAME}.py"
+      [ -f "test_${BASENAME}.py" ] && TEST_FILE="test_${BASENAME}.py"
+      ;;
+    *.js|*.ts|*.jsx|*.tsx)
+      [ -f "${DIRPART}/${BASE}.test.${EXT}" ] && TEST_FILE="${DIRPART}/${BASE}.test.${EXT}"
+      [ -f "${DIRPART}/${BASE}.spec.${EXT}" ] && TEST_FILE="${DIRPART}/${BASE}.spec.${EXT}"
+      [ -f "${DIRPART}/__tests__/${BASE}.test.${EXT}" ] && TEST_FILE="${DIRPART}/__tests__/${BASE}.test.${EXT}"
+      [ -f "__tests__/${BASE}.test.${EXT}" ] && TEST_FILE="__tests__/${BASE}.test.${EXT}"
+      ;;
+    *.go)
+      [ -f "$GOTEST" ] && TEST_FILE="$GOTEST"
+      ;;
+  esac
+  if [ -n "$TEST_FILE" ] && [ -f "$TEST_FILE" ]; then
+    HAS_DECLARATION=false
+    if grep -qE "(it\(|it '|it \"|test\(|test '|test \"|describe\(|describe '|describe \"|def test_|func Test|context '|context \")" "$TEST_FILE" 2>/dev/null; then
+      HAS_DECLARATION=true
+    fi
+    if [ "$HAS_DECLARATION" = "false" ]; then
+      echo "TDD Warning: Test file exists but appears empty (no test declarations found). Write tests before implementation." >&2
+    fi
+  fi
   exit 0
 fi
 

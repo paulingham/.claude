@@ -1,39 +1,54 @@
 #!/bin/bash
 # Code Shape Check — PostToolUse BLOCKING hook
-# Fires after Write/Edit on .ts/.tsx/.js/.jsx source files (not tests, not config)
-# HARD BLOCKS (exit 2) if file exceeds 50 lines — forces immediate decomposition
+# Fires after Write/Edit on source files (not tests, not config)
+# HARD BLOCKS (exit 2) if file exceeds line limit — forces immediate decomposition
+# Supports: .ts/.tsx/.js/.jsx/.rb/.py/.go
 
 # Hook profile and loop guard
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 source ~/.claude/hooks/loop-guard.sh && check_loop_guard "code-shape-check" || exit 0
 
 FILE_PATH="${CLAUDE_FILE_PATH:-}"
+LINE_LIMIT="${CLAUDE_FILE_LINE_LIMIT:-50}"
 
 # Only check if we have a file path
 if [[ -z "$FILE_PATH" ]]; then
     exit 0
 fi
 
-# Only check source files (.ts, .tsx, .js, .jsx)
-if [[ ! "$FILE_PATH" =~ \.(ts|tsx|js|jsx)$ ]]; then
-    exit 0
-fi
+# Only check source files
+case "$FILE_PATH" in
+    *.ts|*.tsx|*.js|*.jsx|*.rb|*.py|*.go) ;;
+    *) exit 0 ;;
+esac
 
-# Skip test files
+# Skip JS/TS test files
 if [[ "$FILE_PATH" =~ \.(test|spec)\.(ts|tsx|js|jsx)$ ]]; then
     exit 0
 fi
-if [[ "$FILE_PATH" =~ /__tests__/ ]]; then
-    exit 0
-fi
-if [[ "$FILE_PATH" =~ /test/ ]] || [[ "$FILE_PATH" =~ /tests/ ]]; then
-    exit 0
-fi
-if [[ "$FILE_PATH" =~ /e2e/ ]]; then
+
+# Skip Ruby test files (_spec.rb)
+if [[ "$FILE_PATH" =~ _spec\.rb$ ]]; then
     exit 0
 fi
 
-# Skip config files
+# Skip Python test files (test_*.py, *_test.py)
+BASENAME=$(basename "$FILE_PATH")
+if [[ "$BASENAME" =~ ^test_.*\.py$ ]] || [[ "$BASENAME" =~ _test\.py$ ]]; then
+    exit 0
+fi
+
+# Skip Go test files (_test.go)
+if [[ "$FILE_PATH" =~ _test\.go$ ]]; then
+    exit 0
+fi
+
+# Skip test directories
+if [[ "$FILE_PATH" =~ /__tests__/ ]] || [[ "$FILE_PATH" =~ /test/ ]] || [[ "$FILE_PATH" =~ /tests/ ]] || [[ "$FILE_PATH" =~ /e2e/ ]] || [[ "$FILE_PATH" =~ /spec/ ]]; then
+    exit 0
+fi
+
+# Skip JS/TS config files
 if [[ "$FILE_PATH" =~ \.config\.(ts|js)$ ]]; then
     exit 0
 fi
@@ -41,6 +56,16 @@ if [[ "$FILE_PATH" =~ (tailwind|babel|metro|jest|eslint|prettier) ]]; then
     exit 0
 fi
 if [[ "$FILE_PATH" =~ /node_modules/ ]]; then
+    exit 0
+fi
+
+# Skip Ruby config files
+if [[ "$FILE_PATH" =~ config/.*\.rb$ ]]; then
+    exit 0
+fi
+
+# Skip Python config files
+if [[ "$BASENAME" == "conftest.py" ]] || [[ "$BASENAME" == "setup.py" ]] || [[ "$BASENAME" == "__init__.py" ]]; then
     exit 0
 fi
 
@@ -52,9 +77,9 @@ fi
 # Count lines
 LINE_COUNT=$(wc -l < "$FILE_PATH" | tr -d ' ')
 
-if [[ "$LINE_COUNT" -gt 50 ]]; then
+if [[ "$LINE_COUNT" -gt "$LINE_LIMIT" ]]; then
     echo "" >&2
-    echo "CODE SHAPE VIOLATION: $FILE_PATH has $LINE_COUNT lines (limit: 50)" >&2
+    echo "CODE SHAPE VIOLATION: $FILE_PATH has $LINE_COUNT lines (limit: $LINE_LIMIT)" >&2
     echo "" >&2
     echo "BLOCKED: Decompose this file before continuing." >&2
     echo "Options:" >&2

@@ -260,3 +260,56 @@ class AuditSubscriber implements EntitySubscriberInterface {
   }
 }
 ```
+
+## Database Seeding
+
+### Seed File Organization
+```
+db/seeds/
+  development.rb     — realistic dev data (10-50 records per table)
+  staging.rb          — anonymized production subset
+  essential.rb        — lookup tables, enum values (runs in all envs)
+```
+
+### Principles
+- **Idempotent**: safe to run multiple times (use `find_or_create_by` / upsert)
+- **Dependency-ordered**: respect foreign key constraints (create parents before children)
+- **Factory-based**: use test factories for consistency (FactoryBot, Faker)
+- **Environment-aware**: never seed production with test data
+
+### Examples
+
+**Rails:**
+```ruby
+# db/seeds/development.rb
+10.times do
+  user = User.find_or_create_by!(email: Faker::Internet.unique.email) do |u|
+    u.name = Faker::Name.name
+    u.password = 'password123'
+  end
+  3.times { user.posts.create!(title: Faker::Lorem.sentence, body: Faker::Lorem.paragraphs(number: 3).join("\n")) }
+end
+```
+
+**Prisma:**
+```typescript
+// prisma/seed.ts
+async function main() {
+  for (let i = 0; i < 10; i++) {
+    await prisma.user.upsert({
+      where: { email: `user${i}@example.com` },
+      update: {},
+      create: { email: `user${i}@example.com`, name: `User ${i}` },
+    });
+  }
+}
+```
+
+**Django:**
+```python
+# management/commands/seed.py
+class Command(BaseCommand):
+    def handle(self, *args, **options):
+        for i in range(10):
+            User.objects.get_or_create(email=f"user{i}@example.com", defaults={"name": f"User {i}"})
+```

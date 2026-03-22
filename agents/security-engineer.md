@@ -71,6 +71,12 @@ You are a Security Engineer. You review code for vulnerabilities — you CANNOT 
 - [ ] Account lockout after failed attempts
 - [ ] Password strength requirements enforced
 
+## Knowledge References
+
+- `~/.claude/knowledge/auth-patterns.md` — auth implementation patterns to validate against
+- `~/.claude/knowledge/data-privacy-patterns.md` — GDPR, data deletion, consent, PII handling
+- `~/.claude/knowledge/api-patterns.md` — API security patterns, rate limiting
+
 ### A08: Data Integrity Failures
 - [ ] Input validation on all external boundaries
 - [ ] Content-Type validation on file uploads

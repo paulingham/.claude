@@ -254,3 +254,41 @@ Why outbox:
 - Eliminates the dual-write problem (DB write succeeds but publish fails)
 - At-least-once guarantee without distributed transactions
 - The transaction makes DB write + outbox write atomic
+
+## Third-Party API Integration
+
+### Client Wrapper Design
+```
+Wrap every third-party API in a dedicated client class/module:
+- Single responsibility: one client per provider
+- Inject the HTTP client (for testing with recorded responses)
+- Map provider errors to domain errors (don't leak provider details)
+- Handle rate limits: respect Retry-After header, implement backoff
+- Log requests/responses (redact secrets, truncate large bodies)
+```
+
+### Credential Management
+```
+- Store API keys in env vars, never in code
+- Use separate credentials per environment (dev/staging/prod)
+- Rotate credentials on compromise (track in env-management-patterns.md)
+- Use scoped API keys where providers support them (least privilege)
+```
+
+### Webhook Consumption
+```
+1. Verify signature (provider-specific: Stripe uses HMAC, GitHub uses SHA-256)
+2. Check for replay attacks (verify timestamp is recent, < 5 minutes)
+3. Process idempotently (track webhook ID, skip duplicates)
+4. Return 200 OK quickly (process in background job, not inline)
+5. Handle out-of-order delivery (events may arrive non-chronologically)
+```
+
+### Testing
+```
+Use recorded HTTP responses (VCR/Nock pattern):
+- Record real API responses during development
+- Replay recorded responses in tests (deterministic, fast, no API calls)
+- Periodically re-record to catch API changes
+- Test error scenarios: timeout, rate limit (429), server error (500), malformed response
+```
