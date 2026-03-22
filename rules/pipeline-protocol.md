@@ -79,10 +79,14 @@ Before advancing to any phase, verify the previous gate passed AND invoke the re
 Dispatch code-reviewer + security-engineer in parallel (per parallel dispatch protocol).
 
 ### After CHANGES_REQUESTED
-- Spawn engineer to fix the specific findings
-- **Targeted re-review**: Only the reviewer who raised the finding re-reviews
-  - If code-reviewer raised findings and security-engineer APPROVED: only re-dispatch code-reviewer
-  - If both raised findings: re-dispatch both, but each only re-reviews their own findings
+1. Spawn engineer (worktree) with the specific findings
+2. Engineer fixes and commits
+3. Merge the fix worktree
+4. **Re-dispatch the raising reviewer is MANDATORY.** Do not skip re-review because the fix "looks right" — always re-dispatch.
+5. Re-dispatch the raising reviewer (only) with: the original finding, the specific fix applied, and the file diff
+6. **Targeted re-review**: Only the reviewer who raised the finding re-reviews
+   - If code-reviewer raised findings and security-engineer APPROVED: only re-dispatch code-reviewer
+   - If both raised findings: re-dispatch both, but each only re-reviews their own findings
 - The re-reviewer checks ONLY the addressed findings plus immediate surrounding context
 - They do NOT re-review the entire codebase (tests prove no regressions)
 - Max 2 total rounds (initial + 1 re-review). If still not resolved, escalate to user.

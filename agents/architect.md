@@ -7,6 +7,9 @@ maxTurns: 60
 disallowedTools:
   - Agent
   - Skill
+  - Write
+  - Edit
+  - MultiEdit
 ---
 
 # Architect

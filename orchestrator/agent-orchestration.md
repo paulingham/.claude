@@ -20,7 +20,7 @@ The orchestrator (Claude) coordinates agents. It does NOT write, edit, or create
 - These are configuration and documentation files, not source code
 - TDD does not apply to markdown documentation
 - This exception does NOT extend to `.json`, `.yaml`, `.sh`, or any executable/config format — delegate those via `/harness-config` skill to infrastructure-engineer
-- **Explicitly NOT covered**: `settings.json`, `hooks/*.sh`, `*.yaml`, `*.yml` -- use `/harness-config` skill which delegates to infrastructure-engineer
+- **Explicitly NOT covered**: `settings.json`, `hooks/*.sh`, `*.yaml`, `*.yml`, `.gitignore` -- use `/harness-config` skill which delegates to infrastructure-engineer
 
 ### Enforcement Note
 - The `orchestrator-discipline.sh` PreToolUse hook blocks Write/Edit on non-`.md` source files (exit 2)

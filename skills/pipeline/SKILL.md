@@ -36,7 +36,36 @@ The autonomous conductor for the delivery pipeline. Takes a task, determines whi
 
 ### Step 2: Create Pipeline State
 
-Create a memory file to track pipeline state:
+**MANDATORY**: Create BOTH a structured pipeline state file AND a memory file at pipeline start.
+
+**1. Pipeline state file** (persists across context compaction — primary):
+
+```
+pipeline-state/[feature-name]-pipeline.md
+---
+task_id: [feature-name]
+phase: build
+verdict: in_progress
+timestamp: [ISO 8601]
+---
+
+## Pipeline: [feature name]
+Started: [date]
+Classification: [feature/refactor/bug]
+Branch: [branch name]
+Scale: [micro/small/medium/large]
+
+## Phases
+- Build: pending
+- Review: pending
+[...other phases...]
+- Ship: pending
+
+## Key Files
+[list as discovered]
+```
+
+**2. Memory file** (secondary — for session continuity):
 
 ```
 memory/pipeline_[feature_name].md

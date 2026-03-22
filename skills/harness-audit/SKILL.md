@@ -1,0 +1,144 @@
+---
+name: "Harness Audit"
+description: "Audit the health of the ~/.claude/ config: orphan hooks, missing skills, stale agents, JSON validity, hook executability. Reports HEALTHY / WARNINGS / CRITICAL."
+argument-hint: "Optional: focus area (hooks|skills|agents|all)"
+---
+
+# Harness Audit
+
+## What This Skill Does
+
+Inspects the `~/.claude/` orchestration layer for configuration health issues — orphan hooks, missing references, invalid JSON, non-executable scripts, and stale agent definitions. Produces a scored health report.
+
+## Process
+
+### 1. Hook Health
+
+**a. Registered hooks exist as files:**
+For every hook command in `settings.json` (`PreToolUse`, `PostToolUse`, `Stop`, `SubagentStop`, `UserPromptSubmit`, `SessionStart`, `SessionEnd`, `PreCompact`, `PostCompact`):
+- Extract the script path from `"command": "bash ~/.claude/hooks/foo.sh"`
+- Check the file exists: `ls ~/.claude/hooks/foo.sh`
+- Check it is executable: `test -x ~/.claude/hooks/foo.sh`
+
+**b. Orphan hooks (files not registered):**
+- List all `~/.claude/hooks/*.sh` files
+- Check each is referenced in `settings.json`
+- Flag any that exist but aren't registered (potential dead code)
+
+**c. Hook shared libraries sourced correctly:**
+- Verify `hook-profile.sh` and `loop-guard.sh` exist (they're sourced by other hooks)
+
+### 2. Skills Health
+
+**a. Skills referenced in CLAUDE.md exist:**
+- Read `~/.claude/CLAUDE.md` and extract all `/skill-name` references
+- Check `~/.claude/skills/{skill-name}/SKILL.md` exists for each
+- Flag missing skill files
+
+**b. Skill frontmatter validity:**
+- Each `skills/*/SKILL.md` must have: `name`, `description` fields in YAML frontmatter
+- Flag any missing required fields
+
+### 3. Agent Definitions Health
+
+**a. Required frontmatter fields:**
+Each `agents/*.md` (excluding `dynamic/` and `archive/`) must have:
+- `name` — matches filename
+- `description` — non-empty
+- `tools` — at least one tool listed
+- `model` — one of: opus, sonnet, haiku
+- `maxTurns` — positive integer
+- `disallowedTools` — present (may be empty list)
+
+Flag any agent missing required fields.
+
+**b. Read-only agents have write tools disallowed:**
+Agents whose descriptions include "read-only", "reviewer", "auditor":
+- `code-reviewer`, `security-engineer`, `product-reviewer`, `architect`
+- Must have `Write`, `Edit`, `MultiEdit` in `disallowedTools`
+
+### 4. settings.json Validity
+
+```bash
+cat ~/.claude/settings.json | jq . > /dev/null 2>&1 && echo "VALID" || echo "INVALID JSON"
+```
+
+Also check:
+- All hook `type` values are valid: `command`, `agent`
+- All `matcher` values reference real tool names
+- `env` section has `CLAUDE_HOOK_PROFILE` defined
+
+### 5. Knowledge Library Health
+
+- List all `~/.claude/knowledge/*.md` files
+- Check each is referenced in at least one `agents/*.md` (Knowledge References section)
+- Flag unreferenced knowledge files (dead documentation)
+
+### 6. Pipeline State Cleanup
+
+- List all `~/.claude/pipeline-state/*.md` and `*.jsonl` files (excluding README.md and .gitkeep)
+- Flag any that are more than 7 days old (stale state from abandoned pipelines)
+- Report count of active vs stale state files
+
+## Scoring
+
+| Category | Issues Found | Score |
+|----------|-------------|-------|
+| Hooks | None | ✅ |
+| Hooks | Warnings only | ⚠️ |
+| Hooks | Missing/non-executable hooks | ❌ |
+| Skills | None | ✅ |
+| Skills | Missing skill files | ❌ |
+| Agents | None | ✅ |
+| Agents | Missing frontmatter | ⚠️ |
+| Agents | Write tools not disallowed on read-only agents | ❌ |
+| JSON | Valid | ✅ |
+| JSON | Invalid | ❌ |
+| Knowledge | All referenced | ✅ |
+| Knowledge | Orphan files | ⚠️ |
+
+## Output Format
+
+```
+## Harness Audit Report
+Date: [timestamp]
+
+### Verdict: HEALTHY / WARNINGS / CRITICAL
+
+### Hooks (N/N passing)
+- ✅ quality-gate.sh — registered, executable
+- ❌ missing-hook.sh — registered in settings.json but file not found
+- ⚠️ orphan-hook.sh — file exists but not registered in settings.json
+
+### Skills (N/N passing)
+- ✅ /pipeline — SKILL.md found
+- ❌ /missing-skill — SKILL.md not found
+
+### Agent Definitions (N/N passing)
+- ✅ software-engineer — all frontmatter present
+- ⚠️ some-agent — missing maxTurns field
+- ❌ code-reviewer — Write not in disallowedTools
+
+### settings.json
+- ✅ Valid JSON
+- ✅ CLAUDE_HOOK_PROFILE defined
+
+### Knowledge Library (N/N referenced)
+- ✅ database-patterns.md — referenced by database-engineer
+- ⚠️ orphan-patterns.md — not referenced by any agent
+
+### Pipeline State
+- N active state files
+- N stale files (>7 days old) — recommend cleanup
+
+### Summary
+[Total: N critical, N warnings, N passing]
+```
+
+## Phase Output
+
+```
+Verdict: HEALTHY / WARNINGS / CRITICAL
+Next: Fix flagged issues, re-run /harness-audit to confirm
+Artifacts: [health report with itemised findings]
+```
