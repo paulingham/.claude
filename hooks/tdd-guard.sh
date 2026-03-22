@@ -5,25 +5,21 @@
 
 set -euo pipefail
 
-# Require jq — exit cleanly if not available (don't silently bypass)
+# jq needed only for stdin JSON fallback
 command -v jq >/dev/null 2>&1 || exit 0
 
-INPUT=$(cat)
-
-# Never block if stop_hook_active (avoid loops)
-STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
-if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
-  exit 0
+# Extract file path — use env var (consistent with other Write/Edit hooks), fall back to stdin JSON
+FILE_PATH="${CLAUDE_FILE_PATH:-}"
+if [ -z "$FILE_PATH" ]; then
+  INPUT=$(cat)
+  FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // empty' 2>/dev/null)
 fi
-
-# Extract the file path (Write uses file_path, Edit uses path)
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // empty')
 
 if [ -z "$FILE_PATH" ]; then
   exit 0
 fi
 
-# Reject paths with newlines or control characters (safety against malformed JSON input)
+# Reject paths with newlines or control characters
 if [[ "$FILE_PATH" == *$'\n'* ]] || [[ "$FILE_PATH" == *$'\r'* ]]; then
   exit 0
 fi

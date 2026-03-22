@@ -4,6 +4,7 @@
 # Advisory only — never blocks.
 
 set -uo pipefail
+# Deliberately omitting -e: this is advisory-only, individual command failures should not abort
 
 INPUT=$(cat)
 
