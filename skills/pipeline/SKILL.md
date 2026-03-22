@@ -81,6 +81,7 @@ Before the Build phase, check whether the task requires infrastructure or API sc
 | Voice skill/IVR needed | `/voice-scaffold` | Intent model, handler stubs, SSML templates |
 | New channel for existing product | `/bff-scaffold` | Channel-specific BFF layer, transformers, gateway route |
 | New microservice extraction | `/microservices-scaffold` | Service template, gateway config, tracing |
+| Extract module to own repo | `/service-extraction` | New repo, code migration, contracts, PRs in both repos |
 
 Scaffolding is NOT a gate — it produces files and structure that the Build phase then fills with business logic via TDD. Invoke scaffolding skills via the Skill tool (they delegate to the appropriate agent in a worktree).
 
