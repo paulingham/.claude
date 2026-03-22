@@ -105,7 +105,7 @@
           },
           {
             "type": "agent",
-            "prompt": "Verify the current task is truly complete before stopping. Check: 1) Run the test suite if there are code changes and confirm all tests pass, 2) Run git status to check for uncommitted changes, 3) Look for TODO or FIXME comments in recently changed files (git diff --name-only | xargs grep -l 'TODO\\|FIXME' 2>/dev/null), 4) If a pipeline is in progress, verify memory/pipeline_*.md is up to date with current phase status. If anything is incomplete, respond with {\"ok\": false, \"reason\": \"what remains\"}. If this was just a question/conversation (no code changes), respond with {\"ok\": true}. IMPORTANT: Check the stop_hook_active field in your input - if true, respond with {\"ok\": true} immediately to avoid infinite loops.",
+            "prompt": "Verify the current task is truly complete before stopping. Check: 1) Run the test suite if there are code changes and confirm all tests pass, 2) Run git status to check for uncommitted changes, 3) Look for TODO or FIXME comments in recently changed files (git diff --name-only | xargs grep -l 'TODO\\|FIXME' 2>/dev/null), 4) If a pipeline is in progress, verify pipeline-state/*-pipeline.md is up to date with current phase status. If anything is incomplete, respond with {\"ok\": false, \"reason\": \"what remains\"}. If this was just a question/conversation (no code changes), respond with {\"ok\": true}. IMPORTANT: Check the stop_hook_active field in your input - if true, respond with {\"ok\": true} immediately to avoid infinite loops.",
             "timeout": 120
           }
         ]
@@ -117,7 +117,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf 'CONTEXT COMPACTED — Critical reminders:\\n1. Check memory/pipeline_*.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ — review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases — invoke via Skill tool\\n5. Agent Teams enabled — use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory — check .claude/agent-memory/'"
+            "command": "printf 'CONTEXT COMPACTED — Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ — review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases — invoke via Skill tool\\n5. Agent Teams enabled — use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory — check .claude/agent-memory/'"
           }
         ]
       }
@@ -153,7 +153,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'PRE-COMPACTION: Verify pipeline state is saved in memory/pipeline_*.md before context compression.'"
+            "command": "echo 'PRE-COMPACTION: Verify pipeline state is saved in pipeline-state/*-pipeline.md before context compression.'"
           }
         ]
       }
@@ -163,7 +163,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ls memory/pipeline_*.md 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'"
+            "command": "ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'"
           }
         ]
       }
@@ -173,7 +173,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'SESSION STOPPED DUE TO ERROR. If a pipeline is in progress, state should be in memory/pipeline_*.md. Resume in a new session.' >&2"
+            "command": "echo 'SESSION STOPPED DUE TO ERROR. If a pipeline is in progress, state should be in pipeline-state/*-pipeline.md. Resume in a new session.' >&2"
           }
         ]
       }
