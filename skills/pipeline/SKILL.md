@@ -189,6 +189,17 @@ When all phases are complete (including Deploy if applicable):
 3. Output final pipeline summary with all agent contributions
 4. Clean up pipeline-state file
 
+### Step 7: Reflect
+
+**MANDATORY** after every pipeline. Run the reflection checklist from `rules/reflection-protocol.md`.
+
+1. Review the pipeline execution for issues, surprises, and validated patterns
+2. Identify improvements to rules, project CLAUDE.md, global CLAUDE.md, agent definitions, skills, or memory
+3. Apply identified changes (delegate source file changes to agents)
+4. Report learnings to the user (skip if nothing actionable)
+
+This step ensures the system continuously improves. Every pipeline — whether it had rework or ran clean — is an opportunity to strengthen rules and patterns.
+
 ## Status Reporting
 
 At each phase transition, output a brief status line:
