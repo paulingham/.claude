@@ -9,6 +9,15 @@
 - Zero waste: every output line is a test result or a real error
 - Proven correct: tests passing is necessary but not sufficient — verify it actually works
 
+## Session Start (Automatic)
+
+On every session start, before responding to the user's first message:
+
+1. **Check for in-progress pipeline**: `ls pipeline-state/*-pipeline.md 2>/dev/null`. If found, automatically invoke `/pipeline-resume`. Inform the user: "Resuming [pipeline name] from [phase]."
+2. **Check for merged PRs with pending deploy**: if a pipeline state file shows Ship=completed + Deploy=pending, check `gh pr view --json state`. If merged, auto-invoke `/deploy`.
+
+These checks are silent if nothing is found — don't report "no pipelines found."
+
 ## Project Readiness Check
 
 Before starting ANY work in a repo, verify:
