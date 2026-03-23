@@ -97,6 +97,7 @@ No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 | `/bff-scaffold` | Backend for Frontend per channel (web, mobile, voice, device) | BFF_SCAFFOLDED |
 | `/cross-service-pipeline` | Cross-repo contract verification, deploy coordination | CROSS_SERVICE_VERIFIED |
 | `/service-extraction` | Extract module to own repo: create repo, migrate, refactor, PRs | SERVICE_EXTRACTED |
+| `/design-system-init` | Generate design tokens, primitives, dark mode for a project | DESIGN_SYSTEM_READY |
 
 ### Definition of Done
 
