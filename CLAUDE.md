@@ -13,7 +13,7 @@
 
 Before starting ANY work in a repo, verify:
 1. Check for `.claude/CLAUDE.md` or `CLAUDE.md` at project root
-2. If missing: inform the user and offer `/project-setup` to scaffold one
+2. If missing: **automatically invoke `/project-setup`** before any other work. Do not ask — just run it. The user should never need to request project setup manually.
 3. If present: read it and confirm no conflicts with global rules
 
 | Layer | Controls | Example |

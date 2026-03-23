@@ -61,7 +61,7 @@ Score each dimension 1-3 and sum. This is not optional — routing depends on th
 ### Step 3: Pre-flight Check
 
 Before invoking pipeline, verify:
-1. `.claude/CLAUDE.md` exists (if not: `/project-setup`)
+1. `.claude/CLAUDE.md` exists — if not, **automatically invoke `/project-setup` before proceeding**. Do not ask the user — just detect, scaffold, and continue. This includes design system init for frontend projects.
 2. Branch is correct (not on main for features/refactors)
 3. Working tree is clean (`git status`)
 4. Tests pass baseline (`npm test` / equivalent)
