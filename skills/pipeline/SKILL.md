@@ -70,7 +70,7 @@ Update this file as each phase completes with verdict, artifacts, and agent summ
 
 ### Step 2b: Pre-Build Scaffolding (Conditional)
 
-Before the Build phase, check whether the task requires infrastructure or API scaffolding. If yes, invoke the relevant utility skills as pre-build steps:
+Before the Build phase, check BOTH the task requirements AND the project state. Scaffolding triggers on missing project infrastructure — not just what the task description says. For example, if a CLAUDE.md exists but the project has no Dockerfile, no design system, or no observability, detect and scaffold those automatically.
 
 | Task Signals | Scaffold Skill | What It Produces |
 |-------------|---------------|-----------------|
@@ -86,7 +86,13 @@ Before the Build phase, check whether the task requires infrastructure or API sc
 
 Scaffolding is NOT a gate — it produces files and structure that the Build phase then fills with business logic via TDD. Invoke scaffolding skills via the Skill tool (they delegate to the appropriate agent in a worktree).
 
-If the task is a simple feature addition to an existing codebase with established patterns, skip scaffolding entirely.
+**Detection is automatic.** Check project state directly:
+- No `Dockerfile`? → `/infra-scaffold`
+- No `styles/tokens.css` and no `theme.extend.colors` in Tailwind config? → `/design-system-init`
+- No logging config and task touches backend? → `/observability-setup`
+- Task needs new endpoints but no OpenAPI spec or routes exist? → `/api-scaffold`
+
+If the project already has established infrastructure, design system, and patterns, skip scaffolding.
 
 ### Step 2c: Cross-Service Checks (Conditional)
 
