@@ -60,11 +60,13 @@ Score each dimension 1-3 and sum. This is not optional — routing depends on th
 
 ### Step 3: Pre-flight Check
 
-Before invoking pipeline, verify:
-1. `.claude/CLAUDE.md` exists — if not, **automatically invoke `/project-setup` before proceeding**. Do not ask the user — just detect, scaffold, and continue. This includes design system init for frontend projects.
-2. Branch is correct (not on main for features/refactors)
-3. Working tree is clean (`git status`)
-4. Tests pass baseline (`npm test` / equivalent)
+Before invoking pipeline, verify and auto-fix:
+1. **CLAUDE.md** — if not present, automatically invoke `/project-setup`. Do not ask.
+2. **In-progress pipeline** — check `pipeline-state/*-pipeline.md`. If found, automatically invoke `/pipeline-resume` instead of starting a new pipeline. Inform the user: "Found in-progress pipeline [name]. Resuming from [phase]."
+3. **Feature branch** — if on `main`/`master` and the work is a feature, refactor, or bug fix: automatically create and switch to a feature branch. Branch name: `feat/[kebab-case-summary]`, `fix/[kebab-case-summary]`, or `refactor/[kebab-case-summary]`. Do not ask — just create it.
+4. **Working tree clean** — if uncommitted changes exist, warn the user before proceeding. Do not auto-commit — the user may have in-progress work.
+5. **Test runner worktree exclusion** — on first pipeline run in a project, check that the test runner config excludes `.claude/worktrees/`. If not configured, add the exclusion automatically (Jest: `testPathIgnorePatterns`, pytest: `testpaths`, rspec: `--exclude-pattern`).
+6. **Baseline tests** — run the project's test command (from CLAUDE.md Commands). If tests fail before we start, warn the user.
 
 ### Step 4: Route to Pipeline
 

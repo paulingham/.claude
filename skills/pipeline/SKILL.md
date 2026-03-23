@@ -171,12 +171,23 @@ After Accept phase completes (APPROVED), check whether the codebase has grown to
 
 This assessment is zero-cost — it reads the existing review output. No additional analysis needed.
 
-### Step 5: Completion
+### Step 5: Deploy (Automatic for Medium/Large)
 
-When Ship phase returns PR_CREATED:
-1. Update pipeline-state file: mark all phases as `completed`, record PR URL
-2. Report PR URL to user
+After Ship phase returns PR_CREATED:
+
+1. Check PR merge status: `gh pr view [PR_NUMBER] --json state -q '.state'`
+2. If `MERGED`: automatically invoke `/deploy` → `/deployment-verification`
+3. If `OPEN`: inform user PR is ready for review. The deploy phase will run when the user returns after merge — `/pipeline-resume` detects Ship=completed + Deploy=pending and auto-continues.
+
+For micro/small pipelines: deploy is optional (inform user, don't auto-invoke).
+
+### Step 6: Completion
+
+When all phases are complete (including Deploy if applicable):
+1. Update pipeline-state file: mark all phases as `completed`, record PR URL and deploy URL
+2. Report PR URL (and deploy URL if deployed) to user
 3. Output final pipeline summary with all agent contributions
+4. Clean up pipeline-state file
 
 ## Status Reporting
 
