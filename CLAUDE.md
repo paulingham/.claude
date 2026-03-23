@@ -68,6 +68,7 @@ The orchestrator MUST create an Agent Team for ALL implementation tasks. The use
 6. **Accept** → `/product-acceptance`. Gate: APPROVED.
 7. **Ship** → `/pr-creation`. Gate: quality gate hook passes.
 8. **Deploy** → `/deploy` + `/deployment-verification`. Gate: DEPLOYMENT_VERIFIED.
+9. **Reflect** → Review pipeline execution, identify improvements to rules/CLAUDE.md/memory. Always runs.
 
 No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 
@@ -119,6 +120,7 @@ A story is DONE when ALL are true:
 - Product reviewer: APPROVED
 - Quality gate hook passes
 - PR merged to main
+- Post-task reflection completed (rules/patterns updated if learnings identified)
 
 ## Detailed Protocols
 
@@ -130,6 +132,7 @@ All detailed protocols are in `rules/` (auto-loaded each session):
 - `rules/operational-protocol.md` — Complexity Budget, error recovery principles
 - `rules/parallel-dispatch-protocol.md` — Parallel phase map, agent prompt template
 - `rules/e2e-protocol.md` — Maestro E2E trigger matrix and prerequisites
+- `rules/reflection-protocol.md` — Post-pipeline reflection, root cause analysis, continuous improvement
 
 ### Orchestrator-Only Protocols (not auto-loaded, read when needed)
 - `orchestrator/pipeline-orchestration.md` — State tracking, continuity, progress reporting, anti-patterns

@@ -1,0 +1,71 @@
+# Reflection Protocol
+
+## When to Reflect
+
+After EVERY pipeline completion — features, bug fixes, refactors. Reflection is not optional.
+
+- **After rework/bugs**: Focus on what went wrong and how to prevent it
+- **After clean pipelines**: Focus on what went well and what patterns to codify
+
+## Reflection Checklist
+
+At pipeline completion, before reporting final status to the user, run through this checklist:
+
+### 1. What Happened?
+
+Review the pipeline execution:
+- Were there any bugs, rework, or CHANGES_REQUESTED cycles?
+- Were there any surprises or unexpected behaviors on device/in production?
+- Did any assumptions prove wrong?
+- What patterns or approaches worked well?
+
+### 2. Root Cause Analysis (if issues occurred)
+
+For each issue encountered:
+- What was the root cause? (missing rule, wrong assumption, untested path, timing issue)
+- Was this preventable with existing knowledge?
+- What check or rule would have caught it earlier?
+
+### 3. Identify Improvements
+
+Map learnings to concrete actions. Check each category:
+
+| Category | File(s) | Ask |
+|----------|---------|-----|
+| **Project conventions** | Project `.claude/CLAUDE.md` | Should a new pattern, rule, or limitation be documented? |
+| **Global rules** | `~/.claude/rules/*.md` | Should a new or updated rule prevent this class of issue? |
+| **Global playbook** | `~/.claude/CLAUDE.md` | Should the pipeline, definition of done, or protocols change? |
+| **Agent definitions** | `~/.claude/agents/*.md` | Should agent checklists include new verification steps? |
+| **Feedback memory** | Project `memory/feedback_*.md` | Should a lesson be saved for future sessions? |
+| **Skills** | `~/.claude/skills/*/SKILL.md` | Should a skill's process or checklist be updated? |
+
+### 4. Apply Changes
+
+- Source files (`.claude/CLAUDE.md`, rules, agents, skills): delegate to agents
+- Memory files: write directly (memory is excluded from orchestrator code ban)
+- Update `MEMORY.md` index if new memory files are created
+
+### 5. Report
+
+Summarise to the user:
+- What was learned (1-3 bullets)
+- What was updated (file list)
+- Skip if nothing actionable was identified (clean pipeline, no new patterns)
+
+## What Good Reflection Looks Like
+
+**After a feature with bugs:**
+> Learned: `display: none` on WebView containers hides dynamic children (menus). Added CSS hiding rule to project CLAUDE.md and feedback memory.
+
+**After a clean feature:**
+> Learned: The NavigationBar → AppHeader → WebView composition pattern works well for replacing HTML elements with native components. No changes needed — existing patterns sufficient.
+
+**After a refactor:**
+> Learned: Session detection has multiple fallback layers for timing reasons. Added rule: prefer narrowing conditions over removing them.
+
+## Anti-Patterns
+
+- **Skipping reflection because the pipeline was clean** — Clean pipelines still produce learnings (validated patterns, confirmed approaches)
+- **Writing vague memories** — "Be more careful" is not actionable. Write specific rules with Why and How to Apply
+- **Reflecting only on failures** — Also codify what worked well, so future sessions repeat good patterns
+- **Over-documenting** — If nothing was surprising or non-obvious, say so and move on. Not every pipeline produces new rules
