@@ -88,6 +88,17 @@ Shape compliance is enforced by build hooks. Do not re-measure. If shape violati
 - [ ] No blocking I/O in request path
 - [ ] Pagination for list endpoints
 
+### Design System Compliance (UI changes only)
+If the change includes frontend components (.tsx/.jsx files in components/):
+- [ ] No hardcoded colors (hex/rgb literals — must use design tokens)
+- [ ] No arbitrary spacing values (must use spacing scale or Tailwind classes)
+- [ ] No inline font-size (must use type scale)
+- [ ] Empty states follow the pattern (illustration + headline + CTA, not bare "No data")
+- [ ] Error messages follow the framework (what + why + what-to-do)
+- [ ] Animations serve a purpose (orient, cause-effect, attention — not decorative)
+- [ ] `prefers-reduced-motion` handled for all animations
+- [ ] Loading states use skeleton screens (not spinners for content areas)
+
 ### Extraction Signals (flag if ANY are true)
 Check modules/directories touched by this change for extraction readiness:
 - [ ] Module has >20 files or >2000 lines of source code (excluding tests)
