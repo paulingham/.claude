@@ -67,6 +67,21 @@ Add a `## Service Context` section to the generated CLAUDE.md:
 - **Channel**: [web | mobile | voice | device | all, if applicable]
 ```
 
+### 3c. Frontend Design System Check
+
+If the project has a frontend (React, Next.js, Vue, or similar detected in Step 1):
+
+1. Check for an existing design system:
+   - `tailwind.config.*` with theme.extend.colors → tokens exist
+   - `styles/tokens.css` or CSS custom properties (--color-*, --spacing-*) → tokens exist
+   - `components/ui/` directory with primitives → component library exists
+
+2. If NO design system detected: invoke `/design-system-init` to generate tokens, Tailwind config, primitive components, and dark mode before any frontend build work begins.
+
+3. If a partial system exists (e.g., Tailwind but no tokens): `/design-system-init` will enhance rather than replace.
+
+This is automatic — the user does not need to invoke `/design-system-init` manually.
+
 ### 4. Generate CLAUDE.md and AGENTS.md
 
 Generate both files at the project root.
