@@ -86,6 +86,8 @@ Before the Build phase, check BOTH the task requirements AND the project state. 
 
 Scaffolding is NOT a gate — it produces files and structure that the Build phase then fills with business logic via TDD. Invoke scaffolding skills via the Skill tool (they delegate to the appropriate agent in a worktree).
 
+**Dependency installation is NOT scaffolding.** Adding a package to `package.json` is part of the Build phase, not a pre-build step. Include dependency requirements in the build agent's prompt.
+
 **Detection is automatic.** Check project state directly:
 - No `Dockerfile`? → `/infra-scaffold`
 - No `styles/tokens.css` and no `theme.extend.colors` in Tailwind config? → `/design-system-init`
@@ -106,7 +108,8 @@ If the project CLAUDE.md contains a `## Service Context` section with upstream/d
 
 For each phase:
 1. Update the memory file to mark the phase as `in_progress`
-2. **Sequential phases**: Invoke the skill via the Skill tool
+2. **Sequential read-only phases** (Test analysis, Accept): Invoke the skill via the Skill tool
+2b. **Sequential write-capable phases** (Build, Verify Tier 3, QA gap-fill, scaffold): Spawn agent via Agent tool with `isolation: "worktree"`, instructing them to read and execute the skill file at `~/.claude/skills/[name]/SKILL.md`
 3. **Parallel phases**: Use Parallel Dispatch Protocol (see `rules/parallel-dispatch-protocol.md`) — spawn agents in a single message, each reading their own skill file
 4. Read the Phase Output (Verdict, Next, Artifacts)
 5. If verdict is a failure/rejection: handle per Step 4 (Recovery)

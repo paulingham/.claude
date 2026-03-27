@@ -74,10 +74,17 @@ case "$FILE_PATH" in
     EXT="${BASENAME##*.}"
     BASE="${BASENAME%.*}"
     DIRPART=$(dirname "$FILE_PATH")
+    # Detect git root for mirrored __tests__/{subdir}/ convention
+    GIT_ROOT=$(cd "$(dirname "$FILE_PATH")" && git rev-parse --show-toplevel 2>/dev/null || echo "")
+    REL_DIR=""
+    if [ -n "$GIT_ROOT" ]; then
+      REL_DIR="${DIRPART#"$GIT_ROOT/"}"
+    fi
     [ -f "${DIRPART}/${BASE}.test.${EXT}" ] || \
     [ -f "${DIRPART}/${BASE}.spec.${EXT}" ] || \
     [ -f "${DIRPART}/__tests__/${BASE}.test.${EXT}" ] || \
-    [ -f "__tests__/${BASE}.test.${EXT}" ] && TEST_FOUND=true
+    [ -f "__tests__/${BASE}.test.${EXT}" ] || \
+    { [ -n "$GIT_ROOT" ] && [ -f "${GIT_ROOT}/__tests__/${REL_DIR}/${BASE}.test.${EXT}" ]; } && TEST_FOUND=true
     EXPECTED="${DIRPART}/${BASE}.test.${EXT}"
     ;;
   *.go)
@@ -117,6 +124,7 @@ if [ "$TEST_FOUND" = "true" ]; then
       [ -f "${DIRPART}/${BASE}.spec.${EXT}" ] && TEST_FILE="${DIRPART}/${BASE}.spec.${EXT}"
       [ -f "${DIRPART}/__tests__/${BASE}.test.${EXT}" ] && TEST_FILE="${DIRPART}/__tests__/${BASE}.test.${EXT}"
       [ -f "__tests__/${BASE}.test.${EXT}" ] && TEST_FILE="__tests__/${BASE}.test.${EXT}"
+      [ -n "$GIT_ROOT" ] && [ -f "${GIT_ROOT}/__tests__/${REL_DIR}/${BASE}.test.${EXT}" ] && TEST_FILE="${GIT_ROOT}/__tests__/${REL_DIR}/${BASE}.test.${EXT}"
       ;;
     *.go)
       [ -f "$GOTEST" ] && TEST_FILE="$GOTEST"

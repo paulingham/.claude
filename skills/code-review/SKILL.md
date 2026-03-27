@@ -93,6 +93,20 @@ When dispatched in parallel:
 - Build phase complete: BUILD_COMPLETE verdict from `/build-implementation`, `/refactor`, or `/bug-fix`
 - Must be dispatched IN PARALLEL with `/security-review` via Parallel Dispatch Protocol
 
+## Severity Grading
+
+Every finding MUST be assigned a severity. Use the calibration table below:
+
+| Severity | Definition | Examples | Blocks? |
+|----------|-----------|----------|---------|
+| CRITICAL | Security vulnerability or data loss risk | SQL injection, exposed secrets, auth bypass | Yes |
+| HIGH | Correctness bug or significant design flaw | Missing error handling, broken invariant, SOLID violation | Yes |
+| MEDIUM | Code quality issue causing maintenance pain | DRY violation across files, unclear naming, missing edge case test, unnecessary coupling | Yes |
+| LOW | Minor improvement or style preference | Variable rename suggestion, comment improvement | No |
+| INFO | Observation, context, or positive feedback | "Nice pattern," "FYI this also handles X" | No |
+
+**Verdict rule:** APPROVE if no CRITICAL, HIGH, or MEDIUM findings. CHANGES_REQUESTED if any CRITICAL, HIGH, or MEDIUM findings exist. LOW and INFO are noted but do not block.
+
 ## Phase Output
 
 ```

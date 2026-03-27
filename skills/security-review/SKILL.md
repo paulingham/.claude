@@ -40,7 +40,7 @@ Agent({
     - Secure cookie flags, HTTPS enforcement
     - Content-Type validation on file uploads
     Produce a verdict with severity levels: CRITICAL, HIGH, MEDIUM, LOW.
-    APPROVE if no CRITICAL or HIGH findings. CHANGES_REQUESTED otherwise."
+    APPROVE if no CRITICAL, HIGH, or MEDIUM findings. CHANGES_REQUESTED if any CRITICAL, HIGH, or MEDIUM findings exist. LOW and INFO findings are noted in the review output but do not block."
 })
 ```
 
@@ -48,8 +48,8 @@ No `isolation: "worktree"` — security-engineer is read-only.
 
 ### 2. Process Verdict
 
-- **APPROVE** (no CRITICAL/HIGH): Advance. Record security summary for PR narrative.
-- **CHANGES_REQUESTED**: Spawn engineer (with worktree) to fix CRITICAL/HIGH findings. Then re-run both reviews.
+- **APPROVE** (no CRITICAL/HIGH/MEDIUM): Advance. Record security summary for PR narrative.
+- **CHANGES_REQUESTED**: Spawn engineer (with worktree) to fix CRITICAL/HIGH/MEDIUM findings. Then re-run both reviews.
 
 ## Security Checklist
 
@@ -77,6 +77,20 @@ When dispatched in parallel:
 
 - Build phase complete: BUILD_COMPLETE verdict from `/build-implementation`, `/refactor`, or `/bug-fix`
 - Must be dispatched IN PARALLEL with `/code-review` via Parallel Dispatch Protocol
+
+## Severity Grading
+
+Every finding MUST be assigned a severity. Use the calibration table below:
+
+| Severity | Definition | Examples | Blocks? |
+|----------|-----------|----------|---------|
+| CRITICAL | Security vulnerability or data loss risk | SQL injection, exposed secrets, auth bypass | Yes |
+| HIGH | Correctness bug or significant design flaw | Missing error handling, broken invariant, SOLID violation | Yes |
+| MEDIUM | Code quality issue causing maintenance pain | DRY violation across files, unclear naming, missing edge case test, unnecessary coupling | Yes |
+| LOW | Minor improvement or style preference | Variable rename suggestion, comment improvement | No |
+| INFO | Observation, context, or positive feedback | "Nice pattern," "FYI this also handles X" | No |
+
+**Verdict rule:** APPROVE if no CRITICAL, HIGH, or MEDIUM findings. CHANGES_REQUESTED if any CRITICAL, HIGH, or MEDIUM findings exist. LOW and INFO are noted but do not block.
 
 ## Phase Output
 

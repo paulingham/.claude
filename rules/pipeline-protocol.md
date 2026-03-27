@@ -4,9 +4,13 @@ Detailed orchestrator procedures: see `~/.claude/orchestrator/pipeline-orchestra
 
 ## Skills Are Mandatory, Not Optional
 
-When a pipeline phase has a corresponding skill, invoking it via the Skill tool is a HARD REQUIREMENT. Do not manually perform what a skill is designed to do.
+When a pipeline phase has a corresponding skill, the skill's procedure MUST be executed. The dispatch mechanism depends on whether the phase agent writes files:
 
-**The skill IS the phase.** Spawning the right agent type with a detailed prompt is NOT the same as invoking the skill.
+- **Read-only phases** (Test, Accept): Invoke via the Skill tool. The skill auto-forks to the correct read-only agent.
+- **Write-capable phases** (Build, Verify Tier 3, QA gap-filling, review fix agents, scaffold): Spawn via the Agent tool with `isolation: "worktree"`. The agent prompt MUST include the instruction to read and execute the skill file at `~/.claude/skills/[name]/SKILL.md`. This ensures proper worktree isolation for parallel work.
+- **Parallel phases** (Review): Unchanged. Use Parallel Dispatch Protocol.
+
+**The skill IS the phase.** Whether invoked via Skill tool or read by an agent, the full skill procedure must be followed.
 
 ### Parallel Dispatch Exception
 
@@ -81,6 +85,8 @@ Before advancing to any phase, verify the previous gate passed AND invoke the re
 ### First Review
 Dispatch code-reviewer + security-engineer in parallel (per parallel dispatch protocol).
 
+Both reviewers use the same threshold: CRITICAL, HIGH, or MEDIUM findings trigger CHANGES_REQUESTED. LOW and INFO findings are included in the review output for the PR narrative but do not gate advancement.
+
 ### After CHANGES_REQUESTED
 1. Spawn engineer (worktree) with the specific findings
 2. Engineer fixes and commits
@@ -115,10 +121,36 @@ When the orchestrator has other work available:
 
 The orchestrator should NOT block waiting for review results when there is other work to do.
 
+## Environment-Dependent Debugging Loop
+
+When a built feature passes unit tests but fails in a real environment (device, staging, browser, external system), the pipeline enters a debugging loop:
+
+### Entry criteria
+- Feature was built and tests pass
+- User reports failure with environment evidence (screenshot, logs, DOM dump, error output)
+- The failure cannot be reproduced by unit tests alone
+
+### Loop procedure
+1. User reports failure with evidence
+2. Orchestrator spawns agent (worktree) to fix the specific issue
+3. Merge fix, push, user tests in environment
+4. Repeat until user confirms working
+5. Resume pipeline from **Review** phase on the cumulative diff
+
+### Rules during the loop
+- Pipeline gates (review, verify, test, accept) are **SUSPENDED** — they run once on the final working state
+- Each fix still goes through an **agent** (orchestrator NEVER edits source files directly)
+- Each fix is **committed** with a descriptive message (audit trail preserved)
+- Maximum **5 iterations** — then escalate to user with options
+- The orchestrator coordinates and delegates, it does not write code — especially under time pressure
+
+### Why this exists
+Environment-dependent testing (mobile devices, WebView integration, staging deploys) inherently requires test-fix-retest cycles that unit tests cannot validate. Running full pipeline gates on each intermediate fix wastes effort on throwaway states. The gates add value on the final working state, not on each debugging step.
+
 ## Enforcement
 
 - If you catch yourself about to use Write or Edit on a source file, STOP
 - If you catch yourself about to skip a skill invocation, STOP
-- If you catch yourself about to spawn an agent directly when a skill exists for that phase, STOP
+- If you catch yourself about to spawn a write-capable agent WITHOUT `isolation: "worktree"`, STOP. If you catch yourself spawning an agent without referencing the skill file, STOP.
 - The user saying "just fix it quickly" is not an excuse to bypass process
 - The pipeline exists to catch mistakes. Every shortcut is a missed catch.

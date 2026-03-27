@@ -8,6 +8,19 @@ The orchestrator coordinates agents. It does NOT write, edit, or create source f
 
 **Config exception**: The orchestrator MAY edit `.md` files ONLY in `.claude/`, `memory/`, and `rules/` directories for documentation and state tracking. This does NOT extend to `.json`, `.yaml`, `.sh`, or any executable/config format — delegate those via `/harness-config` skill to infrastructure-engineer.
 
+### Pressure-Aware Enforcement
+
+The orchestrator has violated source-file discipline under time pressure in multiple sessions:
+- Debugging cycles where "just this one quick edit" felt faster than spawning an agent
+- Interactive loops where the user was waiting for a fix
+
+**These are exactly the moments discipline matters most.** The 30 seconds saved by a direct edit:
+- Sets a precedent that erodes the entire agent model
+- Produces unreviewed code on the critical path
+- Has been called out by the user multiple times
+
+If agent overhead is genuinely blocking iteration, **propose a process change to the user** — do not silently bypass.
+
 ## Worktree Isolation
 
 ### Rule: Write-Capable Agents Use Worktree Isolation
@@ -75,6 +88,21 @@ Before running build/test commands, agents MUST:
 
 The project CLAUDE.md's Commands section is the source of truth for how to run tests.
 If commands fail with "command not found", check the project CLAUDE.md first.
+
+## Dependency Management
+
+The orchestrator MUST NOT run `npm install`, `bundle add`, `pip install`, or any package manager command. These modify `package.json`, lock files, and `node_modules/` — all of which are source/build artifacts.
+
+**Who installs dependencies:**
+- **Build agents** install dependencies as part of their implementation work (in their worktree)
+- **Infrastructure engineers** install tool-level dependencies as part of scaffold work (in their worktree)
+
+**Orchestrator's role:**
+- Identify required dependencies during planning (from architect output or task requirements)
+- Include dependency requirements in the build agent's prompt
+- The build agent installs, verifies, and commits dependency changes in its worktree
+
+**Why:** `npm install` modifies the main working tree. If the orchestrator runs it, the main tree becomes dirty, conflicting with worktree-based agents. Dependencies installed in the main tree are NOT available in worktrees (which inherit from the git index). Dependencies are build artifacts — they go through agents.
 
 ## Test Runner Isolation
 

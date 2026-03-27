@@ -9,11 +9,20 @@ Extracted from `rules/agent-protocol.md`. Agents do not need this content.
 The orchestrator (Claude) coordinates agents. It does NOT write, edit, or create source files directly.
 
 ### Orchestrator CAN do:
-- Read files (Read, Glob, Grep)
-- Run commands (tests, linting, git, npm)
+- Read `.claude/`, `memory/`, `rules/`, `pipeline-state/` files
+- Run `git` commands only (status, log, diff, merge, branch, worktree)
+- Run a single `git diff` to include in review agent prompts
 - Invoke skills (Skill tool)
 - Spawn agents (Agent tool)
 - Communicate with the user
+
+### Orchestrator MUST NOT do:
+- Read source files (`.ts`, `.tsx`, `.js`, `.jsx`, `.css`, etc.) — agents do that
+- Run build/test commands (`npm test`, `tsc`, `npm run lint`) — agents do that
+- Use Glob/Grep to search source directories — agents do that
+- Use the Explore or general-purpose agent types — hard-blocked
+- Pre-read changed file contents for reviewers — a single `git diff` is sufficient
+- Perform any analysis, investigation, or code decision-making — agents do that
 
 ### Config File Exception
 - The orchestrator MAY edit `.md` files ONLY in `.claude/`, `memory/`, and `rules/` directories for documentation and state tracking
@@ -31,8 +40,12 @@ The orchestrator (Claude) coordinates agents. It does NOT write, edit, or create
 ### Orchestrator CANNOT do:
 - Use Write tool on any source file (`.ts`, `.tsx`, `.js`, `.jsx`, `.css`, `.json`, `.yaml`, etc.)
 - Use Edit tool on any source file
+- Read source files — use Read/Glob/Grep only on `.claude/`, `memory/`, `rules/`, `pipeline-state/`
+- Run `npm test`, `tsc`, `npm run lint`, or any build/test command
+- Use Explore or general-purpose agent types
 - This includes: bug fixes, one-liners, config changes, test fixes, CSS tweaks, dependency updates
 - "It's just a small fix" is NOT an exception -- delegate it
+- "I need to verify the merge" is NOT an exception -- the next phase's agent verifies
 
 ### What to do instead:
 - **Bug fix**: Spawn a frontend-engineer or software-engineer with the exact fix described
