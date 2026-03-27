@@ -12,6 +12,10 @@ argument-hint: "Acceptance criteria or story to implement"
 
 Prescribes the exact procedure for the Build phase of the delivery pipeline. Ensures engineers implement one acceptance criterion at a time using incremental TDD, with shape checks after every file.
 
+## Dispatch Mode
+
+This skill is dispatched via the Agent tool with `isolation: "worktree"`. The orchestrator NEVER invokes this skill via the Skill tool directly. The agent reads this file and executes it in an isolated worktree.
+
 ## Procedure
 
 ### Step 1: Decompose ACs into Ordered Test Cases
@@ -21,6 +25,16 @@ Before writing any code:
 2. For each AC, identify the individual behaviors to test (happy path, error path, edge cases).
 3. Order them by dependency: foundational behaviors first, composed behaviors last.
 4. This ordered list IS your implementation plan.
+
+### Step 1b: Install Required Dependencies
+
+If the implementation requires new packages not yet in `package.json`:
+1. Install the package: `npm install <package>` (or equivalent)
+2. Verify the installation: `npm ls <package>` (or equivalent)
+3. Commit `package.json` and lock file separately: "chore: add <package> for <reason>"
+4. Proceed with TDD — the first failing test validates the dependency works
+
+If the orchestrator's prompt specifies dependencies, install them here. If you discover a needed dependency during TDD, install it at that point.
 
 ### Step 2: Implement One Test Case at a Time
 

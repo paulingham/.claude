@@ -58,6 +58,19 @@ Score each dimension 1-3 and sum. This is not optional — routing depends on th
 [Intake] Routing: [execute directly / plan first / decompose]
 ```
 
+### Step 2b: Exploration Gate (MANDATORY when Ambiguity >= 2)
+
+Before routing to a full pipeline, confirm the approach is validated:
+
+1. **Integration point**: "Where does this render / execute / integrate? Does it replace existing behavior, extend it, or live separately?"
+2. **Fidelity**: "Should I build a throwaway prototype first, or go straight to production code?" If prototype → route to `/tech-spike`
+3. **External data**: "Do I have the real data structure (API response, HTML, schema), or am I guessing?" If guessing → request it before building
+4. **Approach validation**: If multiple implementation approaches exist (e.g., injection vs component, server vs client, sync vs async), confirm the approach with the user before committing
+
+Skip this gate only when Ambiguity = 1 (fully specified ACs with no interpretation needed).
+
+**Why:** Building the wrong approach through a full pipeline wastes more effort than asking 2-3 clarifying questions upfront.
+
 ### Step 3: Pre-flight Check
 
 Before invoking pipeline, verify and auto-fix:

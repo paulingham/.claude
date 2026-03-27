@@ -57,6 +57,40 @@ The orchestrator MUST create an Agent Team for ALL implementation tasks. The use
 
 **Interact**: `Shift+Down` to cycle teammates. See `rules/agent-protocol.md` for full protocol.
 
+### How the System Works
+
+The orchestrator (Claude) coordinates work. It never writes code, reads source files, or runs tests.
+
+**Flow:**
+```
+User → /intake (classify + score) → /pipeline (drive phases)
+  → Each phase: Skill tool invokes the skill
+    → Skill auto-forks to the right agent (worktree for write-capable agents)
+      → Agent reads code, writes code, runs tests, returns verdict
+  → Review phase exception: two agents spawned in parallel via Agent tool
+    → Each reads its own skill file
+    → Each returns verdict independently
+```
+
+**Skills vs Agents:**
+
+| Concept | What it is | Who invokes it |
+|---------|-----------|---------------|
+| **Skill** | Process definition (SKILL.md). Steps, checklist, verdict format. | Orchestrator via Skill tool |
+| **Agent** | Worker (software-engineer, code-reviewer, etc). Does actual work. | Skills auto-fork to agents; or orchestrator spawns for parallel phases |
+
+- **Sequential phases** (Build, Verify, Test, Accept, Ship): Orchestrator invokes skill → skill forks to agent → agent works → verdict
+- **Parallel phases** (Review): Orchestrator spawns agents directly → each reads own skill file → verdict
+
+**Orchestrator boundaries:**
+
+| ONLY does | NEVER does |
+|-----------|------------|
+| Invoke skills and spawn agents | Read source files (`.ts`, `.tsx`, `.js`, etc.) |
+| Run `git` commands (status, log, diff, merge) | Run tests, linters, or build commands |
+| Read `.claude/`, `memory/`, `rules/` files | Use Explore or general-purpose agents |
+| Track pipeline state + report progress | Compute analysis or make code decisions |
+
 ### Delivery Pipeline
 
 1. **Plan** → Architect designs slices. Gate: product-reviewer + engineer validate.

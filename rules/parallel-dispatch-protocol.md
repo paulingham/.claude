@@ -16,7 +16,7 @@ For phases that MUST run in parallel (Review, independent Build slices, Verify T
 
 ## Agent Prompt Template
 
-The orchestrator MUST pre-compute the diff and include changed file contents in the reviewer prompt. This saves reviewers 5-10 turns of file reading.
+The orchestrator includes a single `git diff` in the reviewer prompt. The orchestrator does NOT read source files — reviewers read files themselves if they need full context beyond the diff.
 
 ```
 Read the skill file at ~/.claude/skills/[name]/SKILL.md and execute it fully.
@@ -25,9 +25,8 @@ Also read ~/.claude/skills/[stack]-patterns/SKILL.md for tech-specific guidance 
 Context:
 - Branch: [branch name]
 - Base branch: [main/master]
-- Changed files: [list]
-- Full diff: [orchestrator pre-computes and includes git diff output here]
-- Changed file contents: [orchestrator pre-reads and includes full content of each changed file]
+- Changed files: [from git diff --name-only]
+- Full diff: [single git diff output]
 - Prior verdict: [previous phase verdict]
 - Tech stack: [from project CLAUDE.md]
 ```
