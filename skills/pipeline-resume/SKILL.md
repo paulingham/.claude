@@ -24,6 +24,30 @@ Detects and resumes in-progress pipelines from structured state files in `pipeli
 ls ~/.claude/pipeline-state/*-pipeline.md 2>/dev/null
 ```
 
+Also scan for debug state and discussion files:
+```bash
+ls ~/.claude/pipeline-state/*-debug.md 2>/dev/null
+ls ~/.claude/pipeline-state/*-discussion.md 2>/dev/null
+```
+
+Also scan workstream directories:
+```bash
+ls ~/.claude/pipeline-state/workstreams/*/workstream.md 2>/dev/null
+```
+
+Display results grouped:
+```
+Active workstreams:
+  auth/ — 1 active pipeline (login-page, phase: review)
+  payments/ — 0 active pipelines
+
+Ungrouped pipelines:
+  hotfix-nav — phase: build
+
+Active debug sessions:
+  task-123 — 3 hypotheses, 2 fix attempts
+```
+
 If multiple active pipelines found, list them and ask user which to resume.
 If one found, resume automatically.
 If none found, report "No active pipelines" and exit.

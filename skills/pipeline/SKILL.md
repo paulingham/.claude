@@ -68,6 +68,17 @@ Update this file as each phase completes with verdict, artifacts, and agent summ
 
 **Do NOT dual-write to memory/.** The `pipeline-state/` file is the sole authority. Use `/pipeline-resume` to recover state across sessions.
 
+**Discussion context:** If a discussion file exists (`pipeline-state/{task-id}-discussion.md` from intake Step 2b), reference it in the pipeline state under `## Intake Discussion` and pass its decisions to the architect during the Plan phase.
+
+### Workstream Support
+
+If a workstream is active (check `pipeline-state/workstreams/*/workstream.md` for `status: active` entries, or check if the user specified a workstream):
+- Create pipeline state in `pipeline-state/workstreams/{workstream}/` instead of `pipeline-state/`
+- Use branch convention: `{workstream-branch-prefix}{task-branch}` (e.g., `feat/auth/login-page`)
+- Set `CLAUDE_PIPELINE_TASK_ID` to include workstream prefix for trajectory recording
+
+If no workstream is active, use the default `pipeline-state/` directory (existing behavior, no change).
+
 ### Step 2b: Pre-Build Scaffolding (Conditional)
 
 Before the Build phase, check BOTH the task requirements AND the project state. Scaffolding triggers on missing project infrastructure — not just what the task description says. For example, if a CLAUDE.md exists but the project has no Dockerfile, no design system, or no observability, detect and scaffold those automatically.
@@ -195,6 +206,8 @@ When all phases are complete (including Deploy if applicable):
 ### Step 7: Reflect
 
 **MANDATORY** after every pipeline. Run the reflection checklist from `rules/reflection-protocol.md`.
+
+If the pipeline experienced failures, >2 review rounds, or any recovery loop: invoke `/forensics` before reflection. The forensics report provides evidence-based findings for the reflection checklist.
 
 1. Review the pipeline execution for issues, surprises, and validated patterns
 2. Identify improvements to rules, project CLAUDE.md, global CLAUDE.md, agent definitions, skills, or memory

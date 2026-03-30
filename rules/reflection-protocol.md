@@ -13,6 +13,8 @@ At pipeline completion, before reporting final status to the user, run through t
 
 ### 1. What Happened?
 
+If the pipeline experienced failures, >2 review rounds, or any recovery loop, consider invoking `/forensics` first. The forensics report reconstructs the timeline from trajectory JSONL and provides evidence-based findings rather than memory-based recollection.
+
 Review the pipeline execution:
 - Were there any bugs, rework, or CHANGES_REQUESTED cycles?
 - Were there any surprises or unexpected behaviors on device/in production?
