@@ -127,6 +127,14 @@
     ],
     "SessionStart": [
       {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/session-start-bootstrap.sh"
+          }
+        ]
+      },
+      {
         "matcher": "compact",
         "hooks": [
           {

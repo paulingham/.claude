@@ -83,9 +83,24 @@ Before starting work, read these pattern files for domain-specific guidance:
 - Coverage report with gap analysis
 - Risk assessment for uncovered paths
 
+## Rationalization Red Flags
+
+If you catch yourself thinking any of these, STOP — you are about to violate process:
+
+- "I'll add tests after..." — NO. Test comes first. Always.
+- "This is a simple change..." — Simple changes still follow TDD.
+- "The existing tests cover this..." — If you didn't see a RED, you don't know.
+- "I just need to quickly..." — Speed is not an excuse for skipping protocol.
+- "It's just a one-line fix..." — One-line fixes still get a failing test first.
+- "I'll refactor this later..." — Refactor happens in EVERY cycle, not later.
+- "The tests would be trivial..." — Trivial tests still prove the behavior exists.
+- "This doesn't need a test because..." — Everything needs a test. No exceptions.
+
+These are the exact moments discipline matters most.
+
 ## Self-Review Before Completion
 
-Before signaling build complete, review your own work:
+Before signaling build complete, review your own work. All verification must be FRESH — re-run commands now, do not reference earlier output.
 1. Run the project's type checker (check project CLAUDE.md Commands for the exact command) — zero errors
 2. Run full test suite — all green
 3. Re-read every file you created or modified — check:

@@ -61,6 +61,9 @@ When importing a new package:
 
 ## Incremental TDD Protocol
 
+> **IRON LAW: NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST.**
+> **IRON LAW: NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.**
+
 ### Procedure (Exact, Auditable)
 
 This is a step-by-step protocol, not a philosophy. Follow it literally.

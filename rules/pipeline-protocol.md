@@ -72,7 +72,11 @@ timestamp: {ISO 8601}
 
 Before advancing to any phase, verify the previous gate passed AND invoke the required skill.
 
-- **Plan**: `/epic-breakdown`, `/estimation`, `/story-writing`, `/tech-spike` as needed
+- **Plan**: Design validation is a HARD GATE. No implementation begins without:
+  1. Architect validates the approach (via `/epic-breakdown` or `/tech-spike`)
+  2. At least one alternative approach considered and documented
+  3. Product-reviewer + engineer validate the slices
+  Use `/epic-breakdown`, `/estimation`, `/story-writing`, `/tech-spike` as needed
 - **Build**: `/build-implementation` or `/refactor` or `/bug-fix` -- TDD, shape self-check
 - **Review**: `/code-review` + `/security-review` via Parallel Dispatch -- both must APPROVE
 - **Verify**: `/verify` -- check E2E trigger matrix (`rules/e2e-protocol.md`)
@@ -99,6 +103,15 @@ Both reviewers use the same threshold: CRITICAL, HIGH, or MEDIUM findings trigge
 - The re-reviewer checks ONLY the addressed findings plus immediate surrounding context
 - They do NOT re-review the entire codebase (tests prove no regressions)
 - Max 2 total rounds (initial + 1 re-review). If still not resolved, escalate to user.
+
+### Fix Agent Review-Receiving Protocol
+
+When spawning an engineer to address review findings, the prompt MUST include:
+
+1. **Verify before implementing**: The fix agent must verify the reviewer's finding is valid before changing code. Read the cited code, understand the context, check if the concern applies.
+2. **Technical correctness over compliance**: If the reviewer's suggestion would make the code worse, the fix agent reports back with a technical justification — it does not blindly implement.
+3. **Actions over explanations**: Fix the code. Do not add comments explaining why the old code was wrong. The diff speaks.
+4. **No compliance phrases in commits**: "Fixed per review feedback" is not a commit message. Describe WHAT changed and WHY.
 
 ### Why Single Re-Review
 The build agent self-reviews before completion. Hooks enforce shape compliance. Tests prove correctness. A fix to a specific finding should not require a full re-audit — that is the assembly-line anti-pattern.
@@ -148,6 +161,8 @@ When a built feature passes unit tests but fails in a real environment (device, 
 Environment-dependent testing (mobile devices, WebView integration, staging deploys) inherently requires test-fix-retest cycles that unit tests cannot validate. Running full pipeline gates on each intermediate fix wastes effort on throwaway states. The gates add value on the final working state, not on each debugging step.
 
 ## Enforcement
+
+> **IRON LAW: NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.**
 
 - If you catch yourself about to use Write or Edit on a source file, STOP
 - If you catch yourself about to skip a skill invocation, STOP

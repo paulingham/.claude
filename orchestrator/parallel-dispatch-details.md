@@ -72,6 +72,11 @@ Parallel Dispatch (code-reviewer + security-engineer)
   -> CHANGES_REQUESTED? -> spawn engineer to fix -> targeted re-review by raising reviewer(s) only
 ```
 
+**Fix agent review-receiving rules** (include in fix agent prompt):
+- Verify the reviewer's finding before implementing — read the cited code, confirm the concern applies
+- If the suggestion would make code worse, report back with technical justification instead of blindly complying
+- Commit messages describe WHAT changed and WHY — never "fixed per review feedback"
+
 Maximum 2 total rounds (initial + 1 re-review). If not resolved, escalate to user:
 
 ```
