@@ -76,6 +76,14 @@
     ],
     "PostToolUse": [
       {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/context-warning.sh"
+          }
+        ]
+      },
+      {
         "matcher": "Write",
         "hooks": [
           {
@@ -89,6 +97,10 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/cc-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/injection-scan.sh"
           }
         ]
       },
@@ -106,6 +118,10 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/cc-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/injection-scan.sh"
           }
         ]
       }
