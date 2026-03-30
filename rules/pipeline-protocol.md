@@ -4,17 +4,17 @@ Detailed orchestrator procedures: see `~/.claude/orchestrator/pipeline-orchestra
 
 ## Skills Are Mandatory, Not Optional
 
-When a pipeline phase has a corresponding skill, the skill's procedure MUST be executed. The dispatch mechanism depends on whether the phase agent writes files:
+When a pipeline phase has a corresponding skill, the skill's procedure MUST be executed. The dispatch mechanism depends on the phase:
 
-- **Read-only phases** (Test, Accept): Invoke via the Skill tool. The skill auto-forks to the correct read-only agent.
-- **Write-capable phases** (Build, Verify Tier 3, QA gap-filling, review fix agents, scaffold): Spawn via the Agent tool with `isolation: "worktree"`. The agent prompt MUST include the instruction to read and execute the skill file at `~/.claude/skills/[name]/SKILL.md`. This ensures proper worktree isolation for parallel work.
-- **Parallel phases** (Review): Unchanged. Use Parallel Dispatch Protocol.
+- **Subagent phases** (Plan, Ship, Deploy, single-slice Build): Invoke via Skill tool or Agent tool with `isolation: "worktree"`. Ephemeral, no visibility.
+- **Team phases** (multi-slice Build, Review, Final Gate): Spawn teammates into the pipeline team via Agent tool with `team_name`. Visible in tmux panes. See `rules/parallel-dispatch-protocol.md`.
+- **Single-slice Build**: Use subagent with `isolation: "worktree"` (team overhead not justified for one engineer).
 
-**The skill IS the phase.** Whether invoked via Skill tool or read by an agent, the full skill procedure must be followed.
+**The skill IS the phase.** Whether invoked via Skill tool, read by a subagent, or read by a teammate, the full skill procedure must be followed.
 
-### Parallel Dispatch Exception
+### Team Dispatch
 
-For phases in the Parallel Phase Map (see `rules/parallel-dispatch-protocol.md`), agents read and execute their own skill files instead of the orchestrator invoking skills via the Skill tool.
+For phases in the Team Phases table (see `rules/parallel-dispatch-protocol.md`), teammates are spawned into the pipeline team and read their own skill files. The orchestrator creates tasks and assigns them. See `orchestrator/parallel-dispatch-details.md` for exact dispatch procedure.
 
 ## Structured Pipeline State
 
@@ -65,8 +65,10 @@ timestamp: {ISO 8601}
 3. **Map to entry skill**: `/build-implementation`, `/refactor`, `/bug-fix`, or `/tech-spike`
 3b. **Check for scaffolding needs**: if the task requires new API endpoints, schema changes, infrastructure, or observability, flag the appropriate utility skill (see pipeline SKILL.md Step 2b)
 4. **Enumerate all pipeline phases** and the skill for each
-5. **Write the phase plan** as a visible message to the user
-6. **Execute phases in order**, invoking each skill via the Skill tool (or Parallel Dispatch for parallel phases)
+5. **Determine dispatch mode**: single-slice (subagents) or multi-slice/multi-domain (team)
+6. **Create pipeline team**: `TeamCreate("pipeline-{task-id}")` -- always, even for single-slice (the team hosts review + final gate teammates)
+7. **Write the phase plan** as a visible message to the user
+8. **Execute phases in order**, spawning teammates for team phases, subagents for subagent phases
 
 ## Phase Checklist (Summary)
 
@@ -78,31 +80,33 @@ Before advancing to any phase, verify the previous gate passed AND invoke the re
   3. Product-reviewer + engineer validate the slices
   Use `/epic-breakdown`, `/estimation`, `/story-writing`, `/tech-spike` as needed
 - **Build**: `/build-implementation` or `/refactor` or `/bug-fix` -- TDD, shape self-check
-- **Review**: `/code-review` + `/security-review` via Parallel Dispatch -- both must APPROVE
-- **Verify**: `/verify` -- check E2E trigger matrix (`rules/e2e-protocol.md`)
-- **Test**: `/qa-test-strategy` -- all ACs covered, no gaps
-- **Accept**: `/product-acceptance` -- APPROVED required
+- **Review**: `/code-review` + `/security-review` as team (tmux visible) -- both must APPROVE
+- **Final Gate** (Verify + Test + Accept as team, parallel):
+  - `/verify` -- check E2E trigger matrix (`rules/e2e-protocol.md`)
+  - `/qa-test-strategy` -- all ACs covered, no gaps
+  - `/product-acceptance` -- APPROVED required
 - **Ship**: `/pr-creation` -- PR with narrative, quality gate passes
 
 ## Review Protocol
 
 ### First Review
-Dispatch code-reviewer + security-engineer in parallel (per parallel dispatch protocol).
+Spawn code-reviewer + security-engineer as teammates in the pipeline team (per parallel dispatch protocol). Both work simultaneously, visible in tmux panes.
 
 Both reviewers use the same threshold: CRITICAL, HIGH, or MEDIUM findings trigger CHANGES_REQUESTED. LOW and INFO findings are included in the review output for the PR narrative but do not gate advancement.
 
 ### After CHANGES_REQUESTED
-1. Spawn engineer (worktree) with the specific findings
-2. Engineer fixes and commits
-3. Merge the fix worktree
-4. **Re-dispatch the raising reviewer is MANDATORY.** Do not skip re-review because the fix "looks right" — always re-dispatch.
-5. Re-dispatch the raising reviewer (only) with: the original finding, the specific fix applied, and the file diff
+1. Spawn fix-engineer into the same pipeline team with the specific findings
+2. Fix-engineer fixes and commits
+3. Shut down fix-engineer, merge the fix branch
+4. **Re-assign to the raising reviewer is MANDATORY.** The reviewer is still alive in the team with full context. Do not skip re-review because the fix "looks right."
+5. `SendMessage` to the raising reviewer with: the original finding, the specific fix applied, and the file diff
 6. **Targeted re-review**: Only the reviewer who raised the finding re-reviews
-   - If code-reviewer raised findings and security-engineer APPROVED: only re-dispatch code-reviewer
-   - If both raised findings: re-dispatch both, but each only re-reviews their own findings
+   - If code-reviewer raised findings and security-engineer APPROVED: only message code-reviewer
+   - If both raised findings: message both, but each only re-reviews their own findings
 - The re-reviewer checks ONLY the addressed findings plus immediate surrounding context
 - They do NOT re-review the entire codebase (tests prove no regressions)
 - Max 2 total rounds (initial + 1 re-review). If still not resolved, escalate to user.
+- After both APPROVE: shut down both reviewers.
 
 ### Fix Agent Review-Receiving Protocol
 
@@ -127,9 +131,9 @@ The build agent self-reviews before completion. Hooks enforce shape compliance. 
 ## Async Review (Orchestrator Pattern)
 
 When the orchestrator has other work available:
-1. Spawn review agents in background (`run_in_background: true`)
+1. Review teammates work in their tmux panes -- no background flag needed, they're visible
 2. Continue with the user on other tasks or stories
-3. When review agents complete, resume the pipeline
+3. When reviewers mark tasks complete and go idle, resume the pipeline
 4. This matches how real teams work: developer pushes PR, starts next story, reviewer reviews async
 
 The orchestrator should NOT block waiting for review results when there is other work to do.
@@ -166,6 +170,8 @@ Environment-dependent testing (mobile devices, WebView integration, staging depl
 
 - If you catch yourself about to use Write or Edit on a source file, STOP
 - If you catch yourself about to skip a skill invocation, STOP
-- If you catch yourself about to spawn a write-capable agent WITHOUT `isolation: "worktree"`, STOP. If you catch yourself spawning an agent without referencing the skill file, STOP.
+- If you catch yourself about to spawn a write-capable subagent WITHOUT `isolation: "worktree"`, STOP (team teammates manage their own branches)
+- If you catch yourself spawning an agent or teammate without referencing the skill file, STOP
+- If you catch yourself keeping teammates alive across phases (idle token burn), STOP -- shut them down
 - The user saying "just fix it quickly" is not an excuse to bypass process
 - The pipeline exists to catch mistakes. Every shortcut is a missed catch.
