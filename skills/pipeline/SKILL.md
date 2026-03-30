@@ -126,6 +126,30 @@ For each phase:
 5. If verdict is a failure/rejection: handle per Step 4 (Recovery)
 6. If verdict is success: update memory file with verdict and artifacts, advance to next
 
+#### Polish Phase (Conditional: Budget >= 7)
+
+After Build completes and before Review:
+1. If Complexity Budget >= 7: invoke `/polish` skill via subagent (Haiku model, worktree)
+2. Polish agent reads changed files, fixes mechanical issues only (naming, dead imports, commented-out code)
+3. Merge polish commits before dispatching reviewers
+4. Skip for micro/small pipelines (Budget 5-6)
+
+#### Adversarial Review (Conditional: Budget >= 10 OR sensitive code)
+
+When the change scores Budget >= 10 OR touches auth/payment/data-deletion code:
+- Spawn TWO code-reviewers (Reviewer-A: design focus, Reviewer-B: edge-case focus)
+- Each reviews independently, produces separate verdicts
+- Orchestrator merges findings: convergent findings = HIGH, divergent = MEDIUM
+- Both must APPROVE to advance (standard threshold applies to each)
+- See `orchestrator/parallel-dispatch-details.md` for dispatch template
+
+#### Design QC (Conditional: Frontend Changes)
+
+If changed files include `.tsx`, `.jsx`, `.vue`, `.svelte`, or CSS files:
+1. Before or parallel with product-acceptance, invoke `/design-qc`
+2. Design QC captures screenshots and passes them to the product-reviewer
+3. Product-reviewer validates visual appearance alongside AC validation
+
 #### Parallel Phases
 
 Phases in the Parallel Phase Map dispatch via agents reading skill files:
@@ -208,6 +232,8 @@ When all phases are complete (including Deploy if applicable):
 **MANDATORY** after every pipeline. Run the reflection checklist from `rules/reflection-protocol.md`.
 
 If the pipeline experienced failures, >2 review rounds, or any recovery loop: invoke `/forensics` before reflection. The forensics report provides evidence-based findings for the reflection checklist.
+
+After reflection, invoke `/learn` to analyze session observations and extract instincts. This is automatic — the learning system builds project-specific patterns from observed tool usage over time.
 
 1. Review the pipeline execution for issues, surprises, and validated patterns
 2. Identify improvements to rules, project CLAUDE.md, global CLAUDE.md, agent definitions, skills, or memory

@@ -64,6 +64,16 @@ No `isolation: "worktree"` — security-engineer is read-only.
 - [ ] HTTPS enforced for all external communication
 - [ ] File upload validation (type, size, content)
 
+## Supply Chain Security (if Trail of Bits plugins available)
+
+When Trail of Bits security skills are installed (`supply-chain-risk-auditor`, `variant-analysis`, `differential-review`):
+
+- [ ] Run `supply-chain-risk-auditor` on new/updated dependencies (typosquatting, maintainer compromise, post-install scripts)
+- [ ] If a vulnerability is found, run `variant-analysis` to find similar patterns across the codebase
+- [ ] Use `differential-review` for security-focused diff analysis on high-risk changes
+
+These complement `npm audit`/`bundle audit` by covering supply chain threats that package auditors miss.
+
 ## Parallel Execution
 
 This skill belongs to the `review` parallel group. It is dispatched via Parallel Dispatch Protocol (see `rules/parallel-dispatch-protocol.md`), not via sequential Skill tool invocation. The security-engineer agent reads this file directly and executes it.

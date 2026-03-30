@@ -34,9 +34,11 @@ If a module outgrows the monolith, it detects extraction signals during review a
     e2e-protocol.md            #   Maestro E2E trigger matrix
   orchestrator/                # Orchestrator-only detailed procedures (4 files)
   agents/                      # 9 specialized agent definitions
-  skills/                      # 38 skills (procedural workflows)
+  skills/                      # 42 skills (procedural workflows)
   knowledge/                   # 31 domain pattern references
-  hooks/                       # 15 enforcement scripts
+  hooks/                       # 22 enforcement scripts
+  learning/                    # Continuous learning: observations + instincts
+  metrics/                     # Session cost, governance, bug detection logs
   pipeline-state/              # Structured phase results (survives context compaction)
 ```
 
@@ -122,10 +124,13 @@ Intake → Plan → Scaffold → Build → Review → Verify → Load Test → T
 |-------|---------|
 | `/cross-service-pipeline` | Contract verification, deploy coordination |
 | `/harness-config` | Modify hooks, settings.json (delegates to infra-engineer) |
-| `/harness-audit` | Health check of ~/.claude/ config |
+| `/harness-audit` | Health check of ~/.claude/ config (+ agnix integration) |
 | `/debug` | Persistent debug state for complex, multi-session bugs |
 | `/forensics` | Post-incident pipeline investigation |
 | `/workstream` | Manage isolated workstreams for parallel development |
+| `/polish` | Mechanical cleanup between Build and Review (Haiku, Budget >= 7) |
+| `/design-qc` | Visual QA screenshots for product acceptance (frontend changes) |
+| `/learn` | Extract instincts from observed behavior (continuous learning) |
 
 ### Reference Patterns
 | Skill | Domain |
@@ -161,6 +166,11 @@ Intake → Plan → Scaffold → Build → Review → Verify → Load Test → T
 | `function-body-check.sh` | Function length limit (configurable, default 5 lines) | Advisory |
 | `hook-profile.sh` | Runtime profile gating (minimal/standard/strict) | Library |
 | `loop-guard.sh` | Re-entrancy prevention (>10 calls in 60s = skip) | Library |
+| `config-protection.sh` | Blocks linter/formatter config modifications | Hard block |
+| `governance-capture.sh` | Secret detection, policy violation, sensitive path logging | Advisory |
+| `auto-bug-detect.sh` | Detects 12 bug-fix categories from edit diffs | Passive |
+| `cost-tracker.sh` | Per-session metrics to `metrics/costs.jsonl` | Passive |
+| `observation-capture.sh` | Tool-use observations for continuous learning | Passive |
 | `context-warning.sh` | Context window usage warnings at 65%/75% thresholds | Advisory |
 | `injection-scan.sh` | Prompt injection pattern detection on file writes | Advisory |
 | `auto-pr.sh` | Suggests PR creation when branch is ahead | Advisory |
@@ -198,12 +208,49 @@ Set `CLAUDE_AUTO_EXTRACT=true` in settings.json env to automatically extract mod
 
 ## Getting Started
 
-1. Install [Claude Code](https://claude.com/claude-code)
-2. Clone this repo to `~/.claude/`
+### Prerequisites
+
+Install [Claude Code](https://claude.com/claude-code) and the following external tools:
+
+```bash
+# Required: AST-based bash command safety (runs in dontAsk mode)
+brew tap ldayton/dippy && brew install dippy
+
+# Recommended: Session observability (token attribution, compaction visualization)
+brew install --cask claude-devtools
+
+# Recommended: ML-based prompt injection detection
+cargo install parry
+
+# Recommended: Inter-agent communication for team phases
+npm install -g hcom
+
+# Optional: Configuration linting (385 validation rules)
+npx agnix ~/.claude/
+
+# Optional: Professional security skills
+claude plugins install trailofbits/skills
+```
+
+### Setup
+
+1. Clone this repo to `~/.claude/`
+2. Verify external tools: `dippy --version && which parry && which hcom`
 3. Start Claude Code in any project repo
 4. Say what you want to build — the system handles the rest
 
 For new projects without a CLAUDE.md, the system automatically runs `/project-setup` to detect your stack, configure commands, classify service architecture, and generate a design system.
+
+### External Tool Reference
+
+| Tool | Purpose | Install | Required? |
+|------|---------|---------|-----------|
+| [Dippy](https://github.com/ldayton/Dippy) | AST-based bash command safety | `brew install dippy` | Yes (dontAsk mode) |
+| [claude-devtools](https://github.com/matt1398/claude-devtools) | Session observability | `brew install --cask claude-devtools` | Recommended |
+| [parry-guard](https://github.com/vaporif/parry) | ML injection detection | `cargo install parry` | Recommended |
+| [hcom](https://github.com/aannoo/hcom) | Inter-agent communication | `npm install -g hcom` | Recommended |
+| [agnix](https://github.com/agent-sh/agnix) | Config linting | `npx agnix` (no install) | Optional |
+| [Trail of Bits](https://github.com/trailofbits/skills) | Security analysis skills | `claude plugins install` | Optional |
 
 ## License
 

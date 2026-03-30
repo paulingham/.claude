@@ -68,6 +68,19 @@ Also check:
 - All `matcher` values reference real tool names
 - `env` section has `CLAUDE_HOOK_PROFILE` defined
 
+### 4b. Configuration Linting (if agnix available)
+
+```bash
+npx agnix ~/.claude/ 2>/dev/null
+```
+
+If agnix is installed, run it and incorporate findings into the audit report. Flag:
+- Skills with invalid frontmatter (missing `name` or `description`)
+- Rules with `paths:` globs that don't match real files
+- Agent definitions missing required fields
+- Hook scripts that reference non-existent paths
+- Skill files not following Claude Code's expected structure
+
 ### 5. Knowledge Library Health
 
 - List all `~/.claude/knowledge/*.md` files

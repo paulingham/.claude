@@ -79,6 +79,20 @@ Shape measurements are enforced by build hooks. Include measurements in your rep
 - [ ] Error handling follows guard clause pattern
 - [ ] No hardcoded values (extract to constants)
 
+## Adversarial Review Mode (Budget >= 10 OR Sensitive Code)
+
+When activated by the pipeline, two code-reviewers are spawned with different focus areas:
+
+- **Reviewer A** (this default prompt): Focus on abstractions, naming, DRY/SOLID, design quality
+- **Reviewer B** (edge-case prompt): Focus on edge cases, error paths, integration concerns, race conditions
+
+Each reviews independently without seeing the other's output. The orchestrator merges findings:
+- Both flag the same area → HIGH confidence finding
+- Only one flags it → MEDIUM confidence, both perspectives included
+- Both APPROVE → advance. Either requests changes → normal review loop.
+
+This mode is transparent to the reviewer — the orchestrator controls dispatch. The reviewer follows this skill normally.
+
 ## Parallel Execution
 
 This skill belongs to the `review` parallel group. It is dispatched via Parallel Dispatch Protocol (see `rules/parallel-dispatch-protocol.md`), not via sequential Skill tool invocation. The code-reviewer agent reads this file directly and executes it.
