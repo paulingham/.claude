@@ -23,8 +23,9 @@ This skill is dispatched via the Agent tool with `isolation: "worktree"`. The or
 Before writing any code:
 1. List every acceptance criterion.
 2. For each AC, identify the individual behaviors to test (happy path, error path, edge cases).
-3. Order them by dependency: foundational behaviors first, composed behaviors last.
-4. This ordered list IS your implementation plan.
+3. **Each test case should be a micro-task: ~1 TDD cycle (2-5 minutes of work).** If a test case feels larger, decompose further.
+4. Order them by dependency: foundational behaviors first, composed behaviors last.
+5. This ordered list IS your implementation plan. Each item = one RED-GREEN-REFACTOR cycle.
 
 ### Step 1b: Install Required Dependencies
 

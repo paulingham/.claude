@@ -4,6 +4,8 @@ Detailed orchestrator procedures: see `~/.claude/orchestrator/agent-orchestratio
 
 ## Orchestrator Does Not Write Code
 
+> **IRON LAW: THE ORCHESTRATOR NEVER WRITES SOURCE CODE. NO EXCEPTIONS.**
+
 The orchestrator coordinates agents. It does NOT write, edit, or create source files directly. This is why you (as an agent) are being spawned -- all implementation, fixes, and config changes go through agents.
 
 **Config exception**: The orchestrator MAY edit `.md` files ONLY in `.claude/`, `memory/`, and `rules/` directories for documentation and state tracking. This does NOT extend to `.json`, `.yaml`, `.sh`, or any executable/config format — delegate those via `/harness-config` skill to infrastructure-engineer.
@@ -88,6 +90,18 @@ Before running build/test commands, agents MUST:
 
 The project CLAUDE.md's Commands section is the source of truth for how to run tests.
 If commands fail with "command not found", check the project CLAUDE.md first.
+
+## Fresh Verification Requirement
+
+> **IRON LAW: NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.**
+
+Before any agent signals completion (BUILD_COMPLETE, VERIFIED, etc.):
+1. Run the full test suite NOW — not "tests passed earlier"
+2. Run the type checker NOW — not "tsc passed when I last ran it"
+3. Stale output from earlier in the session is NOT evidence
+4. If you cannot run verification commands, report this — do not claim completion
+
+"I ran the tests 50 turns ago" is not verification. Run them again.
 
 ## Dependency Management
 
