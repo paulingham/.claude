@@ -142,6 +142,9 @@ The orchestrator should NOT block waiting for review results when there is other
 
 When a built feature passes unit tests but fails in a real environment (device, staging, browser, external system), the pipeline enters a debugging loop:
 
+### Persistent State
+When entering the debugging loop, invoke `/debug` to create persistent state in `pipeline-state/{task-id}-debug.md`. This ensures hypotheses, elimination results, and fix attempts survive context compaction and session boundaries.
+
 ### Entry criteria
 - Feature was built and tests pass
 - User reports failure with environment evidence (screenshot, logs, DOM dump, error output)

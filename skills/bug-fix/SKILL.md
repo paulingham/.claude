@@ -62,6 +62,16 @@ This ensures the fix is isolated and can be discarded if the approach is wrong.
 - [ ] Root cause documented in PR description
 - [ ] Design pattern applied if recurrence risk exists
 
+## Complex Bug Escalation
+
+If the bug meets ANY of these criteria, invoke `/debug` to create persistent debug state:
+- Requires environment-dependent testing (device, staging, browser)
+- Root cause is not obvious after initial analysis
+- Multiple hypotheses need systematic elimination
+- Fix requires more than 2 fix-test cycles
+
+The `/debug` skill creates `pipeline-state/{task-id}-debug.md` that survives context compaction and session boundaries. See the debug skill for the full hypothesis tracking protocol.
+
 ## Design Patterns for Prevention
 
 - **Guard clauses**: Prevent invalid state from propagating

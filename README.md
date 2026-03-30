@@ -123,6 +123,9 @@ Intake → Plan → Scaffold → Build → Review → Verify → Load Test → T
 | `/cross-service-pipeline` | Contract verification, deploy coordination |
 | `/harness-config` | Modify hooks, settings.json (delegates to infra-engineer) |
 | `/harness-audit` | Health check of ~/.claude/ config |
+| `/debug` | Persistent debug state for complex, multi-session bugs |
+| `/forensics` | Post-incident pipeline investigation |
+| `/workstream` | Manage isolated workstreams for parallel development |
 
 ### Reference Patterns
 | Skill | Domain |
@@ -158,6 +161,8 @@ Intake → Plan → Scaffold → Build → Review → Verify → Load Test → T
 | `function-body-check.sh` | Function length limit (configurable, default 5 lines) | Advisory |
 | `hook-profile.sh` | Runtime profile gating (minimal/standard/strict) | Library |
 | `loop-guard.sh` | Re-entrancy prevention (>10 calls in 60s = skip) | Library |
+| `context-warning.sh` | Context window usage warnings at 65%/75% thresholds | Advisory |
+| `injection-scan.sh` | Prompt injection pattern detection on file writes | Advisory |
 | `auto-pr.sh` | Suggests PR creation when branch is ahead | Advisory |
 | `subagent-stop-trajectory.sh` | Records agent completion to pipeline trajectory | Passive |
 

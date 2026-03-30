@@ -71,6 +71,37 @@ Skip this gate only when Ambiguity = 1 (fully specified ACs with no interpretati
 
 **Why:** Building the wrong approach through a full pipeline wastes more effort than asking 2-3 clarifying questions upfront.
 
+#### Discussion Persistence (MANDATORY when this gate fires)
+
+Create `pipeline-state/{task-id}-discussion.md` to persist the exploration discussion:
+
+```markdown
+---
+task_id: {task-id}
+phase: intake
+gate: exploration
+ambiguity_score: {N}
+timestamp: {ISO 8601}
+---
+
+## Discussion: {task summary}
+
+### Questions Asked
+| # | Question | Category | User Response | Decision |
+|---|----------|----------|---------------|----------|
+| 1 | {question} | {integration/fidelity/data/approach} | {response} | {decision made} |
+
+### Decisions Summary
+- {Decision 1}: {rationale}
+
+### Impact on Implementation
+- Approach: {chosen approach from validation}
+- Integration point: {where it fits}
+- Data assumptions: {confirmed or external data provided}
+```
+
+This file feeds into the architect during the Plan phase and survives context compaction.
+
 ### Step 3: Pre-flight Check
 
 Before invoking pipeline, verify and auto-fix:
