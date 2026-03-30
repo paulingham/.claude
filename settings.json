@@ -35,6 +35,14 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/commit-checkpoint.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/governance-capture.sh"
+          },
+          {
+            "type": "command",
+            "command": "dippy check"
           }
         ]
       },
@@ -48,6 +56,14 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/orchestrator-discipline.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/config-protection.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/governance-capture.sh"
           }
         ]
       },
@@ -61,6 +77,14 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/orchestrator-discipline.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/config-protection.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/governance-capture.sh"
           }
         ]
       },
@@ -80,6 +104,10 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/context-warning.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/observation-capture.sh"
           }
         ]
       },
@@ -122,6 +150,10 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/injection-scan.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/auto-bug-detect.sh"
           }
         ]
       }
@@ -138,6 +170,11 @@
             "type": "agent",
             "prompt": "Verify the current task is truly complete before stopping. Check: 1) Run the test suite if there are code changes and confirm all tests pass, 2) Run git status to check for uncommitted changes, 3) Look for TODO or FIXME comments in recently changed files (git diff --name-only | xargs grep -l 'TODO\\|FIXME' 2>/dev/null), 4) If a pipeline is in progress, verify pipeline-state/*-pipeline.md is up to date with current phase status. If anything is incomplete, respond with {\"ok\": false, \"reason\": \"what remains\"}. If this was just a question/conversation (no code changes), respond with {\"ok\": true}. IMPORTANT: Check the stop_hook_active field in your input - if true, respond with {\"ok\": true} immediately to avoid infinite loops.",
             "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/cost-tracker.sh",
+            "timeout": 10
           }
         ]
       }
