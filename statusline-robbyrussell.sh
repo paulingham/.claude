@@ -46,6 +46,11 @@ if [ -n "$ctx_pct" ]; then
         ctx_color="\033[1;32m"
     fi
     ctx_info=" ${ctx_color}ctx:${ctx_int}%\033[0m"
+
+    # Bridge context data for hooks
+    if [ -n "$ctx_int" ]; then
+        echo "$ctx_int" > /tmp/claude-ctx-percent 2>/dev/null
+    fi
 fi
 
 # Use printf with %b for segments containing escape codes so ANSI colors render
