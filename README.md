@@ -219,8 +219,9 @@ brew tap ldayton/dippy && brew install dippy
 # Recommended: Session observability (token attribution, compaction visualization)
 brew install --cask claude-devtools
 
-# Recommended: ML-based prompt injection detection
-cargo install parry
+# Optional: ML-based prompt injection detection (requires Rust toolchain)
+# Install Rust first: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# Then: cargo install parry
 
 # Recommended: Inter-agent communication for team phases
 npm install -g hcom
@@ -247,7 +248,7 @@ For new projects without a CLAUDE.md, the system automatically runs `/project-se
 |------|---------|---------|-----------|
 | [Dippy](https://github.com/ldayton/Dippy) | AST-based bash command safety | `brew install dippy` | Yes (dontAsk mode) |
 | [claude-devtools](https://github.com/matt1398/claude-devtools) | Session observability | `brew install --cask claude-devtools` | Recommended |
-| [parry-guard](https://github.com/vaporif/parry) | ML injection detection | `cargo install parry` | Recommended |
+| [parry-guard](https://github.com/vaporif/parry) | ML injection detection | `cargo install parry` | Optional (needs Rust) |
 | [hcom](https://github.com/aannoo/hcom) | Inter-agent communication | `npm install -g hcom` | Recommended |
 | [agnix](https://github.com/agent-sh/agnix) | Config linting | `npx agnix` (no install) | Optional |
 | [Trail of Bits](https://github.com/trailofbits/skills) | Security analysis skills | `claude plugins install` | Optional |
