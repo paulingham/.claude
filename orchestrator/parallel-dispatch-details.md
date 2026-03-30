@@ -107,6 +107,43 @@ Agent({
 })
 ```
 
+### Adversarial Review (Budget >= 10 OR Sensitive Code)
+
+When the pipeline triggers adversarial review, spawn two code-reviewers with different focus prompts:
+
+```
+Agent({
+  name: "reviewer-design",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "code-reviewer",
+  prompt: "Read ~/.claude/skills/code-review/SKILL.md and execute it fully.
+    Read ~/.claude/agents/code-reviewer.md for your role definition.
+    FOCUS: abstractions, naming clarity, DRY/SOLID, design quality, pattern appropriateness.
+    DO NOT focus on edge cases or error paths (another reviewer handles that).
+    Context: branch feature/X, base main.
+    Changed files: [list]
+    Full diff: [git diff output]"
+})
+
+Agent({
+  name: "reviewer-edges",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "code-reviewer",
+  prompt: "Read ~/.claude/skills/code-review/SKILL.md and execute it fully.
+    Read ~/.claude/agents/code-reviewer.md for your role definition.
+    FOCUS: edge cases, error paths, integration concerns, race conditions, concurrency issues.
+    DO NOT focus on naming or design patterns (another reviewer handles that).
+    Context: branch feature/X, base main.
+    Changed files: [list]
+    Full diff: [git diff output]"
+})
+```
+
+After both return:
+- Findings flagged by both → HIGH confidence
+- Findings flagged by only one → MEDIUM confidence (include both perspectives)
+- Both APPROVE → advance. Either CHANGES_REQUESTED → normal review loop with the raising reviewer.
+
 ### Review Loop with Teams
 
 On CHANGES_REQUESTED:

@@ -48,6 +48,12 @@ Agent({
        - If E2E flows ran (PASS): confirm they cover the changed behavior
        - If E2E flows failed: this should have been caught in Verify -- flag if it wasn't
 
+    If Design QC screenshots are available (from /design-qc):
+    7. Visual review: check screenshots against design system compliance
+       - No hardcoded colors, spacing follows scale, type scale respected
+       - Empty/error states have proper treatment
+       - Mobile layout is usable, animations respect prefers-reduced-motion
+
     Produce verdict: APPROVED, APPROVED WITH CONDITIONS, or REJECTED.
     If conditions exist, list them explicitly."
 })
