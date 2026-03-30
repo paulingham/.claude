@@ -125,7 +125,25 @@ See `.claude/CLAUDE.md` for full orchestration protocol.
 - **Dev**: [detected]
 ```
 
-### 5. Generate CLAUDE.md
+### 5. Jira Automation Setup
+
+If `~/.claude/automation/daemon.sh` exists (automation system is installed):
+
+1. Create `.claude/automation.env` with project-specific defaults:
+   ```bash
+   # Jira automation config for [Project Name]
+   # These override ~/.claude/automation/default.env
+   JIRA_PROJECT_KEY=
+   JIRA_AC_CUSTOM_FIELD=
+   BUDGET_CAP=10.00
+   POOL_SIZE=3
+   ```
+
+2. Add `.tickets/` to `.gitignore` (the worktree pool directory)
+
+3. Report to user: "Automation env created at .claude/automation.env -- set JIRA_PROJECT_KEY to enable."
+
+### 6. Generate CLAUDE.md
 
 ```markdown
 # [Project Name]

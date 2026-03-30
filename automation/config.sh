@@ -3,6 +3,27 @@
 # Sourced by other scripts. Does NOT use set -e (callers control error handling).
 
 # ---------------------------------------------------------------------------
+# Env file loading (per-repo config)
+# ---------------------------------------------------------------------------
+# Load order: global defaults -> repo-specific overrides -> env vars (highest priority)
+# Global:  ~/.claude/automation/default.env
+# Per-repo: $REPO_PATH/.claude/automation.env (or pass AUTOMATION_ENV=/path/to/file)
+_load_env_file() {
+  local f="$1"
+  if [ -f "$f" ]; then
+    # Source the file, but only export lines matching VAR=VALUE (skip comments/blanks)
+    set -a
+    # shellcheck disable=SC1090
+    source "$f"
+    set +a
+  fi
+}
+
+_load_env_file "$HOME/.claude/automation/default.env"
+[ -n "${AUTOMATION_ENV:-}" ] && _load_env_file "$AUTOMATION_ENV"
+[ -n "${REPO_PATH:-}" ] && _load_env_file "$REPO_PATH/.claude/automation.env"
+
+# ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 AUTOMATION_DIR="${AUTOMATION_DIR:-$HOME/.claude/automation}"
