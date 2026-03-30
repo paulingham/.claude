@@ -28,6 +28,8 @@
 !agent-memory/**
 !memory/
 !memory/**
+!automation/
+!automation/**
 
 # Never track secrets or credentials
 credentials.json
