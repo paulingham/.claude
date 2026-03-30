@@ -23,35 +23,38 @@ The orchestrator has violated source-file discipline under time pressure in mult
 
 If agent overhead is genuinely blocking iteration, **propose a process change to the user** — do not silently bypass.
 
-## Worktree Isolation
+## Isolation: Worktrees vs Teams
 
-### Rule: Write-Capable Agents Use Worktree Isolation
+### Subagent Phases: Worktree Isolation
 
-When the orchestrator spawns agents that will create or modify files, it MUST use `isolation: "worktree"` to give the agent an isolated copy of the repository.
+When the orchestrator spawns **subagents** that will create or modify files, it MUST use `isolation: "worktree"`.
 
-### Write-Capable Agents (MUST use worktree)
+- **Write-capable subagents** (MUST use worktree): software-engineer, frontend-engineer, qa-engineer, database-engineer, infrastructure-engineer
+- **Read-only subagents** (NO worktree): code-reviewer, security-engineer, product-reviewer, architect
 
-- **software-engineer**, **frontend-engineer**, **qa-engineer**, **database-engineer**, **infrastructure-engineer**
+### Team Phases: Branch Isolation
 
-### Read-Only Agents (NO worktree needed)
+When teammates are spawned into the pipeline team, they manage their own branches:
+- Each write-capable teammate creates a feature branch (e.g., `build/{task-id}-{slice}`)
+- Teammates commit to their branch before completing
+- The orchestrator merges branches after the phase completes
+- Read-only teammates (reviewers, product-reviewer) work on the main branch
 
-- **code-reviewer**, **security-engineer**, **product-reviewer**, **architect**
+### Parallel Work
 
-### Parallel Worktrees
+- **Subagents**: Multiple worktrees spawned in a single message
+- **Team**: Multiple teammates spawned in a single message, each on their own branch
+- Code reviewer + security engineer -> team (visible in tmux, persistent for re-review)
+- QA + product-reviewer -> team (final gate, parallel)
 
-Independent work MUST run in parallel worktrees:
-- Multiple engineers implementing independent slices -> separate worktrees, spawned in a single message
-- Code reviewer + security engineer -> parallel (no worktrees needed, read-only)
-- QA writing tests for independent features -> separate worktrees
+## Commit Protocol
 
-## Worktree Commit Protocol
-
-Agents working in worktrees MUST commit their work before completing:
+All agents (subagents in worktrees AND teammates on branches) MUST commit before completing:
 1. Stage all changed files: `git add` specific files (not `git add .`)
 2. Commit with a descriptive message including: what was built, test count, any known issues
 3. If work is incomplete (approaching turn limit): commit with `WIP:` prefix
-4. The orchestrator merges worktree branches via `git merge` or `git cherry-pick`
-5. Never leave uncommitted changes in a worktree -- uncommitted work cannot be merged reliably
+4. The orchestrator merges branches via `git merge` or `git cherry-pick`
+5. Never leave uncommitted changes -- uncommitted work cannot be merged reliably
 
 ## Continuation From WIP
 
@@ -61,7 +64,7 @@ When an agent's prior attempt was committed as WIP, the orchestrator includes in
 - Do NOT re-explain the full feature spec — the agent reads existing code and tests
 - The continuation agent runs tests first to confirm the WIP state is green
 
-## Worktree Lifecycle
+## Worktree Lifecycle (subagent phases)
 
 After merging a worktree branch:
 1. Remove the worktree: `git worktree remove .claude/worktrees/agent-XXXX --force`
@@ -69,6 +72,18 @@ After merging a worktree branch:
 3. Verify with `git worktree list` — only the main worktree should remain
 
 Never leave stale worktrees — they consume disk space and confuse test runners.
+
+## Teammate Lifecycle (team phases)
+
+Teammates are spawned just-in-time and shut down after their phase:
+1. **Spawn**: Orchestrator uses `Agent` with `team_name` and `name` parameters
+2. **Work**: Teammate reads skill file, creates branch, implements, commits
+3. **Complete**: Teammate marks task complete via `TaskUpdate`, goes idle
+4. **Shutdown**: Orchestrator sends `SendMessage({type: "shutdown_request"})` after phase
+5. **Merge**: Orchestrator merges the teammate's branch, deletes it
+
+Never keep teammates alive across phases — idle teammates burn tokens.
+Stale teammates from failed pipelines need manual cleanup (`tmux kill-session` if needed).
 
 ## Dynamic Agents
 

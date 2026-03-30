@@ -49,9 +49,21 @@ Scale: [micro/small/medium/large]
 
 ### State Transitions
 
-- `pending` -> `in_progress`: Phase skill invoked or agents dispatched
-- `in_progress` -> `completed`: Phase verdict is success
+- `pending` -> `in_progress`: Phase skill invoked, agents dispatched, or teammates spawned
+- `in_progress` -> `completed`: Phase verdict is success (all teammates report complete)
 - `in_progress` -> stays `in_progress`: Recovery loop (CHANGES_REQUESTED, GAPS_FOUND, etc.)
+
+### Team State
+
+The pipeline team's state is tracked alongside the pipeline state:
+
+```
+## Team: pipeline-{task-id}
+Active teammates: [list of currently spawned teammates]
+Phase: [current team phase]
+```
+
+When teammates go idle after completing tasks, the orchestrator checks `TaskList` for the team to determine if the phase is complete (all tasks done) before advancing.
 
 ### Updating State
 
@@ -101,13 +113,14 @@ At each pipeline phase transition, output a brief status line. Do not ask for in
 Examples:
 
 ```
-[Build] COMPLETE -- BUILD_COMPLETE, 6 files created, 23 tests green
-[Review] PARALLEL DISPATCH -- code-reviewer + security-engineer spawned
-[Review] CHANGES_REQUESTED -- 3 findings (1 critical, 2 suggestions). Spawning fix...
-[Review] COMPLETE -- both APPROVE on second round
-[Verify] COMPLETE -- VERIFIED (Tier 1: PASS, Tier 2: PASS, Tier 3: N/A)
-[Test] COMPLETE -- COVERED (92% on critical paths, 0 gaps)
-[Accept] COMPLETE -- APPROVED
+[Build] TEAM PHASE -- 2 engineers spawned (backend-engineer, frontend-engineer)
+[Build] COMPLETE -- BUILD_COMPLETE, 6 files created, 23 tests green, engineers shut down
+[Review] TEAM PHASE -- code-reviewer + security-engineer spawned
+[Review] CHANGES_REQUESTED -- 3 findings (1 critical, 2 suggestions). Spawning fix-engineer...
+[Review] RE-REVIEW -- re-assigned to code-reviewer (context preserved)
+[Review] COMPLETE -- both APPROVE, reviewers shut down
+[Final Gate] TEAM PHASE -- verifier + test-analyst + product-reviewer spawned
+[Final Gate] COMPLETE -- VERIFIED + COVERED + APPROVED, all shut down
 [Ship] COMPLETE -- PR_CREATED: https://github.com/org/repo/pull/42
 ```
 
@@ -156,9 +169,9 @@ Each reviewer re-reviews ONLY their own findings, not the full diff.
 ## Async Review
 
 When the orchestrator has other work available (e.g., multiple stories in a pipeline):
-1. Spawn review agents in background (`run_in_background: true`)
+1. Review teammates work in their tmux panes -- they're visible, no background flag needed
 2. Continue with the user on other tasks or stories
-3. When review agents complete, resume the pipeline
+3. When reviewers mark tasks complete and go idle, resume the pipeline
 4. Review is max 2 total rounds (initial + 1 targeted re-review), not 3 full re-audits
 
 The orchestrator should NOT block waiting for review results when there is other work to do.

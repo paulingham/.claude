@@ -2,105 +2,222 @@
 
 Extracted from `rules/parallel-dispatch-protocol.md`. Agents do not need this content.
 
-## Dispatch Procedure
+## Team Creation
 
-### Step 1: Spawn Agents in a Single Message
-
-The orchestrator spawns all parallel agents in one message. Each agent prompt includes the skill file path. The orchestrator does NOT read the skill files itself -- agents read them independently.
-
-### Step 2: Agents Read and Execute Their Skill Files
-
-Each agent reads its assigned skill file at `~/.claude/skills/[name]/SKILL.md` and follows its procedure, checklist, and output format. The agent also reads the project's tech stack pattern file if one exists at `~/.claude/skills/[stack]-patterns/SKILL.md`.
-
-### Step 3: Orchestrator Collects Verdicts
-
-After all agents complete, the orchestrator reads each agent's output, extracts the verdict, and determines the next phase based on the combined results.
-
-## Review Phase Example
-
-Dispatch both reviewers in a single message:
+At pipeline start, create the team:
 
 ```
-// Single message, two Agent calls -- true parallel execution
-Agent({
-  subagent_type: "code-reviewer",
-  prompt: "Read the skill file at ~/.claude/skills/code-review/SKILL.md and execute it fully.
-    Also read ~/.claude/skills/react-native-patterns/SKILL.md for tech-specific guidance.
-    Context: branch feature/X, base main, changed files: [list], prior verdict: BUILD_COMPLETE"
-})
-
-Agent({
-  subagent_type: "security-engineer",
-  prompt: "Read the skill file at ~/.claude/skills/security-review/SKILL.md and execute it fully.
-    Also read ~/.claude/skills/react-native-patterns/SKILL.md for tech-specific guidance.
-    Context: branch feature/X, base main, changed files: [list], prior verdict: BUILD_COMPLETE"
+TeamCreate({
+  team_name: "pipeline-{task-id}",
+  description: "Pipeline for {feature name}"
 })
 ```
 
-## Build Phase Example
+One team per pipeline. All phase teammates join this team. The shared task list at `~/.claude/tasks/pipeline-{task-id}/` tracks all work.
 
-Parallel worktrees for independent slices, each loading the tech stack pattern:
+## Build Phase Dispatch
+
+### Single Slice (subagent -- no team)
 
 ```
-// Independent slices -- parallel worktrees in single message
 Agent({
   subagent_type: "frontend-engineer",
   isolation: "worktree",
-  prompt: "Read the skill file at ~/.claude/skills/build-implementation/SKILL.md and execute it fully.
+  prompt: "Read ~/.claude/skills/build-implementation/SKILL.md and execute it fully.
+    Read ~/.claude/agents/frontend-engineer.md for your role definition.
     Also read ~/.claude/skills/react-native-patterns/SKILL.md for tech-specific guidance.
-    Context: Implement [AC 1], branch feature/X, base main.
-    Acceptance criteria: [AC 1 details]"
+    Context: Implement [feature], branch feature/X, base main.
+    Acceptance criteria: [AC details]"
+})
+```
+
+### Multi-Slice (team -- parallel engineers)
+
+```
+// Step 1: Create tasks
+TaskCreate({ title: "Build: API endpoint for X", description: "ACs: ..." })
+TaskCreate({ title: "Build: UI component for Y", description: "ACs: ..." })
+
+// Step 2: Spawn teammates in single message, assign tasks
+Agent({
+  name: "backend-engineer",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "software-engineer",
+  prompt: "Read ~/.claude/skills/build-implementation/SKILL.md and execute it fully.
+    Read ~/.claude/agents/software-engineer.md for your role definition.
+    Context: branch feature/X, base main.
+    Your task: Build API endpoint for X. Check TaskList for details.
+    Commit your work to a feature branch before completing."
 })
 
 Agent({
-  subagent_type: "software-engineer",
-  isolation: "worktree",
-  prompt: "Read the skill file at ~/.claude/skills/build-implementation/SKILL.md and execute it fully.
+  name: "frontend-engineer",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "frontend-engineer",
+  prompt: "Read ~/.claude/skills/build-implementation/SKILL.md and execute it fully.
+    Read ~/.claude/agents/frontend-engineer.md for your role definition.
     Also read ~/.claude/skills/react-native-patterns/SKILL.md for tech-specific guidance.
-    Context: Implement [AC 2], branch feature/X, base main.
-    Acceptance criteria: [AC 2 details]"
+    Context: branch feature/X, base main.
+    Your task: Build UI component for Y. Check TaskList for details.
+    Commit your work to a feature branch before completing."
 })
 ```
 
-## Review Loop Integration
+After both complete: merge branches, shut down teammates.
 
-The review follows targeted re-review, not full re-dispatch:
+## Review Phase Dispatch
+
+Always uses the team. Spawn both reviewers in a single message:
 
 ```
-Parallel Dispatch (code-reviewer + security-engineer)
-  -> Both APPROVE? -> proceed to Verify
-  -> CHANGES_REQUESTED? -> spawn engineer to fix -> targeted re-review by raising reviewer(s) only
+// Step 1: Get the diff (orchestrator does this once)
+git diff main...HEAD
+
+// Step 2: Create tasks
+TaskCreate({ title: "Code review: feature X", description: "Diff attached..." })
+TaskCreate({ title: "Security review: feature X", description: "Diff attached..." })
+
+// Step 3: Spawn reviewers
+Agent({
+  name: "code-reviewer",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "code-reviewer",
+  prompt: "Read ~/.claude/skills/code-review/SKILL.md and execute it fully.
+    Read ~/.claude/agents/code-reviewer.md for your role definition.
+    Also read ~/.claude/skills/react-native-patterns/SKILL.md for tech-specific guidance.
+    Context: branch feature/X, base main.
+    Changed files: [list]
+    Full diff:
+    [git diff output]
+    Prior verdict: BUILD_COMPLETE"
+})
+
+Agent({
+  name: "security-engineer",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "security-engineer",
+  prompt: "Read ~/.claude/skills/security-review/SKILL.md and execute it fully.
+    Read ~/.claude/agents/security-engineer.md for your role definition.
+    Also read ~/.claude/skills/react-native-patterns/SKILL.md for tech-specific guidance.
+    Context: branch feature/X, base main.
+    Changed files: [list]
+    Full diff:
+    [git diff output]
+    Prior verdict: BUILD_COMPLETE"
+})
 ```
+
+### Review Loop with Teams
+
+On CHANGES_REQUESTED:
+
+```
+// 1. Spawn fix engineer into the same team
+Agent({
+  name: "fix-engineer",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "software-engineer",
+  prompt: "Read ~/.claude/agents/software-engineer.md for your role definition.
+    Fix these review findings: [findings]
+    Verify each finding is valid before implementing.
+    If a suggestion would make code worse, report back with justification.
+    Commit with descriptive message (not 'fixed per review feedback')."
+})
+
+// 2. After fix-engineer completes, shut it down
+SendMessage({ to: "fix-engineer", message: { type: "shutdown_request" } })
+
+// 3. Merge fix branch, then re-assign to raising reviewer (STILL ALIVE)
+SendMessage({
+  to: "code-reviewer",
+  message: "Re-review: Finding F1 (method body > 5 lines) was addressed.
+    Fix diff: [diff]. Check the fix addresses the finding.
+    Re-review ONLY the addressed findings, not the full codebase."
+})
+```
+
+The reviewer **already has context** from the first review. No prompt reconstruction needed.
 
 **Fix agent review-receiving rules** (include in fix agent prompt):
-- Verify the reviewer's finding before implementing — read the cited code, confirm the concern applies
+- Verify the reviewer's finding before implementing -- read the cited code, confirm the concern applies
 - If the suggestion would make code worse, report back with technical justification instead of blindly complying
-- Commit messages describe WHAT changed and WHY — never "fixed per review feedback"
+- Commit messages describe WHAT changed and WHY -- never "fixed per review feedback"
 
-Maximum 2 total rounds (initial + 1 re-review). If not resolved, escalate to user:
+Maximum 2 total rounds (initial + 1 re-review). If not resolved, escalate to user.
+
+After both APPROVE: shut down both reviewers.
+
+## Final Gate Phase Dispatch
+
+Three phases that currently run sequentially now run in parallel:
 
 ```
-[ESCALATION] Review not resolved after 2 rounds
+// Step 1: Create tasks
+TaskCreate({ title: "Verify: contract + smoke + mutation", description: "..." })
+TaskCreate({ title: "Test: coverage analysis + gap filling", description: "..." })
+TaskCreate({ title: "Accept: AC validation + UX review", description: "..." })
 
-Context: [findings still unresolved after targeted re-review]
-Options:
-1. Continue with known findings documented
-2. Reassign to different engineer
-3. Descope the change
+// Step 2: Spawn all three in single message
+Agent({
+  name: "verifier",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "qa-engineer",
+  prompt: "Read ~/.claude/skills/verify/SKILL.md and execute it fully.
+    Read ~/.claude/agents/qa-engineer.md for your role definition.
+    Context: branch feature/X, all tests passing, review APPROVED.
+    Run contract tests, smoke tests, and mutation testing on changed files."
+})
 
-Recommendation: [based on finding severity]
+Agent({
+  name: "test-analyst",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "qa-engineer",
+  prompt: "Read ~/.claude/skills/qa-test-strategy/SKILL.md and execute it fully.
+    Read ~/.claude/agents/qa-engineer.md for your role definition.
+    Context: branch feature/X, ACs: [list].
+    Map ACs to tests, identify coverage gaps, write missing tests."
+})
+
+Agent({
+  name: "product-reviewer",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "product-reviewer",
+  prompt: "Read ~/.claude/skills/product-acceptance/SKILL.md and execute it fully.
+    Read ~/.claude/agents/product-reviewer.md for your role definition.
+    Context: branch feature/X, ACs: [list].
+    Validate all ACs are met, assess UX quality, verify business value."
+})
 ```
 
-When other work is available, spawn review agents async (`run_in_background: true`) and continue with the user on other tasks.
+After all three return verdicts: shut down teammates.
+
+## Teammate Shutdown
+
+After each team phase completes:
+
+```
+SendMessage({ to: "teammate-name", message: { type: "shutdown_request" } })
+```
+
+After pipeline completes, clean up:
+- Shut down any remaining teammates
+- Team files at `~/.claude/teams/pipeline-{task-id}/` are auto-cleaned
+- Task list at `~/.claude/tasks/pipeline-{task-id}/` is auto-cleaned
 
 ## Audit Trail
 
-For each parallel dispatch, the orchestrator records:
+For each team phase, the orchestrator records:
 
 ```
-[Review] PARALLEL DISPATCH -- code-reviewer + security-engineer spawned
+[Build] TEAM PHASE -- 2 engineers spawned (backend-engineer, frontend-engineer)
+[Build] COMPLETE -- both tasks done, branches merged
+[Review] TEAM PHASE -- code-reviewer + security-engineer spawned
 [Review] VERDICTS -- code-reviewer: APPROVE, security-engineer: CHANGES_REQUESTED (1 HIGH)
-[Review] RE-REVIEW 2/2 -- fixing: [finding description]. Re-dispatching security-engineer...
+[Review] FIX -- fix-engineer spawned, fixing: [finding]. Shut down after fix.
+[Review] RE-REVIEW -- re-assigned to security-engineer (context preserved)
 [Review] VERDICT -- security-engineer: APPROVE
-[Review] COMPLETE -- both APPROVE after targeted re-review
+[Review] COMPLETE -- both APPROVE, reviewers shut down
+[Final Gate] TEAM PHASE -- verifier + test-analyst + product-reviewer spawned
+[Final Gate] VERDICTS -- VERIFIED + COVERED + APPROVED
+[Final Gate] COMPLETE -- all shut down
 ```

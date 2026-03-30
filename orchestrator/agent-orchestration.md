@@ -95,15 +95,27 @@ Explore agents lack engineering rules context (SOLID, DRY, shape constraints, OW
 
 Every task has a specialized agent type that is better suited. Use the pattern-to-agent mapping above.
 
-## Agent Teams
+## Agent Teams (Hybrid Model)
 
-### Rule: Orchestrator Always Creates Teams
+### Rule: One Team Per Pipeline
 
-The orchestrator creates an Agent Team for ALL implementation tasks. The user never needs to request a team or specify roles -- just describe the work.
+The orchestrator creates one team per pipeline (`TeamCreate("pipeline-{task-id}")`). Teammates are spawned just-in-time for their phase and shut down when done.
+
+### Hybrid Dispatch
+
+| Phase | Dispatch | Why |
+|-------|----------|-----|
+| Plan | Subagent | Read-only, fast, no visibility needed |
+| Build (single slice) | Subagent + worktree | Team overhead not justified for one engineer |
+| Build (multi-slice) | **Team** | Parallel engineers, visible in tmux |
+| Review | **Team** | Parallel reviewers, persistent context for re-review |
+| Final Gate (Verify + Test + Accept) | **Team** | 3 phases at once instead of sequential |
+| Ship | Subagent / Skill | Simple PR creation |
+| Deploy | Subagent / Skill | Sequential deploy steps |
 
 ### Role Selection
 
-The orchestrator picks teammates from the pattern-to-agent mapping above. Select only the roles the task requires -- don't over-staff.
+Pick teammates from the pattern-to-agent mapping above. Select only the roles the task requires -- don't over-staff. Teammates are spawned into the team with `name` and `team_name` parameters.
 
 ### Bridging Agent Definitions
 
@@ -125,19 +137,35 @@ This is automatic and mandatory -- the user should never need to mention it.
 
 ### Interacting with Teammates
 
-- **Cycle**: `Shift+Down` (in-process mode)
-- **Message**: cycle to a teammate and type
-- **Assign tasks**: tell the lead to create tasks
-- **Shut down**: ask the lead to shut down a teammate
-- **Clean up**: "Clean up the team" when done
+- **Tmux mode**: Each teammate has its own visible pane -- click to interact
+- **In-process mode**: `Shift+Down` to cycle between teammates
+- **Message**: `SendMessage({ to: "teammate-name", message: "..." })`
+- **Assign tasks**: `TaskCreate` then `TaskUpdate` with `owner`
+- **Shut down**: `SendMessage({ to: "name", message: { type: "shutdown_request" } })`
 
-### Teams vs Sub-agents
+### Teammate Lifecycle
 
-| Use | Mechanism |
-|-----|-----------|
-| Pipeline phases (build, review, verify, test, accept, ship) | Sub-agents via skills |
-| Parallel exploration, design debates, multi-domain coordination | Agent Teams |
-| Focused single task (bug fix, one review, one query) | Sub-agent |
+1. **Spawn**: `Agent({ name: "role", team_name: "pipeline-{id}", subagent_type: "type", prompt: "..." })`
+2. **Work**: Teammate reads skill file, works on task, marks complete
+3. **Idle**: Teammate goes idle after each turn -- this is normal, not an error
+4. **Re-assign**: Send new task via `SendMessage` (reviewer re-review, next slice, etc.)
+5. **Shutdown**: `SendMessage({type: "shutdown_request"})` after phase completes
+
+### When NOT to Team
+
+| Situation | Use subagent instead |
+|-----------|---------------------|
+| Single focused task (one bug fix, one query) | Subagent -- fire and return |
+| Read-only analysis (architect, plan) | Subagent -- no visibility needed |
+| Simple sequential work (PR creation, deploy) | Subagent / Skill tool |
+
+### Team Cleanup
+
+After pipeline completes:
+1. Shut down all remaining teammates
+2. Team files at `~/.claude/teams/pipeline-{task-id}/` auto-clean
+3. Task list at `~/.claude/tasks/pipeline-{task-id}/` auto-clean
+4. Check for orphaned tmux sessions: `tmux list-sessions`
 
 ## Dynamic Agent Generation
 

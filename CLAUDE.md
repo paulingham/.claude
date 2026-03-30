@@ -49,60 +49,70 @@ Global wins for quality standards; project wins for project-specific conventions
 | qa-engineer | Test | Yes | sonnet |
 | product-reviewer | Accept | No | sonnet |
 
-### Agent Teams (Always On)
+### Agent Teams (Hybrid Model)
 
-The orchestrator MUST create an Agent Team for ALL implementation tasks. The user never needs to request a team or specify roles — the orchestrator assesses the task and selects the right teammates automatically.
+One team per pipeline (`TeamCreate("pipeline-{task-id}")`). Teammates spawned just-in-time, shut down after phase.
 
-**Role selection**: Pick teammates from the Agent Team table above based on what the task requires. Every teammate's spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format."
+| Phase | Dispatch | Visible in tmux? |
+|-------|----------|-------------------|
+| Plan | Subagent | No |
+| Build (single) | Subagent + worktree | No |
+| Build (multi) | **Team** | Yes -- parallel engineers |
+| Review | **Team** | Yes -- reviewers with persistent context |
+| Final Gate | **Team** | Yes -- verify + test + accept in parallel |
+| Ship / Deploy | Subagent | No |
 
-**Interact**: `Shift+Down` to cycle teammates. See `rules/agent-protocol.md` for full protocol.
+**Role selection**: Pick teammates from the Agent Team table above. Every teammate's spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format."
+
+**Interact**: Click tmux pane (split mode) or `Shift+Down` (in-process). See `rules/agent-protocol.md`.
 
 ### How the System Works
 
 The orchestrator (Claude) coordinates work. It never writes code, reads source files, or runs tests.
 
-**Flow:**
+**Flow (hybrid dispatch):**
 ```
 User → /intake (classify + score) → /pipeline (drive phases)
-  → Each phase: Skill tool invokes the skill
-    → Skill auto-forks to the right agent (worktree for write-capable agents)
-      → Agent reads code, writes code, runs tests, returns verdict
-  → Review phase exception: two agents spawned in parallel via Agent tool
-    → Each reads its own skill file
-    → Each returns verdict independently
+  → TeamCreate("pipeline-{task-id}")
+  → Subagent phases (Plan, single-slice Build, Ship, Deploy):
+    → Skill tool or Agent tool → agent works → returns verdict
+  → Team phases (multi-slice Build, Review, Final Gate):
+    → Spawn teammates into pipeline team (visible in tmux panes)
+    → TaskCreate → assign to teammates → teammates work in parallel
+    → Teammates read skill files, work, mark complete, go idle
+    → Orchestrator collects verdicts, shuts down teammates
 ```
 
-**Skills vs Agents:**
+**Three dispatch mechanisms:**
 
-| Concept | What it is | Who invokes it |
-|---------|-----------|---------------|
-| **Skill** | Process definition (SKILL.md). Steps, checklist, verdict format. | Orchestrator via Skill tool |
-| **Agent** | Worker (software-engineer, code-reviewer, etc). Does actual work. | Skills auto-fork to agents; or orchestrator spawns for parallel phases |
-
-- **Sequential phases** (Build, Verify, Test, Accept, Ship): Orchestrator invokes skill → skill forks to agent → agent works → verdict
-- **Parallel phases** (Review): Orchestrator spawns agents directly → each reads own skill file → verdict
+| Mechanism | When | Visible? |
+|-----------|------|----------|
+| **Skill tool** | Sequential read-only phases | No |
+| **Subagent** (Agent + worktree) | Single-slice build, plan | No |
+| **Team** (TeamCreate + teammates) | Build (multi), Review, Final Gate | Yes (tmux) |
 
 **Orchestrator boundaries:**
 
 | ONLY does | NEVER does |
 |-----------|------------|
-| Invoke skills and spawn agents | Read source files (`.ts`, `.tsx`, `.js`, etc.) |
+| Invoke skills, spawn agents/teammates | Read source files (`.ts`, `.tsx`, `.js`, etc.) |
 | Run `git` commands (status, log, diff, merge) | Run tests, linters, or build commands |
-| Read `.claude/`, `memory/`, `rules/` files | Use Explore or general-purpose agents |
+| Manage teams (create, assign, shutdown) | Use Explore or general-purpose agents |
 | Track pipeline state + report progress | Compute analysis or make code decisions |
 
 ### Delivery Pipeline
 
-1. **Plan** → Architect designs slices. Gate: product-reviewer + engineer validate.
-2. **Build** → `/build-implementation` (incremental TDD). Gate: tests green, shape constraints met.
-3. **Review** → `/code-review` + `/security-review` (parallel dispatch). Gate: both APPROVE.
-   - Review is 1-2 rounds max (targeted re-review, not full re-audit). Async when possible.
-4. **Verify** → `/verify` (contract + smoke + mutation). Gate: VERIFIED.
-5. **Test** → `/qa-test-strategy`. Gate: all ACs covered, no gaps.
-6. **Accept** → `/product-acceptance`. Gate: APPROVED.
-7. **Ship** → `/pr-creation`. Gate: quality gate hook passes.
-8. **Deploy** → `/deploy` + `/deployment-verification`. Gate: DEPLOYMENT_VERIFIED.
-9. **Reflect** → Review pipeline execution, identify improvements to rules/CLAUDE.md/memory. Always runs.
+1. **Plan** → Architect designs slices (subagent). Gate: product-reviewer + engineer validate.
+2. **Build** → `/build-implementation` (subagent for single-slice, **team for multi-slice**). Gate: tests green, shape met.
+3. **Review** → `/code-review` + `/security-review` (**team** -- tmux visible, persistent context). Gate: both APPROVE.
+   - Review is 1-2 rounds max. Re-review uses same reviewer (context preserved). Async when possible.
+4. **Final Gate** → **team** running verify + test + accept in parallel:
+   - `/verify` (contract + smoke + mutation). Gate: VERIFIED.
+   - `/qa-test-strategy`. Gate: all ACs covered, no gaps.
+   - `/product-acceptance`. Gate: APPROVED.
+5. **Ship** → `/pr-creation` (subagent). Gate: quality gate hook passes.
+6. **Deploy** → `/deploy` + `/deployment-verification` (subagent). Gate: DEPLOYMENT_VERIFIED.
+7. **Reflect** → Review pipeline execution, identify improvements to rules/CLAUDE.md/memory. Always runs.
 
 No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 
@@ -164,7 +174,7 @@ All detailed protocols are in `rules/` (auto-loaded each session):
 - `rules/pipeline-protocol.md` — Pipeline phases, review loop, enforcement
 - `rules/engineering-protocol.md` — Code shape, TDD, testing standards, security baseline
 - `rules/operational-protocol.md` — Complexity Budget, error recovery principles
-- `rules/parallel-dispatch-protocol.md` — Parallel phase map, agent prompt template
+- `rules/parallel-dispatch-protocol.md` — Hybrid dispatch: teams for Build/Review/Final Gate, subagents for Plan/Ship/Deploy
 - `rules/e2e-protocol.md` — Maestro E2E trigger matrix and prerequisites
 - `rules/reflection-protocol.md` — Post-pipeline reflection, root cause analysis, continuous improvement
 
@@ -172,4 +182,4 @@ All detailed protocols are in `rules/` (auto-loaded each session):
 - `orchestrator/pipeline-orchestration.md` — State tracking, continuity, progress reporting, anti-patterns
 - `orchestrator/agent-orchestration.md` — Agent selection, team management, orchestrator discipline
 - `orchestrator/operational-details.md` — Escalation procedures, error recovery details
-- `orchestrator/parallel-dispatch-details.md` — Dispatch procedure, review loop management, audit trail
+- `orchestrator/parallel-dispatch-details.md` — Team dispatch procedure, review loop with persistent reviewers, audit trail

@@ -4,6 +4,7 @@
     "CLAUDE_HOOK_PROFILE": "standard",
     "CLAUDE_PIPELINE_TASK_ID": ""
   },
+  "teammateMode": "auto",
   "permissions": {
     "defaultMode": "dontAsk",
     "deny": [
