@@ -1,6 +1,6 @@
 ---
-name: "Service Extraction"
-description: "Full autonomous service extraction: analyze monolith boundaries, create new GitHub repo, move code, generate contracts, refactor monolith, wire CI/CD, open PRs in both repos. End-to-end."
+name: "service-extraction"
+description: "Use when user wants to Full autonomous service extraction: analyze monolith boundaries, create new GitHub repo, move code, generate contracts, refactor monolith, wire CI/CD, open PRs in both repos. End-to-end."
 context: fork
 agent: software-engineer
 argument-hint: "What to extract (e.g., 'extract billing module into billing-service')"
@@ -377,3 +377,4 @@ Monolith PR: https://github.com/{org}/{monolith}/pull/N
 New Service PR: https://github.com/{org}/{service-name}/pull/N
 Contract: contracts/openapi.yaml
 ```
+$ARGUMENTS

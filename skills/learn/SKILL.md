@@ -1,6 +1,6 @@
 ---
-name: "Learn"
-description: "Analyze recent session observations and extract instincts (learned patterns). Reads observations.jsonl, identifies recurring patterns, creates or updates instinct files with confidence scoring. Invoke periodically or at session end."
+name: "learn"
+description: "Use when user wants to Analyze recent session observations and extract instincts (learned patterns). Reads observations.jsonl, identifies recurring patterns, creates or updates instinct files with confidence scoring. Invoke periodically or at session end."
 argument-hint: "Optional: project path or 'global'"
 ---
 
@@ -117,3 +117,4 @@ Verdict: LEARNED / NO_NEW_PATTERNS / NO_OBSERVATIONS
 Next: Continue with normal work
 Artifacts: [list of instinct files created/updated/pruned]
 ```
+$ARGUMENTS

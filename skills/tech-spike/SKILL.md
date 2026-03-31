@@ -1,6 +1,6 @@
 ---
-name: "Tech Spike"
-description: "Time-boxed technical research workflow: question, explore, prototype, findings, recommendation. Use for evaluating technologies, investigating unknowns, or de-risking technical decisions."
+name: "tech-spike"
+description: "Use when user wants to Time-boxed technical research workflow: question, explore, prototype, findings, recommendation. Use for evaluating technologies, investigating unknowns, or de-risking technical decisions."
 context: fork
 agent: architect
 argument-hint: "Technical question to investigate"
@@ -89,3 +89,4 @@ Verdict: SPIKE_COMPLETE (informational — no gate)
 Next: Depends on recommendation. Typically /build-implementation or /epic-breakdown.
 Artifacts: [findings doc with recommendation, prototype code (throwaway)]
 ```
+$ARGUMENTS

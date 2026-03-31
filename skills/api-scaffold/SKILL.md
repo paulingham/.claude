@@ -1,6 +1,6 @@
 ---
-name: "API Scaffold"
-description: "Generate API endpoints from spec: route definitions, controllers, request/response validation, error handling, pagination, rate limiting. OpenAPI-driven or convention-based."
+name: "api-scaffold"
+description: "Use when user wants to Generate API endpoints from spec: route definitions, controllers, request/response validation, error handling, pagination, rate limiting. OpenAPI-driven or convention-based."
 context: fork
 agent: software-engineer
 argument-hint: "Resource name or OpenAPI spec path (e.g., 'users' or 'openapi.yaml')"
@@ -269,3 +269,4 @@ Verdict: API_SCAFFOLDED
 Next: Implement business logic in service layer, then /build-implementation for TDD
 Artifacts: [route definitions, controllers, validation schemas, error handlers, OpenAPI spec, rate limit config]
 ```
+$ARGUMENTS

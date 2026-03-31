@@ -1,6 +1,6 @@
 ---
-name: "Microservices Scaffold"
-description: "Scaffold a new microservice: service template, API gateway config, service discovery, inter-service communication, distributed tracing wiring. For when monolith extraction is needed."
+name: "microservices-scaffold"
+description: "Use when user wants to Scaffold a new microservice: service template, API gateway config, service discovery, inter-service communication, distributed tracing wiring. For when monolith extraction is needed."
 context: fork
 agent: infrastructure-engineer
 argument-hint: "Service name and responsibility (e.g., 'billing-service: handles subscriptions and payments')"
@@ -173,3 +173,4 @@ Verdict: SERVICE_SCAFFOLDED
 Next: Implement business logic via /build-implementation, then wire into API gateway
 Artifacts: [service directory, Dockerfile, docker-compose, event schemas, gateway config]
 ```
+$ARGUMENTS

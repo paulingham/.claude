@@ -1,6 +1,6 @@
 ---
-name: "Polish"
-description: "Lightweight mechanical cleanup pass between Build and Review. Fixes naming, dead code, import ordering, comment quality — the things self-review misses due to author bias. Uses Haiku for cost efficiency."
+name: "polish"
+description: "Use when user wants to Lightweight mechanical cleanup pass between Build and Review. Fixes naming, dead code, import ordering, comment quality — the things self-review misses due to author bias. Uses Haiku for cost efficiency."
 context: fork
 agent: software-engineer
 model: haiku

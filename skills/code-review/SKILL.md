@@ -1,6 +1,6 @@
 ---
-name: "Code Review"
-description: "Review phase skill: spawn code-reviewer agent to audit code for SOLID/DRY violations, security issues, test quality, performance, and complexity. Produces APPROVE or CHANGES_REQUESTED verdict."
+name: "code-review"
+description: "Use when user wants to Review phase skill: spawn code-reviewer agent to audit code for SOLID/DRY violations, security issues, test quality, performance, and complexity. Produces APPROVE or CHANGES_REQUESTED verdict."
 parallel_group: "review"
 context: fork
 agent: code-reviewer

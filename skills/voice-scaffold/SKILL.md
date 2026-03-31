@@ -1,6 +1,6 @@
 ---
-name: "Voice Scaffold"
-description: "Scaffold a voice skill/action for Alexa, Google Actions, or Twilio IVR. Generates project structure, intent model, handler stubs, SSML templates, and test harness."
+name: "voice-scaffold"
+description: "Use when user wants to Scaffold a voice skill/action for Alexa, Google Actions, or Twilio IVR. Generates project structure, intent model, handler stubs, SSML templates, and test harness."
 context: fork
 agent: software-engineer
 argument-hint: "Voice platform and skill purpose (e.g., 'Alexa task management skill')"
@@ -198,3 +198,4 @@ Next: Implement business logic via /build-implementation (TDD against handler st
 Artifacts: [project structure, intent model, handler stubs, SSML templates, test harness, deploy config]
 Platform: [Alexa/Google/Twilio]
 ```
+$ARGUMENTS

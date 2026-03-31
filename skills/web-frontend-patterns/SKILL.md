@@ -1,6 +1,6 @@
 ---
-name: "Web Frontend Patterns"
-description: "Web frontend reference: React/Next.js patterns, component architecture, state management, accessibility (WCAG 2.1 AA), performance optimization, testing. Equivalent to react-native-patterns for web."
+name: "web-frontend-patterns"
+description: "Use when user wants to Web frontend reference: React/Next.js patterns, component architecture, state management, accessibility (WCAG 2.1 AA), performance optimization, testing. Equivalent to react-native-patterns for web."
 argument-hint: "Framework context (e.g., 'Next.js App Router', 'Vite + React', 'Remix')"
 ---
 
@@ -327,3 +327,4 @@ Verdict: PATTERNS_APPLIED (informational — no pipeline gate)
 Next: Continue with /build-implementation using these patterns
 Artifacts: [component architecture, state management setup, accessibility audit, performance baseline]
 ```
+$ARGUMENTS

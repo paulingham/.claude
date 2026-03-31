@@ -1,6 +1,6 @@
 ---
-name: "React Native Patterns"
-description: "Expo Router v4 patterns, NativeWind, Gluestack UI v3, TanStack Query + Zustand, platform handling, Maestro E2E. Use for all React Native/Expo development."
+name: "react-native-patterns"
+description: "Use when user wants to Expo Router v4 patterns, NativeWind, Gluestack UI v3, TanStack Query + Zustand, platform handling, Maestro E2E. Use for all React Native/Expo development."
 ---
 
 # React Native Patterns

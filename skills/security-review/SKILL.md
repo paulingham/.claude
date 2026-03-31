@@ -1,6 +1,6 @@
 ---
-name: "Security Review"
-description: "Review phase skill: spawn security-engineer agent for OWASP Top 10 audit, dependency scanning, secrets detection, and auth/authz review. Runs in parallel with code-review."
+name: "security-review"
+description: "Use when user wants to Review phase skill: spawn security-engineer agent for OWASP Top 10 audit, dependency scanning, secrets detection, and auth/authz review. Runs in parallel with code-review."
 parallel_group: "review"
 context: fork
 agent: security-engineer

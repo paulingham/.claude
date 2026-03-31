@@ -1,5 +1,5 @@
 ---
-name: "Epic Breakdown"
+name: "epic-breakdown"
 description: "Decompose an epic into estimated stories with acceptance criteria. Orchestrates architect for design, estimation for sizing, and outputs structured stories. Use when breaking down epics or features into implementable stories."
 context: fork
 agent: architect

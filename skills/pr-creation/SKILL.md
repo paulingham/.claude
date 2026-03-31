@@ -1,5 +1,5 @@
 ---
-name: "PR Creation Workflow"
+name: "pr-creation-workflow"
 description: "GitHub pull request workflow with validation, feature branch management, and automated PR creation. Use when completing features to create production-ready pull requests."
 context: fork
 agent: software-engineer

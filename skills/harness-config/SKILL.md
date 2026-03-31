@@ -1,5 +1,5 @@
 ---
-name: "Harness Config"
+name: "harness-config"
 description: "Modify the Claude Code harness itself: hooks (.sh), settings.json, agent definitions, and skill infrastructure. Delegates non-.md file changes to an infrastructure-engineer agent with worktree isolation. Use when adding/modifying hooks, settings, or any non-markdown config in ~/.claude/."
 ---
 

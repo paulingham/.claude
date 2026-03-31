@@ -1,6 +1,6 @@
 ---
-name: "Design QC"
-description: "Visual QA with full DevOps lifecycle enforcement. Installs deps, builds, starts dev server, captures screenshots at desktop and mobile viewports, stops server. Mandatory for all frontend changes. Fails loudly at every step."
+name: "design-qc"
+description: "Use when user wants to Visual QA with full DevOps lifecycle enforcement. Installs deps, builds, starts dev server, captures screenshots at desktop and mobile viewports, stops server. Mandatory for all frontend changes. Fails loudly at every step."
 context: fork
 agent: qa-engineer
 ---

@@ -1,6 +1,6 @@
 ---
-name: "Cross-Service Pipeline"
-description: "Coordinate changes spanning multiple services/repos: contract compatibility verification, deployment ordering, backwards compatibility checks, cross-service smoke tests."
+name: "cross-service-pipeline"
+description: "Use when user wants to Coordinate changes spanning multiple services/repos: contract compatibility verification, deployment ordering, backwards compatibility checks, cross-service smoke tests."
 context: fork
 agent: infrastructure-engineer
 argument-hint: "Contract change description (e.g., 'adding status field to task API response')"
@@ -180,3 +180,4 @@ Breaking: [yes/no]
 Migration Window: [N weeks, or N/A if compatible]
 Affected Services: [list]
 ```
+$ARGUMENTS
