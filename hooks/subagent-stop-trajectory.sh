@@ -1,13 +1,27 @@
 #!/usr/bin/env bash
 # Trajectory recorder — SubagentStop hook
 # Appends a structured record to the active pipeline trajectory file when an agent stops.
-# Activate by setting CLAUDE_PIPELINE_TASK_ID in your environment or pipeline start.
+# Auto-detects the active pipeline from pipeline-state files, or uses CLAUDE_PIPELINE_TASK_ID if set.
 
 set -uo pipefail
 
 INPUT=$(cat)
 AGENT_TYPE=$(echo "$INPUT" | jq -r '.subagent_type // .agent_type // "unknown"' 2>/dev/null || echo "unknown")
+
+# Auto-detect active pipeline from pipeline-state files
 TASK_ID="${CLAUDE_PIPELINE_TASK_ID:-}"
+
+if [[ -z "$TASK_ID" ]]; then
+  # Scan for active pipeline state files
+  PIPELINE_DIR="${HOME}/.claude/pipeline-state"
+  if [[ -d "$PIPELINE_DIR" ]]; then
+    # Find pipeline files with in_progress verdict (check top-level and workstream subdirs)
+    ACTIVE_FILE=$(grep -rl "verdict: in_progress" "$PIPELINE_DIR" 2>/dev/null | head -1)
+    if [[ -n "$ACTIVE_FILE" ]]; then
+      TASK_ID=$(grep "^task_id:" "$ACTIVE_FILE" 2>/dev/null | head -1 | sed 's/task_id: *//')
+    fi
+  fi
+fi
 
 if [[ -z "$TASK_ID" ]]; then
   exit 0  # No active pipeline — skip
