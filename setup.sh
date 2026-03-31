@@ -254,6 +254,59 @@ else
 fi
 
 # -------------------------------------------------------------------
+# Step 6b: Fix machine-specific paths in settings.json
+# -------------------------------------------------------------------
+print_header "Step 6b: Fix machine-specific paths in settings.json"
+
+if [[ -f "$SETTINGS_FILE" ]]; then
+  PATHS_FIXED=0
+
+  # Fix hcom path to current machine (macOS /Users/ and Linux /home/)
+  if grep -qE "/(Users|home)/[^/]*/\.local/bin/hcom" "$SETTINGS_FILE" 2>/dev/null; then
+    sed -i.bak "s|/Users/[^/]*/\.local/bin/hcom|${HOME}/.local/bin/hcom|g" "$SETTINGS_FILE"
+    rm -f "${SETTINGS_FILE}.bak"
+    sed -i.bak "s|/home/[^/]*/\.local/bin/hcom|${HOME}/.local/bin/hcom|g" "$SETTINGS_FILE"
+    rm -f "${SETTINGS_FILE}.bak"
+    print_success "Fixed hcom paths to ${HOME}/.local/bin/hcom"
+    PATHS_FIXED=$(( PATHS_FIXED + 1 ))
+  fi
+
+  # Fix parry-guard HF token path (macOS /Users/ and Linux /home/)
+  if grep -qE "/(Users|home)/[^/]*/\.config/parry-guard" "$SETTINGS_FILE" 2>/dev/null; then
+    sed -i.bak "s|/Users/[^/]*/\.config/parry-guard|${HOME}/.config/parry-guard|g" "$SETTINGS_FILE"
+    rm -f "${SETTINGS_FILE}.bak"
+    sed -i.bak "s|/home/[^/]*/\.config/parry-guard|${HOME}/.config/parry-guard|g" "$SETTINGS_FILE"
+    rm -f "${SETTINGS_FILE}.bak"
+    print_success "Fixed parry-guard token path to ${HOME}/.config/parry-guard"
+    PATHS_FIXED=$(( PATHS_FIXED + 1 ))
+  fi
+
+  # Fix parry-guard binary path (macOS /Users/ and Linux /home/)
+  if grep -qE "/(Users|home)/[^/]*/\.cargo/bin/parry-guard" "$SETTINGS_FILE" 2>/dev/null; then
+    sed -i.bak "s|/Users/[^/]*/\.cargo/bin/parry-guard|${HOME}/.cargo/bin/parry-guard|g" "$SETTINGS_FILE"
+    rm -f "${SETTINGS_FILE}.bak"
+    sed -i.bak "s|/home/[^/]*/\.cargo/bin/parry-guard|${HOME}/.cargo/bin/parry-guard|g" "$SETTINGS_FILE"
+    rm -f "${SETTINGS_FILE}.bak"
+    print_success "Fixed parry-guard binary path to ${HOME}/.cargo/bin/parry-guard"
+    PATHS_FIXED=$(( PATHS_FIXED + 1 ))
+  fi
+
+  # Validate JSON is still valid after sed replacements
+  if python3 -m json.tool < "$SETTINGS_FILE" > /dev/null 2>&1; then
+    if [[ "$PATHS_FIXED" -gt 0 ]]; then
+      record_installed "settings.json: ${PATHS_FIXED} path pattern(s) fixed for this machine"
+    else
+      print_success "settings.json: no machine-specific paths needed fixing"
+      SKIPPED+=("settings.json: paths already correct")
+    fi
+  else
+    record_failed "settings.json: path replacement broke JSON"
+  fi
+else
+  print_warning "settings.json not found -- skipping path fix"
+fi
+
+# -------------------------------------------------------------------
 # Step 7: Run agnix if available
 # -------------------------------------------------------------------
 print_header "Step 7: Running agnix configuration linter"
