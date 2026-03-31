@@ -1,0 +1,308 @@
+#!/usr/bin/env bash
+# setup.sh — Bootstrap script for fresh ~/.claude/ installs
+# Idempotent: safe to run multiple times. Continues on failure.
+# Usage: bash ~/.claude/setup.sh
+
+set -uo pipefail
+
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+RESET='\033[0m'
+
+INSTALLED=()
+SKIPPED=()
+FAILED=()
+
+print_success() { printf "${GREEN}  %s${RESET}\n" "$1"; }
+print_failure() { printf "${RED}  %s${RESET}\n" "$1"; }
+print_warning() { printf "${YELLOW}  %s${RESET}\n" "$1"; }
+print_header()  { printf "\n${BLUE}%s${RESET}\n" "$1"; }
+
+record_installed() { INSTALLED+=("$1"); print_success "$1"; }
+record_skipped()  { SKIPPED+=("$1");  print_warning "$1 (already installed)"; }
+record_failed()   { FAILED+=("$1");   print_failure "$1"; }
+
+command_exists() { command -v "$1" > /dev/null 2>&1; }
+
+print_header "=== Claude Code Orchestration Layer Setup ==="
+echo ""
+
+# -------------------------------------------------------------------
+# Step 1: Check prerequisites
+# -------------------------------------------------------------------
+print_header "Step 1: Checking prerequisites"
+
+PREREQS_OK=true
+
+if command_exists node; then
+  print_success "node $(node --version)"
+else
+  print_failure "node not found -- install Node.js first"
+  PREREQS_OK=false
+fi
+
+if command_exists npm; then
+  print_success "npm $(npm --version)"
+else
+  print_failure "npm not found -- install Node.js first"
+  PREREQS_OK=false
+fi
+
+if command_exists brew; then
+  print_success "brew $(brew --version | head -1)"
+else
+  print_failure "brew not found -- install Homebrew: https://brew.sh"
+  PREREQS_OK=false
+fi
+
+if [[ "$PREREQS_OK" == "false" ]]; then
+  print_failure "Prerequisites missing. Install them and re-run this script."
+  exit 1
+fi
+
+# -------------------------------------------------------------------
+# Step 2: Install external tools
+# -------------------------------------------------------------------
+print_header "Step 2: Installing external tools"
+
+# -- Dippy (AST-based bash command safety) --
+echo ""
+echo "  Dippy (AST-based bash command safety)..."
+if command_exists dippy; then
+  record_skipped "dippy"
+else
+  if brew tap ldayton/dippy 2>/dev/null && brew install dippy 2>/dev/null; then
+    record_installed "dippy"
+  else
+    record_failed "dippy (brew tap ldayton/dippy && brew install dippy)"
+  fi
+fi
+
+# -- claude-devtools (session observability) --
+echo ""
+echo "  claude-devtools (session observability)..."
+if brew list --cask claude-devtools > /dev/null 2>&1; then
+  record_skipped "claude-devtools"
+else
+  if brew install --cask claude-devtools 2>/dev/null; then
+    record_installed "claude-devtools"
+  else
+    record_failed "claude-devtools (brew install --cask claude-devtools)"
+  fi
+fi
+
+# -- Rust toolchain --
+echo ""
+echo "  Rust toolchain..."
+if command_exists rustup; then
+  record_skipped "rust toolchain"
+elif command_exists cargo; then
+  record_skipped "rust toolchain (cargo found, no rustup)"
+else
+  if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 2>/dev/null; then
+    # shellcheck disable=SC1091
+    source "$HOME/.cargo/env" 2>/dev/null || true
+    record_installed "rust toolchain"
+  else
+    record_failed "rust toolchain (rustup installer)"
+  fi
+fi
+
+# -- parry-guard (ML injection detection) --
+echo ""
+echo "  parry-guard (ML injection detection)..."
+if command_exists parry-guard || [[ -x "$HOME/.cargo/bin/parry-guard" ]]; then
+  record_skipped "parry-guard"
+else
+  if command_exists cargo; then
+    if cargo install --git https://github.com/vaporif/parry 2>/dev/null; then
+      record_installed "parry-guard"
+    else
+      record_failed "parry-guard (cargo install --git https://github.com/vaporif/parry)"
+    fi
+  else
+    record_failed "parry-guard (cargo not found -- install Rust first)"
+  fi
+fi
+
+# -- hcom (inter-agent communication) --
+echo ""
+echo "  hcom (inter-agent communication)..."
+if [[ -x "$HOME/.local/bin/hcom" ]]; then
+  record_skipped "hcom"
+elif command_exists hcom; then
+  record_skipped "hcom"
+else
+  if curl -fsSL https://get.hcom.dev | sh 2>/dev/null; then
+    record_installed "hcom"
+  else
+    if npm install -g hcom 2>/dev/null; then
+      record_installed "hcom (via npm)"
+    else
+      record_failed "hcom (tried official installer and npm)"
+    fi
+  fi
+fi
+
+# -------------------------------------------------------------------
+# Step 3: Trail of Bits plugins
+# -------------------------------------------------------------------
+print_header "Step 3: Trail of Bits security plugins"
+
+if ! command_exists claude; then
+  print_failure "claude CLI not found -- install Claude Code first"
+  record_failed "trail-of-bits-plugins (claude CLI not found)"
+else
+  echo ""
+  echo "  Adding Trail of Bits marketplace..."
+  if claude plugin marketplace add trailofbits/skills 2>/dev/null; then
+    print_success "Trail of Bits marketplace added"
+  else
+    print_warning "Trail of Bits marketplace add returned non-zero (may already exist)"
+  fi
+
+  PLUGINS=(
+    "supply-chain-risk-auditor"
+    "variant-analysis"
+    "differential-review"
+    "sharp-edges"
+    "static-analysis"
+  )
+
+  for plugin in "${PLUGINS[@]}"; do
+    echo ""
+    echo "  Installing ${plugin}..."
+    if claude plugin install "${plugin}@trailofbits" 2>/dev/null; then
+      record_installed "plugin: ${plugin}"
+    else
+      # Non-zero exit may mean already installed
+      print_warning "plugin: ${plugin} (install returned non-zero -- may already exist)"
+      SKIPPED+=("plugin: ${plugin}")
+    fi
+  done
+fi
+
+# -------------------------------------------------------------------
+# Step 4: Create required directories
+# -------------------------------------------------------------------
+print_header "Step 4: Creating required directories"
+
+CLAUDE_DIR="$HOME/.claude"
+
+create_directory() {
+  local dir_path="$1"
+  local label="$2"
+  if [[ -d "$dir_path" ]]; then
+    record_skipped "directory: ${label}"
+  else
+    if mkdir -p "$dir_path"; then
+      record_installed "directory: ${label}"
+    else
+      record_failed "directory: ${label}"
+    fi
+  fi
+}
+
+create_directory "${CLAUDE_DIR}/metrics" "metrics/"
+create_directory "${CLAUDE_DIR}/learning/instincts" "learning/instincts/"
+
+# -------------------------------------------------------------------
+# Step 5: Verify hooks are executable
+# -------------------------------------------------------------------
+print_header "Step 5: Verifying hooks are executable"
+
+HOOKS_DIR="${CLAUDE_DIR}/hooks"
+HOOKS_FIXED=0
+
+if [[ -d "$HOOKS_DIR" ]]; then
+  for hook_file in "${HOOKS_DIR}"/*.sh; do
+    if [[ -f "$hook_file" && ! -x "$hook_file" ]]; then
+      chmod +x "$hook_file"
+      HOOKS_FIXED=$(( HOOKS_FIXED + 1 ))
+    fi
+  done
+
+  HOOK_COUNT=$(find "$HOOKS_DIR" -maxdepth 1 -name '*.sh' -type f | wc -l | tr -d ' ')
+
+  if [[ "$HOOKS_FIXED" -gt 0 ]]; then
+    record_installed "hooks: fixed ${HOOKS_FIXED} of ${HOOK_COUNT} scripts"
+  else
+    print_success "hooks: all ${HOOK_COUNT} scripts already executable"
+    SKIPPED+=("hooks: all executable")
+  fi
+else
+  record_failed "hooks directory not found at ${HOOKS_DIR}"
+fi
+
+# -------------------------------------------------------------------
+# Step 6: Validate settings.json
+# -------------------------------------------------------------------
+print_header "Step 6: Validating settings.json"
+
+SETTINGS_FILE="${CLAUDE_DIR}/settings.json"
+
+if [[ -f "$SETTINGS_FILE" ]]; then
+  if python3 -m json.tool "$SETTINGS_FILE" > /dev/null 2>&1; then
+    record_installed "settings.json: valid JSON"
+  else
+    record_failed "settings.json: invalid JSON -- run: python3 -m json.tool ${SETTINGS_FILE}"
+  fi
+else
+  record_failed "settings.json not found at ${SETTINGS_FILE}"
+fi
+
+# -------------------------------------------------------------------
+# Step 7: Run agnix if available
+# -------------------------------------------------------------------
+print_header "Step 7: Running agnix configuration linter"
+
+if command_exists npx; then
+  echo ""
+  echo "  Running: npx agnix ${CLAUDE_DIR}/"
+  if npx agnix "${CLAUDE_DIR}/" 2>/dev/null; then
+    record_installed "agnix: lint passed"
+  else
+    print_warning "agnix: lint completed with warnings or not available"
+    SKIPPED+=("agnix: may not be published yet")
+  fi
+else
+  record_failed "agnix: npx not found"
+fi
+
+# -------------------------------------------------------------------
+# Summary
+# -------------------------------------------------------------------
+print_header "=== Setup Summary ==="
+
+echo ""
+if [[ ${#INSTALLED[@]} -gt 0 ]]; then
+  printf "${GREEN}Installed/Configured (%d):${RESET}\n" "${#INSTALLED[@]}"
+  for item in "${INSTALLED[@]}"; do
+    printf "  ${GREEN}  %s${RESET}\n" "$item"
+  done
+fi
+
+echo ""
+if [[ ${#SKIPPED[@]} -gt 0 ]]; then
+  printf "${YELLOW}Already Present (%d):${RESET}\n" "${#SKIPPED[@]}"
+  for item in "${SKIPPED[@]}"; do
+    printf "  ${YELLOW}  %s${RESET}\n" "$item"
+  done
+fi
+
+echo ""
+if [[ ${#FAILED[@]} -gt 0 ]]; then
+  printf "${RED}Failed (%d):${RESET}\n" "${#FAILED[@]}"
+  for item in "${FAILED[@]}"; do
+    printf "  ${RED}  %s${RESET}\n" "$item"
+  done
+  echo ""
+  print_failure "Some installations failed. Review the errors above and retry manually."
+  exit 1
+fi
+
+echo ""
+print_success "All setup steps completed successfully."
+exit 0
