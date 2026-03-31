@@ -10,34 +10,46 @@
   },
   "permissions": {
     "allow": [
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom send:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom start:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom help:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom --help)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom -h)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom list:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom events:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom listen:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom relay:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom config:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom transcript:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom archive:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom bundle:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom status:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom term:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom hooks:*)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom --version)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom -v)",
-      "Bash(/Users/Paul.Ingham/.local/bin/hcom --new-terminal)"
+      "Read",
+      "Write",
+      "Edit",
+      "Grep",
+      "Glob",
+      "Bash",
+      "Agent",
+      "Skill",
+      "WebFetch",
+      "WebSearch",
+      "NotebookEdit",
+      "SendMessage",
+      "TaskCreate",
+      "TaskUpdate",
+      "TaskList",
+      "TaskGet",
+      "TaskOutput",
+      "TaskStop",
+      "TeamCreate",
+      "TeamDelete",
+      "EnterPlanMode",
+      "ExitPlanMode",
+      "EnterWorktree",
+      "ExitWorktree"
     ],
     "deny": [
-      "Bash(git push --force *)",
-      "Bash(git push --force)",
-      "Bash(git push -f *)",
-      "Bash(git push -f)",
-      "Bash(git reset --hard*)",
       "Bash(rm -rf /*)",
-      "Bash(rm -rf ~/*)",
+      "Bash(rm -rf ~*)",
+      "Bash(rm -rf /Users*)",
+      "Bash(rm -rf $HOME*)",
+      "Bash(rm -rf /tmp*)",
+      "Bash(dd if=*)",
+      "Bash(mkfs*)",
+      "Bash(> /dev/sda*)",
+      "Bash(chmod -R 777 /*)",
+      "Bash(git push --force origin main)",
+      "Bash(git push --force origin master)",
+      "Bash(git push -f origin main)",
+      "Bash(git push -f origin master)",
+      "Bash(git reset --hard*)",
       "Bash(git branch -D main)",
       "Bash(git branch -D master)"
     ],
@@ -81,7 +93,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found \u2014 resume from current phase.' || echo 'No active pipeline.'",
+            "command": "ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'",
             "timeout": 10000
           }
         ]
@@ -325,7 +337,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf 'CONTEXT COMPACTED \u2014 Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ \u2014 review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases \u2014 invoke via Skill tool\\n5. Agent Teams enabled \u2014 use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory \u2014 check .claude/agent-memory/'",
+            "command": "printf 'CONTEXT COMPACTED — Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ — review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases — invoke via Skill tool\\n5. Agent Teams enabled — use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory — check .claude/agent-memory/'",
             "timeout": 10000
           }
         ]
