@@ -8,7 +8,7 @@
 #   3. ADVISORY (exit 0): Reminds the orchestrator to check if a skill should
 #      have been invoked before spawning any other agent.
 #
-# This hook fires BEFORE every Agent spawn. It reads CLAUDE_TOOL_INPUT (JSON)
+# This hook fires BEFORE every Agent spawn. It reads stdin JSON (tool_input field)
 # to extract subagent_type, prompt, and isolation for classification.
 
 # Hook profile

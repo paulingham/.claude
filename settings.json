@@ -49,7 +49,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} notify"
+            "command": "${HCOM} notify",
+            "timeout": 10000
           }
         ]
       }
@@ -60,7 +61,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PermissionRequest\",\"decision\":{\"behavior\":\"allow\"}}}'"
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PermissionRequest\",\"decision\":{\"behavior\":\"allow\"}}}'",
+            "timeout": 10000
           }
         ]
       },
@@ -68,7 +70,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} permission-request"
+            "command": "${HCOM} permission-request",
+            "timeout": 10000
           }
         ]
       }
@@ -78,7 +81,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'"
+            "command": "ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found \u2014 resume from current phase.' || echo 'No active pipeline.'",
+            "timeout": 10000
           }
         ]
       }
@@ -88,15 +92,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/context-warning.sh"
+            "command": "bash ~/.claude/hooks/context-warning.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/observation-capture.sh"
+            "command": "bash ~/.claude/hooks/observation-capture.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "~/.cargo/bin/parry-guard hook"
+            "command": "~/.cargo/bin/parry-guard hook",
+            "timeout": 10000
           }
         ]
       },
@@ -105,19 +112,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/code-shape-check.sh"
+            "command": "bash ~/.claude/hooks/code-shape-check.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/function-body-check.sh"
+            "command": "bash ~/.claude/hooks/function-body-check.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/cc-check.sh"
+            "command": "bash ~/.claude/hooks/cc-check.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/injection-scan.sh"
+            "command": "bash ~/.claude/hooks/injection-scan.sh",
+            "timeout": 10000
           }
         ]
       },
@@ -126,23 +137,28 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/code-shape-check.sh"
+            "command": "bash ~/.claude/hooks/code-shape-check.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/function-body-check.sh"
+            "command": "bash ~/.claude/hooks/function-body-check.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/cc-check.sh"
+            "command": "bash ~/.claude/hooks/cc-check.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/injection-scan.sh"
+            "command": "bash ~/.claude/hooks/injection-scan.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/auto-bug-detect.sh"
+            "command": "bash ~/.claude/hooks/auto-bug-detect.sh",
+            "timeout": 10000
           }
         ]
       },
@@ -161,7 +177,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'PRE-COMPACTION: Verify pipeline state is saved in pipeline-state/*-pipeline.md before context compression.'"
+            "command": "echo 'PRE-COMPACTION: Verify pipeline state is saved in pipeline-state/*-pipeline.md before context compression.'",
+            "timeout": 10000
           }
         ]
       }
@@ -172,27 +189,33 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/quality-gate.sh"
+            "command": "bash ~/.claude/hooks/quality-gate.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/sast-check.sh"
+            "command": "bash ~/.claude/hooks/sast-check.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/commit-checkpoint.sh"
+            "command": "bash ~/.claude/hooks/commit-checkpoint.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/governance-capture.sh"
+            "command": "bash ~/.claude/hooks/governance-capture.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "dippy check"
+            "command": "dippy check",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "~/.cargo/bin/parry-guard hook"
+            "command": "~/.cargo/bin/parry-guard hook",
+            "timeout": 10000
           }
         ]
       },
@@ -201,19 +224,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/tdd-guard.sh"
+            "command": "bash ~/.claude/hooks/tdd-guard.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/orchestrator-discipline.sh"
+            "command": "bash ~/.claude/hooks/orchestrator-discipline.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/config-protection.sh"
+            "command": "bash ~/.claude/hooks/config-protection.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/governance-capture.sh"
+            "command": "bash ~/.claude/hooks/governance-capture.sh",
+            "timeout": 10000
           }
         ]
       },
@@ -222,19 +249,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/tdd-guard.sh"
+            "command": "bash ~/.claude/hooks/tdd-guard.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/orchestrator-discipline.sh"
+            "command": "bash ~/.claude/hooks/orchestrator-discipline.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/config-protection.sh"
+            "command": "bash ~/.claude/hooks/config-protection.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/governance-capture.sh"
+            "command": "bash ~/.claude/hooks/governance-capture.sh",
+            "timeout": 10000
           }
         ]
       },
@@ -243,7 +274,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/agent-skill-reminder.sh"
+            "command": "bash ~/.claude/hooks/agent-skill-reminder.sh",
+            "timeout": 10000
           }
         ]
       },
@@ -252,7 +284,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} pre"
+            "command": "${HCOM} pre",
+            "timeout": 10000
           }
         ]
       }
@@ -262,7 +295,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'Session ending. Active worktrees:' && git worktree list 2>/dev/null | grep -v 'bare' || echo 'None'"
+            "command": "echo 'Session ending. Active worktrees:' && git worktree list 2>/dev/null | grep -v 'bare' || echo 'None'",
+            "timeout": 10000
           }
         ]
       },
@@ -270,7 +304,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} sessionend"
+            "command": "${HCOM} sessionend",
+            "timeout": 10000
           }
         ]
       }
@@ -280,7 +315,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/session-start-bootstrap.sh"
+            "command": "bash ~/.claude/hooks/session-start-bootstrap.sh",
+            "timeout": 10000
           }
         ]
       },
@@ -289,7 +325,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf 'CONTEXT COMPACTED — Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ — review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases — invoke via Skill tool\\n5. Agent Teams enabled — use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory — check .claude/agent-memory/'"
+            "command": "printf 'CONTEXT COMPACTED \u2014 Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ \u2014 review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases \u2014 invoke via Skill tool\\n5. Agent Teams enabled \u2014 use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory \u2014 check .claude/agent-memory/'",
+            "timeout": 10000
           }
         ]
       },
@@ -297,7 +334,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} sessionstart"
+            "command": "${HCOM} sessionstart",
+            "timeout": 10000
           }
         ]
       }
@@ -337,7 +375,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'SESSION STOPPED DUE TO ERROR. If a pipeline is in progress, state should be in pipeline-state/*-pipeline.md. Resume in a new session.' >&2"
+            "command": "echo 'SESSION STOPPED DUE TO ERROR. If a pipeline is in progress, state should be in pipeline-state/*-pipeline.md. Resume in a new session.' >&2",
+            "timeout": 10000
           }
         ]
       }
@@ -347,7 +386,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} subagent-start"
+            "command": "${HCOM} subagent-start",
+            "timeout": 10000
           }
         ]
       }
@@ -357,7 +397,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/subagent-validation.sh"
+            "command": "bash ~/.claude/hooks/subagent-validation.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
@@ -381,11 +422,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/intake-reminder.sh"
+            "command": "bash ~/.claude/hooks/intake-reminder.sh",
+            "timeout": 10000
           },
           {
             "type": "command",
-            "command": "~/.cargo/bin/parry-guard hook"
+            "command": "~/.cargo/bin/parry-guard hook",
+            "timeout": 10000
           }
         ]
       },
@@ -393,7 +436,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} userpromptsubmit"
+            "command": "${HCOM} userpromptsubmit",
+            "timeout": 10000
           }
         ]
       }

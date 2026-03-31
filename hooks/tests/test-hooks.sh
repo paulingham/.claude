@@ -80,13 +80,13 @@ echo ""
 # -- orchestrator-discipline tests -------------------------------------------
 echo "-- orchestrator-discipline.sh --"
 
-CLAUDE_FILE_PATH="src/foo.ts" bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
+echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.ts"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
 run_test "orchestrator-discipline: .ts file -> block (exit 2)" 2 $?
 
-CLAUDE_FILE_PATH="rules/foo.md" bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
+echo '{"tool_name":"Write","tool_input":{"file_path":"rules/foo.md"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
 run_test "orchestrator-discipline: .md file -> allow (exit 0)" 0 $?
 
-CLAUDE_FILE_PATH="" bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
+echo '{"tool_name":"Write","tool_input":{"file_path":""},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
 run_test "orchestrator-discipline: empty path -> allow (exit 0)" 0 $?
 
 echo ""
@@ -95,19 +95,20 @@ echo ""
 echo "-- tdd-guard.sh --"
 
 # Non-source file -> allow
-CLAUDE_FILE_PATH="README.md" bash "$HOOKS_DIR/tdd-guard.sh" < /dev/null > /dev/null 2>&1
+echo '{"tool_name":"Write","tool_input":{"file_path":"README.md"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/tdd-guard.sh" > /dev/null 2>&1
 run_test "tdd-guard: README.md -> allow (exit 0)" 0 $?
 
 # Empty path -> allow
-CLAUDE_FILE_PATH="" bash "$HOOKS_DIR/tdd-guard.sh" < /dev/null > /dev/null 2>&1
+echo '{"tool_name":"Write","tool_input":{"file_path":""},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/tdd-guard.sh" > /dev/null 2>&1
 run_test "tdd-guard: empty path -> allow (exit 0)" 0 $?
 
 # Test file -> allow
-CLAUDE_FILE_PATH="src/foo.test.ts" bash "$HOOKS_DIR/tdd-guard.sh" < /dev/null > /dev/null 2>&1
+echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.test.ts"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/tdd-guard.sh" > /dev/null 2>&1
 run_test "tdd-guard: test file -> allow (exit 0)" 0 $?
 
 # New source file (doesn't exist) -> allow (greenfield)
-CLAUDE_FILE_PATH="/tmp/nonexistent-source-$(date +%s).ts" bash "$HOOKS_DIR/tdd-guard.sh" < /dev/null > /dev/null 2>&1
+NONEXISTENT_PATH="/tmp/nonexistent-source-$(date +%s).ts"
+echo "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$NONEXISTENT_PATH\"},\"hook_event_name\":\"PreToolUse\"}" | bash "$HOOKS_DIR/tdd-guard.sh" > /dev/null 2>&1
 run_test "tdd-guard: new source file (not on disk) -> allow (exit 0)" 0 $?
 
 echo ""
