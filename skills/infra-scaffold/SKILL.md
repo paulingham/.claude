@@ -1,5 +1,5 @@
 ---
-name: "infrastructure-scaffold"
+name: "infra-scaffold"
 description: "Use when user wants to Generate production-ready infrastructure config: Dockerfile, docker-compose, CI/CD pipeline, health endpoints, env management. Delegates to infrastructure-engineer."
 context: fork
 agent: infrastructure-engineer
