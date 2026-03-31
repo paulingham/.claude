@@ -228,16 +228,21 @@ npm install -g hcom
 # Optional: Configuration linting (385 validation rules)
 npx agnix ~/.claude/
 
-# Optional: Professional security skills
-claude plugins install trailofbits/skills
+# Required: Professional security skills (Trail of Bits)
+claude plugin marketplace add trailofbits/skills
+for p in supply-chain-risk-auditor variant-analysis differential-review sharp-edges static-analysis; do
+    claude plugin install "$p@trailofbits"
+done
 ```
 
 ### Setup
 
 1. Clone this repo to `~/.claude/`
-2. Verify external tools: `dippy --version && which parry && which hcom`
+2. Run the bootstrap script: `bash ~/.claude/setup.sh`
 3. Start Claude Code in any project repo
 4. Say what you want to build — the system handles the rest
+
+The setup script is idempotent — safe to run multiple times. It checks what's already installed and only installs what's missing.
 
 For new projects without a CLAUDE.md, the system automatically runs `/project-setup` to detect your stack, configure commands, classify service architecture, and generate a design system.
 
@@ -250,7 +255,7 @@ For new projects without a CLAUDE.md, the system automatically runs `/project-se
 | [parry-guard](https://github.com/vaporif/parry) | ML injection detection | `cargo install --git https://github.com/vaporif/parry` | Recommended (needs Rust) |
 | [hcom](https://github.com/aannoo/hcom) | Inter-agent communication | `npm install -g hcom` | Recommended |
 | [agnix](https://github.com/agent-sh/agnix) | Config linting | `npx agnix` (no install) | Optional |
-| [Trail of Bits](https://github.com/trailofbits/skills) | Security analysis skills | `claude plugins install` | Optional |
+| [Trail of Bits](https://github.com/trailofbits/skills) | Security analysis (5 plugins) | `claude plugin marketplace add` + install | Required |
 
 ## License
 
