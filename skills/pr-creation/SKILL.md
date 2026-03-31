@@ -178,6 +178,25 @@ Every PR includes a non-technical decision narrative section:
    - **Verified**: Verification report summary in plain language
 3. Must be readable by non-technical stakeholders (product owners, designers)
 
+## Multi-Repo PRs (When Manifest Exists)
+
+When the pipeline provides a manifest path, this skill creates linked PRs:
+
+### Procedure
+1. **Read manifest**: Get repo list, dependency graph, GitHub config
+2. **Create PRs in dependency order**: Providers first, consumers after
+3. **Cross-reference**: Each PR body includes:
+   ```markdown
+   ## Related PRs
+   - Depends on: {org}/{provider-repo}#{N} (must merge first)
+   - Depended on by: {org}/{consumer-repo}#{N}
+   ```
+4. **Apply labels**: From manifest `## Services > GitHub > labels` if configured
+5. **Return all PR URLs**: The orchestrator tracks them in the pipeline state PR Manifest
+
+### Merge Order
+The orchestrator handles merge ordering — this skill only creates PRs. It adds a `## Merge Order` note to each PR body so human reviewers understand the dependency.
+
 ## Best Practices
 
 - Always run validation before pushing

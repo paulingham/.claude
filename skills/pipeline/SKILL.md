@@ -79,6 +79,18 @@ If a workstream is active (check `pipeline-state/workstreams/*/workstream.md` fo
 
 If no workstream is active, use the default `pipeline-state/` directory (existing behavior, no change).
 
+### Step 2a: Multi-Repo Detection (Automatic)
+
+If intake flagged `multi_repo: true`, or if a manifest exists in `~/.claude/manifests/`:
+
+1. **Read or create manifest**: See `rules/multi-repo-protocol.md` for format and auto-creation triggers
+2. **Resolve repo paths**: Verify all manifest repos exist locally. If a planned repo doesn't exist yet, it will be created during scaffold (Step 2b)
+3. **Add `manifest:` to pipeline state frontmatter** with the manifest path
+4. **Add `## Repos` section** to pipeline state tracking per-repo phases
+5. **Determine dispatch mode**: Which repos need build agents? Which need PRs?
+
+If no multi-repo signals → skip this step entirely (single-repo mode, no change to existing behavior).
+
 ### Step 2b: Pre-Build Scaffolding (Conditional)
 
 Before the Build phase, check BOTH the task requirements AND the project state. Scaffolding triggers on missing project infrastructure — not just what the task description says. For example, if a CLAUDE.md exists but the project has no Dockerfile, no design system, or no observability, detect and scaffold those automatically.
@@ -91,8 +103,9 @@ Before the Build phase, check BOTH the task requirements AND the project state. 
 | No logging/monitoring configured | `/observability-setup` | Logger config, metrics, tracing, alerting |
 | Voice skill/IVR needed | `/voice-scaffold` | Intent model, handler stubs, SSML templates |
 | New channel for existing product | `/bff-scaffold` | Channel-specific BFF layer, transformers, gateway route |
-| New microservice extraction | `/microservices-scaffold` | Service template, gateway config, tracing |
-| Extract module to own repo | `/service-extraction` | New repo, code migration, contracts, PRs in both repos |
+| New microservice extraction | `/microservices-scaffold` | Service template, gateway config, tracing. Auto-creates GitHub repo from manifest config |
+| Extract module to own repo | `/service-extraction` | New repo via manifest config, code migration, contracts, PRs in both repos |
+| New repo needed (from architect plan) | GitHub repo creation | Reads manifest `## Services > GitHub`, creates repo, clones, runs `/project-setup` |
 | Frontend project with no design system | `/design-system-init` | Tokens, Tailwind config, primitive components, dark mode |
 
 Scaffolding is NOT a gate — it produces files and structure that the Build phase then fills with business logic via TDD. Invoke scaffolding skills via the Skill tool (they delegate to the appropriate agent in a worktree).
@@ -234,6 +247,22 @@ After Accept phase completes (APPROVED), check whether the codebase has grown to
 
 This assessment is zero-cost — it reads the existing review output. No additional analysis needed.
 
+### Step 4c: Multi-Repo Ship (Automatic When Manifest Exists)
+
+When the pipeline has a manifest (multi-repo mode):
+
+1. **Create PRs per repo** in dependency order (providers first):
+   - For each repo with changes, run `/pr-creation` in that repo's working directory
+   - Each PR body includes `## Related PRs` with cross-references
+   - Track all PRs in the pipeline state's `## PR Manifest` section
+2. **Merge order enforcement**:
+   - Provider PRs merge first (no dependencies)
+   - Wait for CI to pass on merged provider
+   - Consumer PRs merge after their dependencies are satisfied
+3. **All PRs tracked** in pipeline state — the orchestrator monitors status via `gh pr view`
+
+If single-repo mode (no manifest) → existing Ship behavior (one PR, no cross-references).
+
 ### Step 5: Deploy (Automatic for Medium/Large)
 
 After Ship phase returns PR_CREATED:
@@ -243,6 +272,20 @@ After Ship phase returns PR_CREATED:
 3. If `OPEN`: inform user PR is ready for review. The deploy phase will run when the user returns after merge — `/pipeline-resume` detects Ship=completed + Deploy=pending and auto-continues.
 
 For micro/small pipelines: deploy is optional (inform user, don't auto-invoke).
+
+#### Multi-Service Deploy (When Manifest Exists)
+
+When the pipeline has a manifest with multiple repos and deploy targets:
+
+1. Read `## Deploy Order` from manifest
+2. Deploy in dependency order: providers first, then consumers
+3. After each service deploys: run health check, verify `/deployment-verification`
+4. Only proceed to next service after current is DEPLOYMENT_VERIFIED
+5. If any service fails: halt remaining deploys, rollback in reverse order
+6. Cross-service smoke tests after all services deployed
+7. Track per-service deploy status in pipeline state
+
+Single-repo mode: existing behavior (one deploy, no cross-service checks).
 
 ### Step 6: Completion
 
