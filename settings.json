@@ -9,7 +9,7 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_HOOK_PROFILE": "standard",
     "CLAUDE_PIPELINE_TASK_ID": "",
-    "HCOM": "hcom"
+    "HCOM": "/Users/Paul.Ingham/.local/bin/hcom"
   },
   "hooks": {
     "Notification": [
@@ -369,25 +369,25 @@
   },
   "permissions": {
     "allow": [
-      "Bash(hcom send:*)",
-      "Bash(hcom start:*)",
-      "Bash(hcom help:*)",
-      "Bash(hcom --help)",
-      "Bash(hcom -h)",
-      "Bash(hcom list:*)",
-      "Bash(hcom events:*)",
-      "Bash(hcom listen:*)",
-      "Bash(hcom relay:*)",
-      "Bash(hcom config:*)",
-      "Bash(hcom transcript:*)",
-      "Bash(hcom archive:*)",
-      "Bash(hcom bundle:*)",
-      "Bash(hcom status:*)",
-      "Bash(hcom term:*)",
-      "Bash(hcom hooks:*)",
-      "Bash(hcom --version)",
-      "Bash(hcom -v)",
-      "Bash(hcom --new-terminal)"
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom send:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom start:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom help:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom --help)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom -h)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom list:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom events:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom listen:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom relay:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom config:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom transcript:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom archive:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom bundle:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom status:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom term:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom hooks:*)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom --version)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom -v)",
+      "Bash(/Users/Paul.Ingham/.local/bin/hcom --new-terminal)"
     ],
     "defaultMode": "dontAsk",
     "deny": [
