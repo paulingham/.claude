@@ -14,16 +14,17 @@
 # Hook profile
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 
-TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
+INPUT=$(cat)
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 
 # Only check Agent tool
 if [[ "$TOOL_NAME" != "Agent" ]]; then
     exit 0
 fi
 
-TOOL_INPUT="${CLAUDE_TOOL_INPUT:-}"
+TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input // empty')
 
-# Parse subagent_type, prompt, and isolation from JSON using python3
+# Parse subagent_type, prompt, and isolation from tool_input JSON using python3
 PARSE_RESULT=$(python3 -c "
 import json, sys
 try:

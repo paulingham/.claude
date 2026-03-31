@@ -6,7 +6,8 @@
 
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 
-FILE_PATH="${CLAUDE_FILE_PATH:-}"
+INPUT=$(cat)
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 
 if [[ -z "$FILE_PATH" ]]; then
     exit 0

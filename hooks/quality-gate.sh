@@ -11,8 +11,9 @@ set -e
 # Hook profile (minimal — always runs as a blocking hook)
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "minimal" || exit 0
 
-TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
-COMMAND="${CLAUDE_COMMAND:-}"
+INPUT=$(cat)
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # Only check Bash commands
 if [[ "$TOOL_NAME" != "Bash" ]]; then

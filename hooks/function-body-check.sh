@@ -11,7 +11,8 @@
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 source ~/.claude/hooks/loop-guard.sh && check_loop_guard "function-body-check" || exit 0
 
-FILE_PATH="${CLAUDE_FILE_PATH:-}"
+INPUT=$(cat)
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 FUNC_LIMIT="${CLAUDE_FUNCTION_LINE_LIMIT:-5}"
 
 # Only check if we have a file path

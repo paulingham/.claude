@@ -6,8 +6,9 @@
 
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 
-TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
-FILE_PATH="${CLAUDE_FILE_PATH:-}"
+INPUT=$(cat)
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 
 # Skip internal hooks and meta tools
 case "$TOOL_NAME" in
