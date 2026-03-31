@@ -110,21 +110,40 @@ else
   fi
 fi
 
-# -- parry-guard (ML injection detection) --
+# -- parry-guard (ML injection detection — candle backend, pure Rust) --
 echo ""
-echo "  parry-guard (ML injection detection)..."
+echo "  parry-guard (ML injection detection — candle backend, pure Rust)..."
 if command_exists parry-guard || [[ -x "$HOME/.cargo/bin/parry-guard" ]]; then
   record_skipped "parry-guard"
 else
   if command_exists cargo; then
-    if cargo install --git https://github.com/vaporif/parry 2>/dev/null; then
+    if cargo install --git https://github.com/vaporif/parry --features candle --no-default-features 2>/dev/null; then
       record_installed "parry-guard"
     else
-      record_failed "parry-guard (cargo install --git https://github.com/vaporif/parry)"
+      record_failed "parry-guard (cargo install --git https://github.com/vaporif/parry --features candle --no-default-features)"
     fi
   else
     record_failed "parry-guard (cargo not found -- install Rust first)"
   fi
+fi
+
+# Set up HF token for ML model download
+if [[ ! -f "$HOME/.parry-guard/.hf-token" ]]; then
+    mkdir -p "$HOME/.parry-guard"
+    if [[ -f "$HOME/.cache/huggingface/token" ]]; then
+        cp "$HOME/.cache/huggingface/token" "$HOME/.parry-guard/.hf-token"
+        chmod 600 "$HOME/.parry-guard/.hf-token"
+        print_success "Copied HF token from huggingface cache"
+    elif [[ -n "${HF_TOKEN:-}" ]]; then
+        echo -n "$HF_TOKEN" > "$HOME/.parry-guard/.hf-token"
+        chmod 600 "$HOME/.parry-guard/.hf-token"
+        print_success "Wrote HF token from environment"
+    else
+        print_warning "parry-guard ML requires a HuggingFace token"
+        print_warning "  1. Get a free token at: huggingface.co/settings/tokens (READ scope)"
+        print_warning "  2. Accept model terms at: huggingface.co/ProtectAI/deberta-v3-small-prompt-injection-v2"
+        print_warning "  3. Run: echo 'YOUR_TOKEN' > ~/.parry-guard/.hf-token && chmod 600 ~/.parry-guard/.hf-token"
+    fi
 fi
 
 # -- hcom (inter-agent communication) --
