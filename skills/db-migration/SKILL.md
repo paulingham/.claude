@@ -1,5 +1,5 @@
 ---
-name: "database-migration"
+name: "db-migration"
 description: "Use when user wants to Structured database migration workflow: schema design, migration generation, zero-downtime validation, reversibility testing, data migration strategies. ORM-first, multi-framework."
 context: fork
 agent: database-engineer
