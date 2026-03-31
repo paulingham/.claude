@@ -143,21 +143,46 @@ When the change scores Budget >= 10 OR touches auth/payment/data-deletion code:
 - Both must APPROVE to advance (standard threshold applies to each)
 - See `orchestrator/parallel-dispatch-details.md` for dispatch template
 
-#### Design QC (Conditional: Frontend Changes)
+#### Design QC (MANDATORY for Frontend Changes)
 
 If changed files include `.tsx`, `.jsx`, `.vue`, `.svelte`, or CSS files:
-1. Before or parallel with product-acceptance, invoke `/design-qc`
-2. Design QC captures screenshots and passes them to the product-reviewer
-3. Product-reviewer validates visual appearance alongside AC validation
+1. Invoke `/design-qc` as part of the Final Gate (parallel with verify + qa + accept)
+2. Design QC runs the full DevOps lifecycle: install → build → start server → capture → stop
+3. If `CAPTURE_FAILED` → the pipeline **BLOCKS**. Fix the build/server issue before proceeding
+4. Screenshots are passed to the product-reviewer for visual validation
+5. Product-reviewer MUST receive screenshots — no visual review without them
+6. No silent skip — if frontend files changed, visual proof is required
 
-#### Parallel Phases
+#### Review Phase (TEAM — always)
 
-Phases in the Parallel Phase Map dispatch via agents reading skill files:
-- **Review**: code-reviewer + security-engineer dispatched in single message
+1. `TeamCreate("pipeline-{task-id}")` if not already created
+2. Spawn reviewers as **teammates** (NOT independent subagents):
+   - `Agent({ name: "code-reviewer", team_name: "pipeline-{task-id}", ... })`
+   - `Agent({ name: "security-engineer", team_name: "pipeline-{task-id}", ... })`
+3. On CHANGES_REQUESTED:
+   - Spawn fix-engineer into the SAME team
+   - After fix: `SendMessage` to the raising reviewer (still alive, has context)
+   - Do NOT spawn a new reviewer subagent — use the persistent one
+4. After both APPROVE: shut down reviewers
+
+#### Final Gate (TEAM — always)
+
+Spawn all Final Gate agents into the same team:
+- `Agent({ name: "verifier", team_name: "pipeline-{task-id}", ... })` — `/verify`
+- `Agent({ name: "test-analyst", team_name: "pipeline-{task-id}", ... })` — `/qa-test-strategy`
+- `Agent({ name: "product-reviewer", team_name: "pipeline-{task-id}", ... })` — `/product-acceptance`
+- `Agent({ name: "design-qc", team_name: "pipeline-{task-id}", ... })` — `/design-qc` (if frontend)
+
+All four assess the same final state independently. Shut down after all verdicts collected.
+
+#### Parallel Phases (Dispatch Reference)
+
+- **Review**: teammates in pipeline team (see above)
 - **Build (independent slices)**: multiple engineers dispatched in parallel worktrees
+- **Final Gate**: teammates in pipeline team (see above)
 - **Verify Tier 1+2**: independent tiers dispatched in parallel where applicable
 
-All other phases (Build single slice, Test, Accept, Ship) use sequential Skill tool invocation.
+All other phases (Build single slice, Polish, Ship) use sequential Skill tool invocation.
 
 ### Step 4: Recovery Loops
 

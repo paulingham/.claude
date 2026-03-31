@@ -1,6 +1,6 @@
 ---
 name: "Design QC"
-description: "Visual QA via screenshots during product acceptance. Auto-detects dev server, captures full-page sectioned screenshots at desktop and mobile viewports, feeds to product-reviewer for visual validation."
+description: "Visual QA with full DevOps lifecycle enforcement. Installs deps, builds, starts dev server, captures screenshots at desktop and mobile viewports, stops server. Mandatory for all frontend changes. Fails loudly at every step."
 context: fork
 agent: qa-engineer
 ---
@@ -9,71 +9,157 @@ agent: qa-engineer
 
 ## What This Skill Does
 
-Captures screenshots of the running application for visual QA during the product acceptance phase. Auto-detects dev servers, captures at desktop and mobile viewports, and provides the screenshots to the product-reviewer for visual validation against acceptance criteria and design system compliance.
+Proves frontend code renders correctly by running the full DevOps lifecycle: install dependencies, build the project, start the dev server, capture screenshots, and stop the server. This is not optional — if frontend files changed, visual proof is required.
+
+**Principle:** If the pipeline produces frontend code, the pipeline MUST prove it renders correctly. Not "tests pass" — visually verified against a running application.
 
 ## When to Invoke
 
-- During the Final Gate / Accept phase when changed files include frontend code (`.tsx`, `.jsx`, `.vue`, `.svelte`, `.css`)
-- Invoked by `/product-acceptance` or by the pipeline orchestrator before/parallel with acceptance
-- Requires a running dev server or ability to start one
-
-## Prerequisites
-
-- Puppeteer or Playwright installed (project dependency or global)
-- Dev server configuration in project CLAUDE.md Commands section
-- Chrome or Chromium available
+- MANDATORY when changed files include `.tsx`, `.jsx`, `.vue`, `.svelte`, or CSS files
+- Invoked by the pipeline as part of the Final Gate (parallel with verify + qa + accept)
+- If this skill returns `CAPTURE_FAILED`, the pipeline BLOCKS
 
 ## Process
 
-### 1. Detect Dev Server
+### Step 1: Read Project Contract
 
-Probe common ports in order:
+Read the project's `.claude/CLAUDE.md` and extract the Dev Server section:
+
+```
+## Dev Server
+- Command: {dev command}
+- Port: {port number}
+- Health check: {health check URL}
+- Build command: {build command}
+```
+
+**If these fields are missing** → verdict `CAPTURE_FAILED`:
+```
+CAPTURE_FAILED: Project CLAUDE.md missing '## Dev Server' section.
+Required fields: Command, Port, Health check, Build command.
+Run /project-setup to detect and add dev server configuration.
+```
+
+Do NOT probe random ports or guess commands. The contract is the source of truth.
+
+### Step 2: Install Dependencies
+
 ```bash
-for port in 3000 3001 5173 5174 4321 8080 8000 4200; do
-    curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port" 2>/dev/null
+npm install  # or yarn/pnpm per project convention
+```
+
+If the project does not have `puppeteer` or `playwright` in devDependencies:
+```bash
+npm install --save-dev puppeteer
+```
+
+**If install fails** → verdict `CAPTURE_FAILED` with the npm error output.
+
+### Step 3: Build
+
+```bash
+{build command from CLAUDE.md}  # e.g., npm run build
+```
+
+The build MUST succeed. This catches:
+- TypeScript compilation errors that `tsc --noEmit` misses (bundler-specific issues)
+- Missing imports that tests mock away
+- Asset pipeline failures
+
+**If build fails** → verdict `CAPTURE_FAILED` with build error output.
+
+### Step 4: Start Dev Server
+
+```bash
+{dev command from CLAUDE.md} &  # e.g., npm run dev &
+DEV_PID=$!
+```
+
+Poll health check URL every 2 seconds, max 60 seconds:
+```bash
+for i in $(seq 1 30); do
+    if curl -s -o /dev/null -w "%{http_code}" "{health check URL}" | grep -q "200"; then
+        echo "Server ready on port {port}"
+        break
+    fi
+    sleep 2
 done
 ```
 
-If no server running, start from project CLAUDE.md Commands section (e.g., `npm run dev`). Wait for health check to pass (max 30 seconds).
+**If server doesn't start within 60s** → `kill $DEV_PID`, verdict `CAPTURE_FAILED` with "Dev server failed to start. Check {dev command} and port {port}."
 
-### 2. Detect Routes
+### Step 5: Detect Routes
 
 For file-based routing frameworks:
 - **Next.js**: Scan `app/` or `pages/` directory for page files
+- **Vite/React Router**: Read router config, extract route paths
 - **Expo Router**: Scan `app/` directory
-- **Vite/SPA**: Use the root URL `/` and any routes defined in router config
 - **Astro**: Scan `src/pages/` directory
+- **Vue Router**: Read router config
 
-Limit to routes affected by the current change (cross-reference with `git diff --name-only`).
+Cross-reference with `git diff --name-only` to limit to routes affected by the current change. Always include the root route `/`.
 
-### 3. Capture Screenshots
+### Step 6: Capture Screenshots
 
 For each detected route, capture at two viewports:
-- **Desktop**: 1440x900
-- **Mobile**: 375x812
 
-Capture method: full-page sectioned (viewport-height JPEG sections):
-- Scroll through page, capture viewport-height sections
-- Name: `{route}-{viewport}-{section}.jpg`
-- JPEG quality: 80 (balances quality vs token cost, ~2500 tokens per screenshot)
-- Max 8 sections per page
+| Viewport | Width | Height | Name |
+|----------|-------|--------|------|
+| Desktop | 1440 | 900 | `{route}-desktop-{section}.jpg` |
+| Mobile | 375 | 812 | `{route}-mobile-{section}.jpg` |
 
-### 4. Feed to Product Reviewer
+Capture method:
+1. Navigate to route URL (`http://localhost:{port}{route}`)
+2. Wait for network idle (no pending requests for 500ms)
+3. Scroll through page, capture viewport-height JPEG sections
+4. JPEG quality: 80 (~2500 tokens per screenshot)
+5. Max 8 sections per page
+6. Save to `.claude/screenshots/`
 
-Pass screenshot paths to the product-reviewer during `/product-acceptance`:
+Use Puppeteer:
+```javascript
+const browser = await puppeteer.launch({ headless: true });
+const page = await browser.newPage();
+await page.setViewport({ width, height });
+await page.goto(url, { waitUntil: 'networkidle0' });
+await page.screenshot({ path, type: 'jpeg', quality: 80, fullPage: true });
+await browser.close();
 ```
-Screenshots captured for visual review:
-- /dashboard (desktop): 3 sections
-- /dashboard (mobile): 4 sections
-- /settings (desktop): 2 sections
-- /settings (mobile): 2 sections
 
-Review for: design system compliance, responsive behavior, visual regressions, empty/error states.
+**If capture fails** (browser crash, navigation error) → log the failing route but continue with remaining routes. Report partial results.
+
+### Step 7: Stop Server + Cleanup
+
+```bash
+kill $DEV_PID 2>/dev/null
+# Also kill any child processes (dev servers often fork)
+pkill -P $DEV_PID 2>/dev/null
 ```
 
-### 5. Cleanup
+Screenshots persist in `.claude/screenshots/` until the pipeline completes. The orchestrator cleans them up after Ship phase.
 
-Stop the dev server if we started it. Remove screenshot files after the pipeline completes.
+### Step 8: Produce Report
+
+```markdown
+## Design QC Report
+
+### Build: PASS / FAIL
+{build output summary}
+
+### Server: STARTED on port {port} / FAILED
+{startup details}
+
+### Screenshots Captured
+| Route | Desktop | Mobile | Sections |
+|-------|---------|--------|----------|
+| / | desktop-1..3.jpg | mobile-1..4.jpg | 3 / 4 |
+| /dashboard | desktop-1..2.jpg | mobile-1..3.jpg | 2 / 3 |
+
+### Screenshot Paths
+{list of all .jpg files for product-reviewer}
+
+### Verdict: SCREENSHOTS_CAPTURED / CAPTURE_FAILED
+```
 
 ## Design System Compliance Checklist (for product-reviewer)
 
@@ -87,10 +173,24 @@ When reviewing screenshots, check:
 - [ ] Mobile layout is usable (no horizontal scroll, touch targets >= 44px)
 - [ ] Animations respect `prefers-reduced-motion`
 
+## Failure Modes
+
+| Step | Failure | Verdict | Message |
+|------|---------|---------|---------|
+| 1 | Missing CLAUDE.md contract | CAPTURE_FAILED | "Project CLAUDE.md missing Dev Server section" |
+| 2 | npm install fails | CAPTURE_FAILED | npm error output |
+| 3 | Build fails | CAPTURE_FAILED | Build error output |
+| 4 | Server won't start | CAPTURE_FAILED | "Dev server failed to start" |
+| 6 | All captures fail | CAPTURE_FAILED | "No screenshots captured" |
+| 6 | Some captures fail | SCREENSHOTS_CAPTURED | Partial results + warnings |
+
+Every failure is loud. No silent skips.
+
 ## Phase Output
 
 ```
-Verdict: SCREENSHOTS_CAPTURED / CAPTURE_FAILED / NO_FRONTEND_CHANGES
+Verdict: SCREENSHOTS_CAPTURED / CAPTURE_FAILED
 Next: Feed screenshots to /product-acceptance
-Artifacts: [screenshot paths, routes captured, viewports]
+      If CAPTURE_FAILED → fix build/server issue, re-run
+Artifacts: [screenshot paths, routes captured, viewports, build status]
 ```

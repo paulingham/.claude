@@ -241,6 +241,24 @@ After pipeline completes, clean up:
 - Team files at `~/.claude/teams/pipeline-{task-id}/` are auto-cleaned
 - Task list at `~/.claude/tasks/pipeline-{task-id}/` is auto-cleaned
 
+## Inter-Agent Communication (hcom)
+
+When hcom is installed and hooks are registered:
+
+### File Collision Detection
+During multi-slice Build with parallel worktrees, hcom watches for file edits across agents. If two agents modify the same file within 30 seconds, hcom emits a collision warning via stderr. This prevents merge conflicts from being discovered at merge time — catching them while agents are still working.
+
+### Direct Messaging During Team Phases
+Teammates can message each other via hcom without routing through the orchestrator:
+- Useful for: reviewer asking build-engineer a question, engineer notifying reviewer of a fix
+- Messages arrive mid-turn or wake idle agents
+
+### Activation
+hcom hooks should only be active during team phases (check `CLAUDE_PIPELINE_TASK_ID` is set). Disable for solo subagent phases to avoid noise. The hcom hooks are gated by the presence of the pipeline task ID env var.
+
+### Transcript Sharing
+hcom enables transcript sharing for context handoffs — e.g., the architect's design reasoning is available to the software-engineer without the orchestrator reconstructing it in a prompt.
+
 ## Audit Trail
 
 For each team phase, the orchestrator records:
