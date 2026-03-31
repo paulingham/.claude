@@ -1,7 +1,13 @@
 ---
 name: qa-engineer
 description: Test strategy design, gap analysis, integration/E2E test authoring, edge case coverage, and regression suites. Use for test planning and writing tests beyond unit level.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Grep
+  - Glob
 model: sonnet
 maxTurns: 100
 disallowedTools:

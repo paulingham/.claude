@@ -1,7 +1,13 @@
 ---
 name: software-engineer
 description: Feature implementation with TDD, service objects, SOLID, and DRY. Handles backend code, business logic, and unit/integration tests. Use for building features, writing services, and implementing business logic.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Grep
+  - Glob
 model: opus
 memory: project
 maxTurns: 150

@@ -1,7 +1,13 @@
 ---
 name: database-engineer
 description: Schema design, migration authoring, query optimization, and data integrity. Handles indexes, N+1 detection, connection pooling, and zero-downtime migrations. Use for database work.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Grep
+  - Glob
 model: sonnet
 maxTurns: 120
 disallowedTools:

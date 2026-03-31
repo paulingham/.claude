@@ -1,7 +1,13 @@
 ---
 name: frontend-engineer
 description: UI implementation with accessibility-first (WCAG 2.1 AA), design-quality standards, React/React Native patterns, and component architecture. Use for all frontend and mobile development.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Grep
+  - Glob
 model: opus
 maxTurns: 150
 disallowedTools:
