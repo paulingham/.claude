@@ -1,5 +1,5 @@
 ---
-name: "Bug Fix"
+name: "bug-fix"
 description: "Root cause analysis workflow with incremental TDD for bug fixes. Covers reproduce, analyze, regression test, fix, verify, and prevent. Use when fixing bugs to ensure proper methodology."
 context: fork
 agent: software-engineer
@@ -106,3 +106,4 @@ Artifacts: [list of changed/created files, regression test file]
 Root cause: [1-2 sentence summary]
 Agent summaries: [engineer's 2-3 sentence contribution summary]
 ```
+$ARGUMENTS

@@ -1,6 +1,6 @@
 ---
-name: "Pipeline"
-description: "Autonomous pipeline orchestration: classifies work, determines phases, tracks state via tasks, invokes skills in sequence, manages review loops and error recovery. The conductor that replaces manual orchestration. Use at the start of any implementation work."
+name: "pipeline"
+description: "Use when user wants to Autonomous pipeline orchestration: classifies work, determines phases, tracks state via tasks, invokes skills in sequence, manages review loops and error recovery. The conductor that replaces manual orchestration. Use at the start of any implementation work."
 ---
 
 # Pipeline Orchestration

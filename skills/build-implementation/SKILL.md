@@ -1,6 +1,6 @@
 ---
-name: "Build Implementation"
-description: "Structured build phase: decompose ACs into test cases, implement via incremental TDD protocol, enforce shape constraints. Use at the start of any Build phase."
+name: "build-implementation"
+description: "Use when user wants to Structured build phase: decompose ACs into test cases, implement via incremental TDD protocol, enforce shape constraints. Use at the start of any Build phase."
 context: fork
 agent: software-engineer
 argument-hint: "Acceptance criteria or story to implement"
@@ -137,3 +137,5 @@ Next: /code-review + /security-review (parallel, single message)
 Artifacts: [list of changed/created files]
 Agent summaries: [each engineer's 2-3 sentence contribution summary]
 ```
+$ARGUMENTS
+</reason></package>

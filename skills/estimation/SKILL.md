@@ -1,6 +1,6 @@
 ---
-name: "Estimation"
-description: "Complexity Budget estimation for sizing stories. Scores 5 dimensions (scope, ambiguity, context pressure, novelty, coordination) 1-3 each, with Fibonacci mapping for human teams. Use during epic breakdown and story estimation."
+name: "estimation"
+description: "Use when user wants to Complexity Budget estimation for sizing stories. Scores 5 dimensions (scope, ambiguity, context pressure, novelty, coordination) 1-3 each, with Fibonacci mapping for human teams. Use during epic breakdown and story estimation."
 context: fork
 agent: architect
 model: sonnet

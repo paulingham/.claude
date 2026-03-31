@@ -1,6 +1,6 @@
 ---
-name: "Product Acceptance"
-description: "Accept phase skill: spawn product-reviewer to validate acceptance criteria are met, assess UX quality, and verify business value delivery. Produces APPROVED or APPROVED WITH CONDITIONS verdict."
+name: "product-acceptance"
+description: "Use when user wants to Accept phase skill: spawn product-reviewer to validate acceptance criteria are met, assess UX quality, and verify business value delivery. Produces APPROVED or APPROVED WITH CONDITIONS verdict."
 context: fork
 agent: product-reviewer
 ---

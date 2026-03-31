@@ -1,6 +1,6 @@
 ---
-name: "Design System Init"
-description: "Generate design tokens, primitive components, and dark mode for a project. Creates Tailwind config extensions, CSS custom properties, and cva-based component primitives."
+name: "design-system-init"
+description: "Use when user wants to Generate design tokens, primitive components, and dark mode for a project. Creates Tailwind config extensions, CSS custom properties, and cva-based component primitives."
 context: fork
 agent: frontend-engineer
 argument-hint: "Optional: brand brief or inspiration (colors, personality, font preferences)"
@@ -156,3 +156,4 @@ Next: Use primitives in /build-implementation. Extend with compound components a
 Artifacts: [tokens.css, tailwind.config.ts extensions, components/ui/ primitives, dark mode hook]
 Tokens: [primary hue, font pairing, spacing density, radius style]
 ```
+$ARGUMENTS

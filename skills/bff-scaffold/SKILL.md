@@ -1,6 +1,6 @@
 ---
-name: "BFF Scaffold"
-description: "Generate a Backend for Frontend API layer for a specific channel (web, mobile, voice, device). Handles data aggregation, channel-specific response shaping, and upstream service wiring."
+name: "bff-scaffold"
+description: "Use when user wants to Generate a Backend for Frontend API layer for a specific channel (web, mobile, voice, device). Handles data aggregation, channel-specific response shaping, and upstream service wiring."
 context: fork
 agent: software-engineer
 argument-hint: "Channel type and upstream services (e.g., 'mobile-bff for user-service + task-service')"
@@ -192,3 +192,4 @@ Artifacts: [BFF project structure, upstream clients, transformers, middleware, d
 Channel: [web/mobile/voice/device]
 Upstream Services: [list of services this BFF connects to]
 ```
+$ARGUMENTS

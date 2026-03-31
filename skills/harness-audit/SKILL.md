@@ -1,6 +1,6 @@
 ---
-name: "Harness Audit"
-description: "Audit the health of the ~/.claude/ config: orphan hooks, missing skills, stale agents, JSON validity, hook executability. Reports HEALTHY / WARNINGS / CRITICAL."
+name: "harness-audit"
+description: "Use when user wants to Audit the health of the ~/.claude/ config: orphan hooks, missing skills, stale agents, JSON validity, hook executability. Reports HEALTHY / WARNINGS / CRITICAL."
 argument-hint: "Optional: focus area (hooks|skills|agents|all)"
 ---
 
@@ -155,3 +155,4 @@ Verdict: HEALTHY / WARNINGS / CRITICAL
 Next: Fix flagged issues, re-run /harness-audit to confirm
 Artifacts: [health report with itemised findings]
 ```
+$ARGUMENTS

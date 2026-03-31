@@ -1,6 +1,6 @@
 ---
-name: "Infrastructure Scaffold"
-description: "Generate production-ready infrastructure config: Dockerfile, docker-compose, CI/CD pipeline, health endpoints, env management. Delegates to infrastructure-engineer."
+name: "infrastructure-scaffold"
+description: "Use when user wants to Generate production-ready infrastructure config: Dockerfile, docker-compose, CI/CD pipeline, health endpoints, env management. Delegates to infrastructure-engineer."
 context: fork
 agent: infrastructure-engineer
 argument-hint: "Tech stack and target platform (e.g., 'Node.js + PostgreSQL on Fly.io')"
@@ -258,3 +258,4 @@ Verdict: INFRA_SCAFFOLDED
 Next: Verify locally with docker compose, then configure deployment platform credentials
 Artifacts: [Dockerfile, docker-compose.yml, .github/workflows/ci.yml, health endpoints, .env.example]
 ```
+$ARGUMENTS

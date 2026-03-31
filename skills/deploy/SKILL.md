@@ -1,6 +1,7 @@
 ---
-name: "Deploy"
-description: "Continuous deployment skill: environment-aware deploy with pre-flight checks, staging verification, production rollout, and rollback. Closes the gap between PR merge and production."
+disable-model-invocation: true
+name: "deploy"
+description: "Use when user wants to Continuous deployment skill: environment-aware deploy with pre-flight checks, staging verification, production rollout, and rollback. Closes the gap between PR merge and production."
 context: fork
 agent: infrastructure-engineer
 argument-hint: "Target environment (staging|production) and optional deployment strategy"
@@ -156,3 +157,4 @@ Artifacts: [deployment URL, health check results, smoke test results, rollback s
 Environment: [staging/production]
 Strategy: [rolling/blue-green/canary]
 ```
+$ARGUMENTS

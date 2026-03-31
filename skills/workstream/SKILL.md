@@ -1,5 +1,5 @@
 ---
-name: "Workstream"
+name: "workstream"
 description: "Manage isolated workstreams for parallel feature development. Create, switch, list, and archive workstreams with isolated pipeline-state directories and branch conventions. Use when working on multiple features in parallel."
 argument-hint: "create|switch|list|archive [workstream-name]"
 ---
@@ -110,3 +110,4 @@ Verdict: WORKSTREAM_CREATED / WORKSTREAM_LISTED / WORKSTREAM_ARCHIVED
 Next: Start a pipeline within the workstream
 Artifacts: pipeline-state/workstreams/{name}/workstream.md
 ```
+$ARGUMENTS

@@ -1,6 +1,6 @@
 ---
-name: "Verify"
-description: "Structured verification workflow: contract tests, smoke tests, mutation testing. Produces a tiered verification report with VERIFIED/UNVERIFIED verdict. Use after implementation to prove correctness beyond passing tests."
+name: "verify"
+description: "Use when user wants to Structured verification workflow: contract tests, smoke tests, mutation testing. Produces a tiered verification report with VERIFIED/UNVERIFIED verdict. Use after implementation to prove correctness beyond passing tests."
 context: fork
 agent: software-engineer
 ---

@@ -1,6 +1,6 @@
 ---
-name: "Database Migration"
-description: "Structured database migration workflow: schema design, migration generation, zero-downtime validation, reversibility testing, data migration strategies. ORM-first, multi-framework."
+name: "database-migration"
+description: "Use when user wants to Structured database migration workflow: schema design, migration generation, zero-downtime validation, reversibility testing, data migration strategies. ORM-first, multi-framework."
 context: fork
 agent: database-engineer
 argument-hint: "Migration description (e.g., 'add email_verified column to users')"
@@ -227,3 +227,4 @@ Next: Deploy migration (staging first), then verify with /deploy
 Artifacts: [migration files, schema diff, reversibility test results, index analysis]
 Downtime Risk: [none / requires two-phase deployment]
 ```
+$ARGUMENTS

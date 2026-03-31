@@ -1,6 +1,6 @@
 ---
-name: "Pipeline Resume"
-description: "Resume an in-progress pipeline from pipeline-state/ files. Validates state schema, determines current phase, and re-enters the pipeline at the correct point."
+name: "pipeline-resume"
+description: "Use when user wants to Resume an in-progress pipeline from pipeline-state/ files. Validates state schema, determines current phase, and re-enters the pipeline at the correct point."
 argument-hint: "Optional: task ID to resume (auto-detects if only one active pipeline)"
 ---
 
@@ -129,3 +129,4 @@ Verdict: RESUMED / NO_ACTIVE_PIPELINE / STATE_INVALID
 Next: Continue pipeline from [phase name]
 Artifacts: [state file path, resume point, prior phase verdicts]
 ```
+$ARGUMENTS

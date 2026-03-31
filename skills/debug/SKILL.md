@@ -1,5 +1,5 @@
 ---
-name: "Debug"
+name: "debug"
 description: "Persistent debug state management for complex, multi-session bugs. Creates and maintains structured debug state files in pipeline-state/ that survive context compaction. Use when a bug requires multiple fix-test cycles, environment-dependent debugging, or spans sessions."
 argument-hint: "Task ID or bug description"
 ---
@@ -125,3 +125,4 @@ Next: If RESOLVED → resume pipeline from Review phase
       If ACTIVE → continue debugging loop
 State: pipeline-state/{task-id}-debug.md
 ```
+$ARGUMENTS

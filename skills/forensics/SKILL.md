@@ -1,6 +1,6 @@
 ---
-name: "Forensics"
-description: "Post-incident investigation of pipeline runs. Reconstructs timelines from trajectory JSONL, analyzes anomalies (gaps, retries, long phases), and produces structured findings. Use after pipeline failures, unexpected rework, or to understand what went wrong."
+name: "forensics"
+description: "Use when user wants to Post-incident investigation of pipeline runs. Reconstructs timelines from trajectory JSONL, analyzes anomalies (gaps, retries, long phases), and produces structured findings. Use after pipeline failures, unexpected rework, or to understand what went wrong."
 argument-hint: "Task ID of the pipeline to investigate"
 ---
 
@@ -135,3 +135,4 @@ Verdict: CLEAN / ANOMALIES_FOUND / INVESTIGATION_INCOMPLETE
 Next: Feed findings into /pipeline Step 7 (Reflect)
 Artifacts: pipeline-state/{task-id}-forensics.md
 ```
+$ARGUMENTS

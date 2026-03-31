@@ -1,6 +1,7 @@
 ---
-name: "Deployment Verification"
-description: "Post-deploy verification: health checks, smoke tests against live URL, error rate monitoring, automatic rollback trigger. Runs after /deploy."
+disable-model-invocation: true
+name: "deployment-verification"
+description: "Use when user wants to Post-deploy verification: health checks, smoke tests against live URL, error rate monitoring, automatic rollback trigger. Runs after /deploy."
 context: fork
 agent: infrastructure-engineer
 argument-hint: "Deployed URL and environment (e.g., 'https://staging.app.com staging')"
@@ -96,3 +97,4 @@ Artifacts: [health check results, smoke test results, error rate comparison, rol
 Environment: [staging/production]
 Duration: [time from deploy to verification complete]
 ```
+$ARGUMENTS

@@ -1,6 +1,6 @@
 ---
-name: "Load Test"
-description: "Performance verification phase: run load tests against staging, establish baselines, verify SLAs, detect regressions. Integrates with the pipeline after Verify."
+name: "load-test"
+description: "Use when user wants to Performance verification phase: run load tests against staging, establish baselines, verify SLAs, detect regressions. Integrates with the pipeline after Verify."
 context: fork
 agent: qa-engineer
 argument-hint: "Target URL and expected load (e.g., 'https://staging.app.com 100rps')"
@@ -127,3 +127,4 @@ Next: Fix bottlenecks and re-test / Proceed to deployment
 Artifacts: [k6/Artillery report, baseline comparison, bottleneck analysis]
 Metrics: { p50: Nms, p95: Nms, p99: Nms, error_rate: N%, throughput: N rps }
 ```
+$ARGUMENTS

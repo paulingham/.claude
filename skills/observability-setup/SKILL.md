@@ -1,6 +1,6 @@
 ---
-name: "Observability Setup"
-description: "Production observability: structured logging, health endpoints, metrics collection, distributed tracing (OpenTelemetry), alerting rules, and dashboard configuration."
+name: "observability-setup"
+description: "Use when user wants to Production observability: structured logging, health endpoints, metrics collection, distributed tracing (OpenTelemetry), alerting rules, and dashboard configuration."
 context: fork
 agent: infrastructure-engineer
 argument-hint: "Observability provider (e.g., 'Datadog', 'Sentry + Grafana', 'AWS CloudWatch') or 'auto-detect'"
@@ -253,3 +253,4 @@ Next: Deploy to staging, generate initial traffic, verify dashboards populate
 Artifacts: [logger config, health endpoints, metrics middleware, tracing setup, alert rules, dashboard spec]
 Provider: [Sentry/Datadog/Grafana/CloudWatch/self-hosted]
 ```
+$ARGUMENTS

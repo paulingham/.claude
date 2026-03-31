@@ -1,6 +1,6 @@
 ---
-name: "Refactor"
-description: "Safe refactoring workflow: identify smell, write characterization tests, refactor in small steps, verify green after each. Use for refactoring code with confidence."
+name: "refactor"
+description: "Use when user wants to Safe refactoring workflow: identify smell, write characterization tests, refactor in small steps, verify green after each. Use for refactoring code with confidence."
 context: fork
 agent: software-engineer
 argument-hint: "Code smell and target files"
@@ -100,3 +100,4 @@ Next: /code-review + /security-review (parallel, single message)
 Artifacts: [list of changed/created files]
 Agent summaries: [engineer's 2-3 sentence contribution summary]
 ```
+$ARGUMENTS
