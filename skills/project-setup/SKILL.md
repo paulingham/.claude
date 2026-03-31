@@ -29,6 +29,34 @@ Find test, build, lint, and dev server commands from:
 - `Makefile`, `package.json` scripts, `Procfile`, `docker-compose.yml`
 - CI config files (`.github/workflows/`, `.circleci/`)
 
+### 2b. Dev Server Configuration (MANDATORY for frontend projects)
+
+If the project has frontend code (package.json with react/vue/svelte/next/vite/astro deps):
+
+Detect and document:
+- **Dev command**: from package.json scripts (`dev`, `start`, `serve`)
+- **Dev port**: Vite=5173, Next.js=3000, CRA=3000, Astro=4321, custom from config files
+- **Build command**: from package.json scripts (`build`)
+- **Health check URL**: `http://localhost:{port}`
+
+Add to the generated CLAUDE.md:
+```markdown
+## Dev Server
+- Command: {detected command}
+- Port: {detected port}
+- Health check: http://localhost:{port}
+- Build command: {detected build command}
+```
+
+This contract is read by `/design-qc` during the pipeline. If these fields are missing, Design QC will fail loudly.
+
+If frontend deps are found but no dev/build scripts exist in package.json → add a warning:
+```markdown
+## Dev Server
+WARNING: Frontend dependencies detected but no dev/build scripts found in package.json.
+Add `dev` and `build` scripts to enable visual QA via /design-qc.
+```
+
 ### 3. Map Architecture
 
 - Directory structure and key modules
