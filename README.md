@@ -219,8 +219,13 @@ brew tap ldayton/dippy && brew install dippy
 # Recommended: Session observability (token attribution, compaction visualization)
 brew install --cask claude-devtools
 
-# Recommended: ML-based prompt injection detection
-cargo install --git https://github.com/vaporif/parry
+# Required: ML-based prompt injection detection (pure Rust, no native deps)
+# Requires: Rust toolchain (curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh)
+# Requires: HuggingFace token (free — huggingface.co/settings/tokens, READ scope)
+# Requires: Accept model terms at huggingface.co/ProtectAI/deberta-v3-small-prompt-injection-v2
+cargo install --git https://github.com/vaporif/parry --features candle --no-default-features
+mkdir -p ~/.parry-guard ~/.config/parry-guard
+echo "YOUR_HF_TOKEN" > ~/.parry-guard/.hf-token && chmod 600 ~/.parry-guard/.hf-token
 
 # Recommended: Inter-agent communication for team phases
 npm install -g hcom
@@ -252,7 +257,7 @@ For new projects without a CLAUDE.md, the system automatically runs `/project-se
 |------|---------|---------|-----------|
 | [Dippy](https://github.com/ldayton/Dippy) | AST-based bash command safety | `brew install dippy` | Yes (dontAsk mode) |
 | [claude-devtools](https://github.com/matt1398/claude-devtools) | Session observability | `brew install --cask claude-devtools` | Recommended |
-| [parry-guard](https://github.com/vaporif/parry) | ML injection detection | `cargo install --git https://github.com/vaporif/parry` | Recommended (needs Rust) |
+| [parry-guard](https://github.com/vaporif/parry) | ML injection detection (DeBERTa v3) | `cargo install --git ... --features candle` | Required (needs Rust + HF token) |
 | [hcom](https://github.com/aannoo/hcom) | Inter-agent communication | `npm install -g hcom` | Recommended |
 | [agnix](https://github.com/agent-sh/agnix) | Config linting | `npx agnix` (no install) | Optional |
 | [Trail of Bits](https://github.com/trailofbits/skills) | Security analysis (5 plugins) | `claude plugin marketplace add` + install | Required |
