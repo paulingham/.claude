@@ -6,10 +6,11 @@
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 source ~/.claude/hooks/loop-guard.sh && check_loop_guard "governance-capture" || exit 0
 
-TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
-COMMAND="${CLAUDE_COMMAND:-}"
-FILE_PATH="${CLAUDE_FILE_PATH:-}"
-TOOL_INPUT="${CLAUDE_TOOL_INPUT:-}"
+INPUT=$(cat)
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input // empty')
 
 METRICS_DIR="$HOME/.claude/metrics"
 mkdir -p "$METRICS_DIR"

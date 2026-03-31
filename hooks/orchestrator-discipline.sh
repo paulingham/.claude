@@ -10,7 +10,8 @@
 # Hook profile (minimal — always runs as a blocking hook)
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "minimal" || exit 0
 
-FILE_PATH="${CLAUDE_FILE_PATH:-}"
+INPUT=$(cat)
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 
 # No file path — allow (tool may not target a file)
 if [[ -z "$FILE_PATH" ]]; then
