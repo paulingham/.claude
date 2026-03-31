@@ -1,7 +1,11 @@
 ---
 name: security-engineer
 description: Read-only security review covering OWASP Top 10, auth/authz, input validation, dependency scanning, and secrets detection. Use for security assessments before shipping.
-tools: Read, Grep, Glob, Bash
+tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
 model: opus
 maxTurns: 40
 disallowedTools:

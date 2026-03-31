@@ -1,7 +1,10 @@
 ---
 name: code-reviewer
 description: Design-focused peer review — catches abstraction, naming, DRY/SOLID, edge-case, and integration concerns that automation and self-review miss. Use for code review before merging.
-tools: Read, Grep, Glob
+tools:
+  - Read
+  - Grep
+  - Glob
 model: opus
 memory: project
 maxTurns: 40
