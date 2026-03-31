@@ -27,8 +27,10 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 | "API", "endpoint", "resource" (new API) | **Feature + Scaffold** | `/pipeline` → `/api-scaffold` → `/build-implementation` |
 | "Migration", "schema", "add column" | **Feature + Scaffold** | `/pipeline` → `/db-migration` → `/build-implementation` |
 | "Docker", "CI/CD", "deploy", "infra" | **Infrastructure** | `/pipeline` → `/infra-scaffold` |
-| "Extract", "split out", "own repo", "separate service" | **Service Extraction** | `/pipeline` → `/service-extraction` |
+| "Extract", "split out", "own repo", "separate service" | **Service Extraction** | `/pipeline` → `/service-extraction` (multi-repo) |
 | "Logging", "monitoring", "observability" | **Infrastructure** | `/pipeline` → `/observability-setup` |
+| Multiple repos referenced, "API + frontend", cross-service | **Multi-Repo Feature** | `/pipeline` (multi-repo mode) |
+| "New service", "new repo", "scaffold service" | **Service Scaffold** | `/pipeline` → `/microservices-scaffold` (multi-repo) |
 
 ### Step 2: Complexity Budget (MANDATORY — score before routing)
 
@@ -101,6 +103,28 @@ timestamp: {ISO 8601}
 ```
 
 This file feeds into the architect during the Plan phase and survives context compaction.
+
+### Step 2c: Multi-Repo Detection (Automatic)
+
+Check for multi-repo signals BEFORE routing to pipeline:
+
+1. **Manifest exists?** Check `~/.claude/manifests/` for a project matching the current repo
+2. **Service Context?** Check project CLAUDE.md for `## Service Context` with upstream/downstream
+3. **Request signals?** Does the user's request reference:
+   - Multiple repos or services ("API and frontend", "billing service")
+   - Service extraction ("extract", "split out", "own repo")
+   - Cross-repo changes ("update the contract", "both services")
+   - New service creation ("new service", "scaffold a service")
+
+If ANY signal is true:
+- Flag `multi_repo: true` in the routing output
+- The pipeline will auto-create/read the manifest (see `rules/multi-repo-protocol.md`)
+- No separate command needed — the pipeline handles it
+
+```
+[Intake] Multi-repo: yes/no
+[Intake] Manifest: {path} / will be created / N/A
+```
 
 ### Step 3: Pre-flight Check
 

@@ -172,6 +172,19 @@ A story is DONE when ALL are true:
 - PR merged to main
 - Post-task reflection completed (rules/patterns updated if learnings identified)
 
+### Multi-Repo Support
+
+Projects spanning multiple repos are managed via **project manifests** (`~/.claude/manifests/{project}.md`). Everything is automatic — no manual commands needed.
+
+- **Detection**: Intake auto-detects multi-repo signals (service extraction, cross-repo features, Service Context in CLAUDE.md)
+- **Manifest**: Auto-created when multi-repo work detected. Tracks repos, dependencies, GitHub config, deploy order
+- **GitHub**: Repo creation, branch protection, environments — all config-driven from manifest
+- **PRs**: Linked across repos with dependency ordering. Merge order enforced (providers first)
+- **Deploy**: Dependency-aware ordering. Health checks cascade. Rollback in reverse order
+- **Agents**: One agent per repo, worktree isolation per-repo. Parallel when independent
+
+See `rules/multi-repo-protocol.md` for full details.
+
 ## Detailed Protocols
 
 All detailed protocols are in `rules/` (auto-loaded each session):
@@ -181,6 +194,7 @@ All detailed protocols are in `rules/` (auto-loaded each session):
 - `rules/engineering-protocol.md` — Code shape, TDD, testing standards, security baseline
 - `rules/operational-protocol.md` — Complexity Budget, error recovery principles
 - `rules/parallel-dispatch-protocol.md` — Hybrid dispatch: teams for Build/Review/Final Gate, subagents for Plan/Ship/Deploy
+- `rules/multi-repo-protocol.md` — Project manifests, multi-repo pipelines, GitHub service config, linked PRs, deploy ordering
 - `rules/e2e-protocol.md` — Maestro E2E trigger matrix and prerequisites
 - `rules/reflection-protocol.md` — Post-pipeline reflection, root cause analysis, continuous improvement
 

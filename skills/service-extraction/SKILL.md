@@ -64,26 +64,42 @@ Identify what's being extracted:
 
 Present this analysis to the user for approval before proceeding.
 
-### Step 2: Create the New Repository
+### Step 2: Create the New Repository (Manifest-Driven)
+
+Read GitHub config from the project manifest (`~/.claude/manifests/{project-name}.md`). If no manifest exists, auto-create one (see `rules/multi-repo-protocol.md`).
 
 ```bash
-# Determine org from current repo
+# Read config from manifest (org, visibility, template, branch_protection)
+# Defaults: org from current repo, private, no template, branch protection on
+
 ORG=$(gh repo view --json owner -q '.owner.login')
 SERVICE_NAME="[extracted-service-name]"
 
-# Create the new repo
+# Create repo — use template from manifest if configured
 gh repo create "${ORG}/${SERVICE_NAME}" \
   --private \
   --description "[Service description]" \
   --clone
+# If manifest has template: add --template "${ORG}/${TEMPLATE}"
 
-# Set up branch protection on main
+# Branch protection from manifest config (defaults: required_reviews=1, require_ci=true)
 gh api repos/${ORG}/${SERVICE_NAME}/branches/main/protection \
   --method PUT \
   --field required_status_checks='{"strict":true,"contexts":["test"]}' \
   --field enforce_admins=true \
   --field required_pull_request_reviews='{"required_approving_review_count":1}'
+
+# Create environments from manifest config (defaults: staging + production)
+gh api repos/${ORG}/${SERVICE_NAME}/environments/staging --method PUT
+gh api repos/${ORG}/${SERVICE_NAME}/environments/production --method PUT
+
+# Update manifest with new repo entry
+# → Add to ## Repos table: name, path, role=provider, github, status=active
+# → Add to ## Dependencies table if provider/consumer relationships exist
+# → Add to ## Deploy Order based on dependency graph
 ```
+
+After repo creation, run `/project-setup` in the new repo automatically (not a separate command).
 
 ### Step 3: Scaffold the New Service
 
