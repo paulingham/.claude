@@ -4,7 +4,9 @@
     "CLAUDE_HOOK_PROFILE": "standard",
     "CLAUDE_PIPELINE_TASK_ID": "",
     "HCOM": "/Users/Paul.Ingham/.local/bin/hcom",
-    "HF_TOKEN_PATH": "/Users/Paul.Ingham/.config/parry-guard/hf_token"
+    "HF_TOKEN_PATH": "/Users/Paul.Ingham/.config/parry-guard/hf_token",
+    "HF_TOKEN": "REDACTED",
+    "ORT_DYLIB_PATH": "/opt/homebrew/lib/libonnxruntime.dylib"
   },
   "permissions": {
     "allow": [
