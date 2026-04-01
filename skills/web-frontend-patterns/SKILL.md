@@ -77,6 +77,18 @@ src/
 - Feature components compose UI components and connect to data via hooks
 - Co-locate tests: `user-profile.tsx` → `user-profile.test.tsx`
 
+### Composition Patterns
+
+Read `~/.claude/knowledge/composition-patterns.md` for the full reference.
+
+**Critical rules:**
+- **Max 3 boolean props** per component. If you need a 4th → compound component pattern
+- **No `show*/hide*` props** → use compound children (Card.Header renders or doesn't)
+- **Named variants over boolean combinations** → use CVA explicit variants
+- **Compound components** for anything with 3+ visual sections (Card.Header, Card.Body, Card.Footer)
+- **Provider pattern** only for infrequently-changing values (theme, locale, auth)
+- **Slot pattern** for flexible layout insertion points
+
 ## React Patterns
 
 ### Server Components (Next.js App Router)
@@ -249,6 +261,8 @@ Pattern: Cache-Aside
 
 ## Performance
 
+Read `~/.claude/knowledge/performance-design-patterns.md` for the full 57-rule deep reference.
+
 ### Core Web Vitals Targets
 ```
 LCP (Largest Contentful Paint):  < 2.5s
@@ -256,25 +270,63 @@ INP (Interaction to Next Paint): < 200ms
 CLS (Cumulative Layout Shift):   < 0.1
 ```
 
+### CRITICAL Priority (fix these first)
+
+**Request Waterfalls** — the #1 performance killer:
+```
+"Too many developers jump to useMemo when the real bottleneck is waterfalls."
+Sequential fetches (A→B→C = 600ms) should be parallel (Promise.all = 200ms).
+Detection: useEffect that fetches data depending on another useEffect's result.
+Fix: Promise.all, useSuspenseQueries, route-level loaders, prefetch on hover.
+```
+
+**Bundle Size** — barrel file anti-pattern:
+```
+BAD:  import { Button } from '@/components'  // pulls EVERYTHING
+GOOD: import { Button } from '@/components/ui/button'  // just the button
+```
+
 ### Optimization Techniques
 
 | Technique | When | How |
 |-----------|------|-----|
 | Code splitting | Always | Dynamic `import()`, Next.js `dynamic()` |
-| Image optimization | Images >50KB | Next.js `<Image>`, `srcset`, WebP/AVIF |
-| Font optimization | Custom fonts | `next/font`, `font-display: swap`, subset |
+| Image optimization | Images >50KB | Next.js `<Image>`, `srcset`, AVIF > WebP > PNG |
+| Font optimization | Custom fonts | `next/font`, `font-display: swap`, subset latin only |
 | Bundle analysis | Before release | `@next/bundle-analyzer`, `source-map-explorer` |
 | Lazy loading | Below-fold content | `loading="lazy"`, Intersection Observer |
-| Memoization | Expensive renders | `React.memo`, `useMemo`, `useCallback` (only when measured) |
-| Virtualization | Lists >100 items | `@tanstack/react-virtual`, `react-window` |
+| Memoization | Expensive renders | `React.memo`, `useMemo`, `useCallback` (**only when measured**) |
+| Virtualization | Lists >100 items | `@tanstack/react-virtual` (preferred over react-window) |
 | Prefetching | Predictable navigation | `<Link prefetch>`, `router.prefetch()` |
+| Container queries | Component responsiveness | `@container` instead of JS-based resize logic |
+| Content-visibility | Long pages | `content-visibility: auto` for below-fold sections |
 
 ### Performance Anti-Patterns
-- **Do NOT** `useMemo`/`useCallback` everything (premature optimization)
+- **Do NOT** `useMemo`/`useCallback` everything (premature optimization — profile first)
 - **Do NOT** import entire icon/component libraries (tree-shake or cherry-pick)
 - **Do NOT** render large lists without virtualization
 - **Do NOT** load all data on page mount (paginate, lazy-load)
 - **Do NOT** block render with synchronous data fetching (use Suspense)
+- **Do NOT** use barrel files that re-export everything (kills tree-shaking)
+- **Do NOT** use dynamic class names with Tailwind (`bg-${color}-500` — not purgeable)
+
+## Next-Generation Interaction Patterns
+
+Read `~/.claude/knowledge/next-gen-interaction-patterns.md` for the full reference.
+
+### Key Patterns for Web Frontend
+
+**Multimodal Input**: Support touch + voice + keyboard simultaneously. Persistent voice input button in search/input areas. All three converge at the same action dispatcher.
+
+**Social-Feed Vertical Scroll**: Content-first cards with `scroll-snap-type: y mandatory`. Swipe-to-action with horizontal gesture detection. Pull-to-refresh with spring animation. Infinite scroll with intelligent preloading.
+
+**Bottom Sheet Navigation (Mobile)**: Replace top dropdowns and modals with bottom sheets. Thumb-zone optimized (primary actions in bottom 40% of screen). Drag handle for sheet resize (peek → half → full).
+
+**Streaming AI Content**: Typewriter effect with SSE/WebSocket streaming. ARIA `live="polite"` on response containers. Content container height transitions (smooth expand). Skeleton → shimmer → real content crossfade.
+
+**Gesture-Driven Interactions**: Swipe-to-dismiss, pull-to-refresh, drag-to-reorder. Always provide non-gesture alternative (button, ⋯ menu) for accessibility. Use velocity threshold for gesture detection (not just distance).
+
+**Adaptive Layouts**: Container queries over viewport breakpoints where possible. Fluid values with `clamp()` for continuous adaptation. Context-aware restructuring (time-of-day, device orientation).
 
 ## Testing
 

@@ -110,6 +110,7 @@ Before the Build phase, check BOTH the task requirements AND the project state. 
 | New microservice extraction | `/microservices-scaffold` | Service template, gateway config, tracing. Auto-creates GitHub repo from manifest config |
 | Extract module to own repo | `/service-extraction` | New repo via manifest config, code migration, contracts, PRs in both repos |
 | New repo needed (from architect plan) | GitHub repo creation | Reads manifest `## Services > GitHub`, creates repo, clones, runs `/project-setup` |
+| Frontend feature + no design brief | `/creative-direction` | Design brief: fonts, palette, layout, interaction paradigm |
 | Frontend project with no design system | `/design-system-init` | Tokens, Tailwind config, primitive components, dark mode |
 
 Scaffolding is NOT a gate — it produces files and structure that the Build phase then fills with business logic via TDD. Invoke scaffolding skills via the Skill tool (they delegate to the appropriate agent in a worktree).
@@ -117,10 +118,13 @@ Scaffolding is NOT a gate — it produces files and structure that the Build pha
 **Dependency installation is NOT scaffolding.** Adding a package to `package.json` is part of the Build phase, not a pre-build step. Include dependency requirements in the build agent's prompt.
 
 **Detection is automatic.** Check project state directly:
+- Frontend feature detected (changed files include `.tsx/.jsx/.vue/.svelte`) AND no `pipeline-state/{task-id}-design-brief.md` exists AND no established distinctive branding (tokens.css has only default values or doesn't exist)? → `/creative-direction` FIRST
 - No `Dockerfile`? → `/infra-scaffold`
 - No `styles/tokens.css` and no `theme.extend.colors` in Tailwind config? → `/design-system-init`
 - No logging config and task touches backend? → `/observability-setup`
 - Task needs new endpoints but no OpenAPI spec or routes exist? → `/api-scaffold`
+
+**Ordering when multiple scaffolds trigger:** `/creative-direction` → `/design-system-init` → other scaffolds → `/build-implementation`. Creative direction produces the brief; design-system-init consumes it to generate tokens; build uses both.
 
 If the project already has established infrastructure, design system, and patterns, skip scaffolding.
 

@@ -51,6 +51,36 @@ Score each applicable heuristic 0-2 (0=violation, 1=partial, 2=satisfied):
 Minimum passing: 14/20 for APPROVED. Below 10: REJECTED.
 Include score in review output.
 
+### 2b. Visual Design Evaluation (when screenshots available)
+
+When Design QC provides screenshots AND a design evaluation report:
+
+Score each visual criterion 0-2 (same scale as UX heuristics):
+- [ ] Typography hierarchy: clear visual hierarchy visible without reading (h1 > h2 > body)
+- [ ] Color consistency: all colors from design tokens, no rogue hex values
+- [ ] Spacing rhythm: consistent spacing scale, no arbitrary gaps
+- [ ] Visual weight balance: clear focal point, no competing CTAs
+- [ ] Empty/error states: properly designed (illustration + message + action), not bare
+- [ ] Responsive coherence: mobile layout is intentional, not just reflowed desktop
+- [ ] Brand adherence: if design brief exists, does output match the brief's personality?
+
+Minimum passing: 10/14 for visual criteria (separate from UX heuristic score).
+Below 8: CHANGES_REQUESTED with specific visual issues.
+
+Reference the Design QC evaluation report for objective data (contrast ratios, token coverage %).
+
+### 2c. Future-Forward Assessment (when design brief specifies interaction paradigm)
+
+When the design brief includes an interaction paradigm, evaluate delivery:
+- [ ] Specified next-gen patterns are actually implemented (not just planned)
+- [ ] Gesture affordances present and functional (swipe, drag, pull-to-refresh)
+- [ ] Voice input accessible if specified (persistent mic, transcription)
+- [ ] Social-feed-style interactions working if specified (vertical scroll, swipe-to-action)
+- [ ] AI content streaming properly if specified (typewriter effect, ARIA live regions)
+- [ ] Bottom sheet navigation on mobile if specified (not desktop top-nav)
+
+Flag if implementation fell back to traditional patterns when modern alternatives were specified in the brief. This is a CHANGES_REQUESTED signal unless justified.
+
 ### 3. Business Value Verification
 - Does this deliver the promised value?
 - Any metrics to track success?
@@ -91,7 +121,15 @@ For UI stories, define personas and journeys for E2E testing:
 - [ ] AC 2 — [pass/fail detail]
 
 ### User Experience
+UX Heuristic Score: {N}/20
 [Assessment]
+
+### Visual Design (if screenshots reviewed)
+Visual Score: {N}/14
+[Findings with screenshot references]
+
+### Future-Forward (if interaction paradigm specified)
+[Assessment: which next-gen patterns were delivered vs specified]
 
 ### Business Value
 [Confirmation or concerns]

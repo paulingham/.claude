@@ -128,6 +128,45 @@ await browser.close();
 
 **If capture fails** (browser crash, navigation error) → log the failing route but continue with remaining routes. Report partial results.
 
+### Step 6.5: Automated Design Evaluation
+
+While the browser is still open, evaluate each captured page programmatically:
+
+**1. Contrast Check**
+```javascript
+// Extract all text elements and their computed background colors
+const elements = await page.$$eval('*', els => els.map(el => {
+  const style = getComputedStyle(el);
+  return { text: el.textContent?.trim(), color: style.color, bg: style.backgroundColor, fontSize: parseFloat(style.fontSize) };
+}).filter(e => e.text));
+// Calculate WCAG contrast ratio: (L1 + 0.05) / (L2 + 0.05)
+// Flag any text below 4.5:1 (normal) or 3:1 (large text >= 18px)
+```
+
+**2. Typography Hierarchy**
+- Extract all `font-size` values on the page
+- Verify they match the type scale from `tokens.css` (within ±2px tolerance)
+- Check heading hierarchy: h1 > h2 > h3, no skips
+- Flag any font-size not in the design token scale
+
+**3. Spacing Rhythm**
+- Sample `margin` and `padding` values from major layout elements
+- Check against 4px base grid (values should be multiples of 4)
+- Flag off-grid spacing values
+
+**4. Token Coverage**
+- Extract computed colors from all elements
+- Check against defined CSS custom properties in the document
+- Flag any color that doesn't match a token value (hardcoded hex/rgb)
+- Output: token coverage percentage
+
+**5. Visual Weight Balance**
+- Check that no single viewport quadrant contains >60% of interactive elements
+- Verify primary CTA is the most visually prominent button (largest or highest contrast)
+- Check for competing visual weights (multiple equally prominent CTAs)
+
+Output these results as structured data for the report.
+
 ### Step 7: Stop Server + Cleanup
 
 ```bash
@@ -158,7 +197,21 @@ Screenshots persist in `.claude/screenshots/` until the pipeline completes. The 
 ### Screenshot Paths
 {list of all .jpg files for product-reviewer}
 
+### Design Evaluation
+| Check | Score | Details |
+|-------|-------|---------|
+| Contrast | PASS/WARN/FAIL | N elements checked, M failures |
+| Typography | N% | N off-scale sizes found |
+| Spacing | N% | N off-grid values found |
+| Token Coverage | N% | N hardcoded colors found |
+| Visual Balance | PASS/WARN | CTA prominence assessment |
+
+### Actionable Findings
+1. {specific element} has contrast ratio {N}:1 (needs 4.5:1). Fix: {suggestion}
+2. {element} uses font-size {N}px — nearest token: {token name} ({N}px)
+
 ### Verdict: SCREENSHOTS_CAPTURED / CAPTURE_FAILED
+Design Evaluation Score: {N}/100
 ```
 
 ## Design System Compliance Checklist (for product-reviewer)
