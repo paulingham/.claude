@@ -104,17 +104,18 @@ User → /intake (classify + score) → /pipeline (drive phases)
 
 ### Delivery Pipeline
 
-1. **Plan** → Architect designs slices (subagent). Gate: product-reviewer + engineer validate.
-2. **Build** → `/build-implementation` (subagent for single-slice, **team for multi-slice**). Gate: tests green, shape met.
-3. **Review** → `/code-review` + `/security-review` (**team** -- tmux visible, persistent context). Gate: both APPROVE.
+1. **Plan** → Architect designs slices (subagent). Gate: alternatives documented.
+2. **Plan Validation** → Interactive: user approves. Autonomous: product-reviewer + software-engineer challenge (**team**). Gate: PLAN_APPROVED.
+3. **Build** → `/build-implementation` (subagent for single-slice, **team for multi-slice**). Gate: tests green, shape met.
+4. **Review** → `/code-review` + `/security-review` (**team** -- tmux visible, persistent context). Gate: both APPROVE.
    - Review is 1-2 rounds max. Re-review uses same reviewer (context preserved). Async when possible.
-4. **Final Gate** → **team** running verify + test + accept in parallel:
+5. **Final Gate** → **team** running verify + test + accept in parallel:
    - `/verify` (contract + smoke + mutation). Gate: VERIFIED.
    - `/qa-test-strategy`. Gate: all ACs covered, no gaps.
    - `/product-acceptance`. Gate: APPROVED.
-5. **Ship** → `/pr-creation` (subagent). Gate: quality gate hook passes.
-6. **Deploy** → `/deploy` + `/deployment-verification` (subagent). Gate: DEPLOYMENT_VERIFIED.
-7. **Reflect** → Review pipeline execution, identify improvements to rules/CLAUDE.md/memory. Always runs.
+6. **Ship** → `/pr-creation` (subagent). Gate: quality gate hook passes.
+7. **Deploy** → `/deploy` + `/deployment-verification` (subagent). Gate: DEPLOYMENT_VERIFIED.
+8. **Reflect** → Review pipeline execution, identify improvements to rules/CLAUDE.md/memory. Always runs.
 
 No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 

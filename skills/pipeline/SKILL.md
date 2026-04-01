@@ -20,19 +20,21 @@ The autonomous conductor for the delivery pipeline. Takes a task, determines whi
 
 | Work Type | Entry Skill | Pipeline Phases |
 |-----------|-------------|-----------------|
-| Feature (micro) | `/build-implementation` | Build → Review → Ship |
-| Feature (small) | `/build-implementation` | Build → Review → Verify → Ship |
-| Feature (medium) | `/build-implementation` | Build → Review → Verify → Test → Accept → Ship → Deploy |
-| Feature (large) | `/build-implementation` | Build → Review → Verify → Load Test → Test → Accept → Ship → Deploy |
-| Refactor | `/refactor` | Build → Review → Verify → Test → Accept → Ship |
-| Bug Fix | `/bug-fix` | Build → Review → Verify → Test → Accept → Ship → Deploy |
+| Feature (micro) | `/build-implementation` | Plan → Plan Validation → Build → Review → Ship |
+| Feature (small) | `/build-implementation` | Plan → Plan Validation → Build → Review → Verify → Ship |
+| Feature (medium) | `/build-implementation` | Plan → Plan Validation → Build → Review → Verify → Test → Accept → Ship → Deploy |
+| Feature (large) | `/build-implementation` | Plan → Plan Validation → Build → Review → Verify → Load Test → Test → Accept → Ship → Deploy |
+| Refactor | `/refactor` | Plan → Plan Validation → Build → Review → Verify → Test → Accept → Ship |
+| Bug Fix | `/bug-fix` | Plan → Plan Validation → Build → Review → Verify → Test → Accept → Ship → Deploy |
 | Spike | `/tech-spike` | Spike only (no pipeline) |
 | Planning | `/epic-breakdown` | Plan only (produces stories for future pipelines) |
 
 **Pipeline scale tiers:**
-- **Micro**: 1 file, less than 5 lines changed, no behavior change → Build + Review + Ship only
-- **Small**: 1-3 files, isolated change → Build + Review + Verify + Ship
+- **Micro**: 1 file, less than 5 lines changed, no behavior change → Plan + Plan Validation + Build + Review + Ship
+- **Small**: 1-3 files, isolated change → Plan + Plan Validation + Build + Review + Verify + Ship
 - **Medium/Large**: Full pipeline. No phase is skipped.
+
+All tiers include Plan + Plan Validation. The `/learn` system may create instincts to adjust this per project/pattern.
 
 ### Step 2: Create Pipeline State
 
@@ -54,6 +56,8 @@ Started: [date]
 Classification: [feature/refactor/bug]
 
 ## Phases
+- Plan: pending
+- Plan Validation: pending
 - Scaffold: pending (or N/A if no scaffolding needed)
 - Build: pending
 - Review: pending
@@ -128,6 +132,80 @@ If the project CLAUDE.md contains a `## Service Context` section with upstream/d
 2. If the current change modifies a contract file (OpenAPI spec, Protobuf, event schema): invoke `/cross-service-pipeline` BEFORE the Build phase to verify compatibility and generate a deployment plan
 3. After Ship phase, if cross-service deployment is needed: output the deployment plan with service order and flag any manual coordination required
 
+### Step 2d: Plan Validation Gate (ALL pipelines)
+
+After the architect produces a plan, validate it before proceeding to Build.
+
+**Prerequisites**:
+- Architect has produced plan output (from `/epic-breakdown` or inline design)
+- Plan includes `## Alternatives Considered` section (if missing, re-spawn architect with correction prompt — does not count as a challenge round)
+
+**Mode detection**:
+- Check `CLAUDE_PIPELINE_MODE` env var
+- `autonomous` → spawn challenger team
+- Unset / `interactive` → present plan to user
+
+#### Interactive Mode
+
+1. Present the architect's plan to the user:
+   - Approach summary
+   - Vertical slices with ACs and estimates
+   - Alternatives considered with rationale
+   - Parallel batch grouping
+2. Wait for user approval (the user reviews and responds)
+3. On approval: mark `Plan Validation: completed -- PLAN_APPROVED` in pipeline state
+4. On feedback: re-spawn architect with user feedback (max 2 rounds)
+5. On explicit rejection: mark `Plan Validation: completed -- PLAN_REJECTED`, stop pipeline
+
+#### Autonomous Mode
+
+1. Write architect's plan to `pipeline-state/{task-id}-plan-validation.md`
+2. Spawn challengers as team (parallel):
+
+   ```
+   Agent({
+     name: "plan-reviewer",
+     team_name: "pipeline-{task-id}",
+     subagent_type: "product-reviewer",
+     prompt: "[Plan Challenger - Product Reviewer template from
+       orchestrator/parallel-dispatch-details.md]
+       Plan under review: {architect_output}"
+   })
+
+   Agent({
+     name: "plan-engineer",
+     team_name: "pipeline-{task-id}",
+     subagent_type: "software-engineer",
+     prompt: "[Plan Challenger - Software Engineer template from
+       orchestrator/parallel-dispatch-details.md]
+       Plan under review: {architect_output}
+       NOTE: This is a plan review, not implementation.
+       Do NOT create files or write code."
+   })
+   ```
+
+3. Collect verdicts:
+   - Both APPROVE → `PLAN_APPROVED`, shut down challengers, proceed to Build
+   - Either CHANGES_REQUESTED →
+     a. Merge feedback into combined action items
+     b. Re-spawn architect (subagent) with: original plan + combined feedback
+     c. Present revised plan to the SAME challengers (context preserved via SendMessage)
+     d. Only the rejecting challenger re-reviews (targeted re-review)
+     e. Max 2 total rounds
+   - Round 2 still rejected → `PLAN_ESCALATED`
+     - Output `VERDICT: PLAN_ESCALATED` with full context
+     - Pipeline stops (autonomous: ticket transitions to Blocked)
+
+4. After validation completes: shut down challengers
+
+**Status reporting**:
+```
+[Plan Validation] MODE -- {interactive/autonomous}
+[Plan Validation] TEAM PHASE -- plan-reviewer + plan-engineer spawned
+[Plan Validation] VERDICTS -- plan-reviewer: {verdict}, plan-engineer: {verdict}
+[Plan Validation] COMPLETE -- PLAN_APPROVED (round {N})
+```
+
 ### Step 3: Execute Phases in Order
 
 For each phase:
@@ -198,6 +276,19 @@ All four assess the same final state independently. Shut down after all verdicts
 All other phases (Build single slice, Polish, Ship) use sequential Skill tool invocation.
 
 ### Step 4: Recovery Loops
+
+#### Plan Validation PLAN_CHANGES_REQUESTED
+1. Re-spawn architect with combined challenger feedback
+2. Re-submit revised plan to same challengers (context preserved via SendMessage)
+3. Only the rejecting challenger(s) re-review (targeted re-review)
+4. Maximum 2 total rounds. If still rejected:
+   - Interactive: present to user with all context
+   - Autonomous: PLAN_ESCALATED, pipeline stops
+
+#### Plan Validation PLAN_ESCALATED (autonomous only)
+1. Pipeline stops immediately
+2. Output: VERDICT: PLAN_ESCALATED with plan, feedback, and rejection reasons
+3. Ticket transitions to Blocked with full context comment
 
 #### Review CHANGES_REQUESTED
 1. Spawn engineer (worktree) with specific findings

@@ -103,6 +103,28 @@ Use the Complexity Budget table in `rules/operational-protocol.md`. Score each d
 - Highest business value within each dependency tier
 - Risk-reduction stories early
 
+### 6b. Document Alternatives
+
+For the overall approach (not per-story):
+1. List at least 2 alternative approaches that were considered
+2. For each alternative, document:
+   - **Approach**: What would be built differently
+   - **Trade-offs**: Advantages and disadvantages vs. the chosen approach
+   - **Rejection rationale**: Why this was not selected
+3. If genuinely only one viable approach exists, document:
+   - Why alternatives are infeasible (technical constraints, time, dependencies)
+   - What trade-off within the chosen approach was the hardest decision
+4. Alternatives must be genuine — not strawman "do nothing" or "rewrite everything" options
+
+**Output format**:
+```markdown
+### Alternatives Considered
+| Approach | Trade-offs | Rejection Rationale |
+|----------|-----------|---------------------|
+| {approach 1} | {pros/cons} | {why rejected} |
+| {approach 2} | {pros/cons} | {why rejected} |
+```
+
 ### 7. Identify Parallelizable Stories
 
 For each story, annotate whether it can be built in parallel with other stories:
@@ -155,8 +177,9 @@ Add a "### Parallel Batches" section to the output showing which stories can be 
 ## Phase Output
 
 ```
-Verdict: STORIES_READY (informational — no gate)
-Next: /build-implementation (per story, or parallel for independent stories)
+Verdict: STORIES_READY (informational — plan validation gate follows)
+Next: Plan Validation (challengers review the plan before Build)
+      /build-implementation (per story, after plan approved)
       /estimation if sizing not yet done
       /story-writing if individual stories need refinement
 Artifacts: [story list with ACs, points, parallel batches]

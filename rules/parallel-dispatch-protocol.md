@@ -9,9 +9,19 @@ The pipeline uses two dispatch mechanisms:
 | Mechanism | When | Visibility | Cost |
 |-----------|------|-----------|------|
 | **Subagent** (Agent tool) | Plan, Ship, Deploy, single-slice Build | None (background) | Low (ephemeral) |
-| **Team** (TeamCreate) | Multi-slice Build, Review, Final Gate | Tmux split panes | Higher (persistent sessions) |
+| **Team** (TeamCreate) | Plan Validation (autonomous), Multi-slice Build, Review, Final Gate | Tmux split panes | Higher (persistent sessions) |
 
 ## Team Phases
+
+### Plan Validation Team (ALL pipelines)
+
+| Scenario | Teammates | Parallel? |
+|----------|-----------|-----------|
+| Interactive mode | No team (user reviews) | N/A |
+| Autonomous mode | product-reviewer (plan-reviewer) + software-engineer (plan-engineer) | Yes |
+
+Key advantage: challengers **remember the plan context** on re-review — no prompt reconstruction needed.
+Shut down both challengers after plan validation completes.
 
 ### Build Team (conditional -- multi-slice or multi-domain only)
 
