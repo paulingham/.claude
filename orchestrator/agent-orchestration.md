@@ -125,6 +125,50 @@ Teammates do NOT auto-load `agents/*.md`. The orchestrator MUST append this to e
 
 This is automatic and mandatory -- the user should never need to mention it.
 
+### Instinct Injection (Automatic)
+
+Before spawning any agent (subagent or teammate), the orchestrator loads relevant instincts:
+
+1. **Determine project hash**: `git remote get-url origin 2>/dev/null | md5 -q`
+2. **Read instinct files**: `ls ~/.claude/learning/instincts/instinct-*.md ~/.claude/learning/instincts/global/instinct-*.md 2>/dev/null`
+3. **Filter by role**: Only include instincts where the `roles` frontmatter field contains the agent's role
+4. **Filter by project**: Include project-scoped instincts matching the current project hash, plus all global instincts
+5. **Sort by confidence**: Highest confidence first
+6. **Inject top 5** into the agent's spawn prompt under a `## Learned Patterns` section:
+
+```
+## Learned Patterns (from system learning — apply these proactively)
+- [0.85] Always validate input at controller boundary (security)
+- [0.72] Read types.ts before editing services in this project (workflow)
+- [0.60] Check for N+1 queries in ActiveRecord scopes (performance)
+```
+
+If no instincts exist (empty learning/instincts/), skip this section silently. Do not inject an empty section.
+
+Instincts are guidance, not mandates. Agents apply them using judgment — if a pattern doesn't apply to the current task, they skip it.
+
+### Agent Memory Loading (Automatic)
+
+Before spawning any agent, the orchestrator checks for accumulated project knowledge:
+
+1. **Check**: `~/.claude/agent-memory/{role}/{project-hash}/memory.md`
+2. **If exists**: Include in spawn prompt under `## Your Project Knowledge`:
+
+```
+## Your Project Knowledge (accumulated from prior work on this project)
+[contents of memory.md]
+```
+
+3. **If not exists**: Skip silently.
+
+Agent memory is per-role, per-project. It answers: "What do I (as a code-reviewer) know about this codebase from past reviews?"
+
+### Agent Memory Writing (At Completion)
+
+Write-capable agents and reviewers MAY append to their memory file at completion. Include this instruction in every agent's spawn prompt:
+
+> "Before completing, if you learned something project-specific that would help future agents in your role, append it to `~/.claude/agent-memory/{role}/{project-hash}/memory.md` (create if needed). Format: `- {date}: {one-line learning}`. Keep it under 50 lines — prune oldest entries if needed. Only write genuinely useful project knowledge, not task-specific notes."
+
 ### What Teammates Get
 
 | Source | Auto-loaded? |
@@ -134,6 +178,8 @@ This is automatic and mandatory -- the user should never need to mention it.
 | Skills | Yes (available to invoke) |
 | Agent definitions (agents/*.md) | No -- bridged via spawn prompt file-read instruction |
 | Frontmatter (model, maxTurns, disallowedTools) | No -- platform constraint |
+| Instincts (learning/instincts/) | No -- injected by orchestrator into spawn prompt |
+| Agent memory (agent-memory/{role}/) | No -- injected by orchestrator into spawn prompt |
 
 ### Interacting with Teammates
 

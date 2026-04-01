@@ -297,18 +297,38 @@ When all phases are complete (including Deploy if applicable):
 
 ### Step 7: Reflect
 
-**MANDATORY** after every pipeline. Run the reflection checklist from `rules/reflection-protocol.md`.
+**MANDATORY** after every pipeline. Three sub-steps, in order:
+
+#### 7a. Pipeline Analytics (before cleanup)
+
+Capture quantitative pipeline metrics before state files are deleted:
+```bash
+bash ~/.claude/hooks/pipeline-analytics.sh {task-id}
+```
+This aggregates phase verdicts, agent counts, and review rounds into `metrics/pipelines.jsonl`. Must run before state file cleanup in Step 6.
+
+#### 7b. Qualitative Reflection
+
+Run the reflection checklist from `rules/reflection-protocol.md`.
 
 If the pipeline experienced failures, >2 review rounds, or any recovery loop: invoke `/forensics` before reflection. The forensics report provides evidence-based findings for the reflection checklist.
-
-After reflection, invoke `/learn` to analyze session observations and extract instincts. This is automatic — the learning system builds project-specific patterns from observed tool usage over time.
 
 1. Review the pipeline execution for issues, surprises, and validated patterns
 2. Identify improvements to rules, project CLAUDE.md, global CLAUDE.md, agent definitions, skills, or memory
 3. Apply identified changes (delegate source file changes to agents)
-4. Report learnings to the user (skip if nothing actionable)
 
-This step ensures the system continuously improves. Every pipeline — whether it had rework or ran clean — is an opportunity to strengthen rules and patterns.
+#### 7c. Learning Extraction (automatic)
+
+Invoke `/learn` to analyze session observations, pipeline analytics, and review findings. This:
+1. Reads enriched observations for this session (tool usage with phase, role, outcome)
+2. Reads pipeline analytics for this project (last N pipelines from `metrics/pipelines.jsonl`)
+3. Reads review findings from the current pipeline's review state file (if it exists, before cleanup)
+4. Detects patterns and creates/updates instinct files in `learning/instincts/`
+5. Classifies review findings as "preventable by build agent" vs. "review-level only"
+6. Converts preventable findings into build-targeted instincts (backward feedback loop)
+7. Reports new/updated instincts to the orchestrator
+
+The orchestrator reports learnings to the user (skip if nothing actionable). Every pipeline — whether it had rework or ran clean — feeds the learning flywheel.
 
 ## Status Reporting
 

@@ -89,7 +89,19 @@ Agent({
     Changed files: [list]
     Full diff:
     [git diff output]
-    Prior verdict: BUILD_COMPLETE"
+    Prior verdict: BUILD_COMPLETE
+
+    Build agent decision record:
+    [Decision Record from build state file — why choices were made]
+
+    Build agent context for review:
+    [Context for Review from build state file — uncertainty flags, areas needing focus]
+
+    Agent memory (if exists):
+    [Contents of agent-memory/code-reviewer/{project-hash}/memory.md]
+
+    Learned patterns for this project (if any):
+    [Top 5 instincts from learning/instincts/ filtered to role: code-reviewer]"
 })
 
 Agent({
@@ -103,7 +115,16 @@ Agent({
     Changed files: [list]
     Full diff:
     [git diff output]
-    Prior verdict: BUILD_COMPLETE"
+    Prior verdict: BUILD_COMPLETE
+
+    Build agent decision record:
+    [Decision Record from build state file — why choices were made]
+
+    Agent memory (if exists):
+    [Contents of agent-memory/security-engineer/{project-hash}/memory.md]
+
+    Learned patterns for this project (if any):
+    [Top 5 instincts from learning/instincts/ filtered to role: security-engineer]"
 })
 ```
 

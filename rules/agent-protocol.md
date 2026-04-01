@@ -56,6 +56,28 @@ All agents (subagents in worktrees AND teammates on branches) MUST commit before
 4. The orchestrator merges branches via `git merge` or `git cherry-pick`
 5. Never leave uncommitted changes -- uncommitted work cannot be merged reliably
 
+## Agent Memory Protocol
+
+Agents accumulate per-project knowledge in `agent-memory/{role}/{project-hash}/memory.md`. This is institutional knowledge — what the agent has learned about a specific codebase across pipelines.
+
+### Writing Memory
+Before completing, if the agent learned something project-specific:
+1. Check if `~/.claude/agent-memory/{role}/{project-hash}/memory.md` exists (create directory + file if not)
+2. Append: `- {YYYY-MM-DD}: {one-line learning}`
+3. Keep under 50 lines — prune oldest entries if file exceeds limit
+4. Only write genuinely useful project knowledge, not task-specific notes
+
+### What to Remember
+- Project conventions not in CLAUDE.md (e.g., "this project uses barrel exports")
+- Recurring patterns (e.g., "auth module has complex session lifecycle — read session.ts first")
+- Known fragile areas (e.g., "payment webhook handler is timing-sensitive")
+- Build/test quirks (e.g., "tests require DATABASE_URL set, not mocked")
+
+### What NOT to Remember
+- Task-specific details ("added login button to header")
+- Information already in project CLAUDE.md
+- Temporary state that won't apply next time
+
 ## Continuation From WIP
 
 When an agent's prior attempt was committed as WIP, the orchestrator includes in the continuation prompt:

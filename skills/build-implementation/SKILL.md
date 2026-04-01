@@ -137,5 +137,33 @@ Next: /code-review + /security-review (parallel, single message)
 Artifacts: [list of changed/created files]
 Agent summaries: [each engineer's 2-3 sentence contribution summary]
 ```
+
+### Decision Record (Mandatory)
+
+Include a `## Decision Record` section in the pipeline state file. This travels to the reviewer so they understand *why* before reading *what*:
+
+```markdown
+## Decision Record
+- **Chose**: [approach taken]
+  **Over**: [alternative considered]
+  **Because**: [reasoning tied to ACs, project conventions, or engineering principles]
+  **Watch**: [conditions under which this choice should be revisited]
+```
+
+Every non-trivial design choice gets an entry. Trivial choices (naming, formatting) do not. The reviewer uses this to focus their review on areas of genuine uncertainty rather than re-deriving intent from the diff.
+
+### Context for Next Phase
+
+Include a `## Context for Review` section in the pipeline state file:
+
+```markdown
+## Context for Review
+- **Uncertainty flags**: [areas where the build agent is unsure — "I chose X but Y might be better"]
+- **TDD audit summary**: [N tests added, key behaviors covered, any gaps noted]
+- **Learned patterns applied**: [instincts from learning/instincts/ that influenced decisions]
+- **Areas needing focus**: [specific files or patterns the reviewer should scrutinize]
+```
+
+This gives reviewers a guided entry point instead of a cold diff read.
 $ARGUMENTS
 </reason></package>
