@@ -9,6 +9,10 @@ HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PASS=0
 FAIL=0
 
+# When the test spawns a hook via `bash hook.sh`, the hook's PPID = this script's PID.
+# So session temp files are keyed by $$ (this script's PID), not $PPID.
+MY_PID="$$"
+
 pass() { echo "  PASS: $1"; PASS=$(( PASS + 1 )); }
 fail() { echo "  FAIL: $1 (expected=$2, got=$3)"; FAIL=$(( FAIL + 1 )); }
 
@@ -125,6 +129,326 @@ run_test "auto-pr: on main branch -> skip (exit 0)" 0 $?
 # No upstream commits -> skip
 echo '{"stop_hook_active": false}' | BRANCH=feature/test bash "$HOOKS_DIR/auto-pr.sh" > /dev/null 2>&1
 run_test "auto-pr: advisory hook always exits 0" 0 $?
+
+echo ""
+
+# -- observation-capture tests (enriched) ------------------------------------
+echo "-- observation-capture.sh (enriched) --"
+
+# Setup: clean session temp files keyed by MY_PID (hook's PPID = this script's PID)
+rm -f "/tmp/claude-session-${MY_PID}"
+rm -f "/tmp/claude-session-start-${MY_PID}"
+
+# Get the project hash that observation-capture will use
+OBS_PROJECT_HASH=$(git remote get-url origin 2>/dev/null | md5 -q 2>/dev/null || basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
+OBS_FILE="$HOME/.claude/learning/$OBS_PROJECT_HASH/observations.jsonl"
+
+# Test: Enriched fields from env vars
+echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
+  CLAUDE_SESSION_ID="test-session-123" \
+  CLAUDE_PIPELINE_PHASE="build" \
+  CLAUDE_AGENT_ROLE="software-engineer" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+
+if [[ -f "$OBS_FILE" ]]; then
+  LAST_LINE=$(tail -1 "$OBS_FILE")
+
+  # Test: session_id present
+  SESSION_VAL=$(echo "$LAST_LINE" | jq -r '.session_id // empty')
+  if [[ "$SESSION_VAL" == "test-session-123" ]]; then
+    pass "observation-capture: session_id from env var"
+  else
+    fail "observation-capture: session_id from env var" "test-session-123" "$SESSION_VAL"
+  fi
+
+  # Test: project field present (human-readable name)
+  PROJECT_VAL=$(echo "$LAST_LINE" | jq -r '.project // empty')
+  if [[ -n "$PROJECT_VAL" ]]; then
+    pass "observation-capture: project field present"
+  else
+    fail "observation-capture: project field present" "non-empty" "$PROJECT_VAL"
+  fi
+
+  # Test: project_hash field present
+  HASH_VAL=$(echo "$LAST_LINE" | jq -r '.project_hash // empty')
+  if [[ -n "$HASH_VAL" ]]; then
+    pass "observation-capture: project_hash field present"
+  else
+    fail "observation-capture: project_hash field present" "non-empty" "$HASH_VAL"
+  fi
+
+  # Test: phase field present
+  PHASE_VAL=$(echo "$LAST_LINE" | jq -r '.phase // empty')
+  if [[ "$PHASE_VAL" == "build" ]]; then
+    pass "observation-capture: phase from env var"
+  else
+    fail "observation-capture: phase from env var" "build" "$PHASE_VAL"
+  fi
+
+  # Test: agent_role field present
+  ROLE_VAL=$(echo "$LAST_LINE" | jq -r '.agent_role // empty')
+  if [[ "$ROLE_VAL" == "software-engineer" ]]; then
+    pass "observation-capture: agent_role from env var"
+  else
+    fail "observation-capture: agent_role from env var" "software-engineer" "$ROLE_VAL"
+  fi
+
+  # Test: outcome defaults to success
+  OUTCOME_VAL=$(echo "$LAST_LINE" | jq -r '.outcome // empty')
+  if [[ "$OUTCOME_VAL" == "success" ]]; then
+    pass "observation-capture: outcome=success (no error)"
+  else
+    fail "observation-capture: outcome=success (no error)" "success" "$OUTCOME_VAL"
+  fi
+else
+  fail "observation-capture: observations file exists" "file exists" "not found at $OBS_FILE"
+  for skip_name in "session_id from env var" "project field present" "project_hash field present" "phase from env var" "agent_role from env var" "outcome=success (no error)"; do
+    fail "observation-capture: $skip_name" "file exists" "skipped"
+  done
+fi
+
+# Test: outcome=error when tool_output.is_error is true
+echo '{"tool_name":"Bash","tool_input":{"command":"false"},"tool_output":{"is_error":true}}' | \
+  CLAUDE_SESSION_ID="test-session-err" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+
+if [[ -f "$OBS_FILE" ]]; then
+  LAST_LINE=$(tail -1 "$OBS_FILE")
+  OUTCOME_VAL=$(echo "$LAST_LINE" | jq -r '.outcome // empty')
+  if [[ "$OUTCOME_VAL" == "error" ]]; then
+    pass "observation-capture: outcome=error when is_error=true"
+  else
+    fail "observation-capture: outcome=error when is_error=true" "error" "$OUTCOME_VAL"
+  fi
+fi
+
+# Test: session start time file created (keyed by MY_PID since hook's PPID = our PID)
+if [[ -f "/tmp/claude-session-start-${MY_PID}" ]]; then
+  START_TIME=$(cat "/tmp/claude-session-start-${MY_PID}")
+  if [[ "$START_TIME" =~ ^[0-9]+$ ]]; then
+    pass "observation-capture: session start time file created"
+  else
+    fail "observation-capture: session start time file created" "numeric timestamp" "$START_TIME"
+  fi
+else
+  fail "observation-capture: session start time file created" "file exists" "not found"
+fi
+
+# Test: session_id fallback (generated when env var not set)
+rm -f "/tmp/claude-session-${MY_PID}"
+echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+
+if [[ -f "/tmp/claude-session-${MY_PID}" ]]; then
+  GENERATED_ID=$(cat "/tmp/claude-session-${MY_PID}")
+  if [[ -n "$GENERATED_ID" ]]; then
+    pass "observation-capture: generates session_id when env var unset"
+  else
+    fail "observation-capture: generates session_id when env var unset" "non-empty" "$GENERATED_ID"
+  fi
+else
+  fail "observation-capture: generates session_id when env var unset" "temp file exists" "not found"
+fi
+
+echo ""
+
+# -- pipeline-analytics tests -----------------------------------------------
+echo "-- pipeline-analytics.sh --"
+
+# Test: missing task-id argument
+bash "$HOOKS_DIR/pipeline-analytics.sh" 2>/dev/null
+run_test "pipeline-analytics: no args -> exit non-zero" 1 $?
+
+# Test: missing pipeline file -> exit 1
+bash "$HOOKS_DIR/pipeline-analytics.sh" "nonexistent-task-999" 2>/dev/null
+run_test "pipeline-analytics: missing pipeline file -> exit 1" 1 $?
+
+# Test: valid pipeline produces a record
+PA_PIPELINE_DIR="$HOME/.claude/pipeline-state"
+PA_METRICS_DIR="$HOME/.claude/metrics"
+mkdir -p "$PA_PIPELINE_DIR"
+
+PA_TASK_ID="test-analytics-$$"
+
+# Create mock pipeline state files
+cat > "$PA_PIPELINE_DIR/${PA_TASK_ID}-pipeline.md" << 'EOPL'
+---
+task_id: test-analytics
+phase: ship
+verdict: PIPELINE_COMPLETE
+timestamp: 2026-04-01T10:00:00Z
+complexity_budget: 7
+type: feature
+---
+
+## Summary
+Test pipeline
+EOPL
+
+cat > "$PA_PIPELINE_DIR/${PA_TASK_ID}-build.md" << 'EOBUILD'
+---
+task_id: test-analytics
+phase: build
+verdict: BUILD_COMPLETE
+timestamp: 2026-04-01T10:01:00Z
+---
+
+## Summary
+Build done
+EOBUILD
+
+cat > "$PA_PIPELINE_DIR/${PA_TASK_ID}-review.md" << 'EOREVIEW'
+---
+task_id: test-analytics
+phase: review
+verdict: APPROVE
+timestamp: 2026-04-01T10:02:00Z
+---
+
+## Summary
+Review passed
+EOREVIEW
+
+# Record line count before running analytics
+PA_METRICS_FILE="$PA_METRICS_DIR/pipelines.jsonl"
+LINES_BEFORE=0
+if [[ -f "$PA_METRICS_FILE" ]]; then
+  LINES_BEFORE=$(wc -l < "$PA_METRICS_FILE" | tr -d ' ')
+fi
+
+bash "$HOOKS_DIR/pipeline-analytics.sh" "$PA_TASK_ID" 2>/dev/null
+PA_EXIT=$?
+run_test "pipeline-analytics: valid pipeline -> exit 0" 0 $PA_EXIT
+
+if [[ -f "$PA_METRICS_FILE" ]]; then
+  LINES_AFTER=$(wc -l < "$PA_METRICS_FILE" | tr -d ' ')
+  if [[ "$LINES_AFTER" -gt "$LINES_BEFORE" ]]; then
+    pass "pipeline-analytics: record appended to pipelines.jsonl"
+
+    PA_LAST=$(tail -1 "$PA_METRICS_FILE")
+
+    # Verify task_id in record
+    PA_TASK_VAL=$(echo "$PA_LAST" | jq -r '.task_id // empty')
+    if [[ "$PA_TASK_VAL" == "$PA_TASK_ID" ]]; then
+      pass "pipeline-analytics: task_id in record"
+    else
+      fail "pipeline-analytics: task_id in record" "$PA_TASK_ID" "$PA_TASK_VAL"
+    fi
+
+    # Verify build phase verdict
+    PA_BUILD_VAL=$(echo "$PA_LAST" | jq -r '.phases.build // empty')
+    if [[ "$PA_BUILD_VAL" == "BUILD_COMPLETE" ]]; then
+      pass "pipeline-analytics: build phase verdict captured"
+    else
+      fail "pipeline-analytics: build phase verdict captured" "BUILD_COMPLETE" "$PA_BUILD_VAL"
+    fi
+
+    # Verify review phase verdict
+    PA_REVIEW_VAL=$(echo "$PA_LAST" | jq -r '.phases.review // empty')
+    if [[ "$PA_REVIEW_VAL" == "APPROVE" ]]; then
+      pass "pipeline-analytics: review phase verdict captured"
+    else
+      fail "pipeline-analytics: review phase verdict captured" "APPROVE" "$PA_REVIEW_VAL"
+    fi
+
+    # Verify type field
+    PA_TYPE_VAL=$(echo "$PA_LAST" | jq -r '.type // empty')
+    if [[ "$PA_TYPE_VAL" == "feature" ]]; then
+      pass "pipeline-analytics: type field captured"
+    else
+      fail "pipeline-analytics: type field captured" "feature" "$PA_TYPE_VAL"
+    fi
+
+    # Verify complexity_budget field
+    PA_CPLX_VAL=$(echo "$PA_LAST" | jq -r '.complexity_budget // empty')
+    if [[ "$PA_CPLX_VAL" == "7" ]]; then
+      pass "pipeline-analytics: complexity_budget captured"
+    else
+      fail "pipeline-analytics: complexity_budget captured" "7" "$PA_CPLX_VAL"
+    fi
+  else
+    fail "pipeline-analytics: record appended to pipelines.jsonl" "new line" "no new lines"
+  fi
+else
+  fail "pipeline-analytics: pipelines.jsonl created" "file exists" "not found"
+fi
+
+# Cleanup test pipeline files
+rm -f "$PA_PIPELINE_DIR/${PA_TASK_ID}-pipeline.md"
+rm -f "$PA_PIPELINE_DIR/${PA_TASK_ID}-build.md"
+rm -f "$PA_PIPELINE_DIR/${PA_TASK_ID}-review.md"
+
+echo ""
+
+# -- cost-tracker tests (enriched) ------------------------------------------
+echo "-- cost-tracker.sh (enriched) --"
+
+# Setup: write session temp files keyed by MY_PID (cost-tracker hook's PPID = our PID)
+echo "test-cost-session-$$" > "/tmp/claude-session-${MY_PID}"
+echo "$(( $(date +%s) - 120 ))" > "/tmp/claude-session-start-${MY_PID}"
+
+CT_METRICS_FILE="$HOME/.claude/metrics/costs.jsonl"
+CT_LINES_BEFORE=0
+if [[ -f "$CT_METRICS_FILE" ]]; then
+  CT_LINES_BEFORE=$(wc -l < "$CT_METRICS_FILE" | tr -d ' ')
+fi
+
+echo '{"stop_hook_active": false}' | bash "$HOOKS_DIR/cost-tracker.sh" 2>/dev/null
+CT_EXIT=$?
+run_test "cost-tracker: exits 0" 0 $CT_EXIT
+
+if [[ -f "$CT_METRICS_FILE" ]]; then
+  CT_LINES_AFTER=$(wc -l < "$CT_METRICS_FILE" | tr -d ' ')
+  if [[ "$CT_LINES_AFTER" -gt "$CT_LINES_BEFORE" ]]; then
+    CT_LAST=$(tail -1 "$CT_METRICS_FILE")
+
+    # Test: session_id present
+    CT_SESSION=$(echo "$CT_LAST" | jq -r '.session_id // empty')
+    if [[ "$CT_SESSION" == "test-cost-session-$$" ]]; then
+      pass "cost-tracker: session_id from temp file"
+    else
+      fail "cost-tracker: session_id from temp file" "test-cost-session-$$" "$CT_SESSION"
+    fi
+
+    # Test: project_hash present
+    CT_HASH=$(echo "$CT_LAST" | jq -r '.project_hash // empty')
+    if [[ -n "$CT_HASH" ]]; then
+      pass "cost-tracker: project_hash present"
+    else
+      fail "cost-tracker: project_hash present" "non-empty" "$CT_HASH"
+    fi
+
+    # Test: duration_s is numeric
+    CT_DURATION=$(echo "$CT_LAST" | jq -r '.duration_s // empty')
+    if [[ "$CT_DURATION" =~ ^[0-9]+$ ]]; then
+      pass "cost-tracker: duration_s is numeric"
+    else
+      fail "cost-tracker: duration_s is numeric" "numeric" "$CT_DURATION"
+    fi
+
+    # Test: tool_calls is numeric
+    CT_TOOLS=$(echo "$CT_LAST" | jq -r '.tool_calls // empty')
+    if [[ "$CT_TOOLS" =~ ^[0-9]+$ ]]; then
+      pass "cost-tracker: tool_calls is numeric"
+    else
+      fail "cost-tracker: tool_calls is numeric" "numeric" "$CT_TOOLS"
+    fi
+
+    # Test: event field still present
+    CT_EVENT=$(echo "$CT_LAST" | jq -r '.event // empty')
+    if [[ "$CT_EVENT" == "session_end" ]]; then
+      pass "cost-tracker: event=session_end preserved"
+    else
+      fail "cost-tracker: event=session_end preserved" "session_end" "$CT_EVENT"
+    fi
+  else
+    fail "cost-tracker: record appended" "new line" "no new lines"
+  fi
+fi
+
+# Cleanup session temp files
+rm -f "/tmp/claude-session-${MY_PID}"
+rm -f "/tmp/claude-session-start-${MY_PID}"
 
 echo ""
 
