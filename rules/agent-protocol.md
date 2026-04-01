@@ -56,6 +56,16 @@ All agents (subagents in worktrees AND teammates on branches) MUST commit before
 4. The orchestrator merges branches via `git merge` or `git cherry-pick`
 5. Never leave uncommitted changes -- uncommitted work cannot be merged reliably
 
+## Pipeline Scratchpad Protocol
+
+Agents share findings within a pipeline run via the scratchpad. See `rules/autonomous-intelligence.md` for full details.
+
+### Reading (On Spawn)
+The orchestrator injects scratchpad findings into the agent's prompt. Agents do not read the scratchpad directory directly — the orchestrator curates what's relevant.
+
+### Writing (Before Completion)
+Before completing, write discoveries to `pipeline-state/{task-id}-scratchpad/{role}-{phase}.md`. Use YAML frontmatter with `category: discovery|warning|pattern|fragility|decision`. Only write genuinely useful findings, not task narration. If nothing noteworthy was discovered, skip this step.
+
 ## Agent Memory Protocol
 
 Agents accumulate per-project knowledge in `agent-memory/{role}/{project-hash}/memory.md`. This is institutional knowledge — what the agent has learned about a specific codebase across pipelines.

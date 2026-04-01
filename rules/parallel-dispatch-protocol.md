@@ -87,6 +87,18 @@ Context:
 - Full diff: [single git diff output] (review phases only)
 - Prior verdict: [previous phase verdict]
 - Tech stack: [from project CLAUDE.md]
+
+## Learned Patterns (from system learning)
+[instincts filtered by role — top 5 by confidence]
+
+## Session Context (engineering notes for this project)
+[session memory content — full or priority sections by role]
+
+## Pipeline Scratchpad (findings from prior agents)
+[relevant findings from pipeline-state/{task-id}-scratchpad/]
+
+Before completing, write any noteworthy discoveries to:
+pipeline-state/{task-id}-scratchpad/{your-role}-{phase}.md
 ```
 
 ## What This Protocol Is NOT
