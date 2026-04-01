@@ -69,16 +69,6 @@
     ],
     "PermissionRequest": [
       {
-        "matcher": "ExitPlanMode",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PermissionRequest\",\"decision\":{\"behavior\":\"allow\"}}}'",
-            "timeout": 10000
-          }
-        ]
-      },
-      {
         "hooks": [
           {
             "type": "command",
@@ -93,7 +83,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'",
+            "command": "ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found \u2014 resume from current phase.' || echo 'No active pipeline.'",
             "timeout": 10000
           }
         ]
@@ -337,7 +327,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf 'CONTEXT COMPACTED — Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ — review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases — invoke via Skill tool\\n5. Agent Teams enabled — use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory — check .claude/agent-memory/'",
+            "command": "printf 'CONTEXT COMPACTED \u2014 Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ \u2014 review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases \u2014 invoke via Skill tool\\n5. Agent Teams enabled \u2014 use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory \u2014 check .claude/agent-memory/'",
             "timeout": 10000
           }
         ]
