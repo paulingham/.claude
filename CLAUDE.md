@@ -115,9 +115,21 @@ User → /intake (classify + score) → /pipeline (drive phases)
    - `/product-acceptance`. Gate: APPROVED.
 6. **Ship** → `/pr-creation` (subagent). Gate: quality gate hook passes.
 7. **Deploy** → `/deploy` + `/deployment-verification` (subagent). Gate: DEPLOYMENT_VERIFIED.
-8. **Reflect** → Review pipeline execution, identify improvements to rules/CLAUDE.md/memory. Always runs.
+8. **Reflect** → Review pipeline execution, capture observation, auto-learn if gate met, update session memory, clean up scratchpad. Always runs.
 
 No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
+
+### Autonomous Intelligence
+
+Three systems make the pipeline self-improving (see `rules/autonomous-intelligence.md`):
+
+| System | Scope | Purpose |
+|--------|-------|---------|
+| **Pipeline Scratchpad** | Within one pipeline | Agents share discoveries in real-time. Build agent finds a quirk → reviewer knows immediately |
+| **Session Memory** | Across compaction | Engineering context (build commands, fragile files, patterns) survives context compression |
+| **Continuous Learning** | Across pipelines | Observations → instincts → better agents. Auto-invokes `/learn` when gate conditions met |
+
+Every agent spawn includes: instincts + agent memory + session memory + scratchpad findings.
 
 ### Skill Directory
 
@@ -203,6 +215,7 @@ All detailed protocols are in `rules/` (auto-loaded each session):
 - `rules/multi-repo-protocol.md` — Project manifests, multi-repo pipelines, GitHub service config, linked PRs, deploy ordering
 - `rules/e2e-protocol.md` — Maestro E2E trigger matrix and prerequisites
 - `rules/reflection-protocol.md` — Post-pipeline reflection, root cause analysis, continuous improvement
+- `rules/autonomous-intelligence.md` — Pipeline scratchpad, session memory, continuous learning loop
 
 ### Orchestrator-Only Protocols (not auto-loaded, read when needed)
 - `orchestrator/pipeline-orchestration.md` — State tracking, continuity, progress reporting, anti-patterns

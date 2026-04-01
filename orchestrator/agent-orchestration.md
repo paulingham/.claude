@@ -169,6 +169,30 @@ Write-capable agents and reviewers MAY append to their memory file at completion
 
 > "Before completing, if you learned something project-specific that would help future agents in your role, append it to `~/.claude/agent-memory/{role}/{project-hash}/memory.md` (create if needed). Format: `- {date}: {one-line learning}`. Keep it under 50 lines — prune oldest entries if needed. Only write genuinely useful project knowledge, not task-specific notes."
 
+### Session Memory Injection (Automatic)
+
+Before spawning any agent, the orchestrator reads the session memory file:
+
+1. **Check**: `~/.claude/session-memory/{project-hash}/notes.md`
+2. **If exists and under 2000 chars**: Include full content under `## Session Context`
+3. **If exists and over 2000 chars**: Include only priority sections for the agent's role (see `rules/autonomous-intelligence.md` § Injection Priority)
+4. **If not exists**: Skip silently
+
+Session memory is engineering context — build commands, fragile files, patterns, discoveries. It survives context compaction and gives agents immediate orientation.
+
+### Pipeline Scratchpad Injection (Automatic)
+
+Before spawning any agent during a pipeline, the orchestrator reads the scratchpad:
+
+1. **Read**: `ls pipeline-state/{task-id}-scratchpad/*.md`
+2. **Filter**: Include ALL warnings and fragility findings. Include discoveries/patterns relevant to the agent's phase. Include build decisions when spawning reviewers.
+3. **Inject** under `## Pipeline Scratchpad (findings from prior agents)` with source attribution
+4. **If empty**: Skip silently
+
+Also include the scratchpad write instruction in every write-capable agent's prompt:
+
+> "Before completing, write any noteworthy discoveries to `pipeline-state/{task-id}-scratchpad/{your-role}-{phase}.md` with YAML frontmatter `category: discovery|warning|pattern|fragility|decision`. Skip if nothing noteworthy."
+
 ### What Teammates Get
 
 | Source | Auto-loaded? |
@@ -180,6 +204,8 @@ Write-capable agents and reviewers MAY append to their memory file at completion
 | Frontmatter (model, maxTurns, disallowedTools) | No -- platform constraint |
 | Instincts (learning/instincts/) | No -- injected by orchestrator into spawn prompt |
 | Agent memory (agent-memory/{role}/) | No -- injected by orchestrator into spawn prompt |
+| Session memory (session-memory/{hash}/) | No -- injected by orchestrator into spawn prompt |
+| Pipeline scratchpad (pipeline-state/{id}-scratchpad/) | No -- injected by orchestrator into spawn prompt |
 
 ### Interacting with Teammates
 

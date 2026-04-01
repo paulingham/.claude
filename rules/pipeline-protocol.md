@@ -67,8 +67,10 @@ timestamp: {ISO 8601}
 4. **Enumerate all pipeline phases** and the skill for each
 5. **Determine dispatch mode**: single-slice (subagents) or multi-slice/multi-domain (team)
 6. **Create pipeline team**: `TeamCreate("pipeline-{task-id}")` -- always, even for single-slice (the team hosts review + final gate teammates)
+6b. **Create pipeline scratchpad**: `mkdir -p pipeline-state/{task-id}-scratchpad/` (see `rules/autonomous-intelligence.md`)
+6c. **Load session memory**: Read `session-memory/{project-hash}/notes.md` if it exists. Create from template if first pipeline in this project
 7. **Write the phase plan** as a visible message to the user
-8. **Execute phases in order**, spawning teammates for team phases, subagents for subagent phases
+8. **Execute phases in order**, spawning teammates for team phases, subagents for subagent phases. Inject session memory + scratchpad findings into every agent prompt (see `rules/autonomous-intelligence.md` § Agent Spawn)
 
 ## Phase Checklist (Summary)
 

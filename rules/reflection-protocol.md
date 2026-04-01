@@ -65,9 +65,34 @@ Summarise to the user:
 **After a refactor:**
 > Learned: Session detection has multiple fallback layers for timing reasons. Added rule: prefer narrowing conditions over removing them.
 
+## 6. Autonomous Intelligence (Mandatory — see `rules/autonomous-intelligence.md`)
+
+After reflection steps 1-5, execute these in order:
+
+### 6a. Capture Pipeline Observation
+
+Append a structured observation to `learning/{project-hash}/observations.jsonl`. Every pipeline produces one observation — successes and failures both. Include: phase verdicts, review rounds, scratchpad findings summary, rework flag, complexity budget. Format in `rules/autonomous-intelligence.md` § Observation Capture.
+
+### 6b. Auto-Learn Gate Check
+
+Check if all conditions are met:
+- 3+ observations since last `/learn` run for this project
+- No `/learn` run in last 3 pipelines
+
+If gate is met: invoke `/learn` as the final step of reflection. This is automatic — the user should never need to invoke `/learn` manually.
+
+### 6c. Update Session Memory
+
+Spawn a forked agent (background, non-blocking) with the session memory update prompt to capture engineering knowledge from this pipeline. See `rules/autonomous-intelligence.md` § Session Memory.
+
+### 6d. Clean Up Scratchpad
+
+Delete `pipeline-state/{task-id}-scratchpad/` alongside the pipeline state files.
+
 ## Anti-Patterns
 
 - **Skipping reflection because the pipeline was clean** — Clean pipelines still produce learnings (validated patterns, confirmed approaches)
 - **Writing vague memories** — "Be more careful" is not actionable. Write specific rules with Why and How to Apply
 - **Reflecting only on failures** — Also codify what worked well, so future sessions repeat good patterns
 - **Over-documenting** — If nothing was surprising or non-obvious, say so and move on. Not every pipeline produces new rules
+- **Skipping observation capture** — Every pipeline produces an observation. No exceptions. The learning loop depends on data volume
