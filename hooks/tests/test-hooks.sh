@@ -252,6 +252,146 @@ fi
 
 echo ""
 
+
+# -- subagent-context tests --------------------------------------------------
+echo "-- subagent-context.sh --"
+
+# Cleanup temp file before tests
+rm -f /tmp/claude-agent-role
+
+# Test: syntax check
+bash -n "$HOOKS_DIR/subagent-context.sh" > /dev/null 2>&1
+run_test "subagent-context: syntax valid" 0 $?
+
+# Test: writes agent role to temp file
+echo '{"subagent_type":"software-engineer"}' | bash "$HOOKS_DIR/subagent-context.sh" 2>/dev/null
+SC_EXIT=$?
+run_test "subagent-context: exits 0" 0 $SC_EXIT
+
+if [[ -f /tmp/claude-agent-role ]]; then
+  SC_ROLE=$(cat /tmp/claude-agent-role)
+  if [[ "$SC_ROLE" == "software-engineer" ]]; then
+    pass "subagent-context: writes role to /tmp/claude-agent-role"
+  else
+    fail "subagent-context: writes role to /tmp/claude-agent-role" "software-engineer" "$SC_ROLE"
+  fi
+else
+  fail "subagent-context: writes role to /tmp/claude-agent-role" "file exists" "not found"
+fi
+
+# Test: agent_type fallback field
+rm -f /tmp/claude-agent-role
+echo '{"agent_type":"infrastructure-engineer"}' | bash "$HOOKS_DIR/subagent-context.sh" 2>/dev/null
+if [[ -f /tmp/claude-agent-role ]]; then
+  SC_ROLE2=$(cat /tmp/claude-agent-role)
+  if [[ "$SC_ROLE2" == "infrastructure-engineer" ]]; then
+    pass "subagent-context: reads agent_type as fallback"
+  else
+    fail "subagent-context: reads agent_type as fallback" "infrastructure-engineer" "$SC_ROLE2"
+  fi
+else
+  fail "subagent-context: reads agent_type as fallback" "file exists" "not found"
+fi
+
+# Test: empty input exits 0, no file written
+rm -f /tmp/claude-agent-role
+echo '{}' | bash "$HOOKS_DIR/subagent-context.sh" 2>/dev/null
+SC_EMPTY_EXIT=$?
+run_test "subagent-context: empty input exits 0" 0 $SC_EMPTY_EXIT
+if [[ ! -f /tmp/claude-agent-role ]]; then
+  pass "subagent-context: empty input writes no temp file"
+else
+  fail "subagent-context: empty input writes no temp file" "no file" "file exists"
+fi
+
+# Cleanup
+rm -f /tmp/claude-agent-role
+
+echo ""
+
+# -- observation-capture fallback tests (file-based context) ----------------
+echo "-- observation-capture.sh (file-based fallbacks) --"
+
+# Test: agent_role fallback from /tmp/claude-agent-role
+rm -f "/tmp/claude-session-${MY_PID}"
+rm -f "/tmp/claude-session-start-${MY_PID}"
+echo "code-reviewer" > /tmp/claude-agent-role
+
+echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
+  CLAUDE_SESSION_ID="test-fallback-role" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+
+if [[ -f "$OBS_FILE" ]]; then
+  LAST_LINE=$(tail -1 "$OBS_FILE")
+  FB_ROLE=$(echo "$LAST_LINE" | jq -r '.agent_role // empty')
+  if [[ "$FB_ROLE" == "code-reviewer" ]]; then
+    pass "observation-capture: agent_role fallback from temp file"
+  else
+    fail "observation-capture: agent_role fallback from temp file" "code-reviewer" "$FB_ROLE"
+  fi
+else
+  fail "observation-capture: agent_role fallback from temp file" "file exists" "obs file missing"
+fi
+
+# Test: env var takes precedence over temp file
+echo "wrong-role" > /tmp/claude-agent-role
+
+echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
+  CLAUDE_SESSION_ID="test-envvar-precedence" \
+  CLAUDE_AGENT_ROLE="correct-role" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+
+if [[ -f "$OBS_FILE" ]]; then
+  LAST_LINE=$(tail -1 "$OBS_FILE")
+  PREC_ROLE=$(echo "$LAST_LINE" | jq -r '.agent_role // empty')
+  if [[ "$PREC_ROLE" == "correct-role" ]]; then
+    pass "observation-capture: env var precedence over temp file for agent_role"
+  else
+    fail "observation-capture: env var precedence over temp file for agent_role" "correct-role" "$PREC_ROLE"
+  fi
+else
+  fail "observation-capture: env var precedence over temp file for agent_role" "file exists" "obs file missing"
+fi
+
+# Test: phase fallback from pipeline state file
+OC_PIPELINE_DIR="$HOME/.claude/pipeline-state"
+mkdir -p "$OC_PIPELINE_DIR"
+OC_TEST_PIPELINE="$OC_PIPELINE_DIR/test-phase-fallback-pipeline.md"
+cat > "$OC_TEST_PIPELINE" << 'EOPIPE'
+---
+task_id: test-phase-fallback
+---
+
+## Phases
+- Plan: complete
+- Build: in_progress
+- Review: pending
+EOPIPE
+
+rm -f /tmp/claude-agent-role
+
+echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
+  CLAUDE_SESSION_ID="test-phase-fallback" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+
+if [[ -f "$OBS_FILE" ]]; then
+  LAST_LINE=$(tail -1 "$OBS_FILE")
+  FB_PHASE=$(echo "$LAST_LINE" | jq -r '.phase // empty')
+  if [[ "$FB_PHASE" == "build" ]]; then
+    pass "observation-capture: phase fallback from pipeline state file"
+  else
+    fail "observation-capture: phase fallback from pipeline state file" "build" "$FB_PHASE"
+  fi
+else
+  fail "observation-capture: phase fallback from pipeline state file" "file exists" "obs file missing"
+fi
+
+# Cleanup test pipeline file
+rm -f "$OC_TEST_PIPELINE"
+rm -f /tmp/claude-agent-role
+
+echo ""
+
 # -- pipeline-analytics tests -----------------------------------------------
 echo "-- pipeline-analytics.sh --"
 

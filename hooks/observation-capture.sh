@@ -51,9 +51,27 @@ if [[ ! -f "$START_TIME_FILE" ]]; then
     date +%s > "$START_TIME_FILE"
 fi
 
-# Pipeline phase and agent role from env vars
+# Pipeline phase: from env var, or detect from active pipeline state file
 PHASE="${CLAUDE_PIPELINE_PHASE:-}"
+if [[ -z "$PHASE" ]]; then
+    PIPELINE_DIR="$HOME/.claude/pipeline-state"
+    if [[ -d "$PIPELINE_DIR" ]]; then
+        # Find the active pipeline and extract current phase
+        ACTIVE_FILE=$(grep -rl "in_progress" "$PIPELINE_DIR"/*-pipeline.md 2>/dev/null | head -1)
+        if [[ -n "$ACTIVE_FILE" ]]; then
+            # Extract the phase that's in_progress from the Phases section
+            PHASE=$(grep -E "in_progress" "$ACTIVE_FILE" 2>/dev/null | head -1 | sed 's/^- //' | sed 's/:.*//' | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+        fi
+    fi
+fi
+
+# Agent role: from env var, or from temp file written by subagent-context.sh
 AGENT_ROLE="${CLAUDE_AGENT_ROLE:-}"
+if [[ -z "$AGENT_ROLE" ]]; then
+    if [[ -f /tmp/claude-agent-role ]]; then
+        AGENT_ROLE=$(cat /tmp/claude-agent-role 2>/dev/null || true)
+    fi
+fi
 
 # Outcome: check tool_output for error indicators
 IS_ERROR=$(echo "$INPUT" | jq -r '.tool_output.is_error // empty' 2>/dev/null)
