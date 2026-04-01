@@ -15,6 +15,134 @@ TeamCreate({
 
 One team per pipeline. All phase teammates join this team. The shared task list at `~/.claude/tasks/pipeline-{task-id}/` tracks all work.
 
+## Plan Validation Phase Dispatch (Autonomous Mode)
+
+Spawn both challengers in a single message:
+
+```
+// Step 1: Create tasks
+TaskCreate({ title: "Plan review: product perspective", description: "Challenge scope, value, AC quality" })
+TaskCreate({ title: "Plan review: engineering feasibility", description: "Challenge verticality, feasibility, error paths" })
+
+// Step 2: Spawn challengers
+Agent({
+  name: "plan-reviewer",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "product-reviewer",
+  prompt: "You are reviewing a plan BEFORE implementation begins. This is NOT a code review --
+    there is no code yet. You are validating the architect's design decisions.
+
+    Read ~/.claude/agents/product-reviewer.md for your role definition.
+
+    ## Your Task
+
+    Challenge this plan. Your job is to catch bad plans before they become bad code.
+
+    ## Challenge Checklist (verdict each: PASS / CONCERN / BLOCK)
+
+    ### Scope
+    - Is the scope right-sized for the stated complexity budget?
+    - Are there features included that are not in the acceptance criteria (scope creep)?
+    - Are there acceptance criteria NOT covered by any slice?
+
+    ### Value
+    - Does each slice deliver observable user value?
+    - Is the ordering correct (highest value first)?
+
+    ### AC Quality
+    - Are all ACs in Given/When/Then format and testable?
+    - Are error paths covered?
+
+    ### Assumptions
+    - What assumptions is this plan making? Which are validated vs. unvalidated?
+
+    ### Alternatives
+    - Were the alternatives genuinely different (not strawmen)?
+    - Did the architect miss an obvious alternative?
+
+    ## Output: Verdict (APPROVE / CHANGES_REQUESTED) + section analysis + specific recommended changes
+
+    Plan under review:
+    {architect_output}"
+})
+
+Agent({
+  name: "plan-engineer",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "software-engineer",
+  prompt: "You are reviewing a plan BEFORE implementation begins. This is NOT a code review --
+    there is no code yet. You are validating feasibility from an implementation perspective.
+    This is a plan review, not implementation. Do NOT create files or write code.
+
+    Read ~/.claude/agents/software-engineer.md for your role definition.
+    Read the project CLAUDE.md for tech stack and conventions.
+
+    ## Your Task
+
+    Challenge this plan from engineering feasibility. Catch plans that look good on paper
+    but will fail in implementation.
+
+    ## Challenge Checklist (verdict each: PASS / CONCERN / BLOCK)
+
+    ### Vertical Slices
+    - Is each slice truly end-to-end (input -> logic -> output -> test)?
+    - Are there hidden horizontal slices? Can each be independently deployed?
+
+    ### Technical Feasibility
+    - Are the proposed patterns appropriate for this codebase?
+    - Are estimated complexity budgets realistic per slice?
+
+    ### Error Paths
+    - Are all failure modes identified? Race conditions? Concurrency?
+
+    ### Testability
+    - Can each AC be tested at unit level? Are integration boundaries clear?
+
+    ### Implementation Risk
+    - What is the riskiest slice? Are there unknowns that should be a spike?
+    - Is the parallel batch grouping correct (no shared file conflicts)?
+
+    ### Better Approach
+    - Would you approach this differently? Can complex slices be cut thinner?
+
+    ## Output: Verdict (APPROVE / CHANGES_REQUESTED) + per-slice analysis + specific recommended changes
+
+    Plan under review:
+    {architect_output}"
+})
+```
+
+On CHANGES_REQUESTED:
+```
+// 1. Re-spawn architect with combined feedback
+Agent({
+  subagent_type: "architect",
+  prompt: "Read ~/.claude/agents/architect.md and ~/.claude/skills/epic-breakdown/SKILL.md.
+    Your previous plan was challenged. Revise based on this feedback.
+
+    Original plan: {plan}
+
+    Challenger feedback:
+    {combined_feedback}
+
+    Requirements:
+    - Address every BLOCK and CONCERN item
+    - Include updated Alternatives Considered section
+    - Do not make unrelated changes to approved aspects"
+})
+
+// 2. Re-submit to SAME challengers (still alive, have context)
+// Only message the rejecting challenger(s) -- targeted re-review
+SendMessage({
+  to: "plan-reviewer",  // only if this challenger rejected
+  message: "The architect has revised the plan based on your feedback.
+    Revised plan: {revised_plan}
+    Re-review ONLY the items you flagged. Do not re-review approved aspects."
+})
+```
+
+After PLAN_APPROVED or PLAN_ESCALATED: shut down both challengers.
+
 ## Build Phase Dispatch
 
 ### Single Slice (subagent -- no team)

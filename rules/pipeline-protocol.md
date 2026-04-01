@@ -74,10 +74,12 @@ timestamp: {ISO 8601}
 
 Before advancing to any phase, verify the previous gate passed AND invoke the required skill.
 
-- **Plan**: Design validation is a HARD GATE. No implementation begins without:
-  1. Architect validates the approach (via `/epic-breakdown` or `/tech-spike`)
-  2. At least one alternative approach considered and documented
-  3. Product-reviewer + engineer validate the slices
+- **Plan**: Design validation is a HARD GATE (ALL pipelines). No implementation begins without:
+  1. Architect produces plan with `## Alternatives Considered` (minimum 2 genuine approaches)
+  2. Interactive mode: user approves the plan
+  3. Autonomous mode: product-reviewer + software-engineer both APPROVE the plan
+  4. Maximum 2 rounds of revision before escalation
+  5. Gate tracked in pipeline state as `Plan Validation` phase
   Use `/epic-breakdown`, `/estimation`, `/story-writing`, `/tech-spike` as needed
 - **Build**: `/build-implementation` or `/refactor` or `/bug-fix` -- TDD, shape self-check
 - **Review**: `/code-review` + `/security-review` as team (tmux visible) -- both must APPROVE

@@ -1,6 +1,6 @@
 /intake
 
-## Jira Ticket: {{TICKET_KEY}}
+## Ticket: {{TICKET_KEY}}
 
 **Summary**: {{SUMMARY}}
 **Type**: {{ISSUE_TYPE}}
@@ -22,12 +22,12 @@
 
 ## Automation Context
 
-This is an automated pipeline run triggered from Jira. Important context:
+This is an automated pipeline run (autonomous mode). Important context:
 
 1. **Branch is ready**: The branch `{{BRANCH_NAME}}` has already been created from latest `origin/main` and is checked out. Do NOT create a new branch.
-2. **Full pipeline required**: Run the complete pipeline through to `/pr-creation`. The PR title MUST include `{{TICKET_KEY}}` for Jira integration.
-3. **No human interaction**: This is non-interactive. If you encounter ambiguity (Ambiguity >= 2), make the most reasonable choice and document it in the PR description rather than blocking.
-4. **PR description**: Include `Closes {{TICKET_KEY}}` in the PR body for Jira smart commit integration.
+2. **Full pipeline required**: Run the complete pipeline through to `/pr-creation`. The PR title MUST include `{{TICKET_KEY}}` for ticket tracking.
+3. **No human interaction**: This is non-interactive (autonomous mode). Plan validation will use automated challengers instead of human review. If the plan is escalated (challengers reject after 2 rounds), output `VERDICT: PLAN_ESCALATED` with full context.
+4. **PR description**: Include `Closes {{TICKET_KEY}}` in the PR body for automatic ticket linking.
 5. **Budget cap**: Stay within the configured budget. If the task is too large (Complexity Budget >= 13), output `VERDICT: DECOMPOSE_REQUIRED` with a breakdown of sub-tasks, and do NOT proceed with implementation.
 6. **Error output**: If the pipeline cannot complete, output `VERDICT: PIPELINE_FAILED` with the reason.
 

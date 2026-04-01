@@ -60,6 +60,9 @@ Each phase writes a `## Context for Next Phase` section in the pipeline state fi
 
 | Source Phase | Target Phase | Key Context |
 |---|---|---|
+| Plan | Plan Validation | Full architect output including alternatives, slices, ACs |
+| Plan Validation | Build | Approved plan, challenger endorsements, risk areas flagged |
+| Plan Validation | Plan (re-plan) | Combined challenger feedback, specific rejection reasons |
 | Plan | Build | Design rationale, rejected alternatives, risk areas, test strategy |
 | Build | Review | Decision records, uncertainty flags, TDD audit summary, instincts applied |
 | Review | Fix-engineer | Finding context ("fix X because Y, consider Z"), decision record responses |
