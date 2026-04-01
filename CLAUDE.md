@@ -161,6 +161,7 @@ No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 | `/design-qc` | Visual QA screenshots for product acceptance | SCREENSHOTS_CAPTURED |
 | `/learn` | Analyze observations, extract instincts (learned patterns) | LEARNED |
 | `/health-scan` | Proactive codebase health: security, deps, coverage, tech debt | HEALTHY / CRITICAL_ISSUES |
+| `/greenfield-scaffold` | Full project bootstrap from scratch: discovery, tech stack, UI architecture, framework init, DevX, design, infra, seed data | GREENFIELD_SCAFFOLD_COMPLETE |
 | `/creative-direction` | Pre-build design thinking: brand brief → fonts, palette, layout, interaction paradigm | CREATIVE_DIRECTION_COMPLETE |
 | `/design-system-init` | Generate design tokens, primitives, dark mode for a project | DESIGN_SYSTEM_READY |
 

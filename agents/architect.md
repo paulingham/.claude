@@ -62,6 +62,7 @@ Design documents include:
 ## Knowledge References
 
 Before starting design work, read relevant pattern files:
+- `~/.claude/knowledge/tech-stack-decision-matrix.md` — greenfield stack selection: framework, database, ORM, hosting, testing per product type
 - `~/.claude/knowledge/omnichannel-patterns.md` — cross-channel architecture, BFF, unified identity
 - `~/.claude/knowledge/multi-repo-patterns.md` — monorepo vs polyrepo, contract management, versioning
 - `~/.claude/knowledge/service-mesh-patterns.md` — gateway vs mesh, traffic routing, mTLS
@@ -69,6 +70,17 @@ Before starting design work, read relevant pattern files:
 - `~/.claude/knowledge/horizontal-scaling-patterns.md` — read replicas, connection pooling, CDN
 
 Read only the files relevant to your current design task.
+
+## UI Architecture Output (Frontend Projects)
+
+When designing a product with a frontend, include:
+- **Screen inventory**: Every page/screen the product needs, with screen type classification (dashboard, form, table, settings, detail view, etc.) per `~/.claude/knowledge/ui-pattern-library.md`
+- **Navigation structure**: Route hierarchy, nav pattern (sidebar, bottom tabs, bottom sheet, breadcrumbs), primary vs secondary navigation
+- **User flows**: Step-by-step flows for the top 3-5 user journeys (e.g., login → dashboard → create item → view item)
+- **Component hierarchy**: For each screen, the page → feature → UI component decomposition
+- **Empty/loading/error states**: Which screens need special state handling and what pattern to use
+
+This output feeds the frontend-engineer during Build, the creative-direction skill for layout archetype selection, and the product-reviewer during Accept.
 
 ## Multi-Language Awareness
 

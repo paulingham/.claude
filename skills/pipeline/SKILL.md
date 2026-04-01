@@ -110,6 +110,7 @@ Before the Build phase, check BOTH the task requirements AND the project state. 
 | New microservice extraction | `/microservices-scaffold` | Service template, gateway config, tracing. Auto-creates GitHub repo from manifest config |
 | Extract module to own repo | `/service-extraction` | New repo via manifest config, code migration, contracts, PRs in both repos |
 | New repo needed (from architect plan) | GitHub repo creation | Reads manifest `## Services > GitHub`, creates repo, clones, runs `/project-setup` |
+| Empty directory, no project files | `/greenfield-scaffold` | Full project bootstrap: framework, DevX, design system, infra, seed data |
 | Frontend feature + no design brief | `/creative-direction` | Design brief: fonts, palette, layout, interaction paradigm |
 | Frontend project with no design system | `/design-system-init` | Tokens, Tailwind config, primitive components, dark mode |
 
@@ -118,6 +119,10 @@ Scaffolding is NOT a gate — it produces files and structure that the Build pha
 **Dependency installation is NOT scaffolding.** Adding a package to `package.json` is part of the Build phase, not a pre-build step. Include dependency requirements in the build agent's prompt.
 
 **Detection is automatic.** Check project state directly:
+
+**Greenfield detection (check FIRST, before all other scaffolding):**
+If the working directory has no recognizable project file (`package.json`, `Gemfile`, `go.mod`, `pyproject.toml`, `Cargo.toml`, `pom.xml`) AND no `src/` or `app/` or `lib/` directory: this is a greenfield project. Invoke `/greenfield-scaffold` which handles ALL bootstrapping (framework, DevX, design system, infrastructure, seed data). After `/greenfield-scaffold` completes, re-run the scaffold detection table — existing skills will detect any remaining gaps.
+
 - Frontend feature detected (changed files include `.tsx/.jsx/.vue/.svelte`) AND no `pipeline-state/{task-id}-design-brief.md` exists AND no established distinctive branding (tokens.css has only default values or doesn't exist)? → `/creative-direction` FIRST
 - No `Dockerfile`? → `/infra-scaffold`
 - No `styles/tokens.css` and no `theme.extend.colors` in Tailwind config? → `/design-system-init`

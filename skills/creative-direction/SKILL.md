@@ -44,6 +44,32 @@ If no argument provided, infer from:
 2. Existing UI code (if any — detect current patterns)
 3. The feature being built (from pipeline state)
 
+### Greenfield Interview Mode
+
+If ALL of these are true: (a) no project CLAUDE.md exists, (b) no existing UI code exists, (c) no pipeline state design brief exists — this is a greenfield project.
+
+1. **Product brief**: Check `pipeline-state/{task-id}-product-brief.md` (from `/greenfield-scaffold` Step 1). If found, extract product type, target audience, and personality clues.
+
+2. **Competitive differentiation**: From the product brief's product type, identify 2-3 visual patterns common in that space. The design brief should DIFFERENTIATE from these, not reproduce them.
+
+3. **Audience-driven personality mapping**:
+   - Developers → technical, precise, dark-mode-first
+   - Executives → authoritative, clean, data-dense
+   - Consumers → warm, approachable, playful
+   - Healthcare workers → trustworthy, calm, accessible
+   - Creative professionals → bold, expressive, editorial
+
+4. **UI Architecture alignment**: Check `pipeline-state/{task-id}-ui-architecture.md`. If found, use the screen inventory to influence layout archetype:
+   - Dashboard-heavy → Dashboard density or Asymmetric bento grid
+   - Content-heavy → Magazine editorial or Generous white space
+   - List/table-heavy → Dashboard density
+   - Social/feed → Vertical feed or Card mosaic
+
+If no greenfield artifacts exist either (creative-direction invoked standalone on a blank project), ask 3 targeted questions:
+- "What is the product?" → product type
+- "Who uses it?" → audience → personality
+- "Name 2-3 apps whose visual style you admire" → competitive context
+
 ### Step 2: Anti-Convergence Gate
 
 **MANDATORY before any selection.** Read the Banned Defaults section in `creative-direction-database.md`. For every choice you're about to make, check:

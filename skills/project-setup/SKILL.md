@@ -110,6 +110,34 @@ If the project has a frontend (React, Next.js, Vue, or similar detected in Step 
 
 This is automatic — the user does not need to invoke `/design-system-init` manually.
 
+### 3d. Post-Greenfield Mode
+
+If this skill is invoked after `/greenfield-scaffold` (detect by checking for `pipeline-state/{task-id}-tech-stack.md` and `pipeline-state/{task-id}-product-brief.md`):
+
+1. **Read the greenfield artifacts** instead of scanning from scratch:
+   - Product brief → use for CLAUDE.md project description
+   - Tech stack ADR → use for tech stack section (no need to detect)
+   - UI architecture → use for Architecture section (routes, components)
+   - Design brief → use for Conventions section (design tokens, font pairing)
+
+2. **Document what was created** in the generated CLAUDE.md:
+   - List all DevX tooling installed (ESLint config, Prettier, Husky)
+   - List the design system primitives available in `components/ui/`
+   - List the MSW mock handlers available for development
+   - Document the seed data script location and usage
+
+3. **Add a `## Greenfield Bootstrap` section**:
+   ```markdown
+   ## Greenfield Bootstrap
+   This project was bootstrapped via `/greenfield-scaffold` on {date}.
+   - Framework: {from tech stack ADR}
+   - Design system: {from design brief — font pairing, palette}
+   - Seed data: {location of seed script and MSW handlers}
+   - All DevX tooling pre-configured (ESLint, Prettier, TypeScript strict, Vitest, Husky)
+   ```
+
+This mode produces a richer CLAUDE.md than standard detection because it has access to the reasoning behind every choice (the ADRs), not just the detected result.
+
 ### 4. Generate CLAUDE.md and AGENTS.md
 
 Generate both files at the project root.
