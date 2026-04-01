@@ -388,6 +388,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash ~/.claude/hooks/subagent-context.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
             "command": "${HCOM} subagent-start",
             "timeout": 10000
           }
