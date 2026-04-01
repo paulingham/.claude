@@ -22,6 +22,7 @@ Generates a complete design system foundation for a project: design tokens (colo
 
 - Tailwind CSS configured in the project
 - Read `~/.claude/knowledge/design-system-patterns.md` for the full token architecture
+- Read `~/.claude/knowledge/creative-direction-database.md` for curated font/palette alternatives
 
 ## Process
 
@@ -40,20 +41,35 @@ If absent: generate from scratch
 
 ### Step 2: Gather Brand Inputs
 
-If the user provides a brand brief:
-- Extract dominant hue → primary color scale
-- Determine energy level → spacing density
-- Assess personality → border radius style
-- Identify voice → font pairing
+**Priority order for design inputs** (first match wins):
 
-If no brief provided, use sensible defaults:
+1. **Design brief exists**: Check `pipeline-state/{task-id}-design-brief.md` (output from `/creative-direction`). If found, extract: font pairing, palette HSL values, layout archetype, interaction paradigm. This is the primary source — skip to Step 3.
+
+2. **User provides a brand brief**: Extract dominant hue → primary color scale, energy level → spacing density, personality → border radius style, voice → font pairing.
+
+3. **No brief provided**: Reference `~/.claude/knowledge/creative-direction-database.md` and select curated alternatives. **Do NOT default to Inter + blue.** Instead:
+   - Select a font pairing from the database matching the product type
+   - Select a palette from the industry/mood archetypes
+   - Select a layout archetype that fits the project
+
+4. **Last resort** (database unavailable): Use sensible but non-generic defaults:
 ```
-Primary:  blue (hsl 220° — trustworthy, universally safe)
+Primary:  teal (hsl 175° — modern trust, NOT default blue)
 Spacing:  comfortable (16px base)
-Radius:   md (8px — friendly but professional)
-Font:     Inter (neutral, legible, free)
+Radius:   lg (12px — approachable, not the generic 8px)
+Font:     Outfit + Plus Jakarta Sans (warm modern, NOT Inter)
 Shadows:  subtle (level 1-2)
 ```
+
+### Step 2.5: Anti-Convergence Validation
+
+After selecting fonts and colors (from any source), verify against banned defaults:
+```
+- [ ] Font is NOT Inter, Roboto, Open Sans, Arial, Helvetica, Lato, or Montserrat
+- [ ] Primary is NOT hsl 210-230 (default blue range)
+- [ ] Radius is NOT 8px on every element (vary by component importance)
+```
+If any check fails AND no explicit brand requirement mandates it: pick an alternative from `creative-direction-database.md`.
 
 ### Step 3: Generate Design Tokens
 
