@@ -45,7 +45,28 @@ Scale: [micro/small/medium/large]
 
 ## Agent Summaries
 - [agent type]: [2-3 sentence summary]
+
+## Decision Record
+[From build agent — design choices with rationale. See build-implementation skill.]
+
+## Context for Next Phase
+[Structured handoff: uncertainty flags, areas needing focus, TDD audit summary.
+Each phase writes its own section — the next phase reads it.]
 ```
+
+### Context Bundles (Phase Handoff Convention)
+
+Each phase writes a `## Context for Next Phase` section in the pipeline state file. This is how agents communicate intent, not just artifacts:
+
+| Source Phase | Target Phase | Key Context |
+|---|---|---|
+| Plan | Build | Design rationale, rejected alternatives, risk areas, test strategy |
+| Build | Review | Decision records, uncertainty flags, TDD audit summary, instincts applied |
+| Review | Fix-engineer | Finding context ("fix X because Y, consider Z"), decision record responses |
+| Fix | Re-reviewer | What changed, why original was chosen, why fix is correct |
+| Verify | Ship | Coverage map, confidence levels per area |
+
+The orchestrator includes the relevant context section when spawning the next phase's agents. This replaces the previous pattern of passing only git diff + verdict string.
 
 ### State Transitions
 

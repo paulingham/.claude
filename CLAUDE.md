@@ -37,17 +37,19 @@ Global wins for quality standards; project wins for project-specific conventions
 
 ### Agent Team
 
-| Agent | Phase | Worktree | Model |
-|-------|-------|----------|-------|
-| architect | Plan | No | opus |
-| software-engineer | Build | Yes | opus |
-| frontend-engineer | Build | Yes | opus |
-| database-engineer | Build | Yes | sonnet |
-| infrastructure-engineer | Build | Yes | opus |
-| code-reviewer | Review | No | opus |
-| security-engineer | Review | No | opus |
-| qa-engineer | Test | Yes | sonnet |
-| product-reviewer | Accept | No | sonnet |
+| Agent | Phase | Worktree | Default Model | Tunable |
+|-------|-------|----------|---------------|---------|
+| architect | Plan | No | opus | No |
+| software-engineer | Build | Yes | opus | Yes |
+| frontend-engineer | Build | Yes | opus | Yes |
+| database-engineer | Build | Yes | sonnet | Yes |
+| infrastructure-engineer | Build | Yes | opus | Yes |
+| code-reviewer | Review | No | opus | Yes |
+| security-engineer | Review | No | opus | No |
+| qa-engineer | Test | Yes | sonnet | Yes |
+| product-reviewer | Accept | No | sonnet | Yes |
+
+**Model self-tuning**: For tunable agents, the orchestrator checks `learning/instincts/` for model-efficiency instincts. If data shows Sonnet achieves identical outcomes for a phase/task-type, the model is downgraded. Architect and security-engineer are never downgraded (design and security decisions require highest capability). See `orchestrator/agent-orchestration.md` § Instinct Injection.
 
 ### Agent Teams (Hybrid Model)
 
@@ -157,6 +159,7 @@ No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 | `/polish` | Mechanical cleanup between Build and Review (Haiku) | POLISHED |
 | `/design-qc` | Visual QA screenshots for product acceptance | SCREENSHOTS_CAPTURED |
 | `/learn` | Analyze observations, extract instincts (learned patterns) | LEARNED |
+| `/health-scan` | Proactive codebase health: security, deps, coverage, tech debt | HEALTHY / CRITICAL_ISSUES |
 | `/design-system-init` | Generate design tokens, primitives, dark mode for a project | DESIGN_SYSTEM_READY |
 
 ### Definition of Done

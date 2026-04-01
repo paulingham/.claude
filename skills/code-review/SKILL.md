@@ -120,12 +120,34 @@ Every finding MUST be assigned a severity. Use the calibration table below:
 
 **Verdict rule:** APPROVE if no CRITICAL, HIGH, or MEDIUM findings. CHANGES_REQUESTED if any CRITICAL, HIGH, or MEDIUM findings exist. LOW and INFO are noted but do not block.
 
+## Preventability Classification (Backward Feedback)
+
+For each finding, classify whether the build agent could have prevented it:
+
+| Classification | Criteria | Example |
+|---|---|---|
+| **Preventable** | Standard pattern violation a build agent should catch | Missing input validation, SOLID violation, naming issue |
+| **Review-level** | Requires cross-cutting perspective only a reviewer has | Architectural concern, subtle race condition, design inconsistency |
+
+Tag each finding with `preventable: true/false`. The `/learn` skill uses this during Reflect to create build-targeted instincts that prevent the same findings in future pipelines.
+
 ## Phase Output
 
 ```
 Verdict: APPROVE / CHANGES_REQUESTED
 Next: If BOTH code-review and security-review APPROVE → /verify
       If CHANGES_REQUESTED → spawn engineer to fix → re-invoke BOTH review skills
-Findings: [list of specific findings with severity]
+Findings: [list of specific findings with severity and preventability]
 Agent summaries: [code-reviewer's 2-3 sentence summary]
+```
+
+### Context for Next Phase
+
+Include a `## Context for Fix/Verify` section in the pipeline state file:
+
+```markdown
+## Context for Fix/Verify
+- **Finding context**: [for each finding: not just "fix X" but "fix X because Y, consider approach Z"]
+- **Areas of strength**: [what the build agent did well — reinforces good patterns]
+- **Decision record responses**: [agree/disagree/note on build agent's decision record entries]
 ```
