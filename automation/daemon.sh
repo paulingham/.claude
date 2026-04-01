@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# daemon.sh -- Polling daemon: watches Jira for ready tickets, dispatches processing
+# daemon.sh -- Polling daemon: watches ticket backend for ready tickets, dispatches processing
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/pool.sh"
-source "$SCRIPT_DIR/jira.sh"
+source "$SCRIPT_DIR/backend.sh"
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -42,7 +42,7 @@ daemon_start() {
 
   # Pre-flight checks
   _validate_config || { _log ERROR "Configuration validation failed"; exit 1; }
-  jira_health_check || { _log ERROR "Jira health check failed"; exit 1; }
+  backend_health_check || { _log ERROR "Backend health check failed ($TICKET_BACKEND)"; exit 1; }
   pool_init || { _log ERROR "Pool initialization failed"; exit 1; }
   pool_recover
 
@@ -71,12 +71,12 @@ poll_cycle() {
   fi
 
   local tickets_json
-  tickets_json="$(jira_poll_ready_tickets "$available")" || {
-    _log WARN "Failed to poll Jira for ready tickets"
+  tickets_json="$(backend_poll_ready_tickets "$available")" || {
+    _log WARN "Failed to poll $TICKET_BACKEND for ready tickets"
     return 0
   }
 
-  local ticket_count; ticket_count="$(echo "$tickets_json" | jq -r '.total // 0')"
+  local ticket_count; ticket_count="$(echo "$tickets_json" | jq -r '.tickets | length')"
   if [ "$ticket_count" -eq 0 ]; then
     return 0
   fi
@@ -84,7 +84,7 @@ poll_cycle() {
   _log INFO "Found $ticket_count ready ticket(s)"
 
   local dispatched=0
-  local ticket_keys; ticket_keys="$(echo "$tickets_json" | jq -r '.issues[].key')"
+  local ticket_keys; ticket_keys="$(echo "$tickets_json" | jq -r '.tickets[].key')"
 
   while IFS= read -r ticket_key; do
     [ -z "$ticket_key" ] && continue

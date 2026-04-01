@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
 source "$SCRIPT_DIR/pool.sh"
-source "$SCRIPT_DIR/jira.sh"
+source "$SCRIPT_DIR/backend.sh"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -27,24 +27,16 @@ render_prompt() {
   local tmp_prompt; tmp_prompt="$(mktemp)"
 
   local summary issue_type priority components labels epic_key
-  summary="$(echo "$ticket_json" | jq -r '.fields.summary // ""')"
-  issue_type="$(echo "$ticket_json" | jq -r '.fields.issuetype.name // ""')"
-  priority="$(echo "$ticket_json" | jq -r '.fields.priority.name // ""')"
-  components="$(echo "$ticket_json" | jq -r '[.fields.components[].name] | join(", ") // ""')"
-  labels="$(echo "$ticket_json" | jq -r '[.fields.labels[]] | join(", ") // ""')"
-  epic_key="$(echo "$ticket_json" | jq -r '.fields.parent.key // empty' 2>/dev/null || echo "")"
+  summary="$(echo "$ticket_json" | jq -r '.summary // ""')"
+  issue_type="$(echo "$ticket_json" | jq -r '.issue_type // ""')"
+  priority="$(echo "$ticket_json" | jq -r '.priority // ""')"
+  components="$(echo "$ticket_json" | jq -r '.components // ""')"
+  labels="$(echo "$ticket_json" | jq -r '.labels // ""')"
+  epic_key="$(echo "$ticket_json" | jq -r '.parent_key // ""')"
 
-  local raw_description description acceptance_criteria
-  raw_description="$(echo "$ticket_json" | jq -r '.renderedFields.description // ""')"
-  description="$(_html_to_text "$raw_description")"
-
-  if [ -n "${JIRA_AC_CUSTOM_FIELD:-}" ]; then
-    local raw_acceptance_criteria
-    raw_acceptance_criteria="$(echo "$ticket_json" | jq -r ".renderedFields.${JIRA_AC_CUSTOM_FIELD} // \"\"")"
-    acceptance_criteria="$(_html_to_text "$raw_acceptance_criteria")"
-  else
-    acceptance_criteria="Not specified"
-  fi
+  local description acceptance_criteria
+  description="$(echo "$ticket_json" | jq -r '.description // ""')"
+  acceptance_criteria="$(echo "$ticket_json" | jq -r '.acceptance_criteria // "Not specified"')"
 
   # Write multiline fields to temp files for safe sed substitution
   local tmp_desc; tmp_desc="$(mktemp)"
@@ -174,38 +166,33 @@ process_ticket() {
   # Register cleanup trap
   trap 'cleanup_on_exit "$slot_path" "$ticket_key"' EXIT
 
-  # Transition Jira to In Progress (non-fatal)
-  jira_transition "$ticket_key" "$JIRA_IN_PROGRESS_STATUS" || \
-    _log WARN "Could not transition $ticket_key to $JIRA_IN_PROGRESS_STATUS"
-  jira_add_comment "$ticket_key" "Claude automation started processing this ticket." || \
-    _log WARN "Could not post start comment to $ticket_key"
+  # Claim ticket (non-fatal)
+  backend_claim_ticket "$ticket_key"
 
   # Fetch full ticket details
   local ticket_json
-  ticket_json="$(jira_get_ticket "$ticket_key")" || {
+  ticket_json="$(backend_get_ticket "$ticket_key")" || {
     _log ERROR "Failed to fetch ticket $ticket_key"
-    jira_add_comment "$ticket_key" "Automation failed: could not fetch ticket details." 2>/dev/null || true
-    jira_transition "$ticket_key" "$JIRA_FAILED_STATUS" 2>/dev/null || true
+    backend_fail_ticket "$ticket_key" "1" "Could not fetch ticket details" "0"
     exit 1
   }
 
   # Reset slot to latest origin/main
   pool_reset_slot "$slot_path" || {
     _log ERROR "Failed to reset slot for $ticket_key"
-    jira_add_comment "$ticket_key" "Automation failed: could not reset worktree." 2>/dev/null || true
-    jira_transition "$ticket_key" "$JIRA_FAILED_STATUS" 2>/dev/null || true
+    backend_fail_ticket "$ticket_key" "1" "Could not reset worktree" "0"
     exit 1
   }
 
   # Create feature branch
-  local summary; summary="$(echo "$ticket_json" | jq -r '.fields.summary // ""')"
+  local summary; summary="$(echo "$ticket_json" | jq -r '.summary // ""')"
   local slug; slug="$(slugify_summary "$summary")"
-  local branch_name="feat/${ticket_key}-${slug}"
+  local safe_key="${ticket_key#\#}"
+  local branch_name="feat/${safe_key}-${slug}"
 
   (cd "$slot_path" && git checkout -b "$branch_name") || {
     _log ERROR "Failed to create branch $branch_name"
-    jira_add_comment "$ticket_key" "Automation failed: could not create branch." 2>/dev/null || true
-    jira_transition "$ticket_key" "$JIRA_FAILED_STATUS" 2>/dev/null || true
+    backend_fail_ticket "$ticket_key" "1" "Could not create branch" "0"
     exit 1
   }
   _log INFO "Created branch $branch_name"
@@ -216,6 +203,7 @@ process_ticket() {
   _log INFO "Rendered prompt for $ticket_key (${#prompt} chars)"
 
   # Run Claude
+  export CLAUDE_PIPELINE_MODE=autonomous
   local claude_stderr_file="$log_file.claude-stderr"
   local claude_exit=0
   local claude_output
@@ -223,7 +211,7 @@ process_ticket() {
     --output-format json \
     --permission-mode dontAsk \
     --max-budget-usd "$BUDGET_CAP" \
-    --name "jira-${ticket_key}" \
+    --name "${TICKET_BACKEND}-${ticket_key#\#}" \
     --no-session-persistence \
     --teammate-mode in-process \
     $CLAUDE_EXTRA_FLAGS \
@@ -236,9 +224,7 @@ process_ticket() {
   if [ "$claude_exit" -ne 0 ]; then
     local stderr_tail; stderr_tail="$(tail -20 "$claude_stderr_file" 2>/dev/null || echo "No stderr captured")"
     _log ERROR "Claude exited with code $claude_exit for $ticket_key"
-    local error_comment; error_comment="$(build_error_comment "$claude_exit" "$stderr_tail" "$duration")"
-    jira_add_comment "$ticket_key" "$error_comment" 2>/dev/null || true
-    jira_transition "$ticket_key" "$JIRA_FAILED_STATUS" 2>/dev/null || true
+    backend_fail_ticket "$ticket_key" "$claude_exit" "$stderr_tail" "$duration"
     exit 1
   fi
 
@@ -254,21 +240,18 @@ process_ticket() {
   local pr_url; pr_url="$(extract_pr_url "$result_text" "$branch_name" "$slot_path")"
 
   if [ -n "$pr_url" ]; then
-    local success_comment; success_comment="$(build_success_comment "$pr_url" "$cost" "$duration")"
-    jira_add_comment "$ticket_key" "$success_comment" 2>/dev/null || true
-    jira_transition "$ticket_key" "$JIRA_DONE_STATUS" 2>/dev/null || true
+    backend_complete_ticket "$ticket_key" "$pr_url" "$cost" "$duration"
     _log INFO "Ticket $ticket_key completed: $pr_url"
   else
     # Check for verdict patterns indicating known failure modes
     if echo "$result_text" | grep -qE 'VERDICT:\s*(DECOMPOSE_REQUIRED|PIPELINE_FAILED)'; then
       local verdict; verdict="$(echo "$result_text" | grep -oE 'VERDICT:\s*(DECOMPOSE_REQUIRED|PIPELINE_FAILED)' | head -1)"
       _log WARN "Ticket $ticket_key ended with $verdict"
-      jira_add_comment "$ticket_key" "Automation completed without PR.\n\n$verdict\n\nCost: \$$cost\nDuration: ${duration}s\n\nSee Claude output for details." 2>/dev/null || true
+      backend_fail_ticket "$ticket_key" "1" "$verdict" "$duration"
     else
       _log WARN "No PR URL found for $ticket_key"
-      jira_add_comment "$ticket_key" "Automation completed but no PR was created.\n\nCost: \$$cost\nDuration: ${duration}s\n\nReview the logs for details." 2>/dev/null || true
+      backend_fail_ticket "$ticket_key" "1" "No PR created" "$duration"
     fi
-    jira_transition "$ticket_key" "$JIRA_FAILED_STATUS" 2>/dev/null || true
     exit 1
   fi
 }

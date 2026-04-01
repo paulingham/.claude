@@ -197,3 +197,88 @@ jira_add_rich_comment() {
   }
   _log INFO "Added rich comment to $ticket_key"
 }
+
+# --- Backend contract implementation -----------------------------------------
+
+backend_health_check() { jira_health_check; }
+
+backend_poll_ready_tickets() {
+  local limit="${1:-$POOL_SIZE}"
+  local response
+  response="$(jira_poll_ready_tickets "$limit")" || return 1
+  echo "$response" | jq '{tickets: [.issues[] | {key: .key, summary: .fields.summary}]}'
+}
+
+backend_get_ticket() {
+  local ticket_key="$1"
+  local response
+  response="$(jira_get_ticket "$ticket_key")" || return $?
+  local summary issue_type priority components labels parent_key
+  summary="$(echo "$response" | jq -r '.fields.summary // ""')"
+  issue_type="$(echo "$response" | jq -r '.fields.issuetype.name // ""')"
+  priority="$(echo "$response" | jq -r '.fields.priority.name // ""')"
+  components="$(echo "$response" | jq -r '[.fields.components[].name] | join(", ") // ""')"
+  labels="$(echo "$response" | jq -r '[.fields.labels[]] | join(", ") // ""')"
+  parent_key="$(echo "$response" | jq -r '.fields.parent.key // ""')"
+  local raw_description description acceptance_criteria
+  raw_description="$(echo "$response" | jq -r '.renderedFields.description // ""')"
+  description="$(_html_to_text "$raw_description")"
+  if [ -n "${JIRA_AC_CUSTOM_FIELD:-}" ]; then
+    local raw_ac
+    raw_ac="$(echo "$response" | jq -r ".renderedFields.${JIRA_AC_CUSTOM_FIELD} // \"\"")"
+    acceptance_criteria="$(_html_to_text "$raw_ac")"
+  else
+    acceptance_criteria="Not specified"
+  fi
+  local url="${JIRA_BASE_URL}/browse/${ticket_key}"
+  jq -n \
+    --arg key "$ticket_key" \
+    --arg summary "$summary" \
+    --arg description "$description" \
+    --arg issue_type "$issue_type" \
+    --arg priority "$priority" \
+    --arg components "$components" \
+    --arg labels "$labels" \
+    --arg parent_key "$parent_key" \
+    --arg acceptance_criteria "$acceptance_criteria" \
+    --arg url "$url" \
+    --argjson raw "$response" \
+    '{key:$key,summary:$summary,description:$description,
+      issue_type:$issue_type,priority:$priority,components:$components,
+      labels:$labels,parent_key:$parent_key,
+      acceptance_criteria:$acceptance_criteria,url:$url,raw:$raw}'
+}
+
+backend_claim_ticket() {
+  local ticket_key="$1"
+  jira_transition "$ticket_key" "$JIRA_IN_PROGRESS_STATUS" || \
+    _log WARN "Could not transition $ticket_key to $JIRA_IN_PROGRESS_STATUS"
+  jira_add_comment "$ticket_key" "Claude automation started processing this ticket." || \
+    _log WARN "Could not post start comment to $ticket_key"
+}
+
+backend_post_comment() {
+  local ticket_key="$1" text="$2"
+  jira_add_comment "$ticket_key" "$text"
+}
+
+backend_complete_ticket() {
+  local ticket_key="$1" pr_url="$2" cost="$3" duration="$4"
+  local comment
+  comment="$(printf 'Claude automation completed successfully.\n\nPR: %s\nCost: $%s\nDuration: %s seconds' "$pr_url" "$cost" "$duration")"
+  jira_add_comment "$ticket_key" "$comment" 2>/dev/null || true
+  jira_transition "$ticket_key" "$JIRA_DONE_STATUS" 2>/dev/null || true
+}
+
+backend_fail_ticket() {
+  local ticket_key="$1" exit_code="$2" stderr_tail="$3" duration="$4"
+  local comment
+  comment="$(printf 'Claude automation failed.\n\nExit code: %s\nDuration: %s seconds\n\nLast output:\n%s' "$exit_code" "$duration" "$stderr_tail")"
+  jira_add_comment "$ticket_key" "$comment" 2>/dev/null || true
+  jira_transition "$ticket_key" "$JIRA_FAILED_STATUS" 2>/dev/null || true
+}
+
+backend_ticket_url() {
+  local ticket_key="$1"
+  echo "${JIRA_BASE_URL}/browse/${ticket_key}"
+}
