@@ -40,12 +40,14 @@ Map learnings to concrete actions. Check each category:
 | **Agent definitions** | `~/.claude/agents/*.md` | Should agent checklists include new verification steps? |
 | **Feedback memory** | Project `memory/feedback_*.md` | Should a lesson be saved for future sessions? |
 | **Skills** | `~/.claude/skills/*/SKILL.md` | Should a skill's process or checklist be updated? |
+| **README** | `~/.claude/README.md` | Does the README reflect current capabilities, skills, hooks, architecture? |
 
 ### 4. Apply Changes
 
 - Source files (`.claude/CLAUDE.md`, rules, agents, skills): delegate to agents
 - Memory files: write directly (memory is excluded from orchestrator code ban)
 - Update `MEMORY.md` index if new memory files are created
+- **README update is mandatory** when any of these change: skills (added/removed), hooks (added/removed), architecture (new directories/systems), agent team (roles changed), or delivery pipeline (phases changed). The README is the external-facing description of the system — it must stay current
 
 ### 5. Report
 

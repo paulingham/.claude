@@ -19,27 +19,39 @@ You describe what you want. The system:
 
 If a module outgrows the monolith, it detects extraction signals during review and can autonomously create a new repo, migrate the code, generate contracts, refactor the monolith, and open PRs in both repos.
 
+11. **Learns** from every run — agents share discoveries in real-time, engineering context survives context compaction, and the system builds instincts that make future runs smarter
+
 ## Architecture
 
 ```
 ~/.claude/
   CLAUDE.md                    # Master playbook — philosophy, pipeline, skill directory
   settings.json                # Hook registration, permissions, env vars
-  rules/                       # Auto-loaded protocols (6 files)
-    agent-protocol.md          #   Worktree isolation, commit protocol
+  rules/                       # Auto-loaded protocols (9 files)
+    agent-protocol.md          #   Worktree isolation, commit protocol, scratchpad
     pipeline-protocol.md       #   Pipeline phases, review loops, state management
     engineering-protocol.md    #   Code shape, TDD, testing standards, security baseline
     operational-protocol.md    #   Complexity Budget scoring, error recovery
     parallel-dispatch-protocol.md  # Parallel review/build dispatch
+    multi-repo-protocol.md     #   Project manifests, multi-repo pipelines
+    reflection-protocol.md     #   Post-pipeline reflection, auto-learn trigger
+    autonomous-intelligence.md #   Scratchpad, session memory, continuous learning
     e2e-protocol.md            #   Maestro E2E trigger matrix
   orchestrator/                # Orchestrator-only detailed procedures (4 files)
   agents/                      # 9 specialized agent definitions
-  skills/                      # 42 skills (procedural workflows)
+  skills/                      # 44 skills (procedural workflows)
   knowledge/                   # 31 domain pattern references
-  hooks/                       # 22 enforcement scripts
+  hooks/                       # 24 enforcement scripts
   learning/                    # Continuous learning: observations + instincts
+    {project-hash}/            #   Per-project observations.jsonl
+    instincts/                 #   Learned patterns with confidence scores
+  session-memory/              # Engineering context that survives compaction
+    config/                    #   Template + update prompt
+    {project-hash}/            #   Per-project session notes
+  agent-memory/                # Per-role, per-project institutional knowledge
   metrics/                     # Session cost, governance, bug detection logs
-  pipeline-state/              # Structured phase results (survives context compaction)
+  pipeline-state/              # Structured phase results + scratchpad
+    {task-id}-scratchpad/      #   Cross-agent knowledge sharing within a pipeline
 ```
 
 ## Agent Team
@@ -72,7 +84,38 @@ Intake → Plan → Plan Validation → Scaffold → Build → Review → Verify
   └─ /intake (classify, score Complexity Budget, route)
 ```
 
-## Skills (38)
+## Autonomous Intelligence
+
+Three systems make the pipeline self-improving:
+
+### Pipeline Scratchpad
+Agents share discoveries within a single pipeline run. Build agent finds a codebase quirk → reviewer receives it automatically. Stored in `pipeline-state/{task-id}-scratchpad/`, cleaned up after pipeline completion.
+
+```
+Build agent writes:     "warning: tests require DATABASE_URL set, not mocked"
+Review agent receives:  ## Pipeline Scratchpad (findings from prior agents)
+                        - [build/software-engineer] warning: tests require DATABASE_URL...
+```
+
+### Session Memory
+Engineering-focused notes that survive context compaction. Not conversation history — **codebase knowledge**: what builds, what's fragile, what patterns work. Updated by a background agent at phase boundaries. Injected into every agent's prompt.
+
+Sections: Active Work · Codebase Map · Build & Test · Critical Paths · Patterns · Discoveries · Agent Effectiveness
+
+### Continuous Learning Loop
+Every pipeline run captures structured observations. After 3+ pipelines, the system auto-invokes `/learn` to extract instincts — atomic patterns with confidence scores (0.0–0.95) that modify agent behavior:
+
+```
+Pipeline Run → Observation → /learn → Instinct created
+  [0.72] "Read types.ts before editing services in this project"
+  [0.85] "Always validate input at controller boundary"
+
+Next pipeline → Instinct injected into agent prompt → Better build → Fewer review findings
+```
+
+Review findings classified as "preventable by build agent" become build-targeted instincts — a backward feedback loop from review to build.
+
+## Skills (44)
 
 ### Pipeline & Orchestration
 | Skill | Purpose |
@@ -130,7 +173,10 @@ Intake → Plan → Plan Validation → Scaffold → Build → Review → Verify
 | `/workstream` | Manage isolated workstreams for parallel development |
 | `/polish` | Mechanical cleanup between Build and Review (Haiku, Budget >= 7) |
 | `/design-qc` | Visual QA screenshots for product acceptance (frontend changes) |
-| `/learn` | Extract instincts from observed behavior (continuous learning) |
+| `/learn` | Extract instincts from observed behavior (auto-invoked after 3+ pipelines) |
+| `/greenfield-scaffold` | Full project bootstrap from scratch: discovery → running app |
+| `/creative-direction` | Pre-build design thinking: brand brief → fonts, palette, layout |
+| `/health-scan` | Proactive codebase health: security, deps, coverage, tech debt |
 
 ### Reference Patterns
 | Skill | Domain |
@@ -174,6 +220,7 @@ Intake → Plan → Plan Validation → Scaffold → Build → Review → Verify
 | `context-warning.sh` | Context window usage warnings at 65%/75% thresholds | Advisory |
 | `injection-scan.sh` | Prompt injection pattern detection on file writes | Advisory |
 | `auto-pr.sh` | Suggests PR creation when branch is ahead | Advisory |
+| `subagent-context.sh` | Writes agent role to temp file for observation tagging | Passive |
 | `subagent-stop-trajectory.sh` | Records agent completion to pipeline trajectory | Passive |
 
 ## Omnichannel Support
