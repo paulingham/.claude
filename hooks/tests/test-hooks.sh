@@ -592,6 +592,87 @@ rm -f "/tmp/claude-session-start-${MY_PID}"
 
 echo ""
 
+# -- session-start-bootstrap tests -------------------------------------------
+echo "-- session-start-bootstrap.sh --"
+
+# Test: syntax check
+bash -n "$HOOKS_DIR/session-start-bootstrap.sh" > /dev/null 2>&1
+run_test "session-start-bootstrap: syntax valid" 0 $?
+
+# Test: stdout contains skill awareness text (the functional output)
+SSB_STDOUT=$(bash "$HOOKS_DIR/session-start-bootstrap.sh" 2>/dev/null)
+SSB_EXIT=$?
+run_test "session-start-bootstrap: exits 0" 0 $SSB_EXIT
+
+if echo "$SSB_STDOUT" | grep -q "SKILL AWARENESS BOOTSTRAP"; then
+  pass "session-start-bootstrap: stdout contains SKILL AWARENESS BOOTSTRAP"
+else
+  fail "session-start-bootstrap: stdout contains SKILL AWARENESS BOOTSTRAP" "present" "missing"
+fi
+
+if echo "$SSB_STDOUT" | grep -q "IRON LAWS"; then
+  pass "session-start-bootstrap: stdout contains IRON LAWS"
+else
+  fail "session-start-bootstrap: stdout contains IRON LAWS" "present" "missing"
+fi
+
+# Test: no background service text leaks into stdout
+# Supervisor/service output must go to logs, never to stdout
+if echo "$SSB_STDOUT" | grep -qi "supervisor"; then
+  fail "session-start-bootstrap: no supervisor text in stdout" "absent" "found supervisor text"
+else
+  pass "session-start-bootstrap: no supervisor text in stdout"
+fi
+
+if echo "$SSB_STDOUT" | grep -qi "daemon"; then
+  fail "session-start-bootstrap: no daemon text in stdout" "absent" "found daemon text"
+else
+  pass "session-start-bootstrap: no daemon text in stdout"
+fi
+
+if echo "$SSB_STDOUT" | grep -qi "background"; then
+  fail "session-start-bootstrap: no background service text in stdout" "absent" "found background text"
+else
+  pass "session-start-bootstrap: no background service text in stdout"
+fi
+
+# Test: logs directory is created (or already exists) after running the hook
+if [[ -d "$HOME/.claude/automation/logs" ]]; then
+  pass "session-start-bootstrap: automation/logs directory exists after run"
+else
+  fail "session-start-bootstrap: automation/logs directory exists after run" "directory exists" "not found"
+fi
+
+# Test: the script contains the background services section (structural check)
+if grep -q "Background services" "$HOOKS_DIR/session-start-bootstrap.sh"; then
+  pass "session-start-bootstrap: contains background services section"
+else
+  fail "session-start-bootstrap: contains background services section" "present" "missing"
+fi
+
+# Test: the script references SUPERVISOR_PID for idempotent startup
+if grep -q "SUPERVISOR_PID" "$HOOKS_DIR/session-start-bootstrap.sh"; then
+  pass "session-start-bootstrap: references SUPERVISOR_PID for idempotent check"
+else
+  fail "session-start-bootstrap: references SUPERVISOR_PID for idempotent check" "present" "missing"
+fi
+
+# Test: the script uses nohup+disown for detached startup (may be on adjacent lines)
+if grep -q "nohup" "$HOOKS_DIR/session-start-bootstrap.sh" && grep -q "disown" "$HOOKS_DIR/session-start-bootstrap.sh"; then
+  pass "session-start-bootstrap: uses nohup+disown for detached startup"
+else
+  fail "session-start-bootstrap: uses nohup+disown for detached startup" "present" "missing"
+fi
+
+# Test: auto-registration section exists
+if grep -q "auto-register\|automation\.env" "$HOOKS_DIR/session-start-bootstrap.sh"; then
+  pass "session-start-bootstrap: contains auto-register section"
+else
+  fail "session-start-bootstrap: contains auto-register section" "present" "missing"
+fi
+
+echo ""
+
 # -- Summary -----------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
 echo ""
