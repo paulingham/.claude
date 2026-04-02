@@ -141,3 +141,41 @@ _validate_config() {
 
   return "$error_count"
 }
+
+# ---------------------------------------------------------------------------
+# Supervisor integration
+# ---------------------------------------------------------------------------
+REPOS_CONF="${AUTOMATION_DIR}/repos.conf"
+
+# Register a repo with the supervisor
+register_repo() {
+    local repo_path="$1"
+    local conf="${REPOS_CONF}"
+
+    # Create repos.conf if it doesn't exist
+    if [ ! -f "$conf" ]; then
+        cat > "$conf" << 'HEADER'
+# repos.conf -- Registered repositories for ticket automation
+# One absolute path per line. Repos must have .claude/automation.env
+# Add repos: supervisor.sh add /path/to/repo
+# Remove repos: supervisor.sh remove /path/to/repo
+# Auto-registered by /project-setup when automation.env is created
+HEADER
+    fi
+
+    # Deduplicate
+    if grep -qxF "$repo_path" "$conf" 2>/dev/null; then
+        return 0  # Already registered
+    fi
+
+    echo "$repo_path" >> "$conf"
+
+    # Signal supervisor to re-read if running
+    local pidfile="${AUTOMATION_DIR}/supervisor.pid"
+    if [ -f "$pidfile" ]; then
+        local pid; pid="$(cat "$pidfile")"
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -HUP "$pid" 2>/dev/null || true
+        fi
+    fi
+}
