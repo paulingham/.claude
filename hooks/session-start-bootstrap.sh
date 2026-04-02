@@ -79,6 +79,65 @@ if [[ -d "$LEARNING_DIR" ]]; then
     fi
 fi
 
+# ---------------------------------------------------------------------------
+# Pipeline state detection (output to context — critical for resume)
+# ---------------------------------------------------------------------------
+PIPELINE_DIR="$HOME/.claude/pipeline-state"
+if [[ -d "$PIPELINE_DIR" ]]; then
+    ACTIVE_PIPELINES=$(find "$PIPELINE_DIR" -maxdepth 1 -name "*-pipeline.md" 2>/dev/null)
+    if [[ -n "$ACTIVE_PIPELINES" ]]; then
+        echo ""
+        echo "ACTIVE PIPELINES (invoke /pipeline-resume):"
+        while IFS= read -r pfile; do
+            [[ -z "$pfile" ]] && continue
+            PNAME=$(basename "$pfile" | sed 's/-pipeline\.md$//')
+            # Extract current phase from the file
+            CURRENT_PHASE=$(grep -E "in_progress" "$pfile" 2>/dev/null | head -1 | sed 's/^- //' | sed 's/:.*//' | xargs)
+            if [[ -n "$CURRENT_PHASE" ]]; then
+                echo "  - $PNAME: phase=$CURRENT_PHASE"
+            else
+                echo "  - $PNAME: (check state file)"
+            fi
+        done <<< "$ACTIVE_PIPELINES"
+    fi
+
+    # Check for merged PRs with pending deploy
+    SHIP_COMPLETE=$(grep -rl "Ship:.*completed\|Ship:.*PR_CREATED" "$PIPELINE_DIR"/*-pipeline.md 2>/dev/null | head -1)
+    if [[ -n "$SHIP_COMPLETE" ]]; then
+        DEPLOY_PENDING=$(grep -l "Deploy:.*pending" "$SHIP_COMPLETE" 2>/dev/null)
+        if [[ -n "$DEPLOY_PENDING" ]]; then
+            PNAME=$(basename "$SHIP_COMPLETE" | sed 's/-pipeline\.md$//')
+            echo ""
+            echo "DEPLOY PENDING: $PNAME (Ship complete, Deploy not started — check if PR merged, then invoke /deploy)"
+        fi
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Session memory (orientation after compaction)
+# ---------------------------------------------------------------------------
+PROJECT_HASH=$(git remote get-url origin 2>/dev/null | md5 -q 2>/dev/null || echo "local")
+SESSION_NOTES="$HOME/.claude/session-memory/$PROJECT_HASH/notes.md"
+if [[ -f "$SESSION_NOTES" ]]; then
+    # Check if notes have actual content (not just template)
+    CONTENT_LINES=$(grep -cvE '^\s*(#|_|$)' "$SESSION_NOTES" 2>/dev/null || echo "0")
+    if [[ "$CONTENT_LINES" -gt 3 ]]; then
+        echo ""
+        echo "SESSION MEMORY: Engineering notes exist for this project at $SESSION_NOTES — read on resume or after compaction."
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Stale worktree detection
+# ---------------------------------------------------------------------------
+if git rev-parse --git-dir >/dev/null 2>&1; then
+    STALE_WORKTREES=$(git worktree list --porcelain 2>/dev/null | grep "^worktree " | grep -c "\.claude/worktrees/" 2>/dev/null || echo "0")
+    if [[ "$STALE_WORKTREES" -gt 0 ]]; then
+        echo ""
+        echo "STALE WORKTREES: $STALE_WORKTREES orphaned worktree(s) in .claude/worktrees/ — clean up with: git worktree remove .claude/worktrees/<name> --force"
+    fi
+fi
+
 echo ""
 echo "IRON LAWS:"
 echo "- NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST"
