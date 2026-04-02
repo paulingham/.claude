@@ -334,16 +334,36 @@ Environment variables                ← highest priority
 | `CLAUDE_MODEL` | (default) | Override Claude model |
 | `CLAUDE_EXTRA_FLAGS` | (none) | Extra flags passed to `claude` CLI |
 
-### Multi-Repo
+### Multi-Repo (Autonomous)
 
-Run one daemon per repo. Each uses its own `.claude/automation.env`:
+A single supervisor manages all repo daemons automatically:
 
 ```bash
-REPO_PATH=/path/to/api-service   ~/.claude/automation/daemon.sh start &
-REPO_PATH=/path/to/web-frontend  ~/.claude/automation/daemon.sh start &
+# Register repos (one-time, or auto-registered by /project-setup)
+~/.claude/automation/supervisor.sh add /path/to/api-service
+~/.claude/automation/supervisor.sh add /path/to/web-frontend
+
+# Start all registered daemons with one command
+~/.claude/automation/supervisor.sh start
+
+# Check everything
+~/.claude/automation/supervisor.sh status
+
+# View logs for a specific repo
+~/.claude/automation/supervisor.sh logs api-service
+
+# Stop everything
+~/.claude/automation/supervisor.sh stop
 ```
 
-PID files are per-repo, so multiple daemons don't conflict.
+The supervisor:
+- Reads `repos.conf` (the single source of truth for registered repos)
+- Starts a daemon per repo that has `.claude/automation.env`
+- Health-checks every 30s, auto-restarts crashed daemons (max 3/hour)
+- Hot-reloads `repos.conf` — add/remove repos without restarting
+- Graceful shutdown cascades to all managed daemons
+
+Repos are auto-registered when `/project-setup` creates an `automation.env`.
 
 ## Configuration
 
