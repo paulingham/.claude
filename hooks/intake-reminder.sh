@@ -1,49 +1,62 @@
 #!/bin/bash
 # Intake Reminder — UserPromptSubmit hook
 #
-# Advisory hook that reminds the orchestrator to invoke /intake before
-# starting implementation work. Reads the user prompt from stdin JSON,
-# checks for implementation keywords, and emits a systemMessage if the
-# user hasn't already referenced a pipeline skill.
-#
-# Always exits 0 (advisory only, never blocking).
+# Two modes:
+#   1. HARD BLOCK (exit 2): Batch/wave keywords WITHOUT an active pipeline state.
+#   2. ADVISORY (exit 0): Single-task implementation keywords.
 
-# Hook profile
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 
-# Read JSON from stdin
 INPUT=$(cat)
 
-# Extract prompt text using python3
 PROMPT=$(python3 -c "
 import json, sys
 try:
     data = json.loads(sys.argv[1])
 except (json.JSONDecodeError, IndexError):
     data = {}
-# Try common field names
 prompt = data.get('prompt', '') or data.get('content', '') or data.get('message', '') or ''
 print(prompt)
 " "$INPUT" 2>/dev/null)
 
-# Skip if prompt is very short
 if [[ ${#PROMPT} -lt 10 ]]; then
     exit 0
 fi
 
-# Skip if prompt starts with / (already a skill invocation)
 if [[ "$PROMPT" == /* ]]; then
     exit 0
 fi
 
 PROMPT_LOWER=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]')
 
-# Check if prompt already mentions pipeline skills
 if echo "$PROMPT_LOWER" | grep -qi '/intake\|/pipeline\|/bug-fix\|/refactor\|/build'; then
     exit 0
 fi
 
-# Check for implementation keywords
+# Check for batch/wave keywords — these REQUIRE pipeline infrastructure
+HAS_BATCH_KEYWORD=false
+for keyword in "start wave" "wave 2" "wave 3" "wave 4" "wave 5" "wave 6" "batch" "all prs" "parallel prs" "run all"; do
+    if echo "$PROMPT_LOWER" | grep -qi "$keyword"; then
+        HAS_BATCH_KEYWORD=true
+        break
+    fi
+done
+
+if [[ "$HAS_BATCH_KEYWORD" == true ]]; then
+    # Check for active pipeline state
+    PIPELINE_DIR="$HOME/.claude/pipeline-state"
+    ACTIVE_FILES=""
+    if [[ -d "$PIPELINE_DIR" ]]; then
+        ACTIVE_FILES=$(find "$PIPELINE_DIR" -name "*-pipeline.md" -type f 2>/dev/null | head -1)
+    fi
+    
+    if [[ -z "$ACTIVE_FILES" ]]; then
+        echo "BLOCKED: Batch/wave work detected but no pipeline state exists. Invoke /intake or /pipeline first to set up pipeline infrastructure (state files, scratchpad, session memory, observation tracking)." >&2
+        exit 2
+    fi
+fi
+
+# Check for single-task implementation keywords (advisory only)
 HAS_KEYWORD=false
 for keyword in "implement" "build" "fix" "refactor" "add feature" "create feature" "add endpoint" "new feature"; do
     if echo "$PROMPT_LOWER" | grep -qi "$keyword"; then

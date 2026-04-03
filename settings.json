@@ -276,6 +276,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash ~/.claude/hooks/pipeline-state-guard.sh",
+            "timeout": 10000
+          },
+          {
+            "type": "command",
             "command": "bash ~/.claude/hooks/agent-skill-reminder.sh",
             "timeout": 10000
           }
