@@ -112,3 +112,33 @@ pipeline-state/{task-id}-scratchpad/{your-role}-{phase}.md
 - **Teams** where parallelism or visibility adds value: Build (multi-slice), Review (parallel + re-review memory), Final Gate (3 phases at once)
 - **Subagents** where fire-and-return is sufficient: Plan (quick), Ship (simple), Deploy (sequential)
 - **Cost-conscious**: Idle teammates burn tokens. Only team up where it pays off.
+
+## Batch Execution (Pre-Planned Work)
+
+When executing multiple pre-planned tasks in parallel (e.g., production readiness waves), use `/batch-pipeline` instead of driving phases manually. The batch pipeline preserves critical infrastructure while skipping redundant phases.
+
+### Why batch-pipeline exists
+
+The full `/pipeline` (Plan → Plan Validation → Build → Review → Final Gate → Ship → Deploy → Reflect) is designed for new work that needs classification and planning. Pre-planned batch work (where the architect output already exists as a document) can skip Plan and Plan Validation, but **must not skip** state tracking, scratchpad, session memory, or the learning loop.
+
+### What the orchestrator must NOT do for batch work
+
+- Spawn build agents directly without creating pipeline state first
+- Skip review (code-review + security-review are always mandatory)
+- Skip the Reflect step (observations, session memory, cleanup)
+- Drive phases manually without state file tracking
+- Forget to inject session memory, scratchpad, and instincts into agent prompts
+
+### What changes vs single-task pipeline
+
+| Aspect | Single task | Batch |
+|--------|-------------|-------|
+| Entry point | `/intake` → `/pipeline` | `/batch-pipeline` |
+| Plan phase | Architect designs | Already done (plan document) |
+| Plan validation | User or challengers approve | Already approved |
+| Build dispatch | 1 agent or team | N agents in parallel |
+| Review dispatch | Team (persistent reviewers) | Subagents (parallel, per-task) |
+| Final Gate | verify + test + accept team | Skipped (batch items are typically small) |
+| State tracking | Same | Same (one state file per batch) |
+| Scratchpad | Same | Shared across all batch agents |
+| Observations | Same | One observation per batch |

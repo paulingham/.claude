@@ -94,7 +94,9 @@ jq -c -n \
     --arg phase "$PHASE" \
     --arg role "$AGENT_ROLE" \
     --arg outcome "$OUTCOME" \
+    --arg rtype "tool_use" \
     '{
+        "record_type": $rtype,
         "timestamp": $ts,
         "session_id": $sid,
         "tool": $tool,

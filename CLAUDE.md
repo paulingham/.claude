@@ -169,6 +169,7 @@ Every agent spawn includes: instincts + agent memory + session memory + scratchp
 | `/debug` | Persistent debug state for complex, multi-session bugs | DEBUG_RESOLVED |
 | `/forensics` | Post-incident pipeline investigation | CLEAN / ANOMALIES_FOUND |
 | `/workstream` | Manage isolated workstreams for parallel development | WORKSTREAM_CREATED |
+| `/batch-pipeline` | Pre-planned batch work (waves, bulk fixes) — lightweight pipeline with state tracking | BATCH_COMPLETE |
 | `/polish` | Mechanical cleanup between Build and Review (Haiku) | POLISHED |
 | `/design-qc` | Visual QA screenshots for product acceptance | SCREENSHOTS_CAPTURED |
 | `/learn` | Analyze observations, extract instincts (learned patterns) | LEARNED |
