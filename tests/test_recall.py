@@ -27,6 +27,23 @@ class MissingDb(unittest.TestCase):
                 recall.get_findings(ids=[1], db_path=missing), [])
 
 
+class PrivacyGateScratchpad(unittest.TestCase):
+    def test_default_filters_private_findings_out(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            insert_scratchpad_rows(db, [{
+                "hash": "psp1", "task": "t1", "cat": "warning",
+                "role": "eng", "phase": "build",
+                "ts": "2026-04-01T10:00:00Z",
+                "body": "secret sauce", "priv": 1}])
+            hits = recall.search("secret", db_path=db, source="scratchpad")
+            self.assertEqual(hits, [])
+            unlocked = recall.search("secret", db_path=db,
+                                     source="scratchpad",
+                                     include_private=True)
+            self.assertEqual(len(unlocked), 1)
+
+
 class PrivacyGate(unittest.TestCase):
     def test_default_filters_private_rows_from_search(self):
         with tempfile.TemporaryDirectory() as tmp:
