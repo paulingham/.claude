@@ -2,21 +2,31 @@
 
 
 def split(word, vocab, unk):
-    out, start = [], 0
+    chunks = list(_iter_chunks(word, vocab))
+    return [unk] if None in chunks else chunks
+
+
+def _iter_chunks(word, vocab):
+    start = 0
     while start < len(word):
         chunk = _longest_prefix(word, start, vocab)
-        if chunk is None:
-            return [unk]
-        out.append(chunk)
-        start += len(chunk if start == 0 else chunk[2:])
-    return out
+        yield chunk
+        start = _next_start(start, chunk)
+
+
+def _next_start(start, chunk):
+    if chunk is None:
+        return 10 ** 9
+    return start + len(chunk if start == 0 else chunk[2:])
 
 
 def _longest_prefix(word, start, vocab):
-    end = len(word)
-    while end > start:
-        piece = word[start:end] if start == 0 else "##" + word[start:end]
+    for end in range(len(word), start, -1):
+        piece = _piece(word, start, end)
         if piece in vocab:
             return piece
-        end -= 1
     return None
+
+
+def _piece(word, start, end):
+    return word[start:end] if start == 0 else "##" + word[start:end]
