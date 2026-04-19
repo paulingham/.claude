@@ -12,8 +12,13 @@ def _file_matches(path, globs):
     if not path or not globs:
         return False
     basename = path.rsplit("/", 1)[-1]
-    return any(fnmatch.fnmatch(basename, g) or fnmatch.fnmatch(path, g)
-               or path.endswith("/" + g) for g in globs)
+    return any(_glob_hits(path, basename, g) for g in globs)
+
+
+def _glob_hits(path, basename, glob):
+    if "/" in glob:
+        return fnmatch.fnmatch(path, glob) or fnmatch.fnmatch(path, "*/" + glob)
+    return fnmatch.fnmatch(basename, glob) or fnmatch.fnmatch(path, glob)
 
 
 def _content_matches(obj, regexes):

@@ -41,6 +41,34 @@ class FileGlobMatchesFullPath(unittest.TestCase):
             obj={"file": "home/user/.aws/credentials"}, allow=allow))
 
 
+class FileGlobWithSlashMatchesAnywhere(unittest.TestCase):
+    """H1 regression: globs containing `/` and `*` must match nested paths."""
+    def test_ssh_glob_matches_absolute_home_path(self):
+        allow = _allow(globs=(".ssh/*",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "/Users/someone/.ssh/id_rsa"}, allow=allow))
+
+    def test_ssh_glob_matches_home_config(self):
+        allow = _allow(globs=(".ssh/*",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "/home/bar/.ssh/config"}, allow=allow))
+
+    def test_aws_sso_cache_matches_nested_json(self):
+        allow = _allow(globs=(".aws/sso/cache/*.json",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "/Users/x/.aws/sso/cache/abc123.json"}, allow=allow))
+
+    def test_secrets_pem_matches_nested(self):
+        allow = _allow(globs=("secrets/*.pem",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "/repo/secrets/key.pem"}, allow=allow))
+
+    def test_ssh_glob_does_not_match_unrelated_dir(self):
+        allow = _allow(globs=(".ssh/*",))
+        self.assertFalse(allowlist_matcher.is_private(
+            obj={"file": "/tmp/notssh/file"}, allow=allow))
+
+
 class NonMatchingFileReturnsFalse(unittest.TestCase):
     def test_ordinary_source_file_not_flagged(self):
         allow = _allow(globs=("*.env", "*secret*"))
