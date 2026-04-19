@@ -278,6 +278,104 @@ fi
 echo ""
 
 
+# -- observation-capture SQLite live-write tests (Story 2) ------------------
+echo "-- observation-capture.sh (SQLite live writes) --"
+
+# Use a hermetic HOME so the tests don't touch the real ~/.claude/db.
+# Symlink hooks + skills + db/schema into the fake HOME so the hook's internal
+# paths ($HOME/.claude/hooks/...) all resolve correctly.
+LW_TMP=$(mktemp -d)
+LW_HOME="$LW_TMP/home"
+mkdir -p "$LW_HOME/.claude"
+ln -s "$HOOKS_DIR" "$LW_HOME/.claude/hooks"
+ln -s "$HOOKS_DIR/../skills" "$LW_HOME/.claude/skills"
+mkdir -p "$LW_HOME/.claude/db" "$LW_HOME/.claude/learning"
+cp "$HOOKS_DIR/../db/schema.sql" "$LW_HOME/.claude/db/schema.sql"
+
+LW_DB="$LW_HOME/.claude/db/memory.sqlite"
+sqlite3 "$LW_DB" < "$LW_HOME/.claude/db/schema.sql"
+
+# Resolve the project hash the hook will compute (hook uses git from $PWD).
+LW_PROJECT_HASH=$(git remote get-url origin 2>/dev/null | openssl md5 -r 2>/dev/null | awk '{print $1}' || basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
+LW_JSONL="$LW_HOME/.claude/learning/$LW_PROJECT_HASH/observations.jsonl"
+
+# Baseline count (0).
+LW_BEFORE=$(sqlite3 "$LW_DB" "SELECT COUNT(*) FROM observations")
+
+# Test: hook inserts a row into SQLite when DB exists.
+rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}"
+echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/x.ts"},"tool_output":{}}' | \
+  HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-session-1" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+LW_HOOK_EXIT=$?
+run_test "observation-capture: live-write hook exits 0 when DB exists" 0 $LW_HOOK_EXIT
+
+LW_AFTER=$(sqlite3 "$LW_DB" "SELECT COUNT(*) FROM observations")
+if [[ "$LW_AFTER" -eq "$((LW_BEFORE + 1))" ]]; then
+  pass "observation-capture: SQLite row inserted when DB exists"
+else
+  fail "observation-capture: SQLite row inserted when DB exists" "$((LW_BEFORE + 1))" "$LW_AFTER"
+fi
+
+# AC4: Missing DB -> hook exits 0, no DB created, JSONL still appended.
+rm -f "$LW_DB"
+rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}"
+rm -f "$LW_JSONL"
+echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/y.ts"},"tool_output":{}}' | \
+  HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-session-nodb" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+LW_NODB_EXIT=$?
+run_test "observation-capture: AC4 missing DB -> hook exits 0" 0 $LW_NODB_EXIT
+if [[ ! -f "$LW_DB" ]]; then
+  pass "observation-capture: AC4 missing DB -> no DB file created"
+else
+  fail "observation-capture: AC4 missing DB -> no DB file created" "no file" "file exists"
+fi
+if [[ -f "$LW_JSONL" ]] && [[ $(wc -l < "$LW_JSONL") -eq 1 ]]; then
+  pass "observation-capture: AC4 missing DB -> JSONL still appended"
+else
+  fail "observation-capture: AC4 missing DB -> JSONL still appended" "1 line" "$(wc -l < "$LW_JSONL" 2>/dev/null || echo no-file)"
+fi
+
+# AC6: malformed stdin -> hook exits 0, no SQLite write, no JSONL write.
+sqlite3 "$LW_DB" < "$HOOKS_DIR/../db/schema.sql"
+LW_MALFORMED_BEFORE=$(sqlite3 "$LW_DB" "SELECT COUNT(*) FROM observations")
+rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}" "$LW_JSONL"
+echo 'not-json-at-all' | \
+  HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-malformed" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+LW_MALF_EXIT=$?
+run_test "observation-capture: AC6 malformed stdin -> hook exits 0" 0 $LW_MALF_EXIT
+LW_MALFORMED_AFTER=$(sqlite3 "$LW_DB" "SELECT COUNT(*) FROM observations")
+if [[ "$LW_MALFORMED_AFTER" -eq "$LW_MALFORMED_BEFORE" ]]; then
+  pass "observation-capture: AC6 malformed stdin -> no SQLite insert"
+else
+  fail "observation-capture: AC6 malformed stdin -> no SQLite insert" "$LW_MALFORMED_BEFORE" "$LW_MALFORMED_AFTER"
+fi
+
+# AC5: SQLite failure path -> JSONL still appended, hook exits 0.
+# Simulate by making the DB file unreadable (chmod 000) so sqlite3_open fails.
+chmod 000 "$LW_DB"
+rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}" "$LW_JSONL"
+echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/z.ts"},"tool_output":{}}' | \
+  HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-locked" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+LW_LOCK_EXIT=$?
+chmod 644 "$LW_DB"
+run_test "observation-capture: AC5 DB failure -> hook exits 0" 0 $LW_LOCK_EXIT
+if [[ -f "$LW_JSONL" ]] && [[ $(wc -l < "$LW_JSONL") -eq 1 ]]; then
+  pass "observation-capture: AC5 DB failure -> JSONL still appended"
+else
+  fail "observation-capture: AC5 DB failure -> JSONL still appended" "1 line" "$(wc -l < "$LW_JSONL" 2>/dev/null || echo no-file)"
+fi
+
+# Cleanup
+rm -rf "$LW_TMP"
+rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}"
+
+echo ""
+
+
 # -- subagent-context tests --------------------------------------------------
 echo "-- subagent-context.sh --"
 
