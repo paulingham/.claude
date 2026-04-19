@@ -68,6 +68,25 @@ class MalformedJsonWarnsAndReturnsEmpty(unittest.TestCase):
             self.assertIn("allowlist", buf.getvalue().lower())
 
 
+class OversizedFileWarnsAndReturnsEmpty(unittest.TestCase):
+    """Gap 6: files above the size cap must not be slurped into memory.
+
+    DoS surface — a multi-megabyte allowlist (accidental or adversarial)
+    on the capture hot path is unacceptable. Loader returns empty + WARN.
+    """
+    def test_two_megabyte_file_returns_empty_and_warns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            user = Path(tmp) / "user.json"
+            payload = '{"file_globs":["' + ("x" * (2 * 1024 * 1024)) + '"]}'
+            user.write_text(payload)
+            buf = io.StringIO()
+            with redirect_stderr(buf):
+                allow = allowlist_loader.load(
+                    user_path=user, default_path=None)
+            self.assertEqual(allow.file_globs, ())
+            self.assertIn("allowlist", buf.getvalue().lower())
+
+
 class NonUtf8FileWarnsAndReturnsEmpty(unittest.TestCase):
     """M1 regression: non-UTF8 allowlist file must not crash capture."""
     def test_binary_file_returns_empty_and_warns(self):
@@ -79,6 +98,29 @@ class NonUtf8FileWarnsAndReturnsEmpty(unittest.TestCase):
                 allow = allowlist_loader.load(
                     user_path=user, default_path=None)
             self.assertEqual(allow.file_globs, ())
+            self.assertIn("allowlist", buf.getvalue().lower())
+
+
+class InvalidRegexSkippedOthersKept(unittest.TestCase):
+    """Gap 8: one bad regex must not silently void the entire allowlist.
+
+    Prior behaviour wrapped the whole parse in try/except, so a typo in
+    one regex returned an empty Allowlist. Loader now skips the bad
+    regex with a per-entry warning and keeps the rest.
+    """
+    def test_one_bad_regex_keeps_good_ones(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            user = Path(tmp) / "user.json"
+            user.write_text(json.dumps({
+                "file_globs": ["*.env"],
+                "content_regexes": [r"AKIA[0-9A-Z]{16}\b", r"(unclosed"],
+            }))
+            buf = io.StringIO()
+            with redirect_stderr(buf):
+                allow = allowlist_loader.load(
+                    user_path=user, default_path=None)
+            self.assertEqual(allow.file_globs, ("*.env",))
+            self.assertEqual(len(allow.content_regexes), 1)
             self.assertIn("allowlist", buf.getvalue().lower())
 
 

@@ -48,6 +48,35 @@ class MalformedUnclosedReturnsInput(unittest.TestCase):
         self.assertEqual(sanitizer.sanitize(text), text)
 
 
+class EmptyBodyPrivateStripped(unittest.TestCase):
+    """Gap 1: <private></private> with empty body must be removed."""
+    def test_empty_body_removed(self):
+        self.assertEqual(sanitizer.sanitize("a<private></private>b"), "ab")
+
+
+class CrlfInsidePrivateStripped(unittest.TestCase):
+    """Gap 2: CRLF line endings inside <private> block must be stripped."""
+    def test_crlf_content_removed(self):
+        out = sanitizer.sanitize("pre <private>\r\nsecret\r\n</private> post")
+        self.assertEqual(out, "pre  post")
+
+
+class AttributeVariantsNotStripped(unittest.TestCase):
+    """Gap 4: only literal `<private>` opens a block.
+
+    Attribute-bearing opens (`<private foo>`) and case variants (`<PRIVATE>`)
+    must NOT match; they pass through unchanged. Protects against a future
+    regex relax that would silently over-strip benign content.
+    """
+    def test_attribute_variant_unchanged(self):
+        text = "<private foo>x</private>"
+        self.assertEqual(sanitizer.sanitize(text), text)
+
+    def test_uppercase_variant_unchanged(self):
+        text = "<PRIVATE>x</PRIVATE>"
+        self.assertEqual(sanitizer.sanitize(text), text)
+
+
 class DeepUnclosedNoBacktrackingBlowup(unittest.TestCase):
     """1000-deep unclosed <private> must complete in <100ms (linearity)."""
     def test_thousand_deep_unclosed_returns_fast(self):
