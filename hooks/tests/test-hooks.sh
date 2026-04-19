@@ -84,14 +84,39 @@ echo ""
 # -- orchestrator-discipline tests -------------------------------------------
 echo "-- orchestrator-discipline.sh --"
 
-echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.ts"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
-run_test "orchestrator-discipline: .ts file -> block (exit 2)" 2 $?
+# Build a scratch repo + worktree so caller-context tests are hermetic regardless of
+# where this harness itself is invoked from.
+OD_TMP=$(mktemp -d)
+OD_MAIN="$OD_TMP/main-repo"
+git init -q "$OD_MAIN" 2>/dev/null
+(cd "$OD_MAIN" && git commit -q --allow-empty -m init 2>/dev/null)
+OD_WT="$OD_MAIN/.claude/worktrees/agent-testid"
+mkdir -p "$OD_MAIN/.claude/worktrees"
+(cd "$OD_MAIN" && git worktree add -q "$OD_WT" -b worktree-agent-testid 2>/dev/null)
 
-echo '{"tool_name":"Write","tool_input":{"file_path":"rules/foo.md"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
-run_test "orchestrator-discipline: .md file -> allow (exit 0)" 0 $?
+# Orchestrator caller (PWD = main tree root): path-based rules apply.
+(cd "$OD_MAIN" && echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.ts"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: .ts file (orchestrator PWD) -> block (exit 2)" 2 $?
 
-echo '{"tool_name":"Write","tool_input":{"file_path":""},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
-run_test "orchestrator-discipline: empty path -> allow (exit 0)" 0 $?
+(cd "$OD_MAIN" && echo '{"tool_name":"Write","tool_input":{"file_path":"rules/foo.md"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: .md file (orchestrator PWD) -> allow (exit 0)" 0 $?
+
+(cd "$OD_MAIN" && echo '{"tool_name":"Write","tool_input":{"file_path":""},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: empty path (orchestrator PWD) -> allow (exit 0)" 0 $?
+
+(cd "$OD_MAIN" && echo '{"tool_name":"Write","tool_input":{"file_path":".claude/settings.json"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: orchestrator PWD -> settings.json blocked (exit 2)" 2 $?
+
+# Subagent caller (PWD = worktree): non-allow-listed paths are allowed.
+(cd "$OD_WT" && echo '{"tool_name":"Write","tool_input":{"file_path":".claude/settings.json"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: subagent PWD (worktree) -> settings.json allowed (exit 0)" 0 $?
+
+(cd "$OD_WT" && echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.ts"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: subagent PWD (worktree) -> .ts file allowed (exit 0)" 0 $?
+
+# Cleanup
+(cd "$OD_MAIN" && git worktree remove --force "$OD_WT" 2>/dev/null)
+rm -rf "$OD_TMP"
 
 echo ""
 
