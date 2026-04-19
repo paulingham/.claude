@@ -68,6 +68,25 @@ class MalformedJsonWarnsAndReturnsEmpty(unittest.TestCase):
             self.assertIn("allowlist", buf.getvalue().lower())
 
 
+class OversizedFileWarnsAndReturnsEmpty(unittest.TestCase):
+    """Gap 6: files above the size cap must not be slurped into memory.
+
+    DoS surface — a multi-megabyte allowlist (accidental or adversarial)
+    on the capture hot path is unacceptable. Loader returns empty + WARN.
+    """
+    def test_two_megabyte_file_returns_empty_and_warns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            user = Path(tmp) / "user.json"
+            payload = '{"file_globs":["' + ("x" * (2 * 1024 * 1024)) + '"]}'
+            user.write_text(payload)
+            buf = io.StringIO()
+            with redirect_stderr(buf):
+                allow = allowlist_loader.load(
+                    user_path=user, default_path=None)
+            self.assertEqual(allow.file_globs, ())
+            self.assertIn("allowlist", buf.getvalue().lower())
+
+
 class NonUtf8FileWarnsAndReturnsEmpty(unittest.TestCase):
     """M1 regression: non-UTF8 allowlist file must not crash capture."""
     def test_binary_file_returns_empty_and_warns(self):
