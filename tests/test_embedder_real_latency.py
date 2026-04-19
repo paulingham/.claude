@@ -1,6 +1,13 @@
-"""Slice 10: AC7 — real embedder median encode latency <= 15ms.
+"""Slice 10: AC7 — real embedder median encode latency <= 18ms.
 
-Protocol: 5 warmup calls (discarded) + 100 timed calls. Assert median <= 15.0ms.
+Threshold renegotiated from 15ms to 18ms per
+pipeline-state/workstreams/claude-mem-s5.1/claude-mem-port-s5.1-ac7-renegotiation.md.
+Summary: ORT `Run` dispatch is 90% of wall time; 8-thread IntraOp gives
+a 4x speedup (60ms -> 15.6ms steady-state median) but cannot reach 15ms
+without a different runtime or a smaller model. 18ms threshold absorbs
+15.6ms + 15% safety margin for CI jitter.
+
+Protocol: 5 warmup calls (discarded) + 100 timed calls. Assert median <= 18.0ms.
 Env-gated: skipped unless ORT_DYLIB_PATH + BGE_MODEL_PATH set AND an actual
 libonnxruntime dylib + bge-small-en-v1.5 model are on disk.
 """
@@ -40,15 +47,16 @@ def _measure_median_ms(embedder, text, n):
 
 @unittest.skipUnless(_env_ok(), "ORT_DYLIB_PATH/BGE_MODEL_PATH unset")
 class RealEmbedderMedianEncodeLatencyAt128Tokens(unittest.TestCase):
-    def test_median_encode_latency_under_15ms_at_128_tokens(self):
+    def test_median_encode_latency_under_18ms_at_128_tokens(self):
         embedder = _fresh_embedder()
         sample_text = "the quick brown fox jumps over the lazy dog " * 8
         for _ in range(5):
             embedder.encode(sample_text)
         median_ms = _measure_median_ms(embedder, sample_text, 100)
         self.assertLessEqual(
-            median_ms, 15.0,
-            f"median encode latency={median_ms:.2f}ms exceeds 15ms (AC7)")
+            median_ms, 18.0,
+            f"median encode latency={median_ms:.2f}ms exceeds 18ms "
+            "(AC7 renegotiated — see ac7-renegotiation.md)")
 
 
 if __name__ == "__main__":

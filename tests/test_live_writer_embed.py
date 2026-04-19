@@ -55,20 +55,31 @@ class OptInWritesEmbeddingWithFake(unittest.TestCase):
             _clear_embedder_env()
 
 
+_MODEL_KEYS = ("ORT_DYLIB_PATH", "BGE_MODEL_PATH")
+
+
 class OptInToleratesMissingModel(unittest.TestCase):
     def test_observation_still_written_when_embedder_unavailable(self):
+        saved = {k: os.environ.get(k) for k in _MODEL_KEYS}
+        for k in _MODEL_KEYS:
+            os.environ.pop(k, None)
         os.environ["CLAUDE_EMBED_AT_CAPTURE"] = "1"
         os.environ.pop("CLAUDE_EMBEDDER", None)
         _reset_singleton()
         try:
-            with tempfile.TemporaryDirectory() as tmp:
-                db = Path(tmp) / "memory.sqlite"
-                schema.ensure(db)
-                rc = live_writer.write_one(_obj(), db)
-                self.assertEqual(rc, 1)
-                self.assertEqual(_count_embeddings(db), 0)
+            self._assert_observation_still_written()
         finally:
+            for k, v in saved.items():
+                _restore_env(k, v)
             _clear_embedder_env()
+
+    def _assert_observation_still_written(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "memory.sqlite"
+            schema.ensure(db)
+            rc = live_writer.write_one(_obj(), db)
+            self.assertEqual(rc, 1)
+            self.assertEqual(_count_embeddings(db), 0)
 
 
 class CorruptModelPathHandled(unittest.TestCase):
@@ -78,17 +89,21 @@ class CorruptModelPathHandled(unittest.TestCase):
         _reset_singleton()
         corrupt = tempfile.NamedTemporaryFile(suffix=".onnx", delete=False)
         corrupt.close()
+        prev_bge = os.environ.get("BGE_MODEL_PATH")
         os.environ["BGE_MODEL_PATH"] = corrupt.name
         try:
-            with tempfile.TemporaryDirectory() as tmp:
-                db = Path(tmp) / "memory.sqlite"
-                schema.ensure(db)
-                rc = live_writer.write_one(_obj(), db)
-                self.assertEqual(rc, 1)
+            self._assert_write_tolerates_bad_model()
         finally:
-            os.environ.pop("BGE_MODEL_PATH", None)
+            _restore_env("BGE_MODEL_PATH", prev_bge)
             os.unlink(corrupt.name)
             _clear_embedder_env()
+
+    def _assert_write_tolerates_bad_model(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "memory.sqlite"
+            schema.ensure(db)
+            rc = live_writer.write_one(_obj(), db)
+            self.assertEqual(rc, 1)
 
 
 class OptInLatencyUnder5ms(unittest.TestCase):
@@ -135,6 +150,13 @@ def _reset_singleton():
     mod = sys.modules.get("embedder.embedder")
     if mod is not None:
         mod.reset_singleton_for_tests()
+
+
+def _restore_env(key, value):
+    if value is None:
+        os.environ.pop(key, None)
+    else:
+        os.environ[key] = value
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 OBS = (
     "SELECT o.id AS id, substr(o.content_hash, 1, 16) AS content_hash, "
+    "o.content_hash AS _full_hash, "
     "o.timestamp AS timestamp, o.tool AS tool, o.file AS file, "
     "snippet(observations_fts, 0, '[', ']', '…', 8) AS snippet "
     "FROM observations_fts "
@@ -11,6 +12,7 @@ OBS = (
 
 SP = (
     "SELECT s.id AS id, substr(s.content_hash, 1, 16) AS content_hash, "
+    "s.content_hash AS _full_hash, "
     "s.timestamp AS timestamp, s.category AS category, "
     "snippet(scratchpad_fts, 0, '[', ']', '…', 8) AS snippet, "
     "'scratchpad' AS source "
