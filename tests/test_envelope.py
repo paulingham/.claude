@@ -33,6 +33,14 @@ class MissingDbGuard(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as tmp:
             self.assertFalse(envelope.db_missing(tmp.name))
 
+    def test_stderr_escapes_control_bytes(self):
+        buf = io.StringIO()
+        with redirect_stderr(buf):
+            envelope.db_missing("/tmp/\x1b[2Jhacked.sqlite")
+        out = buf.getvalue()
+        self.assertNotIn("\x1b", out)
+        self.assertIn("\\x1b", out)
+
 
 if __name__ == "__main__":
     unittest.main()

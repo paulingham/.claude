@@ -1,32 +1,47 @@
 """Source dispatch helpers for search/timeline tiers."""
-from recall._lib import search_tier, timeline_tier, envelope
+from recall._lib import search_tier, timeline_tier, envelope, api_args
 
 _SEARCH = {"observations": search_tier.search_observations,
            "scratchpad":   search_tier.search_scratchpad}
+_TIMELINE = {"observations": timeline_tier.fetch_observations,
+             "scratchpad":   timeline_tier.fetch_scratchpad}
 
 
 def guarded(fn):
     def wrapped(*a, db_path=None, **kw):
-        if envelope.db_missing(db_path):
-            return []
-        return fn(*a, db_path=db_path, **kw)
+        resolved = api_args.resolve_db(db_path)
+        return _dispatch(fn, a, kw, resolved)
     return wrapped
 
 
-def search(query, limit, source, db_path, include_private):
-    pick = _SEARCH.get(source)
-    if pick:
-        return pick(db_path, query, limit, include_private)
-    return _both(query, limit, db_path, include_private)
+def _dispatch(fn, a, kw, resolved):
+    if envelope.db_missing(resolved):
+        return []
+    return fn(*a, db_path=resolved, **kw)
 
 
-def _both(query, limit, db_path, include_private):
-    obs = search_tier.search_observations(db_path, query, limit, include_private)
-    sp = search_tier.search_scratchpad(db_path, query, limit, include_private)
-    return [dict(h, source="observations") for h in obs] + sp
+def search(query, limit, source, db_path, include_private, spec=None):
+    if source == "both":
+        return _search_both(query, limit, db_path, include_private, spec)
+    return _SEARCH[source](db_path, query, limit, include_private, spec)
 
 
-def timeline(limit, source, db_path, include_private):
-    fn = (timeline_tier.fetch_scratchpad if source == "scratchpad"
-          else timeline_tier.fetch_observations)
-    return fn(db_path, "", (), limit, include_private)
+def _search_both(query, limit, db_path, include_private, spec):
+    obs = [dict(h, source="observations") for h in _SEARCH["observations"](
+        db_path, query, limit, include_private, spec)]
+    sp = _SEARCH["scratchpad"](db_path, query, limit, include_private, spec)
+    return (obs + sp)[:limit]
+
+
+def timeline(limit, source, db_path, include_private, spec=None):
+    if source == "both":
+        return _timeline_both(limit, db_path, include_private, spec)
+    return _TIMELINE[source](db_path, spec, limit, include_private)
+
+
+def _timeline_both(limit, db_path, include_private, spec):
+    obs = [dict(r, source="observations") for r in _TIMELINE["observations"](
+        db_path, spec, limit, include_private)]
+    sp = [dict(r, source="scratchpad") for r in _TIMELINE["scratchpad"](
+        db_path, spec, limit, include_private)]
+    return (obs + sp)[:limit]

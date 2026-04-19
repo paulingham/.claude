@@ -7,7 +7,8 @@ def db_missing(db_path):
     """Stderr warning + return True when db_path does not exist."""
     if db_path and Path(db_path).exists():
         return False
-    sys.stderr.write(f"recall: db missing at {db_path} — run reindex-memory\n")
+    safe = repr(str(db_path))
+    sys.stderr.write(f"recall: db missing at {safe} — run reindex-memory\n")
     return True
 
 

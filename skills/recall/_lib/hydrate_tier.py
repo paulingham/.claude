@@ -12,9 +12,19 @@ def fetch_by_ids(db_path, ids, include_private=False):
                   include_private)
 
 
+def fetch_by_hashes(db_path, hashes, include_private=False):
+    return _fetch(db_path, "observations", _OBS_COLS, "content_hash",
+                  hashes, include_private)
+
+
 def fetch_findings_by_ids(db_path, ids, include_private=False):
     return _fetch(db_path, "scratchpad_findings", _SP_COLS, "id", ids,
                   include_private)
+
+
+def fetch_findings_by_hashes(db_path, hashes, include_private=False):
+    return _fetch(db_path, "scratchpad_findings", _SP_COLS,
+                  "content_hash", hashes, include_private)
 
 
 def _fetch(db_path, table, cols, col, values, include_private):
