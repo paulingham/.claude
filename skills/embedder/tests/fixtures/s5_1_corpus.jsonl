@@ -1,0 +1,50 @@
+{"id": "q1_target", "query": "fix login authentication bug in production", "text": "Users are unable to sign in; the auth service keeps rejecting valid credentials on prod."}
+{"id": "q2_target", "query": "optimize slow database query performance", "text": "The reporting SQL takes over thirty seconds; we need to speed up this query."}
+{"id": "q3_target", "query": "schedule team meeting for tomorrow morning", "text": "Please book a sync for the engineering team first thing tomorrow."}
+{"id": "q4_target", "query": "review my pull request for the payment feature", "text": "Could you look over my PR that adds the checkout flow?"}
+{"id": "q5_target", "query": "deploy new container image to kubernetes cluster", "text": "Ship the updated service pod to the prod k8s environment."}
+{"id": "d01", "text": "fix fix fix fix fix authentication authentication production production bug"}
+{"id": "d02", "text": "login login login login login production production bug bug fix"}
+{"id": "d03", "text": "optimize optimize optimize slow slow slow query query database"}
+{"id": "d04", "text": "database database database database query query query query slow"}
+{"id": "d05", "text": "schedule schedule schedule meeting meeting team team tomorrow tomorrow"}
+{"id": "d06", "text": "meeting meeting team morning morning tomorrow tomorrow schedule sync"}
+{"id": "d07", "text": "review review review pull request request pull feature payment"}
+{"id": "d08", "text": "pull pull request request review review payment payment feature"}
+{"id": "d09", "text": "deploy deploy deploy container container container image kubernetes cluster"}
+{"id": "d10", "text": "kubernetes kubernetes cluster cluster deploy container container image new"}
+{"id": "d11", "text": "production authentication login bug fix retry session"}
+{"id": "d12", "text": "query optimize slow database index scan"}
+{"id": "d13", "text": "meeting schedule tomorrow calendar invite team"}
+{"id": "d14", "text": "pull request review feature payment merge approve"}
+{"id": "d15", "text": "deploy container kubernetes cluster image registry push"}
+{"id": "d16", "text": "login login fix production authentication bug token"}
+{"id": "d17", "text": "slow database query optimize performance tune"}
+{"id": "d18", "text": "team meeting tomorrow morning schedule calendar invite"}
+{"id": "d19", "text": "review pull request feature payment flow merge"}
+{"id": "d20", "text": "deploy kubernetes cluster new container image pod"}
+{"id": "d21", "text": "authentication bug production login fix retry"}
+{"id": "d22", "text": "query database optimize slow performance index"}
+{"id": "d23", "text": "meeting schedule tomorrow team morning calendar"}
+{"id": "d24", "text": "pull request feature payment review merge approve"}
+{"id": "d25", "text": "container kubernetes cluster deploy image pod new"}
+{"id": "n01", "text": "Yesterday I baked a chocolate cake for the office birthday party."}
+{"id": "n02", "text": "The weather in San Francisco has been unusually foggy this week."}
+{"id": "n03", "text": "Reading a novel about Victorian London during my commute home."}
+{"id": "n04", "text": "Tried a new ramen place in the Mission; the tonkotsu broth was amazing."}
+{"id": "n05", "text": "My dog learned a new trick over the weekend; he can shake hands now."}
+{"id": "n06", "text": "Watched a documentary about deep-sea creatures last night, fascinating."}
+{"id": "n07", "text": "Planning a hiking trip to the Sierra Nevada mountains next month."}
+{"id": "n08", "text": "The new coffee shop on the corner has excellent pour-over espresso."}
+{"id": "n09", "text": "My grandmother's recipe for sourdough bread uses a century-old starter."}
+{"id": "n10", "text": "Learning to play the ukulele has been surprisingly rewarding."}
+{"id": "n11", "text": "The museum's new impressionist exhibit runs through September."}
+{"id": "n12", "text": "Bought a vintage typewriter at an estate sale last weekend."}
+{"id": "n13", "text": "Our chess club meets Thursday evenings at the community library."}
+{"id": "n14", "text": "Growing tomatoes on the balcony this summer for the first time."}
+{"id": "n15", "text": "The cat knocked over the flower vase again this morning."}
+{"id": "n16", "text": "Finished knitting a scarf for my nephew's birthday gift."}
+{"id": "n17", "text": "The bakery down the street makes the best croissants in town."}
+{"id": "n18", "text": "Started a garden journal to track what blooms each season."}
+{"id": "n19", "text": "The new bookstore opened with a poetry reading last Friday."}
+{"id": "n20", "text": "Attended a pottery class and made a lopsided but proud mug."}
