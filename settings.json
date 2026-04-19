@@ -36,7 +36,12 @@
       "EnterPlanMode",
       "ExitPlanMode",
       "EnterWorktree",
-      "ExitWorktree"
+      "ExitWorktree",
+      "Bash(rm -rf ~/.claude/pipeline-state/*-scratchpad)",
+      "Bash(rm -rf ~/.claude/pipeline-state/*-scratchpad/)",
+      "Bash(rm -rf ~/.claude/pipeline-state/*-scratchpad/*)",
+      "Bash(git worktree remove ~/.claude/.claude/worktrees/*)",
+      "Bash(git worktree remove --force ~/.claude/.claude/worktrees/*)"
     ],
     "deny": [
       "Bash(rm -rf /*)",
