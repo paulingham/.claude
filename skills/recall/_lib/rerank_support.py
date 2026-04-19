@@ -2,7 +2,6 @@
 
 Acquires the embedder via the facade, applies rerank per source, emits
 the AC11 stderr banner if anything went unavailable."""
-import os
 import sys
 
 BANNER = ("[recall: lexical-only — run 'embedder doctor' "
@@ -10,14 +9,11 @@ BANNER = ("[recall: lexical-only — run 'embedder doctor' "
 
 
 def try_embedder():
-    if os.environ.get("CLAUDE_EMBEDDER") != "fake":
+    try:
+        from embedder.embedder import get_embedder
+        return get_embedder()
+    except Exception:
         return None
-    return _lazy_fake()
-
-
-def _lazy_fake():
-    from embedder._lib.fake import FakeEmbedder
-    return FakeEmbedder()
 
 
 def maybe_rerank(db_path, hits, query, limit, embedder):
