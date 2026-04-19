@@ -132,3 +132,38 @@ def count_fts_match(db, term):
             "WHERE observations_fts MATCH ?", (term,)).fetchone()[0]
     finally:
         con.close()
+
+
+def build_populated_db_with_private_row(tmp):
+    """Populate DB via S1 ingest, then raw-insert one is_private=1 row."""
+    db, learning = build_populated_db(tmp)
+    _insert_private_observation(db)
+    return db, learning
+
+
+def _insert_private_observation(db):
+    con = sqlite3.connect(str(db))
+    try:
+        con.execute(
+            "INSERT INTO observations "
+            "(content_hash, session_id, timestamp, tool, is_private, "
+            "searchable_text) VALUES "
+            "('privhash', 'sp', '2026-04-01T00:00:10Z', 'Secret', 1, "
+            "'Secret private marker')")
+        con.commit()
+    finally:
+        con.close()
+
+
+def insert_scratchpad_rows(db_path, rows):
+    """Direct INSERT into scratchpad_findings; FTS5 triggers auto-populate."""
+    con = sqlite3.connect(str(db_path))
+    try:
+        con.executemany(
+            "INSERT INTO scratchpad_findings "
+            "(content_hash, task_id, category, agent_role, phase, "
+            "timestamp, body, is_private) VALUES "
+            "(:hash, :task, :cat, :role, :phase, :ts, :body, :priv)", rows)
+        con.commit()
+    finally:
+        con.close()
