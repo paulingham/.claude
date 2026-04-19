@@ -1,14 +1,15 @@
 """Public API: search, timeline, get_observations, get_findings."""
-from recall._lib import dispatch, hydrate_tier, api_args
+from recall._lib import dispatch, hydrate_tier, api_args, rerank_support
 
 
 @dispatch.guarded
 def search(query, *, filters=None, limit=20, source="both",
            db_path=None, include_private=False):
     api_args.check_source(source)
-    return api_args.guarded_call(
+    hits = api_args.guarded_call(
         dispatch.search, query, api_args.clamp_limit(limit),
         source, db_path, include_private, filters)
+    return rerank_support.apply(hits, query, limit, db_path)
 
 
 @dispatch.guarded
