@@ -48,7 +48,7 @@ log_bug() {
     local category="$1"
     local summary="$2"
     local dedup_key="${FILE_PATH}_${category}"
-    local dedup_hash=$(echo "$dedup_key" | md5 -q 2>/dev/null || echo "$dedup_key" | md5sum 2>/dev/null | cut -d' ' -f1)
+    local dedup_hash=$(echo "$dedup_key" | openssl md5 -r 2>/dev/null | awk '{print $1}')
     local dedup_file="$DEDUP_DIR/$dedup_hash"
 
     # Check 5-minute dedup window
