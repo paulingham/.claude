@@ -69,6 +69,25 @@ class FileGlobWithSlashMatchesAnywhere(unittest.TestCase):
             obj={"file": "/tmp/notssh/file"}, allow=allow))
 
 
+class NormalizedPathStillMatches(unittest.TestCase):
+    """Gap 10: matcher must normalize the path before fnmatch checks.
+
+    `./x/.env`, `x/./.env`, and `x/y/../.env` are all equivalent to a
+    path ending in `.env` and must match a basename glob. Without
+    normalization, a caller passing a non-canonical path could bypass
+    the allowlist.
+    """
+    def test_dot_slash_prefix_still_matches(self):
+        allow = _allow(globs=(".env",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "./x/.env"}, allow=allow))
+
+    def test_parent_traversal_still_matches(self):
+        allow = _allow(globs=(".env",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "x/../.env"}, allow=allow))
+
+
 class FileGlobIsCaseSensitive(unittest.TestCase):
     """Gap 9: fnmatch on macOS/Linux is case-sensitive by default.
 

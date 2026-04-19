@@ -1,5 +1,6 @@
 """Detect whether an observation matches the privacy allowlist."""
 import fnmatch
+import os
 
 
 def is_private(obj, allow):
@@ -11,8 +12,9 @@ def is_private(obj, allow):
 def _file_matches(path, globs):
     if not path or not globs:
         return False
-    basename = path.rsplit("/", 1)[-1]
-    return any(_glob_hits(path, basename, g) for g in globs)
+    normalized = os.path.normpath(path)
+    basename = normalized.rsplit("/", 1)[-1]
+    return any(_glob_hits(normalized, basename, g) for g in globs)
 
 
 def _glob_hits(path, basename, glob):
