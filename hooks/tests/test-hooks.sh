@@ -84,14 +84,39 @@ echo ""
 # -- orchestrator-discipline tests -------------------------------------------
 echo "-- orchestrator-discipline.sh --"
 
-echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.ts"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
-run_test "orchestrator-discipline: .ts file -> block (exit 2)" 2 $?
+# Build a scratch repo + worktree so caller-context tests are hermetic regardless of
+# where this harness itself is invoked from.
+OD_TMP=$(mktemp -d)
+OD_MAIN="$OD_TMP/main-repo"
+git init -q "$OD_MAIN" 2>/dev/null
+(cd "$OD_MAIN" && git commit -q --allow-empty -m init 2>/dev/null)
+OD_WT="$OD_MAIN/.claude/worktrees/agent-testid"
+mkdir -p "$OD_MAIN/.claude/worktrees"
+(cd "$OD_MAIN" && git worktree add -q "$OD_WT" -b worktree-agent-testid 2>/dev/null)
 
-echo '{"tool_name":"Write","tool_input":{"file_path":"rules/foo.md"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
-run_test "orchestrator-discipline: .md file -> allow (exit 0)" 0 $?
+# Orchestrator caller (PWD = main tree root): path-based rules apply.
+(cd "$OD_MAIN" && echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.ts"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: .ts file (orchestrator PWD) -> block (exit 2)" 2 $?
 
-echo '{"tool_name":"Write","tool_input":{"file_path":""},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1
-run_test "orchestrator-discipline: empty path -> allow (exit 0)" 0 $?
+(cd "$OD_MAIN" && echo '{"tool_name":"Write","tool_input":{"file_path":"rules/foo.md"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: .md file (orchestrator PWD) -> allow (exit 0)" 0 $?
+
+(cd "$OD_MAIN" && echo '{"tool_name":"Write","tool_input":{"file_path":""},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: empty path (orchestrator PWD) -> allow (exit 0)" 0 $?
+
+(cd "$OD_MAIN" && echo '{"tool_name":"Write","tool_input":{"file_path":".claude/settings.json"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: orchestrator PWD -> settings.json blocked (exit 2)" 2 $?
+
+# Subagent caller (PWD = worktree): non-allow-listed paths are allowed.
+(cd "$OD_WT" && echo '{"tool_name":"Write","tool_input":{"file_path":".claude/settings.json"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: subagent PWD (worktree) -> settings.json allowed (exit 0)" 0 $?
+
+(cd "$OD_WT" && echo '{"tool_name":"Write","tool_input":{"file_path":"src/foo.ts"},"hook_event_name":"PreToolUse"}' | bash "$HOOKS_DIR/orchestrator-discipline.sh" > /dev/null 2>&1)
+run_test "orchestrator-discipline: subagent PWD (worktree) -> .ts file allowed (exit 0)" 0 $?
+
+# Cleanup
+(cd "$OD_MAIN" && git worktree remove --force "$OD_WT" 2>/dev/null)
+rm -rf "$OD_TMP"
 
 echo ""
 
@@ -249,6 +274,104 @@ if [[ -f "/tmp/claude-session-${MY_PID}" ]]; then
 else
   fail "observation-capture: generates session_id when env var unset" "temp file exists" "not found"
 fi
+
+echo ""
+
+
+# -- observation-capture SQLite live-write tests (Story 2) ------------------
+echo "-- observation-capture.sh (SQLite live writes) --"
+
+# Use a hermetic HOME so the tests don't touch the real ~/.claude/db.
+# Symlink hooks + skills + db/schema into the fake HOME so the hook's internal
+# paths ($HOME/.claude/hooks/...) all resolve correctly.
+LW_TMP=$(mktemp -d)
+LW_HOME="$LW_TMP/home"
+mkdir -p "$LW_HOME/.claude"
+ln -s "$HOOKS_DIR" "$LW_HOME/.claude/hooks"
+ln -s "$HOOKS_DIR/../skills" "$LW_HOME/.claude/skills"
+mkdir -p "$LW_HOME/.claude/db" "$LW_HOME/.claude/learning"
+cp "$HOOKS_DIR/../db/schema.sql" "$LW_HOME/.claude/db/schema.sql"
+
+LW_DB="$LW_HOME/.claude/db/memory.sqlite"
+sqlite3 "$LW_DB" < "$LW_HOME/.claude/db/schema.sql"
+
+# Resolve the project hash the hook will compute (hook uses git from $PWD).
+LW_PROJECT_HASH=$(git remote get-url origin 2>/dev/null | openssl md5 -r 2>/dev/null | awk '{print $1}' || basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
+LW_JSONL="$LW_HOME/.claude/learning/$LW_PROJECT_HASH/observations.jsonl"
+
+# Baseline count (0).
+LW_BEFORE=$(sqlite3 "$LW_DB" "SELECT COUNT(*) FROM observations")
+
+# Test: hook inserts a row into SQLite when DB exists.
+rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}"
+echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/x.ts"},"tool_output":{}}' | \
+  HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-session-1" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+LW_HOOK_EXIT=$?
+run_test "observation-capture: live-write hook exits 0 when DB exists" 0 $LW_HOOK_EXIT
+
+LW_AFTER=$(sqlite3 "$LW_DB" "SELECT COUNT(*) FROM observations")
+if [[ "$LW_AFTER" -eq "$((LW_BEFORE + 1))" ]]; then
+  pass "observation-capture: SQLite row inserted when DB exists"
+else
+  fail "observation-capture: SQLite row inserted when DB exists" "$((LW_BEFORE + 1))" "$LW_AFTER"
+fi
+
+# AC4: Missing DB -> hook exits 0, no DB created, JSONL still appended.
+rm -f "$LW_DB"
+rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}"
+rm -f "$LW_JSONL"
+echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/y.ts"},"tool_output":{}}' | \
+  HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-session-nodb" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+LW_NODB_EXIT=$?
+run_test "observation-capture: AC4 missing DB -> hook exits 0" 0 $LW_NODB_EXIT
+if [[ ! -f "$LW_DB" ]]; then
+  pass "observation-capture: AC4 missing DB -> no DB file created"
+else
+  fail "observation-capture: AC4 missing DB -> no DB file created" "no file" "file exists"
+fi
+if [[ -f "$LW_JSONL" ]] && [[ $(wc -l < "$LW_JSONL") -eq 1 ]]; then
+  pass "observation-capture: AC4 missing DB -> JSONL still appended"
+else
+  fail "observation-capture: AC4 missing DB -> JSONL still appended" "1 line" "$(wc -l < "$LW_JSONL" 2>/dev/null || echo no-file)"
+fi
+
+# AC6: malformed stdin -> hook exits 0, no SQLite write, no JSONL write.
+sqlite3 "$LW_DB" < "$HOOKS_DIR/../db/schema.sql"
+LW_MALFORMED_BEFORE=$(sqlite3 "$LW_DB" "SELECT COUNT(*) FROM observations")
+rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}" "$LW_JSONL"
+echo 'not-json-at-all' | \
+  HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-malformed" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+LW_MALF_EXIT=$?
+run_test "observation-capture: AC6 malformed stdin -> hook exits 0" 0 $LW_MALF_EXIT
+LW_MALFORMED_AFTER=$(sqlite3 "$LW_DB" "SELECT COUNT(*) FROM observations")
+if [[ "$LW_MALFORMED_AFTER" -eq "$LW_MALFORMED_BEFORE" ]]; then
+  pass "observation-capture: AC6 malformed stdin -> no SQLite insert"
+else
+  fail "observation-capture: AC6 malformed stdin -> no SQLite insert" "$LW_MALFORMED_BEFORE" "$LW_MALFORMED_AFTER"
+fi
+
+# AC5: SQLite failure path -> JSONL still appended, hook exits 0.
+# Simulate by making the DB file unreadable (chmod 000) so sqlite3_open fails.
+chmod 000 "$LW_DB"
+rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}" "$LW_JSONL"
+echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/z.ts"},"tool_output":{}}' | \
+  HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-locked" \
+  bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
+LW_LOCK_EXIT=$?
+chmod 644 "$LW_DB"
+run_test "observation-capture: AC5 DB failure -> hook exits 0" 0 $LW_LOCK_EXIT
+if [[ -f "$LW_JSONL" ]] && [[ $(wc -l < "$LW_JSONL") -eq 1 ]]; then
+  pass "observation-capture: AC5 DB failure -> JSONL still appended"
+else
+  fail "observation-capture: AC5 DB failure -> JSONL still appended" "1 line" "$(wc -l < "$LW_JSONL" 2>/dev/null || echo no-file)"
+fi
+
+# Cleanup
+rm -rf "$LW_TMP"
+rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}"
 
 echo ""
 
@@ -670,6 +793,141 @@ if grep -q "auto-register\|automation\.env" "$HOOKS_DIR/session-start-bootstrap.
 else
   fail "session-start-bootstrap: contains auto-register section" "present" "missing"
 fi
+
+echo ""
+
+# -- auto-reduce-permissions tests -------------------------------------------
+echo "-- auto-reduce-permissions.sh --"
+
+ARP_HOOK="$HOOKS_DIR/auto-reduce-permissions.sh"
+ARP_STATE_DIR="/tmp/claude-arp-test-$$"
+mkdir -p "$ARP_STATE_DIR"
+ARP_STATE="${ARP_STATE_DIR}/last-run"
+ARP_LOG="${ARP_STATE_DIR}/permission-reducer.log"
+
+# Test: syntax valid
+bash -n "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: syntax valid" 0 $?
+
+# Test: stop_hook_active=true -> skip (exit 0), no state file written
+rm -f "$ARP_STATE" "$ARP_LOG"
+echo '{"stop_hook_active": true}' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: stop_hook_active=true -> skip (exit 0)" 0 $?
+if [[ ! -f "$ARP_STATE" ]]; then
+  pass "auto-reduce-permissions: stop_hook_active=true writes no state"
+else
+  fail "auto-reduce-permissions: stop_hook_active=true writes no state" "no file" "file exists"
+fi
+
+# Test: CLAUDE_HOOK_PROFILE=minimal -> skip
+rm -f "$ARP_STATE" "$ARP_LOG"
+echo '{"stop_hook_active": false}' | \
+  CLAUDE_HOOK_PROFILE=minimal \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: minimal profile -> skip (exit 0)" 0 $?
+if [[ ! -f "$ARP_STATE" ]]; then
+  pass "auto-reduce-permissions: minimal profile writes no state"
+else
+  fail "auto-reduce-permissions: minimal profile writes no state" "no file" "file exists"
+fi
+
+# Test: first run (no state file) -> spawns, writes state
+rm -f "$ARP_STATE" "$ARP_LOG"
+echo '{"stop_hook_active": false}' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: first run exits 0" 0 $?
+if [[ -f "$ARP_STATE" ]]; then
+  pass "auto-reduce-permissions: first run writes state file"
+else
+  fail "auto-reduce-permissions: first run writes state file" "file exists" "not found"
+fi
+if [[ -f "$ARP_LOG" ]] && grep -q "DRY_RUN" "$ARP_LOG" 2>/dev/null; then
+  pass "auto-reduce-permissions: first run logs DRY_RUN entry"
+else
+  fail "auto-reduce-permissions: first run logs DRY_RUN entry" "log contains DRY_RUN" "absent"
+fi
+
+# Test: recent state file (within interval) -> skip
+ARP_RECENT=$(date +%s)
+echo "$ARP_RECENT" > "$ARP_STATE"
+rm -f "$ARP_LOG"
+echo '{"stop_hook_active": false}' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_INTERVAL_DAYS=7 \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: recent run exits 0" 0 $?
+ARP_STATE_AFTER=$(cat "$ARP_STATE" 2>/dev/null || echo "")
+if [[ "$ARP_STATE_AFTER" == "$ARP_RECENT" ]]; then
+  pass "auto-reduce-permissions: recent run does not overwrite state"
+else
+  fail "auto-reduce-permissions: recent run does not overwrite state" "$ARP_RECENT" "$ARP_STATE_AFTER"
+fi
+if [[ ! -f "$ARP_LOG" ]] || ! grep -q "DRY_RUN" "$ARP_LOG" 2>/dev/null; then
+  pass "auto-reduce-permissions: recent run does not spawn"
+else
+  fail "auto-reduce-permissions: recent run does not spawn" "no DRY_RUN log" "log has entry"
+fi
+
+# Test: stale state file (older than interval) -> spawns, updates state
+ARP_STALE=$(( $(date +%s) - 60 * 60 * 24 * 30 ))  # 30 days ago
+echo "$ARP_STALE" > "$ARP_STATE"
+rm -f "$ARP_LOG"
+echo '{"stop_hook_active": false}' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_INTERVAL_DAYS=7 \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: stale run exits 0" 0 $?
+ARP_STATE_NEW=$(cat "$ARP_STATE" 2>/dev/null || echo "")
+if [[ "$ARP_STATE_NEW" != "$ARP_STALE" ]] && [[ "$ARP_STATE_NEW" =~ ^[0-9]+$ ]]; then
+  pass "auto-reduce-permissions: stale run updates state file"
+else
+  fail "auto-reduce-permissions: stale run updates state file" "new timestamp" "$ARP_STATE_NEW (was $ARP_STALE)"
+fi
+if [[ -f "$ARP_LOG" ]] && grep -q "DRY_RUN" "$ARP_LOG" 2>/dev/null; then
+  pass "auto-reduce-permissions: stale run spawns (logs DRY_RUN)"
+else
+  fail "auto-reduce-permissions: stale run spawns (logs DRY_RUN)" "log contains DRY_RUN" "absent"
+fi
+
+# Test: empty input (no stop_hook_active field) -> treat as false, still runs frequency check
+rm -f "$ARP_STATE" "$ARP_LOG"
+echo '{}' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: empty input exits 0" 0 $?
+if [[ -f "$ARP_STATE" ]]; then
+  pass "auto-reduce-permissions: empty input treated as not-active (runs)"
+else
+  fail "auto-reduce-permissions: empty input treated as not-active (runs)" "state written" "not found"
+fi
+
+# Test: malformed JSON input -> treat as not-active, exit 0 (advisory)
+rm -f "$ARP_STATE" "$ARP_LOG"
+echo 'not json' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: malformed input exits 0" 0 $?
+
+# Cleanup
+rm -rf "$ARP_STATE_DIR"
 
 echo ""
 

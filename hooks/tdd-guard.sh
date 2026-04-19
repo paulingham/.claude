@@ -33,7 +33,7 @@ esac
 
 # Skip if this IS a test file
 case "$FILE_PATH" in
-  *spec/*|*test/*|*__tests__/*|*.test.*|*.spec.*|*_test.go|*_test.py) exit 0 ;;
+  *spec/*|*test/*|*tests/*|*__tests__/*|*.test.*|*.spec.*|*_test.go|*_test.py|*/test_*.py) exit 0 ;;
 esac
 
 # Skip config and lock files
@@ -62,7 +62,10 @@ case "$FILE_PATH" in
   *.py)
     # Python: src/foo.py → tests/test_foo.py or test_foo.py
     BASENAME=$(basename "$FILE_PATH" .py)
-    [ -f "tests/test_${BASENAME}.py" ] || [ -f "test_${BASENAME}.py" ] && TEST_FOUND=true
+    PY_ROOT=$(cd "$(dirname "$FILE_PATH")" && git rev-parse --show-toplevel 2>/dev/null || echo "")
+    [ -f "tests/test_${BASENAME}.py" ] || \
+    [ -f "test_${BASENAME}.py" ] || \
+    { [ -n "$PY_ROOT" ] && [ -f "${PY_ROOT}/tests/test_${BASENAME}.py" ]; } && TEST_FOUND=true
     EXPECTED="tests/test_${BASENAME}.py"
     ;;
   *.js|*.ts|*.jsx|*.tsx)

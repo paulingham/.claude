@@ -84,7 +84,7 @@ fi
 
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-jq -c -n \
+OBS_JSON=$(jq -c -n \
     --arg ts "$TIMESTAMP" \
     --arg sid "$SESSION_ID" \
     --arg tool "$TOOL_NAME" \
@@ -106,6 +106,25 @@ jq -c -n \
         "phase": $phase,
         "agent_role": $role,
         "outcome": $outcome
-    }' >> "$OBS_FILE" 2>/dev/null || true
+    }' 2>/dev/null) || OBS_JSON=""
+
+if [[ -n "$OBS_JSON" ]]; then
+    printf '%s\n' "$OBS_JSON" >> "$OBS_FILE" 2>/dev/null || true
+
+    # Best-effort SQLite live write (Story 2). JSONL is canonical — any failure
+    # here MUST NOT affect hook exit code or the JSONL append above.
+    LIVE_DB="$HOME/.claude/db/memory.sqlite"
+    LIVE_LOG="$HOME/.claude/db/live-writer.log"
+    if [[ -f "$LIVE_DB" ]]; then
+        # Rotate log if >1MB
+        if [[ -f "$LIVE_LOG" ]] && [[ $(wc -c < "$LIVE_LOG" | tr -d ' ') -gt 1048576 ]]; then
+            mv "$LIVE_LOG" "${LIVE_LOG}.1"
+        fi
+        printf '%s' "$OBS_JSON" | \
+            PYTHONPATH="$HOME/.claude/skills/reindex-memory" \
+            python3 "$HOME/.claude/skills/reindex-memory/_lib/live_writer.py" \
+            2>>"$LIVE_LOG" || true
+    fi
+fi
 
 exit 0
