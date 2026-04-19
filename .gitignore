@@ -31,6 +31,14 @@
 !memory/**
 !automation/
 !automation/**
+!db/
+!db/**
+!tests/
+!tests/**
+
+# Python bytecode cache — never tracked
+**/__pycache__/
+*.pyc
 
 # Never track secrets or credentials
 credentials.json
