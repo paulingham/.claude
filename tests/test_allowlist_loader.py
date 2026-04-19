@@ -68,6 +68,20 @@ class MalformedJsonWarnsAndReturnsEmpty(unittest.TestCase):
             self.assertIn("allowlist", buf.getvalue().lower())
 
 
+class NonUtf8FileWarnsAndReturnsEmpty(unittest.TestCase):
+    """M1 regression: non-UTF8 allowlist file must not crash capture."""
+    def test_binary_file_returns_empty_and_warns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            user = Path(tmp) / "user.json"
+            user.write_bytes(b"\xff\xfe\x00\x00not utf-8\xc3\x28")
+            buf = io.StringIO()
+            with redirect_stderr(buf):
+                allow = allowlist_loader.load(
+                    user_path=user, default_path=None)
+            self.assertEqual(allow.file_globs, ())
+            self.assertIn("allowlist", buf.getvalue().lower())
+
+
 class MtimeCacheAvoidsReparse(unittest.TestCase):
     """Repeated load() with unchanged mtime does not re-read the file."""
     def test_cached_allowlist_is_same_object(self):
