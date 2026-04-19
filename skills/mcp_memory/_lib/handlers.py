@@ -4,6 +4,7 @@ from recall._lib.envelope import envelope
 
 _SEARCH_KEYS = ("query", "filters", "limit", "source", "db_path")
 _TIMELINE_KEYS = ("filters", "limit", "source", "db_path")
+_HYDRATE_KEYS = ("ids", "content_hashes", "db_path")
 
 
 def search_memory(arguments):
@@ -20,7 +21,23 @@ def get_timeline(arguments):
     return _wrap_paged("timeline", recall.timeline, limit, (), args)
 
 
+def get_observations(arguments):
+    return _hydrate(recall.get_observations, arguments)
+
+
+def get_findings(arguments):
+    return _hydrate(recall.get_findings, arguments)
+
+
+def _hydrate(fn, arguments):
+    args = _pick(arguments, _HYDRATE_KEYS)
+    hits = fn(**args)
+    return envelope("hydrate", hits, len(hits), fetched=len(hits))
+
+
 def _wrap_paged(tier, fn, limit, pos_args, kw):
+    if not isinstance(limit, int) or limit < 1:
+        raise ValueError("limit must be a positive int")
     raw = fn(*pos_args, limit=limit + 1, **kw)
     return envelope(tier, raw[:limit], limit, fetched=len(raw))
 

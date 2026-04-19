@@ -65,5 +65,41 @@ class TestGetTimelineHandler(unittest.TestCase):
             self.assertIn("scratchpad", sources)
 
 
+class TestGetObservationsHandler(unittest.TestCase):
+    def test_by_ids_returns_hydrate_envelope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            env = handlers.get_observations(
+                {"ids": [1, 2], "db_path": str(db)})
+            self.assertEqual(env["tier"], "hydrate")
+            self.assertFalse(env["truncated"])
+            self.assertEqual(len(env["hits"]), 2)
+
+    def test_by_content_hashes_returns_matching_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            known = recall.get_observations(
+                ids=[1], db_path=str(db))[0]["content_hash"]
+            env = handlers.get_observations(
+                {"content_hashes": [known], "db_path": str(db)})
+            self.assertEqual(len(env["hits"]), 1)
+            self.assertEqual(env["hits"][0]["content_hash"], known)
+
+
+class TestGetFindingsHandler(unittest.TestCase):
+    def test_by_ids_returns_hydrate_envelope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            insert_scratchpad_rows(db, [{
+                "hash": "sp1", "task": "t1", "cat": "pattern",
+                "role": "eng", "phase": "build",
+                "ts": "2026-04-01T10:00:00Z",
+                "body": "finding body", "priv": 0}])
+            env = handlers.get_findings(
+                {"ids": [1], "db_path": str(db)})
+            self.assertEqual(env["tier"], "hydrate")
+            self.assertEqual(len(env["hits"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
