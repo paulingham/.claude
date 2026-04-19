@@ -24,5 +24,23 @@ class ReadOnlyConnection(unittest.TestCase):
                 con.close()
 
 
+class UriFragmentRejection(unittest.TestCase):
+    def test_hash_in_path_is_rejected(self):
+        with self.assertRaises(ValueError):
+            connect.read_only("/tmp/evil#frag.sqlite")
+
+    def test_question_mark_in_path_is_rejected(self):
+        with self.assertRaises(ValueError):
+            connect.read_only("/tmp/evil?x=1.sqlite")
+
+    def test_newline_in_path_is_rejected(self):
+        with self.assertRaises(ValueError):
+            connect.read_only("/tmp/evil\n.sqlite")
+
+    def test_missing_path_is_rejected(self):
+        with self.assertRaises((ValueError, FileNotFoundError)):
+            connect.read_only("/no/such/missing.sqlite")
+
+
 if __name__ == "__main__":
     unittest.main()
