@@ -673,6 +673,141 @@ fi
 
 echo ""
 
+# -- auto-reduce-permissions tests -------------------------------------------
+echo "-- auto-reduce-permissions.sh --"
+
+ARP_HOOK="$HOOKS_DIR/auto-reduce-permissions.sh"
+ARP_STATE_DIR="/tmp/claude-arp-test-$$"
+mkdir -p "$ARP_STATE_DIR"
+ARP_STATE="${ARP_STATE_DIR}/last-run"
+ARP_LOG="${ARP_STATE_DIR}/permission-reducer.log"
+
+# Test: syntax valid
+bash -n "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: syntax valid" 0 $?
+
+# Test: stop_hook_active=true -> skip (exit 0), no state file written
+rm -f "$ARP_STATE" "$ARP_LOG"
+echo '{"stop_hook_active": true}' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: stop_hook_active=true -> skip (exit 0)" 0 $?
+if [[ ! -f "$ARP_STATE" ]]; then
+  pass "auto-reduce-permissions: stop_hook_active=true writes no state"
+else
+  fail "auto-reduce-permissions: stop_hook_active=true writes no state" "no file" "file exists"
+fi
+
+# Test: CLAUDE_HOOK_PROFILE=minimal -> skip
+rm -f "$ARP_STATE" "$ARP_LOG"
+echo '{"stop_hook_active": false}' | \
+  CLAUDE_HOOK_PROFILE=minimal \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: minimal profile -> skip (exit 0)" 0 $?
+if [[ ! -f "$ARP_STATE" ]]; then
+  pass "auto-reduce-permissions: minimal profile writes no state"
+else
+  fail "auto-reduce-permissions: minimal profile writes no state" "no file" "file exists"
+fi
+
+# Test: first run (no state file) -> spawns, writes state
+rm -f "$ARP_STATE" "$ARP_LOG"
+echo '{"stop_hook_active": false}' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: first run exits 0" 0 $?
+if [[ -f "$ARP_STATE" ]]; then
+  pass "auto-reduce-permissions: first run writes state file"
+else
+  fail "auto-reduce-permissions: first run writes state file" "file exists" "not found"
+fi
+if [[ -f "$ARP_LOG" ]] && grep -q "DRY_RUN" "$ARP_LOG" 2>/dev/null; then
+  pass "auto-reduce-permissions: first run logs DRY_RUN entry"
+else
+  fail "auto-reduce-permissions: first run logs DRY_RUN entry" "log contains DRY_RUN" "absent"
+fi
+
+# Test: recent state file (within interval) -> skip
+ARP_RECENT=$(date +%s)
+echo "$ARP_RECENT" > "$ARP_STATE"
+rm -f "$ARP_LOG"
+echo '{"stop_hook_active": false}' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_INTERVAL_DAYS=7 \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: recent run exits 0" 0 $?
+ARP_STATE_AFTER=$(cat "$ARP_STATE" 2>/dev/null || echo "")
+if [[ "$ARP_STATE_AFTER" == "$ARP_RECENT" ]]; then
+  pass "auto-reduce-permissions: recent run does not overwrite state"
+else
+  fail "auto-reduce-permissions: recent run does not overwrite state" "$ARP_RECENT" "$ARP_STATE_AFTER"
+fi
+if [[ ! -f "$ARP_LOG" ]] || ! grep -q "DRY_RUN" "$ARP_LOG" 2>/dev/null; then
+  pass "auto-reduce-permissions: recent run does not spawn"
+else
+  fail "auto-reduce-permissions: recent run does not spawn" "no DRY_RUN log" "log has entry"
+fi
+
+# Test: stale state file (older than interval) -> spawns, updates state
+ARP_STALE=$(( $(date +%s) - 60 * 60 * 24 * 30 ))  # 30 days ago
+echo "$ARP_STALE" > "$ARP_STATE"
+rm -f "$ARP_LOG"
+echo '{"stop_hook_active": false}' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_INTERVAL_DAYS=7 \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: stale run exits 0" 0 $?
+ARP_STATE_NEW=$(cat "$ARP_STATE" 2>/dev/null || echo "")
+if [[ "$ARP_STATE_NEW" != "$ARP_STALE" ]] && [[ "$ARP_STATE_NEW" =~ ^[0-9]+$ ]]; then
+  pass "auto-reduce-permissions: stale run updates state file"
+else
+  fail "auto-reduce-permissions: stale run updates state file" "new timestamp" "$ARP_STATE_NEW (was $ARP_STALE)"
+fi
+if [[ -f "$ARP_LOG" ]] && grep -q "DRY_RUN" "$ARP_LOG" 2>/dev/null; then
+  pass "auto-reduce-permissions: stale run spawns (logs DRY_RUN)"
+else
+  fail "auto-reduce-permissions: stale run spawns (logs DRY_RUN)" "log contains DRY_RUN" "absent"
+fi
+
+# Test: empty input (no stop_hook_active field) -> treat as false, still runs frequency check
+rm -f "$ARP_STATE" "$ARP_LOG"
+echo '{}' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: empty input exits 0" 0 $?
+if [[ -f "$ARP_STATE" ]]; then
+  pass "auto-reduce-permissions: empty input treated as not-active (runs)"
+else
+  fail "auto-reduce-permissions: empty input treated as not-active (runs)" "state written" "not found"
+fi
+
+# Test: malformed JSON input -> treat as not-active, exit 0 (advisory)
+rm -f "$ARP_STATE" "$ARP_LOG"
+echo 'not json' | \
+  CLAUDE_REDUCE_PERMISSIONS_STATE_FILE="$ARP_STATE" \
+  CLAUDE_REDUCE_PERMISSIONS_LOG_FILE="$ARP_LOG" \
+  CLAUDE_REDUCE_PERMISSIONS_DRY_RUN=1 \
+  bash "$ARP_HOOK" > /dev/null 2>&1
+run_test "auto-reduce-permissions: malformed input exits 0" 0 $?
+
+# Cleanup
+rm -rf "$ARP_STATE_DIR"
+
+echo ""
+
 # -- Summary -----------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
 echo ""
