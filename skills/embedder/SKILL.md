@@ -53,7 +53,7 @@ skills/embedder/
   download-model.sh  fetch bge-small-en-v1.5 ONNX (gated — S5.1 only)
   _lib/
     fake.py          deterministic hash-based FakeEmbedder (testing)
-    real.py          ORT C API binding (deferred to S5.1)
+    real.py          ORT C API binding
     paths.py         dylib + model resolution + typed exceptions
     cli_actions.py   probe/doctor/status/setup handlers
     doctor.py        6-field diagnostic + verdict rendering
@@ -64,14 +64,14 @@ skills/embedder/
     backfill_cli.py  argparse + stdout summary formatter
 ```
 
-## Setup (S5.1 — not yet functional)
+## Setup
 
 ```bash
 # 1. Install ORT
 brew install onnxruntime
 
 # 2. Download the model (interactive gate — confirms you understand
-#    the model is not consumed until S5.1)
+#    the download size and license)
 ./skills/embedder/download-model.sh
 
 # 3. Export the two required env vars (the script prints these)
@@ -81,7 +81,7 @@ export BGE_MODEL_PATH=~/.claude/models/bge-small-en-v1.5/model.onnx
 # 4. Backfill existing observations
 python3 -m embedder backfill --db ~/.claude/db/memory.sqlite
 
-# 5. Verify — doctor will show verdict: OK once S5.1 ships
+# 5. Verify — doctor will show verdict: OK
 python3 -m embedder cli doctor
 ```
 

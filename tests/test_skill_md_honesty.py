@@ -26,6 +26,15 @@ class SkillMarkdownHonesty(unittest.TestCase):
         self.assertIn("Capture", text)
         self.assertIn("Backfill", text)
 
+    def test_no_s5_1_deferral_phrases_remain(self):
+        import re
+        text = _SKILL_MD.read_text()
+        stale = re.compile(
+            r"deferred to S5\.1|not yet functional|"
+            r"once S5\.1 ships|until S5\.1")
+        matches = stale.findall(text)
+        self.assertEqual(matches, [], f"stale S5.1 phrases: {matches}")
+
 
 if __name__ == "__main__":
     unittest.main()
