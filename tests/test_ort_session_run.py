@@ -55,7 +55,7 @@ class RunCallsDispatchWithThreeInputsOneOutput(unittest.TestCase):
     def test_run_builds_three_inputs_and_one_output_name_array(self):
         from embedder._lib import ort_session_run
         handle = _fake_handle()
-        calls = _record_calls(ort_session_run)
+        calls = _record_calls(self, ort_session_run)
         ort_session_run.run(handle, [1, 2], [1, 1], [0, 0])
         run_call = next(c for c in calls if c[1] == "Run")
         in_count, out_count = run_call[6].value, run_call[8].value
@@ -69,33 +69,38 @@ def _fake_handle():
         output_names=("last_hidden_state",))
 
 
-def _record_calls(ort_session_run):
+def _record_calls(test_case, ort_session_run):
     calls = []
 
     def fake_call(*args):
         calls.append(args)
         if args[1] == "CreateTensorWithDataAsOrtValue":
             args[-1]._obj.value = 1
-    patcher = mock.patch.object(ort_session_run, "ort_dispatch")
-    d = patcher.start()
-    d.call.side_effect = fake_call
-    mi = mock.patch.object(ort_session_run, "model_io")
-    mio = mi.start()
-    mio.int64_tensor.side_effect = lambda api, v, mem: (c_void_p(1), v)
+    _patch(test_case, ort_session_run, "ort_dispatch").call.side_effect = \
+        fake_call
+    _patch(test_case, ort_session_run, "model_io").int64_tensor.side_effect = \
+        lambda api, v, mem: (c_void_p(1), v)
     return calls
+
+
+def _patch(test_case, target, attr):
+    patcher = mock.patch.object(target, attr)
+    stub = patcher.start()
+    test_case.addCleanup(patcher.stop)
+    return stub
 
 
 class RunReleasesInputsWhenInvokeRaises(unittest.TestCase):
     def test_release_called_even_when_run_dispatch_raises(self):
         from embedder._lib import ort_session_run
         handle = _fake_handle()
-        release_count = _count_releases_on_invoke_error(ort_session_run)
+        release_count = _count_releases_on_invoke_error(self, ort_session_run)
         with self.assertRaises(RuntimeError):
             ort_session_run.run(handle, [1, 2], [1, 1], [0, 0])
         self.assertEqual(release_count[0], 3)
 
 
-def _count_releases_on_invoke_error(ort_session_run):
+def _count_releases_on_invoke_error(test_case, ort_session_run):
     count = [0]
 
     def fake_call(*args):
@@ -103,12 +108,10 @@ def _count_releases_on_invoke_error(ort_session_run):
             raise RuntimeError("boom")
         if args[1] == "ReleaseValue":
             count[0] += 1
-    patcher = mock.patch.object(ort_session_run, "ort_dispatch")
-    d = patcher.start()
-    d.call.side_effect = fake_call
-    mi = mock.patch.object(ort_session_run, "model_io")
-    mio = mi.start()
-    mio.int64_tensor.side_effect = lambda api, v, mem: (c_void_p(1), v)
+    _patch(test_case, ort_session_run, "ort_dispatch").call.side_effect = \
+        fake_call
+    _patch(test_case, ort_session_run, "model_io").int64_tensor.side_effect = \
+        lambda api, v, mem: (c_void_p(1), v)
     return count
 
 
