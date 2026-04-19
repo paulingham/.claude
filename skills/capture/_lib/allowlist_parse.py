@@ -27,5 +27,18 @@ def _warn_empty(path, reason, build):
 def _parse(path, build):
     data = json.loads(path.read_text())
     globs = tuple(data.get("file_globs") or ())
-    regexes = tuple(re.compile(r) for r in (data.get("content_regexes") or ()))
+    regexes = _compile_each(data.get("content_regexes") or (), path)
     return build(globs=globs, regexes=regexes)
+
+
+def _compile_each(patterns, path):
+    return tuple(c for c in (_compile_one(p, path) for p in patterns) if c)
+
+
+def _compile_one(pattern, path):
+    try:
+        return re.compile(pattern)
+    except re.error as exc:
+        sys.stderr.write(
+            f"allowlist: skipped invalid regex {pattern!r} in {path}: {exc}\n")
+        return None
