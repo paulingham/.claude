@@ -96,6 +96,69 @@ class SearchBoth(unittest.TestCase):
             self.assertIn("scratchpad", sources)
 
 
+class TimelineBoth(unittest.TestCase):
+    def test_source_both_unions_obs_and_scratchpad(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            insert_scratchpad_rows(db, [{
+                "hash": "tb1", "task": "t1", "cat": "pattern",
+                "role": "eng", "phase": "build",
+                "ts": "2026-04-01T10:00:00Z",
+                "body": "tb body", "priv": 0}])
+            hits = recall.timeline(db_path=db, source="both")
+            sources = {h.get("source") for h in hits}
+            self.assertIn("observations", sources)
+            self.assertIn("scratchpad", sources)
+
+
+class FilterWiring(unittest.TestCase):
+    def test_timeline_scopes_by_session_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            rows = recall.timeline(filters={"session_id": "s2"}, db_path=db)
+            self.assertEqual(len(rows), 1)
+
+    def test_search_scopes_by_session_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            hits = recall.search("Read",
+                                 filters={"session_id": "s2"},
+                                 source="observations", db_path=db)
+            self.assertEqual(hits, [])
+
+    def test_unknown_filter_key_returns_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            rows = recall.timeline(filters={"nope": "x"}, db_path=db)
+            self.assertEqual(rows, [])
+
+
+class ContentHashes(unittest.TestCase):
+    def test_get_observations_by_content_hash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            known = _first_hash(db)
+            rows = recall.get_observations(
+                content_hashes=[known], db_path=db)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["content_hash"], known)
+
+    def test_raises_when_neither_ids_nor_hashes_given(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            with self.assertRaises(ValueError):
+                recall.get_observations(db_path=db)
+
+
+def _first_hash(db):
+    con = sqlite3.connect(str(db))
+    try:
+        return con.execute(
+            "SELECT content_hash FROM observations LIMIT 1").fetchone()[0]
+    finally:
+        con.close()
+
+
 class TokenBudget(unittest.TestCase):
     def test_progressive_disclosure_ten_x_reduction(self):
         with tempfile.TemporaryDirectory() as tmp:

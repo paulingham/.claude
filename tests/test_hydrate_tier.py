@@ -36,6 +36,23 @@ class FetchByIds(unittest.TestCase):
             self.assertEqual([r["id"] for r in rows], [1])
 
 
+class FetchByHash(unittest.TestCase):
+    def test_returns_rows_matching_content_hashes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            import sqlite3
+            con = sqlite3.connect(str(db))
+            try:
+                known = con.execute(
+                    "SELECT content_hash FROM observations LIMIT 1"
+                ).fetchone()[0]
+            finally:
+                con.close()
+            rows = hydrate_tier.fetch_by_hashes(db, [known])
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["content_hash"], known)
+
+
 class FetchFindingsByIds(unittest.TestCase):
     def test_known_ids_returned_unknown_omitted(self):
         with tempfile.TemporaryDirectory() as tmp:

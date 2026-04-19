@@ -48,5 +48,23 @@ class TimelineScratchpad(unittest.TestCase):
             self.assertEqual(stamps, sorted(stamps))
 
 
+class TimelineFilters(unittest.TestCase):
+    def test_session_id_filter_scopes_observations(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            rows = timeline_tier.fetch_observations(
+                db, filter_spec={"session_id": "s1"})
+            sessions = {r.get("session_id", "s1") for r in rows}
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(sessions, {"s1"})
+
+    def test_unknown_filter_key_raises(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            with self.assertRaises(ValueError):
+                timeline_tier.fetch_observations(
+                    db, filter_spec={"nope": "x"})
+
+
 if __name__ == "__main__":
     unittest.main()
