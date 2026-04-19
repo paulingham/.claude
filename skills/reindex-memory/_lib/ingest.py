@@ -3,7 +3,7 @@ import sqlite3
 import sys
 from dataclasses import dataclass
 
-from _lib import jsonl, rows
+from _lib import jsonl, rows, _privacy_wire
 
 
 @dataclass
@@ -39,8 +39,11 @@ def _err_handler(summary):
 
 
 def _insert_row(con, obj, path, summary):
-    cur = con.execute(rows.INSERT_SQL, rows.row_from_obj(obj, path))
-    if cur.rowcount:
-        summary.inserted += 1
-    else:
-        summary.skipped += 1
+    row = rows.row_from_obj(_privacy_wire.apply(obj), path)
+    cur = con.execute(rows.INSERT_SQL, row)
+    _tally(cur.rowcount, summary)
+
+
+def _tally(rowcount, summary):
+    key = "inserted" if rowcount else "skipped"
+    setattr(summary, key, getattr(summary, key) + 1)

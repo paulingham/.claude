@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "description": "Default privacy allowlist shipped with claude-mem. User-editable copy lives at ~/.claude/privacy-allowlist.json.",
+  "file_globs": [
+    ".env", ".env.*", "*.env",
+    "*secret*", "*secrets*",
+    "*credential*", "*credentials*",
+    "*.pem", "*.key", "*.p12", "*.pfx",
+    "*.keystore", "*.jks", "*.enc",
+    "id_rsa", "id_ed25519", ".ssh/*",
+    ".aws/credentials", ".aws/config", ".aws/sso/cache/*.json",
+    "config/master.key",
+    "kubeconfig", ".kube/config",
+    ".docker/config.json",
+    ".netrc", ".pgpass",
+    ".npmrc", ".pypirc"
+  ],
+  "content_regexes": [
+    "AKIA[0-9A-Z]{16}\\b",
+    "ASIA[0-9A-Z]{16}\\b",
+    "ghp_[A-Za-z0-9]{36}\\b",
+    "gho_[A-Za-z0-9]{36}\\b",
+    "ghs_[A-Za-z0-9]{36}\\b",
+    "ghr_[A-Za-z0-9]{36}\\b",
+    "github_pat_[A-Za-z0-9_]{22,}\\b",
+    "glpat-[A-Za-z0-9_\\-]{20}\\b",
+    "xox[baprs]-[A-Za-z0-9\\-]{10,}\\b",
+    "sk_live_[0-9a-zA-Z]{24,}\\b",
+    "sk-[A-Za-z0-9]{48}\\b",
+    "AIza[0-9A-Za-z_\\-]{35}\\b",
+    "eyJ[A-Za-z0-9_\\-]+\\.eyJ[A-Za-z0-9_\\-]+\\.[A-Za-z0-9_\\-]+"
+  ]
+}

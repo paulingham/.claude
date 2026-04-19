@@ -29,4 +29,4 @@ def _core_fields(obj):
 def _aux_fields(obj):
     return (obj.get("phase") or "", obj.get("agent_role") or "",
             obj.get("outcome") or "", obj.get("tool_use_id") or "",
-            obj.get("arg_hash") or "", 0)
+            obj.get("arg_hash") or "", obj.get("is_private") or 0)
