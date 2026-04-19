@@ -42,7 +42,8 @@ class DownloadScriptPrintsExportLinesOnStdout(unittest.TestCase):
         try:
             r = subprocess.run(
                 ["bash", str(SCRIPT)],
-                env=env, capture_output=True, text=True, timeout=10)
+                env=env, input="y\n", capture_output=True,
+                text=True, timeout=10)
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertIn("export ORT_DYLIB_PATH=", r.stdout)
             self.assertIn("export BGE_MODEL_PATH=", r.stdout)
