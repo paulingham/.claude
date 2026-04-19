@@ -5,7 +5,9 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "skills" / "reindex-memory"))
+_SKILL_DIR = str(REPO_ROOT / "skills" / "reindex-memory")
+if _SKILL_DIR not in sys.path:
+    sys.path.insert(0, _SKILL_DIR)
 
 import reindex  # noqa: E402
 
@@ -108,6 +110,16 @@ def read_schema_version(db):
     try:
         return con.execute(
             "SELECT MAX(version) FROM schema_version").fetchone()[0]
+    finally:
+        con.close()
+
+
+def restore_current_version(db):
+    """Set schema_version back to CURRENT so ensure() will not rebuild."""
+    con = sqlite3.connect(str(db))
+    try:
+        con.execute("UPDATE schema_version SET version = 1")
+        con.commit()
     finally:
         con.close()
 
