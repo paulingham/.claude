@@ -31,5 +31,40 @@ class BuildSessionExposesInputNames(unittest.TestCase):
             ort_session.close(handle)
 
 
+class CloseReleasesAllFieldsEvenOnFailure(unittest.TestCase):
+    def test_remaining_releases_run_after_first_failure(self):
+        from embedder._lib import ort_session
+        from unittest import mock
+        import types as _types
+        handle = _types.SimpleNamespace(
+            api="api", env=_Ptr(1), session_options=_Ptr(2),
+            session=_Ptr(3), mem_info=_Ptr(4))
+        calls = _record_releases_with_first_failure(ort_session)
+        with self.assertRaises(RuntimeError):
+            ort_session.close(handle)
+        ops = [c[1] for c in calls]
+        self.assertEqual(set(ops), {"ReleaseSession", "ReleaseSessionOptions",
+                                    "ReleaseMemoryInfo", "ReleaseEnv"})
+
+
+class _Ptr:
+    def __init__(self, v):
+        self.value = v
+
+
+def _record_releases_with_first_failure(ort_session):
+    from unittest import mock
+    from embedder._lib import ort_session_close
+    calls = []
+
+    def fake_call(api, op, ptr):
+        calls.append((api, op))
+        if op == "ReleaseSession":
+            raise RuntimeError("session release boom")
+    mock.patch.object(ort_session_close.ort_dispatch, "call",
+                      side_effect=fake_call).start()
+    return calls
+
+
 if __name__ == "__main__":
     unittest.main()
