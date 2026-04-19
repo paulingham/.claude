@@ -6,6 +6,7 @@
     "HCOM": "/Users/Paul.Ingham/.local/bin/hcom",
     "HF_TOKEN_PATH": "/Users/Paul.Ingham/.config/parry-guard/hf_token",
     "HF_TOKEN": "REDACTED",
+    "PARRY_IGNORE_DIRS": "/Users/Paul.Ingham/.claude",
     "ORT_DYLIB_PATH": "/opt/homebrew/lib/libonnxruntime.dylib",
     "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
     "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1",
