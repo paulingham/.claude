@@ -24,5 +24,31 @@ class DownloadScriptMentionsEnv(unittest.TestCase):
         self.assertIn("embedder backfill", body.lower())
 
 
+class DownloadScriptAdvertisesVerifyCommand(unittest.TestCase):
+    def test_script_tells_user_to_run_doctor_to_verify(self):
+        body = SCRIPT.read_text().lower()
+        self.assertIn("doctor", body)
+        self.assertIn("verify", body)
+
+
+class DownloadScriptPrintsExportLinesOnStdout(unittest.TestCase):
+    def test_running_script_emits_export_lines(self):
+        import subprocess
+        env = {"HOME": "/tmp", "PATH": os.environ.get("PATH", "")}
+        # Pre-create a sentinel file so script skips the curl branch.
+        sentinel_dir = "/tmp/.claude/models/bge-small-en-v1.5"
+        os.makedirs(sentinel_dir, exist_ok=True)
+        open(f"{sentinel_dir}/model.onnx", "a").close()
+        try:
+            r = subprocess.run(
+                ["bash", str(SCRIPT)],
+                env=env, capture_output=True, text=True, timeout=10)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("export ORT_DYLIB_PATH=", r.stdout)
+            self.assertIn("export BGE_MODEL_PATH=", r.stdout)
+        finally:
+            pass
+
+
 if __name__ == "__main__":
     unittest.main()
