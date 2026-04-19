@@ -292,6 +292,10 @@ fi
 # -------------------------------------------------------------------
 print_header "Step 6b: Fix machine-specific paths in settings.json"
 
+# Note: ORT_DYLIB_PATH in settings.json points to /opt/homebrew/lib/libonnxruntime.dylib (Mac path).
+# On Linux, parry-guard ML inference will degrade gracefully (warning logged, falls back to no-op).
+# A follow-up may make this fully dynamic if settings.json gains per-platform env support.
+
 if [[ -f "$SETTINGS_FILE" ]]; then
   PATHS_FIXED=0
 
