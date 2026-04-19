@@ -49,28 +49,42 @@ def _run_embed():
             con.close()
 
 
+_MANAGED = ("CLAUDE_EMBEDDER_STATUS", "CLAUDE_EMBED_AT_CAPTURE",
+            "CLAUDE_EMBEDDER", "ORT_DYLIB_PATH", "BGE_MODEL_PATH")
+
+
 class _env:
     def __init__(self, backend):
         self.backend = backend
 
     def __enter__(self):
+        self._saved = {k: os.environ.get(k) for k in _MANAGED}
         self.tmp = tempfile.TemporaryDirectory()
         self.out = Path(self.tmp.name) / "s.json"
+        self._apply()
+        _reset_embedder()
+        return self.out
+
+    def _apply(self):
+        for k in _MANAGED:
+            os.environ.pop(k, None)
         os.environ["CLAUDE_EMBEDDER_STATUS"] = str(self.out)
         os.environ["CLAUDE_EMBED_AT_CAPTURE"] = "1"
         if self.backend:
             os.environ["CLAUDE_EMBEDDER"] = self.backend
-        else:
-            os.environ.pop("CLAUDE_EMBEDDER", None)
-        _reset_embedder()
-        return self.out
 
     def __exit__(self, *a):
-        for k in ("CLAUDE_EMBEDDER_STATUS", "CLAUDE_EMBED_AT_CAPTURE",
-                  "CLAUDE_EMBEDDER"):
-            os.environ.pop(k, None)
+        for k, v in self._saved.items():
+            _restore(k, v)
         _reset_embedder()
         self.tmp.cleanup()
+
+
+def _restore(key, value):
+    if value is None:
+        os.environ.pop(key, None)
+    else:
+        os.environ[key] = value
 
 
 def _reset_embedder():

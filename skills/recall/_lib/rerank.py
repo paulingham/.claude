@@ -5,18 +5,18 @@ Returns (hits, unavailable); unavailable=True flips recall.py into AC11
 banner mode."""
 import struct
 
-from recall._lib import vec_store
+from recall._lib import rerank_blend, vec_store
 
-DEFAULT_ALPHA = 0.5
-DIM = 384
+DIM = rerank_blend.DIM
 
 
 def rerank(db_path, candidates, query, limit, embedder):
     qbytes = _encode(query, embedder)
     if qbytes is None:
-        return candidates[:limit], True
-    vectors = vec_store.load(db_path, [c["content_hash"] for c in candidates])
-    return _sort(candidates, qbytes, vectors, limit), False
+        return [_strip(c) for c in candidates[:limit]], True
+    keys = [_key(c) for c in candidates]
+    vectors = vec_store.load(db_path, keys)
+    return _sort(candidates, keys, qbytes, vectors, limit), False
 
 
 def _encode(query, embedder):
@@ -26,18 +26,17 @@ def _encode(query, embedder):
         return None
 
 
-def _sort(candidates, qbytes, vectors, limit):
+def _sort(candidates, keys, qbytes, vectors, limit):
     q = struct.unpack(f"<{DIM}f", qbytes)
-    scored = [(_blend(i, q, vectors.get(c["content_hash"])), c)
+    scored = [(rerank_blend.blend(i, q, vectors.get(keys[i])), c)
               for i, c in enumerate(candidates)]
-    return [c for _, c in sorted(scored, key=lambda p: -p[0])[:limit]]
+    ordered = [c for _, c in sorted(scored, key=lambda p: -p[0])[:limit]]
+    return [_strip(c) for c in ordered]
 
 
-def _blend(idx, q, row_bytes):
-    cos = _cosine(q, row_bytes) if row_bytes else 0.0
-    return DEFAULT_ALPHA / (1.0 + idx) + (1.0 - DEFAULT_ALPHA) * cos
+def _key(candidate):
+    return candidate.get("_full_hash") or candidate["content_hash"]
 
 
-def _cosine(q, row_bytes):
-    row = struct.unpack(f"<{DIM}f", row_bytes)
-    return sum(a * b for a, b in zip(q, row))
+def _strip(candidate):
+    return {k: v for k, v in candidate.items() if not k.startswith("_")}

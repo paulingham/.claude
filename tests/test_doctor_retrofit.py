@@ -91,6 +91,10 @@ def _make_db_with_unembedded(path):
     con.close()
 
 
+_MANAGED = ("CLAUDE_EMBEDDER_STATUS", "CLAUDE_EMBEDDER", "CLAUDE_DB_PATH",
+            "ORT_DYLIB_PATH", "BGE_MODEL_PATH")
+
+
 class _ctx:
     def __init__(self, backend=None, db=None, mark_success=False):
         self.backend = backend
@@ -98,13 +102,22 @@ class _ctx:
         self.mark_success = mark_success
 
     def __enter__(self):
+        self._saved = {k: os.environ.get(k) for k in _MANAGED}
         self.tmp = tempfile.TemporaryDirectory()
         self.status = Path(self.tmp.name) / "status.json"
+        self._apply_env()
+        self._seed_db()
+        _reset_embedder()
+        return self
+
+    def _apply_env(self):
         os.environ["CLAUDE_EMBEDDER_STATUS"] = str(self.status)
         for k in ("ORT_DYLIB_PATH", "BGE_MODEL_PATH", "CLAUDE_EMBEDDER"):
             os.environ.pop(k, None)
         if self.backend:
             os.environ["CLAUDE_EMBEDDER"] = self.backend
+
+    def _seed_db(self):
         db = Path(self.tmp.name) / "memory.sqlite"
         os.environ["CLAUDE_DB_PATH"] = str(db)
         if self.db_fn:
@@ -112,15 +125,19 @@ class _ctx:
         if self.mark_success:
             from embedder import status
             status.record_success("2026-04-19T00:00:00Z")
-        _reset_embedder()
-        return self
 
     def __exit__(self, *a):
-        for k in ("CLAUDE_EMBEDDER_STATUS", "CLAUDE_EMBEDDER",
-                  "CLAUDE_DB_PATH", "ORT_DYLIB_PATH", "BGE_MODEL_PATH"):
-            os.environ.pop(k, None)
+        for k, v in self._saved.items():
+            _restore(k, v)
         _reset_embedder()
         self.tmp.cleanup()
+
+
+def _restore(key, value):
+    if value is None:
+        os.environ.pop(key, None)
+    else:
+        os.environ[key] = value
 
 
 def _reset_embedder():
