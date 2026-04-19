@@ -9,6 +9,9 @@ SETUP_TEXT = (
     "  export BGE_MODEL_PATH=~/.claude/models/bge-small-en-v1.5/model.onnx\n"
     "  skills/embedder/download-model.sh\n")
 
+_WINDOWS_MSG = ("Windows is not supported. Use WSL (Windows Subsystem for"
+                " Linux) and re-run setup from inside the Linux shell.\n")
+
 
 def probe():
     from embedder.embedder import get_embedder
@@ -31,5 +34,8 @@ def status():
 
 
 def setup():
+    if sys.platform == "win32":
+        sys.stdout.write(_WINDOWS_MSG)
+        return 1
     sys.stdout.write(SETUP_TEXT)
     return 0
