@@ -48,6 +48,12 @@ class MalformedUnclosedReturnsInput(unittest.TestCase):
         self.assertEqual(sanitizer.sanitize(text), text)
 
 
+class EmptyBodyPrivateStripped(unittest.TestCase):
+    """Gap 1: <private></private> with empty body must be removed."""
+    def test_empty_body_removed(self):
+        self.assertEqual(sanitizer.sanitize("a<private></private>b"), "ab")
+
+
 class DeepUnclosedNoBacktrackingBlowup(unittest.TestCase):
     """1000-deep unclosed <private> must complete in <100ms (linearity)."""
     def test_thousand_deep_unclosed_returns_fast(self):
