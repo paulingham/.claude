@@ -140,7 +140,7 @@ rm -f "/tmp/claude-session-${MY_PID}"
 rm -f "/tmp/claude-session-start-${MY_PID}"
 
 # Get the project hash that observation-capture will use
-OBS_PROJECT_HASH=$(git remote get-url origin 2>/dev/null | md5 -q 2>/dev/null || basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
+OBS_PROJECT_HASH=$(git remote get-url origin 2>/dev/null | openssl md5 -r 2>/dev/null | awk '{print $1}' || basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
 OBS_FILE="$HOME/.claude/learning/$OBS_PROJECT_HASH/observations.jsonl"
 
 # Test: Enriched fields from env vars
