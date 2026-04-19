@@ -6,8 +6,10 @@ from embedder._lib import model_io, ort_dispatch
 
 def run(handle, ids, mask, types_):
     tensors = _inputs(handle, ids, mask, types_)
-    out = _invoke(handle, tensors)
-    _release_inputs(handle, tensors)
+    try:
+        out = _invoke(handle, tensors)
+    finally:
+        _release_inputs(handle, tensors)
     return c_void_p(out[0])
 
 

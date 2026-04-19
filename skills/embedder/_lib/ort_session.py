@@ -1,9 +1,8 @@
 """Session orchestrator: build handle, close handle. See RELEASE_ORDER."""
 import types
-from ctypes import byref, c_void_p
 
-from embedder._lib import (model_io, ort_dispatch, ort_session_build,
-                           ort_session_names, ort_session_opts)
+from embedder._lib import (ort_session_build, ort_session_close,
+                           ort_session_names)
 
 RELEASE_ORDER = (
     ("session", "ReleaseSession"),
@@ -35,12 +34,7 @@ def _handle(api, env, opts, sess, alloc, mem, names):
 
 
 def close(handle):
-    for field, op in RELEASE_ORDER:
-        _release_one(handle, field, op)
-
-
-def _release_one(handle, field, op):
-    ptr = getattr(handle, field, None)
-    if ptr and ptr.value:
-        ort_dispatch.call(handle.api, op, ptr)
-        setattr(handle, field, None)
+    errors = [e for e in (ort_session_close.try_release(handle, f, op)
+                          for f, op in RELEASE_ORDER) if e]
+    if errors:
+        raise RuntimeError(f"close errors: {errors}") from errors[0]

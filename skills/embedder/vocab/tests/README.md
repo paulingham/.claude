@@ -10,40 +10,23 @@ suffixes (`##ing`, `##s`, etc.).
 This fixture proves the algorithm is correct against hand-computed
 ids. It is NOT the production bge vocab.
 
-## vocab.txt (30522 tokens) — NOT COMMITTED
+## vocab.txt (30522 tokens) — committed at `skills/embedder/vocab/vocab.txt`
 
-The real bge-small-en-v1.5 vocab. Produced by:
+The real bge-small-en-v1.5 vocab. Originally sourced from:
 
 ```bash
 curl -fsSL -o skills/embedder/vocab/vocab.txt \
   'https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/vocab.txt'
-wc -l skills/embedder/vocab/vocab.txt   # expect 30522
+wc -l skills/embedder/vocab/vocab.txt   # 30522
 ```
 
-S5.1 build deferred the download: the build environment blocks egress
-to huggingface.co. Committing the real vocab is a **prerequisite to
-using the real embedder end-to-end**. Until committed, setting
-`ORT_DYLIB_PATH` + `BGE_MODEL_PATH` will fail loading the tokenizer at
-runtime. The algorithm is proven correct via mini_vocab tests.
+Committed during S5.1 fix (CRITICAL C1). The tokenizer loads it at
+`RealEmbedder` construction time and caches the `{token: id}` dict.
 
-## reference-tokens.json (10 cases) — NOT COMMITTED
+## reference-tokens.json (10 cases) — committed at `skills/embedder/tests/fixtures/reference-tokens.json`
 
-Pre-computed `{"input": str, "ids": [int, ...]}` byte-exact parity
-oracle. Produced via a throwaway venv:
-
-```bash
-python3 -m venv /tmp/venv && /tmp/venv/bin/pip install transformers
-/tmp/venv/bin/python - <<'PY'
-import json
-from transformers import AutoTokenizer
-tok = AutoTokenizer.from_pretrained("BAAI/bge-small-en-v1.5")
-cases = ["hello world", "the cat sat on the mat", "embedder tokenizer test",
-         "run 42", "", "Mixed Case Text", "emoji 🚀 fire", "tab\\ttab",
-         "very long text " * 30, "CJK 你好世界"]
-out = [{"input": c, "ids": tok.encode(c, max_length=512, truncation=True,
-        padding="max_length")} for c in cases]
-print(json.dumps(out, indent=2))
-PY
-```
-
-Same reason as vocab: build env lacks network + pip.
+Pre-computed `{"input": str, "input_ids": [...], "attention_mask":
+[...], "token_type_ids": [...], "tokens": [...]}` byte-exact parity
+oracle. See `skills/embedder/tests/fixtures/README.md` for case list
+and regeneration recipe. Consumer:
+`tests/test_tokenizer_reference.py`.

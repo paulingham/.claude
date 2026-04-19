@@ -51,6 +51,53 @@ nothing to gain from rerank; rank > 10 is beyond recall@5's reach. If
 seeding is off, adjust distractor wording/count until the baseline is
 inside [6, 10] before running the rerank assertion.
 
+## reference-tokens.json
+
+10-case byte-exact parity oracle vs
+`transformers.BertTokenizer.from_pretrained("BAAI/bge-small-en-v1.5")`.
+
+### Cases
+
+Selected to cover the BasicTokenizer pipeline dimensions:
+
+- `"hello world"` — baseline lowercase
+- `"I need to fix the bug."` — punctuation split (`.` separated)
+- `"café"` — accent strip (NFD + Mn filter → `cafe`)
+- `"你好世界"` — CJK wrap (each char is a separate token candidate)
+- `"Hello World"` — case normalization
+- `"tab\ttab"` — control-class whitespace preserved as split
+- `"don't stop"` — apostrophe as punctuation split
+- `"embedder tokenizer test"` — WordPiece subwords
+- `"run 42"` — digits
+- `"naïve résumé"` — multiple accents
+
+### Regenerating
+
+If the tokenizer or the vocab changes, regenerate with:
+
+```bash
+python3 -m venv /tmp/hf_venv && /tmp/hf_venv/bin/pip install transformers
+/tmp/hf_venv/bin/python /tmp/gen_ref.py   # see pipeline-state fix notes
+```
+
+Consumer: `tests/test_tokenizer_reference.py` asserts byte-exact parity
+of `input_ids`, `attention_mask`, `token_type_ids` on every case.
+
+## Verification status of env-gated tests
+
+| Test | Env required | Observed status |
+|------|--------------|-----------------|
+| `test_embedder_real_smoke` | ORT dylib + bge ONNX | not run (model missing in fix worktree) |
+| `test_embedder_real_paraphrase` | ORT dylib + bge ONNX | not run |
+| `test_embedder_real_corpus` | ORT dylib + bge ONNX | not run — corpus BM25 ranks remain empirically unverified |
+| `test_embedder_real_latency` | ORT dylib + bge ONNX | not run |
+
+Verification of corpus BM25 rank 6-10 invariant requires a machine
+with the bge-small-en-v1.5 ONNX file on disk. If any target falls
+outside [6, 10], the AC4 rerank-improvement assertion trivially
+passes or silently fails. Verify before shipping: see the dry-run
+snippet in the `s5_1_corpus.jsonl` section above.
+
 ## Important
 
 The architect plan's IDX values in `claude-mem-port-s5.1-plan.md` are
