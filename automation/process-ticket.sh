@@ -50,14 +50,15 @@ render_prompt() {
   _sed_escape() { printf '%s' "$1" | sed 's/[&/\]/\\&/g'; }
 
   # Replace single-line placeholders
-  sed -i '' "s/{{TICKET_KEY}}/$(_sed_escape "$ticket_key")/g" "$tmp_prompt"
-  sed -i '' "s/{{SUMMARY}}/$(_sed_escape "$summary")/g" "$tmp_prompt"
-  sed -i '' "s/{{ISSUE_TYPE}}/$(_sed_escape "$issue_type")/g" "$tmp_prompt"
-  sed -i '' "s/{{PRIORITY}}/$(_sed_escape "$priority")/g" "$tmp_prompt"
-  sed -i '' "s/{{COMPONENTS}}/$(_sed_escape "$components")/g" "$tmp_prompt"
-  sed -i '' "s/{{LABELS}}/$(_sed_escape "$labels")/g" "$tmp_prompt"
-  sed -i '' "s/{{EPIC_KEY}}/$(_sed_escape "$epic_key")/g" "$tmp_prompt"
-  sed -i '' "s/{{BRANCH_NAME}}/$(_sed_escape "$branch_name")/g" "$tmp_prompt"
+  sed -i.bak "s/{{TICKET_KEY}}/$(_sed_escape "$ticket_key")/g" "$tmp_prompt"
+  sed -i.bak "s/{{SUMMARY}}/$(_sed_escape "$summary")/g" "$tmp_prompt"
+  sed -i.bak "s/{{ISSUE_TYPE}}/$(_sed_escape "$issue_type")/g" "$tmp_prompt"
+  sed -i.bak "s/{{PRIORITY}}/$(_sed_escape "$priority")/g" "$tmp_prompt"
+  sed -i.bak "s/{{COMPONENTS}}/$(_sed_escape "$components")/g" "$tmp_prompt"
+  sed -i.bak "s/{{LABELS}}/$(_sed_escape "$labels")/g" "$tmp_prompt"
+  sed -i.bak "s/{{EPIC_KEY}}/$(_sed_escape "$epic_key")/g" "$tmp_prompt"
+  sed -i.bak "s/{{BRANCH_NAME}}/$(_sed_escape "$branch_name")/g" "$tmp_prompt"
+  rm -f "${tmp_prompt}.bak"
 
   # Replace multiline placeholders using sed with file-read approach
   # Use awk for multiline replacement to handle newlines safely

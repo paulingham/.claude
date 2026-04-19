@@ -129,7 +129,7 @@ This is automatic and mandatory -- the user should never need to mention it.
 
 Before spawning any agent (subagent or teammate), the orchestrator loads relevant instincts:
 
-1. **Determine project hash**: `git remote get-url origin 2>/dev/null | md5 -q`
+1. **Determine project hash**: `git remote get-url origin 2>/dev/null | openssl md5 -r 2>/dev/null | awk '{print $1}'`
 2. **Read instinct files**: `ls ~/.claude/learning/instincts/instinct-*.md ~/.claude/learning/instincts/global/instinct-*.md 2>/dev/null`
 3. **Filter by role**: Only include instincts where the `roles` frontmatter field contains the agent's role
 4. **Filter by project**: Include project-scoped instincts matching the current project hash, plus all global instincts
