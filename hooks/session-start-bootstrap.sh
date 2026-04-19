@@ -116,7 +116,7 @@ fi
 # ---------------------------------------------------------------------------
 # Session memory (orientation after compaction)
 # ---------------------------------------------------------------------------
-PROJECT_HASH=$(git remote get-url origin 2>/dev/null | md5 -q 2>/dev/null || echo "local")
+PROJECT_HASH=$(git remote get-url origin 2>/dev/null | openssl md5 -r 2>/dev/null | awk '{print $1}' || echo "local")
 SESSION_NOTES="$HOME/.claude/session-memory/$PROJECT_HASH/notes.md"
 if [[ -f "$SESSION_NOTES" ]]; then
     # Check if notes have actual content (not just template)

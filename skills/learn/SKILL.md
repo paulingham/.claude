@@ -23,7 +23,7 @@ The key insight: hooks observe 100% of tool usage (deterministic). Pipeline anal
 ### 1. Identify Project
 
 ```bash
-PROJECT_HASH=$(git remote get-url origin 2>/dev/null | md5 -q || basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
+PROJECT_HASH=$(git remote get-url origin 2>/dev/null | openssl md5 -r 2>/dev/null | awk '{print $1}' || basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
 ```
 
