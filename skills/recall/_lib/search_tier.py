@@ -35,6 +35,13 @@ def _safe_run(db_path, sql, params):
 def _run(db_path, sql, params):
     con = connect.read_only(db_path)
     try:
-        return [dict(r) for r in con.execute(sql, params).fetchall()]
+        return [_cap(dict(r)) for r in con.execute(sql, params).fetchall()]
     finally:
         con.close()
+
+
+def _cap(hit, limit=64):
+    snip = hit.get("snippet")
+    if isinstance(snip, str) and len(snip) > limit:
+        hit["snippet"] = snip[:limit] + "…"
+    return hit

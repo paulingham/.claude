@@ -12,6 +12,10 @@ Three query tiers tune token cost to caller need. Read-only, stdlib only.
 
 1. **search** — FTS5 bm25-ranked hits (≤200 bytes each). Returns
    `{id, content_hash, timestamp, tool, file, snippet[, source]}`.
+   `content_hash` is a 16-char prefix (64-bit) for display only — to hydrate
+   a hit, use `id` (`get_observations(ids=[h["id"] for h in hits])`) rather
+   than the truncated `content_hash`. `snippet` is capped at 64 chars +
+   ellipsis to hold the 200-byte budget when bodies are long.
 2. **timeline** — rows ordered by timestamp ASC, backed by
    `idx_observations_timestamp`. Never touches FTS.
 3. **get_observations / get_findings** — hydrate full rows by ids or
