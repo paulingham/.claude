@@ -18,10 +18,14 @@ def try_embedder():
 
 def maybe_rerank(db_path, hits, query, limit, embedder):
     if embedder is None or not hits:
-        return hits, embedder is None
+        return [_strip(h) for h in hits], embedder is None
     from recall._lib import rerank
     reranked, unavail = rerank.rerank(db_path, hits, query, limit, embedder)
     return reranked, unavail
+
+
+def _strip(hit):
+    return {k: v for k, v in hit.items() if not k.startswith("_")}
 
 
 def emit_banner_if_unavailable(unavailable):
