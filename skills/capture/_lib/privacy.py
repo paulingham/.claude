@@ -3,7 +3,7 @@ from pathlib import Path
 
 from capture._lib import allowlist_loader, allowlist_matcher, sanitizer
 
-_TEXT_FIELDS = ("command", "searchable_text", "body")
+_TEXT_FIELDS = ("command", "searchable_text", "body", "outcome", "file")
 _user_path = Path.home() / ".claude" / "privacy-allowlist.json"
 _default_path = (Path(__file__).resolve().parents[1]
                  / "privacy-allowlist.default.json")
