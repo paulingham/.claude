@@ -22,6 +22,27 @@ def write(payload):
     _atomic_write(target, json.dumps(payload, sort_keys=True))
 
 
+def read():
+    target = path()
+    if not target.exists():
+        return {}
+    return json.loads(target.read_text())
+
+
+def record_success(timestamp):
+    _merge({"last_success_at": timestamp})
+
+
+def record_failure(reason, timestamp):
+    _merge({"last_error": reason, "last_error_at": timestamp})
+
+
+def _merge(fields):
+    payload = read()
+    payload.update(fields)
+    write(payload)
+
+
 def _atomic_write(target, body):
     fd, tmp = tempfile.mkstemp(dir=str(target.parent), suffix=".json")
     with os.fdopen(fd, "w") as fh:

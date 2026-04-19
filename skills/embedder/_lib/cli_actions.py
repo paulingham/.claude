@@ -17,12 +17,8 @@ def probe():
 
 
 def doctor():
-    try:
-        payload = probe()
-    except Exception as exc:
-        sys.stdout.write(f"embedder doctor: error — {exc}\n")
-        return 1
-    sys.stdout.write(f"embedder doctor: ok ({payload['model']})\n")
+    from embedder._lib import doctor as doctor_mod
+    sys.stdout.write(doctor_mod.report())
     return 0
 
 
