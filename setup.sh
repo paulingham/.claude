@@ -241,6 +241,9 @@ create_directory() {
 
 create_directory "${CLAUDE_DIR}/metrics" "metrics/"
 create_directory "${CLAUDE_DIR}/learning/instincts" "learning/instincts/"
+# claude-mem Story 1: SQLite index + embedding model dirs
+create_directory "${CLAUDE_DIR}/db" "db/"
+create_directory "${CLAUDE_DIR}/models" "models/"
 
 # -------------------------------------------------------------------
 # Step 5: Verify hooks are executable
