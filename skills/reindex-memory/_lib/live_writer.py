@@ -4,7 +4,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from _lib import paths, rows, embed_gate
+from _lib import paths, rows, embed_gate, _privacy_wire
 
 
 def write_one(obj, db_path=None):
@@ -14,9 +14,10 @@ def write_one(obj, db_path=None):
 
 
 def _insert(con, obj, target):
-    row = rows.row_from_obj(obj, target)
+    sanitized = _privacy_wire.apply(obj)
+    row = rows.row_from_obj(sanitized, target)
     cur = con.execute(rows.INSERT_SQL, row)
-    embed_gate.maybe_embed(con, obj, row[0])
+    embed_gate.maybe_embed(con, sanitized, row[0])
     return cur.rowcount
 
 

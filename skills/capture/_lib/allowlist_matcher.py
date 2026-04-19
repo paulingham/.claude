@@ -23,6 +23,8 @@ def _content_matches(obj, regexes):
     return any(r.search(haystack) for r in regexes)
 
 
+_FIELDS = ("command", "searchable_text", "body", "outcome")
+
+
 def _haystack(obj):
-    parts = (obj.get("command"), obj.get("searchable_text"), obj.get("body"))
-    return "\n".join(p for p in parts if p)
+    return "\n".join(obj.get(f) or "" for f in _FIELDS if obj.get(f))
