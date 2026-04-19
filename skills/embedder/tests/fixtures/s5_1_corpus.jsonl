@@ -1,33 +1,33 @@
-{"id": "q1_target", "query": "fix login bug production", "text": "Need to fix the login bug on production by inspecting the auth flow."}
-{"id": "q2_target", "query": "optimize slow database query", "text": "We should optimize that slow database query since the reporting job is timing out."}
-{"id": "q3_target", "query": "schedule team meeting tomorrow", "text": "Please schedule a team meeting tomorrow morning to align on the roadmap."}
-{"id": "q4_target", "query": "review pull request payment", "text": "Could you review my pull request for the payment feature when you have a minute?"}
-{"id": "q5_target", "query": "deploy container kubernetes cluster", "text": "Let's deploy the new container image to the kubernetes cluster after the smoke test."}
-{"id": "d01", "text": "fix fix fix login login login bug bug production production"}
-{"id": "d02", "text": "fix login bug production fix login bug production fix"}
-{"id": "d03", "text": "login login bug bug production production fix fix production"}
-{"id": "d04", "text": "fix bug production login fix bug production login production"}
-{"id": "d05", "text": "bug fix production login bug fix production login fix"}
-{"id": "d06", "text": "optimize optimize slow slow database database query query"}
-{"id": "d07", "text": "slow database query optimize slow database query optimize query"}
-{"id": "d08", "text": "optimize slow query database optimize slow query database query"}
-{"id": "d09", "text": "database query slow optimize database query slow optimize slow"}
-{"id": "d10", "text": "query optimize database slow query optimize database slow database"}
-{"id": "d11", "text": "schedule schedule team team meeting meeting tomorrow tomorrow"}
-{"id": "d12", "text": "team meeting tomorrow schedule team meeting tomorrow schedule tomorrow"}
-{"id": "d13", "text": "schedule team meeting tomorrow schedule team meeting tomorrow tomorrow"}
-{"id": "d14", "text": "meeting tomorrow team schedule meeting tomorrow team schedule team"}
-{"id": "d15", "text": "tomorrow schedule meeting team tomorrow schedule meeting team schedule"}
-{"id": "d16", "text": "review review pull pull request request payment payment"}
-{"id": "d17", "text": "review pull request payment review pull request payment request"}
-{"id": "d18", "text": "pull request payment review pull request payment review payment"}
-{"id": "d19", "text": "request review payment pull request review payment pull review"}
-{"id": "d20", "text": "payment pull request review payment pull request review pull"}
-{"id": "d21", "text": "deploy deploy container container kubernetes kubernetes cluster cluster"}
-{"id": "d22", "text": "deploy container kubernetes cluster deploy container kubernetes cluster cluster"}
-{"id": "d23", "text": "kubernetes cluster deploy container kubernetes cluster deploy container container"}
-{"id": "d24", "text": "container kubernetes deploy cluster container kubernetes deploy cluster deploy"}
-{"id": "d25", "text": "cluster deploy kubernetes container cluster deploy kubernetes container kubernetes"}
+{"id": "q1_target", "query": "fix login bug production", "text": "Fix login bug production."}
+{"id": "q2_target", "query": "optimize slow database query", "text": "Optimize slow database query."}
+{"id": "q3_target", "query": "schedule team meeting tomorrow", "text": "Schedule team meeting tomorrow."}
+{"id": "q4_target", "query": "review pull request payment", "text": "Review pull request payment."}
+{"id": "q5_target", "query": "deploy container kubernetes cluster", "text": "Deploy container kubernetes cluster."}
+{"id": "d01", "text": "fix fix login login bug bug production production oven stage"}
+{"id": "d02", "text": "fix login bug production fix login bug production oven stage"}
+{"id": "d03", "text": "fix fix login login bug bug production production chef pasta"}
+{"id": "d04", "text": "fix login bug production fix login bug production chef pasta"}
+{"id": "d05", "text": "fix fix login login bug bug production production pond cliff"}
+{"id": "d06", "text": "optimize optimize slow slow database database query query recipe chef"}
+{"id": "d07", "text": "optimize slow database query optimize slow database query recipe chef"}
+{"id": "d08", "text": "optimize optimize slow slow database database query query oven pastry"}
+{"id": "d09", "text": "optimize slow database query optimize slow database query oven pastry"}
+{"id": "d10", "text": "optimize optimize slow slow database database query query yoga mat"}
+{"id": "d11", "text": "schedule schedule team team meeting meeting tomorrow tomorrow jazz band"}
+{"id": "d12", "text": "schedule team meeting tomorrow schedule team meeting tomorrow jazz band"}
+{"id": "d13", "text": "schedule schedule team team meeting meeting tomorrow tomorrow bakery tasting"}
+{"id": "d14", "text": "schedule team meeting tomorrow schedule team meeting tomorrow bakery tasting"}
+{"id": "d15", "text": "schedule schedule team team meeting meeting tomorrow tomorrow pool coach"}
+{"id": "d16", "text": "review review pull pull request request payment payment museum exhibit"}
+{"id": "d17", "text": "review pull request payment review pull request payment museum exhibit"}
+{"id": "d18", "text": "review review pull pull request request payment payment ballet costume"}
+{"id": "d19", "text": "review pull request payment review pull request payment ballet costume"}
+{"id": "d20", "text": "review review pull pull request request payment payment concert hall"}
+{"id": "d21", "text": "deploy deploy container container kubernetes kubernetes cluster cluster steel ranch"}
+{"id": "d22", "text": "deploy container kubernetes cluster deploy container kubernetes cluster steel ranch"}
+{"id": "d23", "text": "deploy deploy container container kubernetes kubernetes cluster cluster wooden dance"}
+{"id": "d24", "text": "deploy container kubernetes cluster deploy container kubernetes cluster wooden dance"}
+{"id": "d25", "text": "deploy deploy container container kubernetes kubernetes cluster cluster oak grove"}
 {"id": "n01", "text": "Yesterday I baked a chocolate cake for the office birthday party."}
 {"id": "n02", "text": "The weather in San Francisco has been unusually foggy this week."}
 {"id": "n03", "text": "Reading a novel about Victorian London during my commute home."}
