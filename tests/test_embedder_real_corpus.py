@@ -90,14 +90,14 @@ def _targets():
 
 
 def _rank_of(target, db_path):
-    h = hashlib.sha256(target["id"].encode()).hexdigest()
+    prefix = hashlib.sha256(target["id"].encode()).hexdigest()[:16]
     ranks = _bm25_ranks(db_path, target["query"])
-    return ranks.index(h) + 1 if h in ranks else 99
+    return ranks.index(prefix) + 1 if prefix in ranks else 99
 
 
 def _improved(target, db_path, embedder):
-    h = hashlib.sha256(target["id"].encode()).hexdigest()
-    return h in _rerank_top5(db_path, target["query"], embedder)
+    prefix = hashlib.sha256(target["id"].encode()).hexdigest()[:16]
+    return prefix in _rerank_top5(db_path, target["query"], embedder)
 
 
 def _fresh_embedder():
