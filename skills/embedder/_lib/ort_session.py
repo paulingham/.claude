@@ -5,7 +5,12 @@ from ctypes import byref, c_void_p
 from embedder._lib import (model_io, ort_dispatch, ort_session_build,
                            ort_session_names, ort_session_opts)
 
-RELEASE_ORDER = ("session", "session_options", "mem_info", "env")
+RELEASE_ORDER = (
+    ("session", "ReleaseSession"),
+    ("session_options", "ReleaseSessionOptions"),
+    ("mem_info", "ReleaseMemoryInfo"),
+    ("env", "ReleaseEnv"),
+)
 
 
 def build(api, model_path):
@@ -30,16 +35,12 @@ def _handle(api, env, opts, sess, alloc, mem, names):
 
 
 def close(handle):
-    for field in RELEASE_ORDER:
-        _release_one(handle, field)
+    for field, op in RELEASE_ORDER:
+        _release_one(handle, field, op)
 
 
-def _release_one(handle, field):
+def _release_one(handle, field, op):
     ptr = getattr(handle, field, None)
     if ptr and ptr.value:
-        ort_dispatch.call(handle.api, f"Release{_pascal(field)}", ptr)
+        ort_dispatch.call(handle.api, op, ptr)
         setattr(handle, field, None)
-
-
-def _pascal(snake):
-    return "".join(p.title() for p in snake.split("_"))
