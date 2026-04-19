@@ -1,0 +1,102 @@
+"""AC3, AC4: allowlist matcher — file-glob + content-regex detection."""
+import re
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "skills"))
+
+from capture._lib import allowlist_loader, allowlist_matcher  # noqa: E402
+
+
+def _allow(globs=(), regexes=()):
+    return allowlist_loader.Allowlist(
+        file_globs=tuple(globs),
+        content_regexes=tuple(re.compile(r) for r in regexes))
+
+
+class FileGlobMatchesBasename(unittest.TestCase):
+    """AC3: *.env pattern matches .env, .env.local, prod.env."""
+    def test_env_glob_matches_dotenv(self):
+        allow = _allow(globs=("*.env", ".env", ".env.*"))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": ".env"}, allow=allow))
+
+    def test_env_glob_matches_env_local(self):
+        allow = _allow(globs=(".env.*",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": ".env.local"}, allow=allow))
+
+    def test_env_glob_matches_nested_path(self):
+        allow = _allow(globs=("*.env",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "config/prod.env"}, allow=allow))
+
+
+class FileGlobMatchesFullPath(unittest.TestCase):
+    """Paths like .aws/credentials matched by full-path pattern."""
+    def test_aws_credentials_matches(self):
+        allow = _allow(globs=(".aws/credentials",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "home/user/.aws/credentials"}, allow=allow))
+
+
+class NonMatchingFileReturnsFalse(unittest.TestCase):
+    def test_ordinary_source_file_not_flagged(self):
+        allow = _allow(globs=("*.env", "*secret*"))
+        self.assertFalse(allowlist_matcher.is_private(
+            obj={"file": "src/app/components/Header.tsx"}, allow=allow))
+
+
+class MissingFileFieldNotFlagged(unittest.TestCase):
+    def test_obj_without_file_returns_false_on_glob_only(self):
+        allow = _allow(globs=("*.env",))
+        self.assertFalse(allowlist_matcher.is_private(
+            obj={"tool": "Bash"}, allow=allow))
+
+
+class ContentRegexMatchesCommand(unittest.TestCase):
+    """AC4: AWS key in bash command output triggers match."""
+    def test_aws_key_in_command_flags_private(self):
+        allow = _allow(regexes=(r"AKIA[0-9A-Z]{16}\b",))
+        obj = {"tool": "Bash", "command": "export KEY=AKIAIOSFODNN7EXAMPLE"}
+        self.assertTrue(allowlist_matcher.is_private(
+            obj=obj, allow=allow))
+
+
+class ContentRegexMatchesInSearchableText(unittest.TestCase):
+    def test_jwt_in_searchable_text_flags_private(self):
+        allow = _allow(regexes=(r"eyJ[A-Za-z0-9_\-]+\.eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+",))
+        obj = {"searchable_text":
+               "token=eyJhbGciOi.eyJzdWIiOi.abc123"}
+        self.assertTrue(allowlist_matcher.is_private(
+            obj=obj, allow=allow))
+
+
+class NoContentMatchReturnsFalse(unittest.TestCase):
+    def test_benign_content_not_flagged(self):
+        allow = _allow(regexes=(r"AKIA[0-9A-Z]{16}\b",))
+        obj = {"command": "ls -la", "searchable_text": "file listing"}
+        self.assertFalse(allowlist_matcher.is_private(
+            obj=obj, allow=allow))
+
+
+class EmptyAllowlistReturnsFalse(unittest.TestCase):
+    """AC7 corollary: empty allowlist = nothing flagged."""
+    def test_empty_allowlist_never_matches(self):
+        allow = allowlist_loader.Allowlist(file_globs=(), content_regexes=())
+        obj = {"file": ".env", "command": "AKIAIOSFODNN7EXAMPLE"}
+        self.assertFalse(allowlist_matcher.is_private(
+            obj=obj, allow=allow))
+
+
+class GlobMatchShortCircuitsRegex(unittest.TestCase):
+    """File-glob match returns True without scanning content regexes."""
+    def test_file_match_returns_true_immediately(self):
+        allow = _allow(globs=(".env",), regexes=(r"NEVER_MATCHES_XYZ",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": ".env", "command": "hello"}, allow=allow))
+
+
+if __name__ == "__main__":
+    unittest.main()
