@@ -1,5 +1,8 @@
-"""Source dispatch helpers for search/timeline/hydrate tiers."""
-from recall._lib import search_tier, timeline_tier, hydrate_tier, envelope
+"""Source dispatch helpers for search/timeline tiers."""
+from recall._lib import search_tier, timeline_tier, envelope
+
+_SEARCH = {"observations": search_tier.search_observations,
+           "scratchpad":   search_tier.search_scratchpad}
 
 
 def guarded(fn):
@@ -11,9 +14,7 @@ def guarded(fn):
 
 
 def search(query, limit, source, db_path, include_private):
-    obs = search_tier.search_observations
-    sp = search_tier.search_scratchpad
-    pick = {"observations": obs, "scratchpad": sp}.get(source)
+    pick = _SEARCH.get(source)
     if pick:
         return pick(db_path, query, limit, include_private)
     return _both(query, limit, db_path, include_private)

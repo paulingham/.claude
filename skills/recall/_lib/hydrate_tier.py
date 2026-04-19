@@ -20,6 +20,10 @@ def fetch_findings_by_ids(db_path, ids, include_private=False):
 def _fetch(db_path, table, cols, col, values, include_private):
     if not values:
         return []
+    return _with_con(db_path, table, cols, col, values, include_private)
+
+
+def _with_con(db_path, table, cols, col, values, include_private):
     con = connect.read_only(db_path)
     try:
         return _query(con, table, cols, col, values, include_private)

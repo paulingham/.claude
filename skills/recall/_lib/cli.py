@@ -22,15 +22,22 @@ def _invoke(args):
                            db_path=args.db)
 
 
+_SRC_SEARCH = ("both", "observations", "scratchpad")
+_SRC_TL = ("observations", "scratchpad")
+
+
 def _parse(argv):
     p = argparse.ArgumentParser(prog="recall")
     sub = p.add_subparsers(dest="tier", required=True)
+    _add_search(sub)
+    _add_common(sub.add_parser("timeline"), _SRC_TL, 50)
+    return p.parse_args(argv)
+
+
+def _add_search(sub):
     s = sub.add_parser("search")
     s.add_argument("query")
-    _add_common(s, ("both", "observations", "scratchpad"), 20)
-    _add_common(sub.add_parser("timeline"),
-                ("observations", "scratchpad"), 50)
-    return p.parse_args(argv)
+    _add_common(s, _SRC_SEARCH, 20)
 
 
 def _add_common(p, sources, default_limit):
