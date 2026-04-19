@@ -29,4 +29,7 @@ def _build_real():
 
 def reset_singleton_for_tests():
     global _singleton
+    closer = getattr(_singleton, "close", None)
+    if callable(closer):
+        closer()
     _singleton = None
