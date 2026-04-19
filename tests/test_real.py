@@ -60,6 +60,39 @@ def _fake_handle():
     return types.SimpleNamespace(api="api", session="sess", mem_info="mem")
 
 
+class EncodeReleasesOutputWhenReadRaises(unittest.TestCase):
+    def test_release_called_even_when_read_float32_raises(self):
+        from embedder._lib import real
+        release_count = [0]
+        with _patches_read_failure(real, release_count):
+            embedder = real.RealEmbedder("api", _fake_handle())
+            with self.assertRaises(RuntimeError):
+                embedder.encode("hi", max_len=4)
+        self.assertEqual(release_count[0], 1)
+
+
+def _patches_read_failure(real, release_count):
+    ctx = _StackedPatch()
+    ctx.add(mock.patch.object(real, "tokenizer",
+                              encode=lambda t, max_len: ([0] * max_len,) * 3))
+    ctx.add(mock.patch.object(real, "ort_session_run",
+                              run=mock.Mock(return_value="out_tensor")))
+    ctx.add(mock.patch.object(real, "model_io",
+                              read_float32_data=mock.Mock(
+                                  side_effect=RuntimeError("read boom"))))
+    ctx.add(mock.patch.object(real, "ort_dispatch",
+                              call=_record_release(release_count)))
+    ctx.add(mock.patch.object(real, "pool", mean_pool_l2=mock.Mock()))
+    return ctx
+
+
+def _record_release(counter):
+    def call(api, op, *args):
+        if op == "ReleaseValue":
+            counter[0] += 1
+    return call
+
+
 class _StackedPatch:
     def __init__(self):
         self._patches = []
