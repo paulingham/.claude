@@ -88,6 +88,24 @@ class NormalizedPathStillMatches(unittest.TestCase):
             obj={"file": "x/../.env"}, allow=allow))
 
 
+class SlashlessGlobMatchesFullPathBranch(unittest.TestCase):
+    """Mutation kill: slashless glob must try full path as a fallback.
+
+    `_glob_hits` for a glob without `/` returns
+        fnmatch(basename, glob) or fnmatch(path, glob)
+    Verifier flagged the second fnmatch as a surviving mutation. This
+    test exercises a glob that only matches via the full-path branch —
+    basename fails, full path succeeds — so dropping that branch
+    regresses match behaviour and fails the test.
+    """
+    def test_slashless_glob_matches_via_full_path(self):
+        allow = _allow(globs=("[a]*b",))
+        # basename='b' does NOT match '[a]*b' (first char must be 'a');
+        # full path 'a/c/b' DOES match ('[a]' eats 'a', '*' eats '/c/').
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "a/c/b"}, allow=allow))
+
+
 class NullBytePathDoesNotCrashOrLeak(unittest.TestCase):
     """Gap 11: null-byte in file path must not crash or spuriously match.
 
