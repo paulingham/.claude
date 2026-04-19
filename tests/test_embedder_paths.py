@@ -32,7 +32,7 @@ class DylibResolution(unittest.TestCase):
 
 class ModelResolution(unittest.TestCase):
     def test_unset_falls_back_to_default(self):
-        with _clean_env("BGE_MODEL_PATH"):
+        with _clean_env("BGE_MODEL_PATH"), _stub_default("/nope.onnx"):
             with self.assertRaises(paths.EmbedderUnavailable):
                 paths.resolve_model()
 
@@ -40,6 +40,18 @@ class ModelResolution(unittest.TestCase):
         with tempfile.NamedTemporaryFile(suffix=".onnx") as fh:
             with _env("BGE_MODEL_PATH", fh.name):
                 self.assertEqual(paths.resolve_model(), Path(fh.name))
+
+
+class _stub_default:
+    def __init__(self, path):
+        self.path = Path(path)
+
+    def __enter__(self):
+        self.prev = paths._DEFAULT_MODEL
+        paths._DEFAULT_MODEL = self.path
+
+    def __exit__(self, *_):
+        paths._DEFAULT_MODEL = self.prev
 
 
 class _env:
