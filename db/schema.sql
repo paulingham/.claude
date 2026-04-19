@@ -2,6 +2,10 @@
 -- Derived read index built from learning/*/observations.jsonl and scratchpad findings.
 -- Run: sqlite3 memory.sqlite < schema.sql
 
+-- WAL journal mode (Story 5 slice 13a): so backfill writes do not
+-- starve capture reads. PRAGMA journal_mode is persistent once applied.
+PRAGMA journal_mode=WAL;
+
 -- Observations: one row per captured tool call.
 -- content_hash = sha256(session_id|timestamp|tool|file) — the dedup key.
 CREATE TABLE IF NOT EXISTS observations (
