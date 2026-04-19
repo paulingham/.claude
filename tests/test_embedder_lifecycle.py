@@ -29,9 +29,9 @@ class ResetClosesPriorEmbedder(unittest.TestCase):
 
 class OrtSessionCloseReleaseOrder(unittest.TestCase):
     def test_release_order_is_session_opts_meminfo_env(self):
-        from embedder._lib import ort_session
+        from embedder._lib import ort_session, ort_session_close
         handle, calls = _recording_handle()
-        with mock.patch.object(ort_session, "ort_dispatch") as disp:
+        with mock.patch.object(ort_session_close, "ort_dispatch") as disp:
             disp.call.side_effect = lambda api, name, _p: calls.append(name)
             ort_session.close(handle)
         self.assertEqual(calls, [
@@ -39,9 +39,9 @@ class OrtSessionCloseReleaseOrder(unittest.TestCase):
             "ReleaseMemoryInfo", "ReleaseEnv"])
 
     def test_close_is_idempotent(self):
-        from embedder._lib import ort_session
+        from embedder._lib import ort_session, ort_session_close
         handle, calls = _recording_handle()
-        with mock.patch.object(ort_session, "ort_dispatch") as disp:
+        with mock.patch.object(ort_session_close, "ort_dispatch") as disp:
             disp.call.side_effect = lambda *a: calls.append(a[1])
             ort_session.close(handle)
             ort_session.close(handle)
