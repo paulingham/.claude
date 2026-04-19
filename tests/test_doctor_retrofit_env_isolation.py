@@ -12,20 +12,34 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_doctor_retrofit import _ctx  # noqa: E402
 
 
+_KEYS = ("ORT_DYLIB_PATH", "BGE_MODEL_PATH")
+
+
 class CtxRestoresPreexistingEnv(unittest.TestCase):
     def test_env_vars_preserved_across_ctx(self):
-        sentinel_ort = "/tmp/d3-sentinel-ort.dylib"
-        sentinel_bge = "/tmp/d3-sentinel-bge.onnx"
-        os.environ["ORT_DYLIB_PATH"] = sentinel_ort
-        os.environ["BGE_MODEL_PATH"] = sentinel_bge
+        prev = {k: os.environ.get(k) for k in _KEYS}
         try:
-            with _ctx():
-                pass
-            self.assertEqual(os.environ.get("ORT_DYLIB_PATH"), sentinel_ort)
-            self.assertEqual(os.environ.get("BGE_MODEL_PATH"), sentinel_bge)
+            self._run_assertion()
         finally:
-            os.environ.pop("ORT_DYLIB_PATH", None)
-            os.environ.pop("BGE_MODEL_PATH", None)
+            _restore_all(prev)
+
+    def _run_assertion(self):
+        os.environ["ORT_DYLIB_PATH"] = "/tmp/d3-sentinel-ort.dylib"
+        os.environ["BGE_MODEL_PATH"] = "/tmp/d3-sentinel-bge.onnx"
+        with _ctx():
+            pass
+        self.assertEqual(os.environ["ORT_DYLIB_PATH"],
+                         "/tmp/d3-sentinel-ort.dylib")
+        self.assertEqual(os.environ["BGE_MODEL_PATH"],
+                         "/tmp/d3-sentinel-bge.onnx")
+
+
+def _restore_all(prev):
+    for k, v in prev.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
 
 
 if __name__ == "__main__":
