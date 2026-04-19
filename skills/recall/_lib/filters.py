@@ -18,12 +18,9 @@ def resolve(source, spec):
 
 
 def _compile(spec):
-    frags, params = [], []
-    for key, val in spec.items():
-        frag, bind = _fragment(key, val)
-        frags.append(frag)
-        params.append(bind)
-    return " ".join(f"AND {f}" for f in frags), tuple(params)
+    pairs = [_fragment(k, v) for k, v in spec.items()]
+    frags = " ".join(f"AND {f}" for f, _ in pairs)
+    return frags, tuple(bind for _, bind in pairs)
 
 
 def _fragment(key, val):
