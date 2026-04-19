@@ -1,11 +1,15 @@
 """Public API tests: privacy gate, missing DB, token budget, read-only."""
+import json
+import sqlite3
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _support import build_populated_db_with_private_row  # noqa: E402
+from _support import (
+    build_populated_db, build_populated_db_with_private_row, count_rows,
+    insert_scratchpad_rows)  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "skills"))
 from recall import recall  # noqa: E402
@@ -39,6 +43,70 @@ class PrivacyGate(unittest.TestCase):
                                  include_private=True)
             self.assertEqual(len(hits), 1)
             self.assertEqual(hits[0]["tool"], "Secret")
+
+
+class ReadOnly(unittest.TestCase):
+    def test_no_writes_after_full_exercise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            before = _snapshot(db)
+            for _ in range(5):
+                recall.search("Read", db_path=db, source="observations")
+                recall.timeline(db_path=db)
+                recall.get_observations(ids=[1], db_path=db)
+                recall.get_findings(ids=[1], db_path=db)
+            self.assertEqual(_snapshot(db), before)
+
+
+def _snapshot(db):
+    return tuple(count_rows(db, t) for t in (
+        "observations", "observations_fts",
+        "scratchpad_findings", "embeddings"))
+
+
+class TokenBudget(unittest.TestCase):
+    def test_progressive_disclosure_ten_x_reduction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            _seed_widgets(db, 50)
+            hits = recall.search("widget", db_path=db,
+                                 source="observations", limit=20)
+            full = recall.get_observations(
+                ids=[h["id"] for h in hits[:3]], db_path=db)
+            small = _bytes(hits + full)
+            huge = _bytes(_dump_all(db))
+            self.assertGreaterEqual(huge / max(small, 1), 10)
+
+
+def _bytes(obj):
+    return len(json.dumps(obj, separators=(",", ":")).encode())
+
+
+def _seed_widgets(db, n):
+    # Production searchable_text concatenates tool + file + outcome blobs
+    # (outcomes carry captured output). 1KB per row is a realistic minimum.
+    bulk = "widget data payload blob " * 40
+    con = sqlite3.connect(str(db))
+    try:
+        for i in range(n):
+            con.execute(
+                "INSERT INTO observations (content_hash, session_id, "
+                "timestamp, tool, file, searchable_text, is_private) "
+                "VALUES (?, 'sw', ?, 'Read', '/widgets/w.py', ?, 0)",
+                (f"widget{i}", f"2026-04-02T00:00:{i:02d}Z", bulk))
+        con.commit()
+    finally:
+        con.close()
+
+
+def _dump_all(db):
+    con = sqlite3.connect(str(db))
+    con.row_factory = sqlite3.Row
+    try:
+        return [dict(r) for r in con.execute(
+            "SELECT * FROM observations").fetchall()]
+    finally:
+        con.close()
 
 
 if __name__ == "__main__":
