@@ -44,6 +44,17 @@ class TestUnknownMethod(unittest.TestCase):
         self.assertEqual(resp["error"]["code"], -32601)
 
 
+class TestNotification(unittest.TestCase):
+    def test_notification_without_id_returns_none(self):
+        self.assertIsNone(tools.dispatch(
+            {"jsonrpc": "2.0", "method": "initialize"}))
+
+    def test_notification_tools_call_returns_none(self):
+        self.assertIsNone(tools.dispatch(
+            {"jsonrpc": "2.0", "method": "tools/call",
+             "params": {"name": "search_memory", "arguments": {"query": "x"}}}))
+
+
 class TestToolsCallInvalidParams(unittest.TestCase):
     def test_missing_query_maps_to_invalid_params(self):
         resp = tools.dispatch({"id": 10, "method": "tools/call",

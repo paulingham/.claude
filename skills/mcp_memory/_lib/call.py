@@ -22,7 +22,7 @@ def _unknown_tool(req_id, name):
 def _invoke(name, arguments, req_id):
     try:
         return rpc.result(req_id, _content(_call(name, arguments)))
-    except BaseException as exc:  # noqa: BLE001
+    except Exception as exc:
         return _map_error(exc, req_id)
 
 

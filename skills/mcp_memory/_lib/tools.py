@@ -10,9 +10,19 @@ _RESULT_METHODS = {
 
 
 def dispatch(message):
+    if "id" not in message:
+        return None
+    return _dispatch_request(message)
+
+
+def _dispatch_request(message):
     method = message.get("method")
     if method == "tools/call":
         return call.handle(message)
+    return _result_or_unknown(message, method)
+
+
+def _result_or_unknown(message, method):
     handler = _RESULT_METHODS.get(method)
     if handler is None:
         return rpc.error(message.get("id"), rpc.METHOD_NOT_FOUND,

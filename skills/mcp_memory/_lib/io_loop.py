@@ -13,8 +13,7 @@ def _handle_line(line, stdout, dispatcher):
     stripped = line.strip()
     if not stripped:
         return
-    response = _dispatch_or_parse_error(stripped, dispatcher)
-    _emit(stdout, response)
+    _emit(stdout, _dispatch_or_parse_error(stripped, dispatcher))
 
 
 def _dispatch_or_parse_error(text, dispatcher):
@@ -25,5 +24,7 @@ def _dispatch_or_parse_error(text, dispatcher):
 
 
 def _emit(stdout, response):
+    if response is None:
+        return
     stdout.write(json.dumps(response, ensure_ascii=False) + "\n")
     stdout.flush()
