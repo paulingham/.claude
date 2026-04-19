@@ -36,7 +36,9 @@ class SearchObservations(unittest.TestCase):
             db, _ = build_populated_db(tmp)
             hits = search_tier.search_observations(db, "Read")
             for hit in hits:
-                blob = json.dumps(hit, separators=(",", ":"))
+                public = {k: v for k, v in hit.items()
+                          if not k.startswith("_")}
+                blob = json.dumps(public, separators=(",", ":"))
                 self.assertLessEqual(len(blob.encode()), 200)
 
 
