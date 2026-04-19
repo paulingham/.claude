@@ -1,4 +1,10 @@
-"""BC4: download-model.sh warns user the model is not yet consumed (S5.1)."""
+"""BC4: download-model.sh gates download (non-interactive abort + consent).
+
+In S5.1 the deferral banner was removed (the real backend now consumes the
+model). The gate itself — non-interactive abort, y/N prompt — is still
+required. The ScriptContainsGateWarning case now asserts the POSIX-only
+warning rather than the old S5.1-deferral text.
+"""
 import os
 import subprocess
 import sys
@@ -28,10 +34,10 @@ class NoninteractiveVarAlsoAborts(unittest.TestCase):
 
 
 class ScriptContainsGateWarning(unittest.TestCase):
-    def test_warning_mentions_s51(self):
+    def test_warning_mentions_posix_requirement(self):
         body = SCRIPT.read_text()
-        self.assertIn("S5.1", body)
-        self.assertIn("not", body.lower())  # "does NOT consume"
+        self.assertIn("macOS or", body)
+        self.assertIn("Windows is not supported", body)
 
 
 class NegativeResponseCancels(unittest.TestCase):
