@@ -50,12 +50,19 @@ else
   PREREQS_OK=false
 fi
 
-if command_exists brew; then
-  print_success "brew $(brew --version | head -1)"
-else
-  print_failure "brew not found -- install Homebrew: https://brew.sh"
-  PREREQS_OK=false
-fi
+case "$(uname -s)" in
+    Darwin)
+        if command_exists brew; then
+            print_success "brew $(brew --version | head -1)"
+        else
+            print_failure "brew not found -- install Homebrew: https://brew.sh"
+            PREREQS_OK=false
+        fi
+        ;;
+    Linux)
+        print_success "Linux detected -- skipping brew check"
+        ;;
+esac
 
 if [[ "$PREREQS_OK" == "false" ]]; then
   print_failure "Prerequisites missing. Install them and re-run this script."
@@ -68,29 +75,37 @@ fi
 print_header "Step 2: Installing external tools"
 
 # -- Dippy (AST-based bash command safety) --
-echo ""
-echo "  Dippy (AST-based bash command safety)..."
-if command_exists dippy; then
-  record_skipped "dippy"
-else
-  if brew tap ldayton/dippy 2>/dev/null && brew install dippy 2>/dev/null; then
-    record_installed "dippy"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  echo ""
+  echo "  Dippy (AST-based bash command safety)..."
+  if command_exists dippy; then
+    record_skipped "dippy"
   else
-    record_failed "dippy (brew tap ldayton/dippy && brew install dippy)"
+    if brew tap ldayton/dippy 2>/dev/null && brew install dippy 2>/dev/null; then
+      record_installed "dippy"
+    else
+      record_failed "dippy (brew tap ldayton/dippy && brew install dippy)"
+    fi
   fi
+else
+  record_skipped "dippy (Mac-only tool)"
 fi
 
 # -- claude-devtools (session observability) --
-echo ""
-echo "  claude-devtools (session observability)..."
-if brew list --cask claude-devtools > /dev/null 2>&1; then
-  record_skipped "claude-devtools"
-else
-  if brew install --cask claude-devtools 2>/dev/null; then
-    record_installed "claude-devtools"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  echo ""
+  echo "  claude-devtools (session observability)..."
+  if brew list --cask claude-devtools > /dev/null 2>&1; then
+    record_skipped "claude-devtools"
   else
-    record_failed "claude-devtools (brew install --cask claude-devtools)"
+    if brew install --cask claude-devtools 2>/dev/null; then
+      record_installed "claude-devtools"
+    else
+      record_failed "claude-devtools (brew install --cask claude-devtools)"
+    fi
   fi
+else
+  record_skipped "claude-devtools (Mac-only tool)"
 fi
 
 # -- Rust toolchain --
@@ -276,6 +291,10 @@ fi
 # Step 6b: Fix machine-specific paths in settings.json
 # -------------------------------------------------------------------
 print_header "Step 6b: Fix machine-specific paths in settings.json"
+
+# Note: ORT_DYLIB_PATH in settings.json points to /opt/homebrew/lib/libonnxruntime.dylib (Mac path).
+# On Linux, parry-guard ML inference will degrade gracefully (warning logged, falls back to no-op).
+# A follow-up may make this fully dynamic if settings.json gains per-platform env support.
 
 if [[ -f "$SETTINGS_FILE" ]]; then
   PATHS_FIXED=0

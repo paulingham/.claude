@@ -70,7 +70,7 @@ Engineering context that survives context compaction. Not conversation notes —
 ~/.claude/session-memory/{project-hash}/notes.md
 ```
 
-Project hash: `git remote get-url origin 2>/dev/null | md5 -q || echo "local"`
+Project hash: `git remote get-url origin 2>/dev/null | openssl md5 -r 2>/dev/null | awk '{print $1}' || echo "local"`
 
 ### Template
 
