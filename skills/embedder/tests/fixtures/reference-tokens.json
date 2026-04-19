@@ -1,0 +1,320 @@
+[
+  {
+    "input": "hello world",
+    "input_ids": [
+      101,
+      7592,
+      2088,
+      102
+    ],
+    "attention_mask": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "token_type_ids": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "tokens": [
+      "[CLS]",
+      "hello",
+      "world",
+      "[SEP]"
+    ]
+  },
+  {
+    "input": "I need to fix the bug.",
+    "input_ids": [
+      101,
+      1045,
+      2342,
+      2000,
+      8081,
+      1996,
+      11829,
+      1012,
+      102
+    ],
+    "attention_mask": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "token_type_ids": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "tokens": [
+      "[CLS]",
+      "i",
+      "need",
+      "to",
+      "fix",
+      "the",
+      "bug",
+      ".",
+      "[SEP]"
+    ]
+  },
+  {
+    "input": "café",
+    "input_ids": [
+      101,
+      7668,
+      102
+    ],
+    "attention_mask": [
+      1,
+      1,
+      1
+    ],
+    "token_type_ids": [
+      0,
+      0,
+      0
+    ],
+    "tokens": [
+      "[CLS]",
+      "cafe",
+      "[SEP]"
+    ]
+  },
+  {
+    "input": "你好世界",
+    "input_ids": [
+      101,
+      100,
+      100,
+      1745,
+      100,
+      102
+    ],
+    "attention_mask": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "token_type_ids": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "tokens": [
+      "[CLS]",
+      "[UNK]",
+      "[UNK]",
+      "世",
+      "[UNK]",
+      "[SEP]"
+    ]
+  },
+  {
+    "input": "Hello World",
+    "input_ids": [
+      101,
+      7592,
+      2088,
+      102
+    ],
+    "attention_mask": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "token_type_ids": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "tokens": [
+      "[CLS]",
+      "hello",
+      "world",
+      "[SEP]"
+    ]
+  },
+  {
+    "input": "tab\ttab",
+    "input_ids": [
+      101,
+      21628,
+      21628,
+      102
+    ],
+    "attention_mask": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "token_type_ids": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "tokens": [
+      "[CLS]",
+      "tab",
+      "tab",
+      "[SEP]"
+    ]
+  },
+  {
+    "input": "don't stop",
+    "input_ids": [
+      101,
+      2123,
+      1005,
+      1056,
+      2644,
+      102
+    ],
+    "attention_mask": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "token_type_ids": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "tokens": [
+      "[CLS]",
+      "don",
+      "'",
+      "t",
+      "stop",
+      "[SEP]"
+    ]
+  },
+  {
+    "input": "embedder tokenizer test",
+    "input_ids": [
+      101,
+      7861,
+      8270,
+      4063,
+      19204,
+      17629,
+      3231,
+      102
+    ],
+    "attention_mask": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "token_type_ids": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "tokens": [
+      "[CLS]",
+      "em",
+      "##bed",
+      "##der",
+      "token",
+      "##izer",
+      "test",
+      "[SEP]"
+    ]
+  },
+  {
+    "input": "run 42",
+    "input_ids": [
+      101,
+      2448,
+      4413,
+      102
+    ],
+    "attention_mask": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "token_type_ids": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "tokens": [
+      "[CLS]",
+      "run",
+      "42",
+      "[SEP]"
+    ]
+  },
+  {
+    "input": "naïve résumé",
+    "input_ids": [
+      101,
+      15743,
+      13746,
+      102
+    ],
+    "attention_mask": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "token_type_ids": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "tokens": [
+      "[CLS]",
+      "naive",
+      "resume",
+      "[SEP]"
+    ]
+  }
+]
