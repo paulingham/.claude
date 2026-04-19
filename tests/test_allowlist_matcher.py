@@ -69,6 +69,18 @@ class FileGlobWithSlashMatchesAnywhere(unittest.TestCase):
             obj={"file": "/tmp/notssh/file"}, allow=allow))
 
 
+class FileGlobIsCaseSensitive(unittest.TestCase):
+    """Gap 9: fnmatch on macOS/Linux is case-sensitive by default.
+
+    A `.env` glob MUST NOT match `.ENV`. Locks current behaviour so a
+    future "fix" using fnmatchcase doesn't silently widen matches.
+    """
+    def test_lowercase_env_glob_does_not_match_upper(self):
+        allow = _allow(globs=(".env",))
+        self.assertFalse(allowlist_matcher.is_private(
+            obj={"file": ".ENV"}, allow=allow))
+
+
 class NonMatchingFileReturnsFalse(unittest.TestCase):
     def test_ordinary_source_file_not_flagged(self):
         allow = _allow(globs=("*.env", "*secret*"))
