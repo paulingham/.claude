@@ -33,7 +33,7 @@ esac
 
 # Skip if this IS a test file
 case "$FILE_PATH" in
-  *spec/*|*test/*|*__tests__/*|*.test.*|*.spec.*|*_test.go|*_test.py) exit 0 ;;
+  *spec/*|*test/*|*tests/*|*__tests__/*|*.test.*|*.spec.*|*_test.go|*_test.py|*/test_*.py) exit 0 ;;
 esac
 
 # Skip config and lock files
