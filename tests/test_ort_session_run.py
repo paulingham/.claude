@@ -85,5 +85,32 @@ def _record_calls(ort_session_run):
     return calls
 
 
+class RunReleasesInputsWhenInvokeRaises(unittest.TestCase):
+    def test_release_called_even_when_run_dispatch_raises(self):
+        from embedder._lib import ort_session_run
+        handle = _fake_handle()
+        release_count = _count_releases_on_invoke_error(ort_session_run)
+        with self.assertRaises(RuntimeError):
+            ort_session_run.run(handle, [1, 2], [1, 1], [0, 0])
+        self.assertEqual(release_count[0], 3)
+
+
+def _count_releases_on_invoke_error(ort_session_run):
+    count = [0]
+
+    def fake_call(*args):
+        if args[1] == "Run":
+            raise RuntimeError("boom")
+        if args[1] == "ReleaseValue":
+            count[0] += 1
+    patcher = mock.patch.object(ort_session_run, "ort_dispatch")
+    d = patcher.start()
+    d.call.side_effect = fake_call
+    mi = mock.patch.object(ort_session_run, "model_io")
+    mio = mi.start()
+    mio.int64_tensor.side_effect = lambda api, v, mem: (c_void_p(1), v)
+    return count
+
+
 if __name__ == "__main__":
     unittest.main()

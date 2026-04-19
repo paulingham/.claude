@@ -16,10 +16,13 @@ class RealEmbedder:
         self._api, self._handle = api, handle
 
     def encode(self, text, max_len=128):
+        """Text -> tokenize -> ORT Run -> read fp32 -> mean-pool-L2 -> bytes."""
         ids, mask, types_ = tokenizer.encode(text, max_len=max_len)
         output = ort_session_run.run(self._handle, ids, mask, types_)
-        raw = model_io.read_float32_data(self._api, output, max_len * _DIM)
-        ort_dispatch.call(self._api, "ReleaseValue", output)
+        try:
+            raw = model_io.read_float32_data(self._api, output, max_len * _DIM)
+        finally:
+            ort_dispatch.call(self._api, "ReleaseValue", output)
         return pool.mean_pool_l2(raw, max_len, mask)
 
     def close(self):
