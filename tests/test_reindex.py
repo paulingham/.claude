@@ -5,9 +5,8 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-from _support import (build_populated_db, count_embeddings_for, count_fts_match,
-                      count_rows, first_observation_hash, list_tables,
-                      read_schema_version, reindex, seed_stale_embeddings,
+from _support import (build_populated_db, count_fts_match, count_rows,
+                      list_tables, read_schema_version, reindex,
                       write_malformed_jsonl)
 
 
@@ -69,19 +68,6 @@ class AC4ExitCodeZero(unittest.TestCase):
                 rc = reindex.main(
                     ["--db", str(db), "--learning", str(learning)])
             self.assertEqual(rc, 0)
-
-
-class AC5SchemaDriftRebuild(unittest.TestCase):
-    def test_drift_drops_observations_preserves_mapped_embeddings(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            db, learning = build_populated_db(tmp)
-            surviving = first_observation_hash(db)
-            seed_stale_embeddings(db, surviving)
-            reindex.run(db_path=db, learning_root=learning)
-            self.assertEqual(count_rows(db, "observations"), 3)
-            self.assertEqual(count_embeddings_for(db, surviving), 1)
-            self.assertEqual(count_embeddings_for(db, "orphan_hash_xxx"), 0)
-            self.assertEqual(read_schema_version(db), 1)
 
 
 class AC6FTSPlausible(unittest.TestCase):

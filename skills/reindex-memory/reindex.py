@@ -7,14 +7,15 @@ import argparse
 import sys
 from pathlib import Path
 
-from _lib import schema, ingest, paths
+from _lib import schema, ingest, paths, prune
 
 
 def run(db_path, learning_root):
-    """Ensure schema, ingest JSONL, prune orphan embeddings."""
-    schema.ensure(db_path)
+    """Ensure schema, ingest JSONL, prune only when drift rebuilt tables."""
+    rebuilt = schema.ensure(db_path)
     summary = ingest.ingest_all(db_path, learning_root)
-    schema.prune_orphan_embeddings(db_path)
+    if rebuilt:
+        prune.prune_orphan_embeddings(db_path)
     return summary
 
 
