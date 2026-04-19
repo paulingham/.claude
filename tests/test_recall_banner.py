@@ -18,15 +18,41 @@ BANNER = ("[recall: lexical-only — run 'embedder doctor' "
           "to enable semantic rerank]")
 
 
+_MANAGED = ("CLAUDE_EMBEDDER", "ORT_DYLIB_PATH", "BGE_MODEL_PATH")
+
+
 class BannerOnMissingEmbedder(unittest.TestCase):
     def test_banner_emitted_when_embedder_missing(self):
-        os.environ.pop("CLAUDE_EMBEDDER", None)
+        saved = {k: os.environ.get(k) for k in _MANAGED}
+        try:
+            self._assert_banner_with_env_unset()
+        finally:
+            _restore_all(saved)
+
+    def _assert_banner_with_env_unset(self):
+        for k in _MANAGED:
+            os.environ.pop(k, None)
+        _reset_embedder_singleton()
         with tempfile.TemporaryDirectory() as tmp:
             db, _ = build_populated_db(tmp)
             buf = io.StringIO()
             with redirect_stderr(buf):
                 recall_mod.search("Read", db_path=db)
             self.assertIn(BANNER, buf.getvalue())
+
+
+def _reset_embedder_singleton():
+    mod = sys.modules.get("embedder.embedder")
+    if mod is not None:
+        mod.reset_singleton_for_tests()
+
+
+def _restore_all(saved):
+    for k, v in saved.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
 
 
 class NoBannerOnHappyPath(unittest.TestCase):
