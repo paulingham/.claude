@@ -12,6 +12,15 @@ class ObservationFilters(unittest.TestCase):
         with self.assertRaises(ValueError):
             filters.resolve("observations", {"secret_sql": "x"})
 
+    def test_unknown_key_error_does_not_echo_attacker_string(self):
+        try:
+            filters.resolve("observations",
+                            {"\x1b[2Jhack": "x", "other": "y"})
+        except ValueError as exc:
+            msg = str(exc)
+            self.assertNotIn("\x1b", msg)
+            self.assertNotIn("hack", msg)
+
     def test_known_keys_emit_binds(self):
         where, params = filters.resolve(
             "observations", {"session_id": "s1", "tool": "Read"})

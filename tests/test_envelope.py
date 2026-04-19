@@ -11,8 +11,13 @@ from recall._lib import envelope  # noqa: E402
 
 
 class Envelope(unittest.TestCase):
-    def test_envelope_flags_truncated_at_limit(self):
+    def test_exact_limit_is_not_truncated(self):
         env = envelope.envelope("search", [1, 2, 3], limit=3)
+        self.assertFalse(env["truncated"])
+        self.assertEqual(env["total"], 3)
+
+    def test_truncated_when_fetched_exceeds_limit(self):
+        env = envelope.envelope("search", [1, 2, 3], limit=3, fetched=4)
         self.assertTrue(env["truncated"])
         self.assertEqual(env["total"], 3)
 
