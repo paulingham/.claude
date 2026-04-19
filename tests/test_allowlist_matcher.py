@@ -69,6 +69,74 @@ class FileGlobWithSlashMatchesAnywhere(unittest.TestCase):
             obj={"file": "/tmp/notssh/file"}, allow=allow))
 
 
+class NormalizedPathStillMatches(unittest.TestCase):
+    """Gap 10: matcher must normalize the path before fnmatch checks.
+
+    `./x/.env`, `x/./.env`, and `x/y/../.env` are all equivalent to a
+    path ending in `.env` and must match a basename glob. Without
+    normalization, a caller passing a non-canonical path could bypass
+    the allowlist.
+    """
+    def test_dot_slash_prefix_still_matches(self):
+        allow = _allow(globs=(".env",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "./x/.env"}, allow=allow))
+
+    def test_parent_traversal_still_matches(self):
+        allow = _allow(globs=(".env",))
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "x/../.env"}, allow=allow))
+
+
+class SlashlessGlobMatchesFullPathBranch(unittest.TestCase):
+    """Mutation kill: slashless glob must try full path as a fallback.
+
+    `_glob_hits` for a glob without `/` returns
+        fnmatch(basename, glob) or fnmatch(path, glob)
+    Verifier flagged the second fnmatch as a surviving mutation. This
+    test exercises a glob that only matches via the full-path branch —
+    basename fails, full path succeeds — so dropping that branch
+    regresses match behaviour and fails the test.
+    """
+    def test_slashless_glob_matches_via_full_path(self):
+        allow = _allow(globs=("[a]*b",))
+        # basename='b' does NOT match '[a]*b' (first char must be 'a');
+        # full path 'a/c/b' DOES match ('[a]' eats 'a', '*' eats '/c/').
+        self.assertTrue(allowlist_matcher.is_private(
+            obj={"file": "a/c/b"}, allow=allow))
+
+
+class NullBytePathDoesNotCrashOrLeak(unittest.TestCase):
+    """Gap 11: null-byte in file path must not crash or spuriously match.
+
+    Defense-in-depth: crafted tool output containing \\x00 should never
+    raise in the matcher nor cause a wildcard glob to latch onto the
+    payload in unexpected ways.
+    """
+    def test_null_byte_does_not_raise(self):
+        allow = _allow(globs=(".env",))
+        result = allowlist_matcher.is_private(
+            obj={"file": "x\x00.env"}, allow=allow)
+        self.assertIsInstance(result, bool)
+
+    def test_null_byte_does_not_match_simple_glob(self):
+        allow = _allow(globs=("*.py",))
+        self.assertFalse(allowlist_matcher.is_private(
+            obj={"file": "safe.py\x00.env"}, allow=allow))
+
+
+class FileGlobIsCaseSensitive(unittest.TestCase):
+    """Gap 9: fnmatch on macOS/Linux is case-sensitive by default.
+
+    A `.env` glob MUST NOT match `.ENV`. Locks current behaviour so a
+    future "fix" using fnmatchcase doesn't silently widen matches.
+    """
+    def test_lowercase_env_glob_does_not_match_upper(self):
+        allow = _allow(globs=(".env",))
+        self.assertFalse(allowlist_matcher.is_private(
+            obj={"file": ".ENV"}, allow=allow))
+
+
 class NonMatchingFileReturnsFalse(unittest.TestCase):
     def test_ordinary_source_file_not_flagged(self):
         allow = _allow(globs=("*.env", "*secret*"))
