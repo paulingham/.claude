@@ -2,19 +2,16 @@
 # Download bge-small-en-v1.5 ONNX model into ~/.claude/models/.
 # Prints export lines for ORT_DYLIB_PATH and BGE_MODEL_PATH plus the
 # backfill hint. Idempotent: skips download if model.onnx exists.
-#
-# WARNING: the current ship does NOT consume this model. The real ORT
-# backend lands in Story S5.1. See pipeline-state/claude-mem-port-s5.1-story.md.
 set -euo pipefail
 
 cat >&2 <<'WARN'
-⚠ This model (~130MB) is downloaded for S5.1. The current ship does NOT
-consume it — the real ORT backend is not yet implemented. Proceeding will
-place the model on disk but no code path will load it until Story S5.1.
+⚠ bge-small-en-v1.5 (~130MB) will be placed on disk. The real ORT backend
+consumes this model for semantic rerank (see SKILL.md). Requires macOS or
+Linux — Windows is not supported; use WSL.
 WARN
 
 if [ -n "${CI:-}" ] || [ -n "${NONINTERACTIVE:-}" ]; then
-  echo "abort: CI/NONINTERACTIVE set — rerun interactively or wait for S5.1" >&2
+  echo "abort: CI/NONINTERACTIVE set — rerun interactively" >&2
   exit 2
 fi
 
@@ -53,4 +50,9 @@ Then backfill existing observations:
   python3 -m embedder backfill --db ~/.claude/db/memory.sqlite
 
 Verify: python3 -m embedder cli doctor
+
+If 'claude-mem embedder doctor' reports 'verdict: UNHEALTHY',
+delete the model and re-run this script:
+
+  rm -rf "${MODEL_DIR}" && ./skills/embedder/download-model.sh
 EOF
