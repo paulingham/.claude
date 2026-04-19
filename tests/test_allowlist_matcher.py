@@ -88,6 +88,25 @@ class NormalizedPathStillMatches(unittest.TestCase):
             obj={"file": "x/../.env"}, allow=allow))
 
 
+class NullBytePathDoesNotCrashOrLeak(unittest.TestCase):
+    """Gap 11: null-byte in file path must not crash or spuriously match.
+
+    Defense-in-depth: crafted tool output containing \\x00 should never
+    raise in the matcher nor cause a wildcard glob to latch onto the
+    payload in unexpected ways.
+    """
+    def test_null_byte_does_not_raise(self):
+        allow = _allow(globs=(".env",))
+        result = allowlist_matcher.is_private(
+            obj={"file": "x\x00.env"}, allow=allow)
+        self.assertIsInstance(result, bool)
+
+    def test_null_byte_does_not_match_simple_glob(self):
+        allow = _allow(globs=("*.py",))
+        self.assertFalse(allowlist_matcher.is_private(
+            obj={"file": "safe.py\x00.env"}, allow=allow))
+
+
 class FileGlobIsCaseSensitive(unittest.TestCase):
     """Gap 9: fnmatch on macOS/Linux is case-sensitive by default.
 
