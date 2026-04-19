@@ -12,13 +12,16 @@ _ORT_API_VERSION = 16  # works on ORT >= 1.17 per append-only ABI rules
 
 
 def load_api(dylib_path):
-    lib = CDLL(str(dylib_path))
-    get_base = CFUNCTYPE(POINTER(c_void_p))(("OrtGetApiBase", lib))
-    base = get_base()
-    get_api = cast(base[0], CFUNCTYPE(c_void_p, c_uint32))
-    get_version = cast(base[1], CFUNCTYPE(c_char_p))
+    get_api, get_version = _api_base(dylib_path)
     _version_gate(get_version())
     return _resolve_api(get_api)
+
+
+def _api_base(dylib_path):
+    lib = CDLL(str(dylib_path))
+    base = CFUNCTYPE(POINTER(c_void_p))(("OrtGetApiBase", lib))()
+    return (cast(base[0], CFUNCTYPE(c_void_p, c_uint32)),
+            cast(base[1], CFUNCTYPE(c_char_p)))
 
 
 def _resolve_api(get_api):
