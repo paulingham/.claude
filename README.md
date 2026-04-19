@@ -40,8 +40,8 @@ If a module outgrows the monolith, it detects extraction signals during review a
   orchestrator/                # Orchestrator-only detailed procedures (4 files)
   agents/                      # 9 specialized agent definitions
   skills/                      # 44 skills (procedural workflows)
-  knowledge/                   # 31 domain pattern references
-  hooks/                       # 24 enforcement scripts
+  knowledge/                   # 37 domain pattern references
+  hooks/                       # 25 enforcement scripts
   learning/                    # Continuous learning: observations + instincts
     {project-hash}/            #   Per-project observations.jsonl
     instincts/                 #   Learned patterns with confidence scores
@@ -177,6 +177,7 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `/greenfield-scaffold` | Full project bootstrap from scratch: discovery → running app |
 | `/creative-direction` | Pre-build design thinking: brand brief → fonts, palette, layout |
 | `/health-scan` | Proactive codebase health: security, deps, coverage, tech debt |
+| `/skill-builder` | Create new Claude Code skills with YAML frontmatter and structure |
 
 ### Reference Patterns
 | Skill | Domain |
@@ -184,19 +185,19 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `/web-frontend-patterns` | React/Next.js, state, a11y, caching, security |
 | `/react-native-patterns` | Expo, NativeWind, Maestro E2E |
 
-## Knowledge Library (31 files)
+## Knowledge Library (37 files)
 
 ### Core Engineering
-`database-patterns` `api-patterns` `testing-patterns` `integration-patterns` `auth-patterns` `env-management-patterns`
+`database-patterns` `api-patterns` `testing-patterns` `integration-patterns` `auth-patterns` `env-management-patterns` `devx-patterns` `tech-stack-decision-matrix`
 
 ### Domain Patterns
 `background-job-patterns` `notification-patterns` `file-upload-patterns` `multi-tenancy-patterns` `payment-patterns` `search-patterns` `realtime-patterns` `feature-flag-patterns` `i18n-patterns` `data-privacy-patterns` `state-machine-patterns` `caching-patterns`
 
 ### Architecture
-`multi-repo-patterns` `service-mesh-patterns` `horizontal-scaling-patterns` `backup-dr-patterns` `omnichannel-patterns` `voice-patterns` `device-iot-patterns`
+`multi-repo-patterns` `service-mesh-patterns` `horizontal-scaling-patterns` `backup-dr-patterns` `omnichannel-patterns` `voice-patterns` `device-iot-patterns` `composition-patterns` `performance-design-patterns`
 
 ### UX/UI
-`design-system-patterns` `ui-pattern-library` `ux-heuristics` `motion-design-patterns` `data-visualization-patterns` `content-design-patterns`
+`design-system-patterns` `ui-pattern-library` `ux-heuristics` `motion-design-patterns` `data-visualization-patterns` `content-design-patterns` `creative-direction-database` `next-gen-interaction-patterns`
 
 ## Mechanical Enforcement (Hooks)
 
@@ -222,6 +223,11 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `auto-pr.sh` | Suggests PR creation when branch is ahead | Advisory |
 | `subagent-context.sh` | Writes agent role to temp file for observation tagging | Passive |
 | `subagent-stop-trajectory.sh` | Records agent completion to pipeline trajectory | Passive |
+| `session-start-bootstrap.sh` | Skill awareness, supervisor auto-start, pipeline/session detection | Bootstrap |
+| `commit-checkpoint.sh` | Shape + type check on staged files before commit | Advisory |
+| `intake-reminder.sh` | Nudges `/intake` when implementation keywords detected | Advisory |
+| `pipeline-analytics.sh` | Aggregates phase verdicts into `metrics/pipelines.jsonl` | Passive |
+| `subagent-validation.sh` | Reminds orchestrator to validate worktree changes on agent stop | Advisory |
 
 ## Omnichannel Support
 
@@ -357,13 +363,16 @@ A single supervisor manages all repo daemons automatically:
 ```
 
 The supervisor:
+- **Auto-starts on session start** when repos are registered (via `session-start-bootstrap.sh`)
 - Reads `repos.conf` (the single source of truth for registered repos)
 - Starts a daemon per repo that has `.claude/automation.env`
 - Health-checks every 30s, auto-restarts crashed daemons (max 3/hour)
 - Hot-reloads `repos.conf` — add/remove repos without restarting
 - Graceful shutdown cascades to all managed daemons
 
-Repos are auto-registered when `/project-setup` creates an `automation.env`.
+Repos are auto-registered in two ways:
+- When `/project-setup` creates an `automation.env`
+- **On session start** — if the current repo has `.claude/automation.env`, it's added to `repos.conf` automatically and the supervisor is signalled to reload
 
 ## Configuration
 
