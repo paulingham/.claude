@@ -10,11 +10,29 @@ _OBS_SQL = (
     "WHERE observations_fts MATCH ?{priv} "
     "ORDER BY bm25(observations_fts) LIMIT ?")
 
+_SP_SQL = (
+    "SELECT s.id AS id, s.content_hash AS content_hash, "
+    "s.timestamp AS timestamp, s.category AS category, "
+    "snippet(scratchpad_fts, 0, '[', ']', '…', 8) AS snippet, "
+    "'scratchpad' AS source "
+    "FROM scratchpad_fts "
+    "JOIN scratchpad_findings s ON s.id = scratchpad_fts.rowid "
+    "WHERE scratchpad_fts MATCH ?{priv} "
+    "ORDER BY bm25(scratchpad_fts) LIMIT ?")
+
 
 def search_observations(db_path, query, limit=20, include_private=False):
-    priv = "" if include_private else " AND o.is_private = 0"
-    sql = _OBS_SQL.replace("{priv}", priv)
+    sql = _OBS_SQL.replace("{priv}", _priv("o", include_private))
     return _run(db_path, sql, (query, limit))
+
+
+def search_scratchpad(db_path, query, limit=20, include_private=False):
+    sql = _SP_SQL.replace("{priv}", _priv("s", include_private))
+    return _run(db_path, sql, (query, limit))
+
+
+def _priv(alias, include_private):
+    return "" if include_private else f" AND {alias}.is_private = 0"
 
 
 def _run(db_path, sql, params):

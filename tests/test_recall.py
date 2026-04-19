@@ -64,6 +64,21 @@ def _snapshot(db):
         "scratchpad_findings", "embeddings"))
 
 
+class SearchBoth(unittest.TestCase):
+    def test_source_both_unions_and_tags_hits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            insert_scratchpad_rows(db, [{
+                "hash": "sp1", "task": "t1", "cat": "pattern",
+                "role": "eng", "phase": "build",
+                "ts": "2026-04-01T10:00:00Z",
+                "body": "Read widget alpha", "priv": 0}])
+            hits = recall.search("Read", db_path=db, source="both")
+            sources = {h["source"] for h in hits}
+            self.assertIn("observations", sources)
+            self.assertIn("scratchpad", sources)
+
+
 class TokenBudget(unittest.TestCase):
     def test_progressive_disclosure_ten_x_reduction(self):
         with tempfile.TemporaryDirectory() as tmp:
