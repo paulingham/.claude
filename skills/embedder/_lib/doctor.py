@@ -1,5 +1,6 @@
 """Doctor diagnostic: 6 fields + verdict. See SKILL.md and plan AC13."""
 import os
+import sys
 
 from embedder import status
 from embedder._lib import doctor_db, doctor_probe, doctor_verdict
@@ -9,6 +10,8 @@ _FIELDS = ("ORT_DYLIB_PATH", "BGE_MODEL_PATH", "last_error",
 
 
 def report():
+    if sys.platform == "win32":
+        return "platform: windows_not_supported\nverdict: degraded\n"
     st = status.read()
     ok, reason = doctor_probe.probe_facade()
     unembedded = doctor_db.unembedded_count()

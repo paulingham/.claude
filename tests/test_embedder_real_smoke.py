@@ -1,9 +1,6 @@
-"""Slice 14: real embedder smoke — skipped unless BGE_MODEL_PATH is set.
-
-Exercises the real ORT backend end-to-end on the deferred Slice 4 stub.
-When real backend lands in S5.1/S7, this skip disappears automatically.
-"""
+"""Slice 5d: real embedder end-to-end — 1536 bytes, unit L2 norm."""
 import os
+import struct
 import sys
 import unittest
 from pathlib import Path
@@ -19,12 +16,17 @@ def _real_available():
 
 @unittest.skipUnless(_real_available(), "BGE_MODEL_PATH/ORT_DYLIB_PATH unset")
 class RealEmbedderEncodesDim384(unittest.TestCase):
-    def test_encode_returns_384_floats(self):
+    def test_encode_returns_1536_bytes_unit_norm(self):
         os.environ.pop("CLAUDE_EMBEDDER", None)
         from embedder.embedder import get_embedder, reset_singleton_for_tests
         reset_singleton_for_tests()
-        vec = get_embedder().encode("hello world")
-        self.assertEqual(len(vec), 384 * 4)
+        try:
+            vec = get_embedder().encode("hello world")
+            self.assertEqual(len(vec), 1536)
+            norm_sq = sum(x * x for x in struct.unpack("<384f", vec))
+            self.assertTrue(abs(norm_sq - 1.0) < 1e-4, norm_sq)
+        finally:
+            reset_singleton_for_tests()
 
 
 if __name__ == "__main__":

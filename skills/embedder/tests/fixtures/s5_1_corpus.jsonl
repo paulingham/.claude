@@ -1,0 +1,50 @@
+{"id": "q1_target", "query": "fix login bug production", "text": "Fix login bug production."}
+{"id": "q2_target", "query": "optimize slow database query", "text": "Optimize slow database query."}
+{"id": "q3_target", "query": "schedule team meeting tomorrow", "text": "Schedule team meeting tomorrow."}
+{"id": "q4_target", "query": "review pull request payment", "text": "Review pull request payment."}
+{"id": "q5_target", "query": "deploy container kubernetes cluster", "text": "Deploy container kubernetes cluster."}
+{"id": "d01", "text": "fix fix login login bug bug production production oven stage"}
+{"id": "d02", "text": "fix login bug production fix login bug production oven stage"}
+{"id": "d03", "text": "fix fix login login bug bug production production chef pasta"}
+{"id": "d04", "text": "fix login bug production fix login bug production chef pasta"}
+{"id": "d05", "text": "fix fix login login bug bug production production pond cliff"}
+{"id": "d06", "text": "optimize optimize slow slow database database query query recipe chef"}
+{"id": "d07", "text": "optimize slow database query optimize slow database query recipe chef"}
+{"id": "d08", "text": "optimize optimize slow slow database database query query oven pastry"}
+{"id": "d09", "text": "optimize slow database query optimize slow database query oven pastry"}
+{"id": "d10", "text": "optimize optimize slow slow database database query query yoga mat"}
+{"id": "d11", "text": "schedule schedule team team meeting meeting tomorrow tomorrow jazz band"}
+{"id": "d12", "text": "schedule team meeting tomorrow schedule team meeting tomorrow jazz band"}
+{"id": "d13", "text": "schedule schedule team team meeting meeting tomorrow tomorrow bakery tasting"}
+{"id": "d14", "text": "schedule team meeting tomorrow schedule team meeting tomorrow bakery tasting"}
+{"id": "d15", "text": "schedule schedule team team meeting meeting tomorrow tomorrow pool coach"}
+{"id": "d16", "text": "review review pull pull request request payment payment museum exhibit"}
+{"id": "d17", "text": "review pull request payment review pull request payment museum exhibit"}
+{"id": "d18", "text": "review review pull pull request request payment payment ballet costume"}
+{"id": "d19", "text": "review pull request payment review pull request payment ballet costume"}
+{"id": "d20", "text": "review review pull pull request request payment payment concert hall"}
+{"id": "d21", "text": "deploy deploy container container kubernetes kubernetes cluster cluster steel ranch"}
+{"id": "d22", "text": "deploy container kubernetes cluster deploy container kubernetes cluster steel ranch"}
+{"id": "d23", "text": "deploy deploy container container kubernetes kubernetes cluster cluster wooden dance"}
+{"id": "d24", "text": "deploy container kubernetes cluster deploy container kubernetes cluster wooden dance"}
+{"id": "d25", "text": "deploy deploy container container kubernetes kubernetes cluster cluster oak grove"}
+{"id": "n01", "text": "Yesterday I baked a chocolate cake for the office birthday party."}
+{"id": "n02", "text": "The weather in San Francisco has been unusually foggy this week."}
+{"id": "n03", "text": "Reading a novel about Victorian London during my commute home."}
+{"id": "n04", "text": "Tried a new ramen place in the Mission; the tonkotsu broth was amazing."}
+{"id": "n05", "text": "My dog learned a new trick over the weekend; he can shake hands now."}
+{"id": "n06", "text": "Watched a documentary about deep-sea creatures last night, fascinating."}
+{"id": "n07", "text": "Planning a hiking trip to the Sierra Nevada mountains next month."}
+{"id": "n08", "text": "The new coffee shop on the corner has excellent pour-over espresso."}
+{"id": "n09", "text": "My grandmother's recipe for sourdough bread uses a century-old starter."}
+{"id": "n10", "text": "Learning to play the ukulele has been surprisingly rewarding."}
+{"id": "n11", "text": "The museum's new impressionist exhibit runs through September."}
+{"id": "n12", "text": "Bought a vintage typewriter at an estate sale last weekend."}
+{"id": "n13", "text": "Our chess club meets Thursday evenings at the community library."}
+{"id": "n14", "text": "Growing tomatoes on the balcony this summer for the first time."}
+{"id": "n15", "text": "The cat knocked over the flower vase again this morning."}
+{"id": "n16", "text": "Finished knitting a scarf for my nephew's birthday gift."}
+{"id": "n17", "text": "The bakery down the street makes the best croissants in town."}
+{"id": "n18", "text": "Started a garden journal to track what blooms each season."}
+{"id": "n19", "text": "The new bookstore opened with a poetry reading last Friday."}
+{"id": "n20", "text": "Attended a pottery class and made a lopsided but proud mug."}

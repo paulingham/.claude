@@ -5,32 +5,42 @@ description: Optional semantic rerank for recall. bge-small-en-v1.5 via ONNX Run
 
 # embedder — semantic rerank for claude-mem
 
-## Current status: infrastructure only
+## How it works
 
-Real ORT backend deferred to Story S5.1 (see
-`pipeline-state/claude-mem-port-s5.1-story.md`). Today the module ships:
+Capture writes observations; backfill encodes them to 384-d
+L2-normalised vectors via bge-small-en-v1.5 running on ONNX Runtime
+(C API, via stdlib ctypes). Recall asks `rerank.rerank` to blend the
+cosine score against BM25 rank. The embedder is loaded lazily — the
+default capture path never imports it (zero-cost invariant).
 
-- **FakeEmbedder** (deterministic hash-derived vectors, **test-only** —
-  hash-based rerank = noise, not semantic search)
-- **Capture + recall + backfill wiring** that is backend-agnostic
-- **Status/doctor diagnostics** (6-field output + verdict)
-
-When S5.1 lands, set `ORT_DYLIB_PATH` + `BGE_MODEL_PATH` and the same
-capture/recall paths gain real semantic rerank with no code changes.
-
-Running `embedder doctor` today (with env unset) produces:
+Pipeline per encode:
 
 ```
-ORT_DYLIB_PATH: <unset>
-BGE_MODEL_PATH: <unset>
-last_error: ORT_DYLIB_PATH not set
-last_error_at: 2026-04-19T…
-last_success_at: <none>
-unembedded_count: 0
-verdict: UNAVAILABLE: ORT_DYLIB_PATH not set
+text → tokenizer.encode (WordPiece, stdlib) → int64 tensors
+     → ort_session_run.run → last_hidden_state (1, seq_len, 384)
+     → pool.mean_pool_l2 → 1536 bytes
 ```
 
-That is the expected output until S5.1.
+## Requirements
+
+Requires macOS or Linux. **Windows is not supported** — `ORTCHAR_T`
+path encoding differs between POSIX and Windows, and this module
+ships the POSIX (UTF-8 bytes) variant only. Use WSL on Windows.
+
+The runtime needs:
+
+- ONNX Runtime ≥ 1.17 (dynamic library installed — `brew install
+  onnxruntime` on macOS, `apt install libonnxruntime-dev` on Linux)
+- The bge-small-en-v1.5 ONNX file on disk (fetched by
+  `download-model.sh`)
+
+## Truncation: 128 tokens for capture, 512 for backfill
+
+`tokenizer.encode(text, max_len=…)` pads and truncates to `max_len`.
+Capture pads to 128 tokens (typical observation size, optimises for
+encode latency). Backfill pads to 512 tokens (historical content may
+include longer pasted logs or stacktraces). Content longer than
+`max_len` is truncated server-side by the tokenizer.
 
 ## Architecture
 
@@ -43,7 +53,7 @@ skills/embedder/
   download-model.sh  fetch bge-small-en-v1.5 ONNX (gated — S5.1 only)
   _lib/
     fake.py          deterministic hash-based FakeEmbedder (testing)
-    real.py          ORT C API binding (deferred to S5.1)
+    real.py          ORT C API binding
     paths.py         dylib + model resolution + typed exceptions
     cli_actions.py   probe/doctor/status/setup handlers
     doctor.py        6-field diagnostic + verdict rendering
@@ -54,14 +64,14 @@ skills/embedder/
     backfill_cli.py  argparse + stdout summary formatter
 ```
 
-## Setup (S5.1 — not yet functional)
+## Setup
 
 ```bash
 # 1. Install ORT
 brew install onnxruntime
 
 # 2. Download the model (interactive gate — confirms you understand
-#    the model is not consumed until S5.1)
+#    the download size and license)
 ./skills/embedder/download-model.sh
 
 # 3. Export the two required env vars (the script prints these)
@@ -71,7 +81,7 @@ export BGE_MODEL_PATH=~/.claude/models/bge-small-en-v1.5/model.onnx
 # 4. Backfill existing observations
 python3 -m embedder backfill --db ~/.claude/db/memory.sqlite
 
-# 5. Verify — doctor will show verdict: OK once S5.1 ships
+# 5. Verify — doctor will show verdict: OK
 python3 -m embedder cli doctor
 ```
 
