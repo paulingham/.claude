@@ -7,6 +7,10 @@ COLS = (
     "file", "phase", "agent_role", "outcome", "tool_use_id", "arg_hash",
     "is_private", "searchable_text")
 
+INSERT_SQL = (
+    "INSERT OR IGNORE INTO observations (" + ",".join(COLS) +
+    ") VALUES (" + ",".join(["?"] * len(COLS)) + ")")
+
 
 def row_from_obj(obj, path):
     """Return a tuple matching COLS for INSERT INTO observations."""
