@@ -44,4 +44,4 @@ def _timeline_both(limit, db_path, include_private, spec):
         db_path, spec, limit, include_private)]
     sp = [dict(r, source="scratchpad") for r in _TIMELINE["scratchpad"](
         db_path, spec, limit, include_private)]
-    return (obs + sp)[:limit]
+    return sorted(obs + sp, key=lambda r: r["timestamp"])[:limit]
