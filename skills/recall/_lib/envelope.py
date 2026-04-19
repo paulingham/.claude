@@ -12,7 +12,7 @@ def db_missing(db_path):
     return True
 
 
-def envelope(tier, hits, limit):
-    truncated = len(hits) >= limit
+def envelope(tier, hits, limit, fetched=None):
+    raw = fetched if fetched is not None else len(hits)
     return {"tier": tier, "hits": hits, "total": len(hits),
-            "truncated": truncated}
+            "truncated": raw > limit}

@@ -51,5 +51,13 @@ class SearchScratchpad(unittest.TestCase):
                 {h["source"] for h in hits}, {"scratchpad"})
 
 
+class MalformedQuery(unittest.TestCase):
+    def test_invalid_fts_syntax_returns_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            hits = search_tier.search_observations(db, '" OR 1=1 --')
+            self.assertEqual(hits, [])
+
+
 if __name__ == "__main__":
     unittest.main()

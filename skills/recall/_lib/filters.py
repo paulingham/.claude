@@ -13,7 +13,7 @@ def resolve(source, spec):
     allowed = _WHITELIST[source]
     bad = [k for k in (spec or {}) if k not in allowed]
     if bad:
-        raise ValueError(f"unknown filter keys: {bad}")
+        raise ValueError(f"unknown filter keys: {len(bad)} rejected")
     return _compile(spec or {})
 
 

@@ -96,6 +96,22 @@ class SearchBoth(unittest.TestCase):
             self.assertIn("scratchpad", sources)
 
 
+class SearchBothLimit(unittest.TestCase):
+    def test_merged_hits_respect_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            _seed_widgets(db, 10)
+            rows = [{"hash": f"sph{i}", "task": "t1", "cat": "pattern",
+                     "role": "eng", "phase": "build",
+                     "ts": f"2026-04-02T00:00:{i:02d}Z",
+                     "body": "widget insight", "priv": 0}
+                    for i in range(10)]
+            insert_scratchpad_rows(db, rows)
+            hits = recall.search("widget", db_path=db,
+                                 source="both", limit=5)
+            self.assertEqual(len(hits), 5)
+
+
 class TimelineBoth(unittest.TestCase):
     def test_source_both_unions_obs_and_scratchpad(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -131,6 +147,40 @@ class FilterWiring(unittest.TestCase):
             db, _ = build_populated_db(tmp)
             rows = recall.timeline(filters={"nope": "x"}, db_path=db)
             self.assertEqual(rows, [])
+
+
+class Clamping(unittest.TestCase):
+    def test_huge_limit_clamped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            rows = recall.timeline(limit=99_999, db_path=db)
+            self.assertLessEqual(len(rows), 500)
+
+    def test_too_many_ids_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            with self.assertRaises(ValueError):
+                recall.get_observations(ids=list(range(200)), db_path=db)
+
+    def test_negative_limit_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            with self.assertRaises(ValueError):
+                recall.timeline(limit=-1, db_path=db)
+
+
+class SourceValidation(unittest.TestCase):
+    def test_search_rejects_unknown_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            with self.assertRaises(ValueError):
+                recall.search("x", source="bogus", db_path=db)
+
+    def test_timeline_rejects_unknown_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db, _ = build_populated_db(tmp)
+            with self.assertRaises(ValueError):
+                recall.timeline(source="bogus", db_path=db)
 
 
 class ContentHashes(unittest.TestCase):
