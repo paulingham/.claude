@@ -6,6 +6,7 @@ without the 30522-token production vocab.
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _SKILL = str(REPO_ROOT / "skills")
@@ -55,6 +56,21 @@ class EncodeTruncation(unittest.TestCase):
         self.assertEqual(len(ids), 4)
         self.assertEqual(ids[0], 101)
         self.assertEqual(ids[-1], 102)
+
+
+class EncodeWithPreloadedVocab(unittest.TestCase):
+    def test_encode_accepts_vocab_dict_without_path(self):
+        from embedder._lib import tokenizer, tokenizer_vocab
+        vocab = tokenizer_vocab.load(str(_MINI))
+        ids, _, _ = tokenizer.encode("hello world", max_len=4, vocab=vocab)
+        self.assertEqual(ids, [101, 104, 105, 102])
+
+    def test_encode_does_not_resolve_path_when_vocab_provided(self):
+        from embedder._lib import tokenizer, tokenizer_vocab
+        vocab = tokenizer_vocab.load(str(_MINI))
+        with mock.patch.object(tokenizer_vocab, "load",
+                               side_effect=AssertionError("should not reload")):
+            tokenizer.encode("hello", max_len=3, vocab=vocab)
 
 
 if __name__ == "__main__":
