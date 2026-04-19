@@ -28,7 +28,7 @@ def _pick(user, default):
 def _safe_parse(path):
     try:
         return _parse(path)
-    except (json.JSONDecodeError, OSError) as exc:
+    except Exception as exc:  # noqa: BLE001 — fail-safe posture (AC7)
         sys.stderr.write(f"allowlist: failed to parse {path}: {exc}\n")
         return _EMPTY
 
