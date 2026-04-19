@@ -54,6 +54,13 @@ class EmptyBodyPrivateStripped(unittest.TestCase):
         self.assertEqual(sanitizer.sanitize("a<private></private>b"), "ab")
 
 
+class CrlfInsidePrivateStripped(unittest.TestCase):
+    """Gap 2: CRLF line endings inside <private> block must be stripped."""
+    def test_crlf_content_removed(self):
+        out = sanitizer.sanitize("pre <private>\r\nsecret\r\n</private> post")
+        self.assertEqual(out, "pre  post")
+
+
 class DeepUnclosedNoBacktrackingBlowup(unittest.TestCase):
     """1000-deep unclosed <private> must complete in <100ms (linearity)."""
     def test_thousand_deep_unclosed_returns_fast(self):
