@@ -20,7 +20,7 @@ def fetch_scratchpad(db_path, filter_spec=None, limit=50,
 
 
 def _fetch(table, cols, db_path, where, binds, limit, include_private):
-    priv = "" if include_private else " AND is_private = 0"
+    priv = "" if include_private else f" AND {table}.is_private = 0"
     sql = (f"SELECT {','.join(cols)} FROM {table} "
            f"WHERE 1=1 {where}{priv} ORDER BY timestamp ASC LIMIT ?")
     return _run(db_path, sql, (*binds, limit))
