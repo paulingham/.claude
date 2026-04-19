@@ -65,7 +65,7 @@ Before spawning any agents:
 
 3. **Initialise session memory** (if not exists):
    ```bash
-   PROJECT_HASH=$(git remote get-url origin 2>/dev/null | md5 -q)
+   PROJECT_HASH=$(git remote get-url origin 2>/dev/null | openssl md5 -r 2>/dev/null | awk '{print $1}')
    NOTES="$HOME/.claude/session-memory/$PROJECT_HASH/notes.md"
    if [[ ! -f "$NOTES" ]]; then
      mkdir -p "$(dirname "$NOTES")"

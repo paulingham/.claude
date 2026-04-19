@@ -227,7 +227,7 @@ _clear_repo_failed() {
 
 _health_check() {
     local repos_conf_mtime_file="${SUPERVISOR_STATE_DIR}/repos_conf_mtime"
-    local current_mtime; current_mtime="$(stat -f %m "$REPOS_CONF" 2>/dev/null || echo 0)"
+    local current_mtime; current_mtime="$(date -r "$REPOS_CONF" +%s 2>/dev/null || echo 0)"
     local stored_mtime="0"
 
     if [ -f "$repos_conf_mtime_file" ]; then
@@ -354,7 +354,7 @@ supervisor_start() {
 
     # Store initial repos.conf mtime
     local mtime_file="${SUPERVISOR_STATE_DIR}/repos_conf_mtime"
-    stat -f %m "$REPOS_CONF" 2>/dev/null > "$mtime_file" || echo 0 > "$mtime_file"
+    date -r "$REPOS_CONF" +%s 2>/dev/null > "$mtime_file" || echo 0 > "$mtime_file"
 
     # Health check loop
     while true; do
@@ -390,7 +390,7 @@ _on_sighup() {
     _supervisor_log INFO "SIGHUP received, reconciling daemons"
     _reconcile_daemons
     local mtime_file="${SUPERVISOR_STATE_DIR}/repos_conf_mtime"
-    stat -f %m "$REPOS_CONF" 2>/dev/null > "$mtime_file" || echo 0 > "$mtime_file"
+    date -r "$REPOS_CONF" +%s 2>/dev/null > "$mtime_file" || echo 0 > "$mtime_file"
 }
 
 # ---------------------------------------------------------------------------
