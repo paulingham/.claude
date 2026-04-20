@@ -10,17 +10,19 @@ consumes this model for semantic rerank (see SKILL.md). Requires macOS or
 Linux — Windows is not supported; use WSL.
 WARN
 
-if [ -n "${CI:-}" ] || [ -n "${NONINTERACTIVE:-}" ]; then
-  echo "abort: CI/NONINTERACTIVE set — rerun interactively" >&2
+if [ -n "${CI:-}" ]; then
+  echo "abort: CI set — rerun interactively" >&2
   exit 2
 fi
 
-printf "Continue? [y/N] " >&2
-read -r ANSWER
-case "${ANSWER}" in
-  y|Y|yes|YES) ;;
-  *) echo "aborted by user" >&2; exit 1 ;;
-esac
+if [ -z "${NONINTERACTIVE:-}" ]; then
+  printf "Continue? [y/N] " >&2
+  read -r ANSWER
+  case "${ANSWER}" in
+    y|Y|yes|YES) ;;
+    *) echo "aborted by user" >&2; exit 1 ;;
+  esac
+fi
 
 MODEL_DIR="${HOME}/.claude/models/bge-small-en-v1.5"
 MODEL_FILE="${MODEL_DIR}/model.onnx"
@@ -37,6 +39,11 @@ fi
 DYLIB="${ORT_DYLIB_PATH:-/opt/homebrew/lib/libonnxruntime.dylib}"
 if [ ! -f "${DYLIB}" ]; then
   echo "warn: ORT dylib not found at ${DYLIB} — brew install onnxruntime" >&2
+fi
+
+if [ -n "${NONINTERACTIVE:-}" ]; then
+  echo "model ready: ${MODEL_FILE}"
+  exit 0
 fi
 
 cat <<EOF
