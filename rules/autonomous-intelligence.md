@@ -79,7 +79,7 @@ The template lives at `~/.claude/session-memory/config/template.md`. Sections ar
 ### Lifecycle
 
 1. **Creation**: On first pipeline in a project, create the notes file from template if it doesn't exist
-2. **Updates**: After each pipeline phase completes, the orchestrator spawns a forked agent to update session memory with new engineering context
+2. **Updates**: After each pipeline phase completes, the orchestrator spawns a `session-memory-updater` agent (Read/Edit only, Haiku, read-only of conversation context) to update session memory with new engineering context
 3. **Injection**: Before spawning any agent, include the session memory content:
 
 ```
@@ -96,15 +96,23 @@ Update session memory when ANY of these are true:
 - Context compaction is about to happen (preserve what we know)
 - The user provides significant codebase context (architecture, conventions, quirks)
 
-Do NOT update after every tool call or every turn. Updates are expensive (forked agent). Batch them at phase boundaries.
+Do NOT update after every tool call or every turn. Updates are expensive (spawning a Haiku agent). Batch them at phase boundaries.
 
 ### Update Mechanism
 
-Spawn a forked agent (inherits conversation context) with the session memory update prompt (`~/.claude/session-memory/config/prompt.md`). The forked agent:
-- Reads the current notes file
-- Updates sections with new engineering knowledge from the conversation
-- Uses Edit tool — preserves structure, updates content in-place
+Spawn a `session-memory-updater` agent (Agent tool, `subagent_type: session-memory-updater`, `run_in_background: true`). The agent:
+- Reads the current notes file at `notesPath`
+- Updates sections with new engineering knowledge handed to it by the orchestrator
+- Uses Edit tool — preserves structure (never touches `#` headers or `_italic_` descriptions)
 - Runs in background — does not block the pipeline
+- Terminates after emitting `SESSION_MEMORY_UPDATED: {path}`
+
+The orchestrator's spawn prompt MUST include:
+- `notesPath`: absolute path to `~/.claude/session-memory/{project-hash}/notes.md`
+- A curated bulleted list of engineering facts from the just-completed phase (files, commands, patterns, PRs, gotchas). Do NOT dump raw conversation — hand over distilled facts.
+- Reference to `~/.claude/agents/session-memory-updater.md` for its full role definition.
+
+The legacy prompt template at `~/.claude/session-memory/config/prompt.md` remains as a reference for what content belongs in each section.
 
 ### Injection Priority
 
@@ -207,7 +215,7 @@ Every agent spawn prompt now includes (in order):
 After existing reflection steps:
 1. **Capture observation** to `learning/{project-hash}/observations.jsonl`
 2. **Check auto-learn gate** — invoke `/learn` if met
-3. **Update session memory** — spawn forked agent with latest engineering context
+3. **Update session memory** — spawn `session-memory-updater` agent with latest engineering context (background, non-blocking)
 4. **Clean up scratchpad** — deleted with pipeline state
 
 ### Pipeline Resume (additions to existing protocol)
