@@ -98,13 +98,16 @@ production.** Treat it as a stub for wiring tests.
 CLAUDE_EMBEDDER=fake python3 -m embedder cli doctor   # tests only
 ```
 
-## Opt-in at capture time
+## Opt-out at capture time
 
-Default: capture path does NOT import the embedder module (zero-cost
-invariant — verified by `test_live_writer_embed.py`).
+Default: capture path attempts embedding on every PostToolUse write
+with graceful fallback if the model is unavailable. Explicit opt-out
+restores the zero-cost path (no embedder import) — verified by
+`test_live_writer_embed.py`.
 
 ```bash
-export CLAUDE_EMBED_AT_CAPTURE=1   # embed on every PostToolUse write
+# Embedding is on by default. To disable (zero-cost path):
+export CLAUDE_EMBED_AT_CAPTURE=0
 ```
 
 On missing/corrupt model, the capture path logs to

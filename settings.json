@@ -38,56 +38,15 @@
       "ExitPlanMode",
       "EnterWorktree",
       "ExitWorktree",
-      "Bash(rm -rf ~/.claude/pipeline-state/*-scratchpad)",
-      "Bash(rm -rf ~/.claude/pipeline-state/*-scratchpad/)",
-      "Bash(rm -rf ~/.claude/pipeline-state/*-scratchpad/*)",
-      "Bash(git worktree remove ~/.claude/.claude/worktrees/*)",
-      "Bash(git worktree remove --force ~/.claude/.claude/worktrees/*)",
-      "Write(/Users/Paul.Ingham/.claude/pipeline-state/**)",
-      "Edit(/Users/Paul.Ingham/.claude/pipeline-state/**)",
-      "Write(/Users/Paul.Ingham/.claude/learning/**)",
-      "Edit(/Users/Paul.Ingham/.claude/learning/**)",
-      "Write(/Users/Paul.Ingham/.claude/session-memory/**)",
-      "Edit(/Users/Paul.Ingham/.claude/session-memory/**)",
-      "Write(/Users/Paul.Ingham/.claude/agent-memory/**)",
-      "Edit(/Users/Paul.Ingham/.claude/agent-memory/**)",
-      "Write(/Users/Paul.Ingham/.claude/manifests/**)",
-      "Edit(/Users/Paul.Ingham/.claude/manifests/**)",
-      "Write(/Users/Paul.Ingham/.claude/projects/**)",
-      "Edit(/Users/Paul.Ingham/.claude/projects/**)",
-      "Write(/Users/Paul.Ingham/.claude/.claude/worktrees/**)",
-      "Edit(/Users/Paul.Ingham/.claude/.claude/worktrees/**)",
-      "Write(/Users/Paul.Ingham/.claude/automation/**)",
-      "Edit(/Users/Paul.Ingham/.claude/automation/**)",
-      "Write(/tmp/**)",
-      "Edit(/tmp/**)",
-      "Bash(mkdir:*)",
-      "Bash(cp:*)",
-      "Bash(mv:*)",
-      "Bash(sed:*)",
-      "Bash(printf:*)",
-      "Bash(cat:*)",
-      "Bash(tee:*)",
-      "Bash(echo:*)",
-      "Bash(touch:*)",
-      "Bash(ls:*)",
-      "Bash(wc:*)",
-      "Bash(find:*)",
-      "Bash(head:*)",
-      "Bash(tail:*)",
-      "Bash(jq:*)",
-      "Bash(python3:*)",
-      "Bash(rm ~/.claude/pipeline-state/*)",
-      "Bash(rm -f ~/.claude/pipeline-state/*)",
-      "Bash(rm /Users/Paul.Ingham/.claude/pipeline-state/*)",
-      "Bash(rm -f /Users/Paul.Ingham/.claude/pipeline-state/*)",
-      "Bash(rm ~/.claude/.claude/worktrees/**)",
-      "Bash(rm -f ~/.claude/.claude/worktrees/**)",
-      "Bash(rm -rf ~/.claude/.claude/worktrees/*)",
-      "Bash(rm /Users/Paul.Ingham/.claude/.claude/worktrees/**)",
-      "Bash(rm -rf /Users/Paul.Ingham/.claude/.claude/worktrees/**)",
-      "Bash(git:*)",
-      "Bash(git -C:*)"
+      "Write(/Users/Paul.Ingham/.claude/**)",
+      "Edit(/Users/Paul.Ingham/.claude/**)",
+      "Read(/Users/Paul.Ingham/.claude/**)",
+      "Bash(rm /Users/Paul.Ingham/.claude/**)",
+      "Bash(rm -f /Users/Paul.Ingham/.claude/**)",
+      "Bash(rm -rf /Users/Paul.Ingham/.claude/pipeline-state/**)",
+      "Bash(rm -rf /Users/Paul.Ingham/.claude/session-memory/**)",
+      "Bash(rm -rf /Users/Paul.Ingham/.claude/agent-memory/**)",
+      "Bash(rm -rf /Users/Paul.Ingham/.claude/learning/**)"
     ],
     "deny": [
       "Bash(rm -rf /*)",
@@ -107,7 +66,7 @@
       "Bash(git branch -D main)",
       "Bash(git branch -D master)"
     ],
-    "defaultMode": "dontAsk"
+    "defaultMode": "bypassPermissions"
   },
   "hooks": {
     "Notification": [
@@ -137,7 +96,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found \u2014 resume from current phase.' || echo 'No active pipeline.'",
+            "command": "ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'",
             "timeout": 10000
           }
         ]
@@ -386,7 +345,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "printf 'CONTEXT COMPACTED \u2014 Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ \u2014 review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases \u2014 invoke via Skill tool\\n5. Agent Teams enabled \u2014 use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory \u2014 check .claude/agent-memory/'",
+            "command": "printf 'CONTEXT COMPACTED — Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ — review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases — invoke via Skill tool\\n5. Agent Teams enabled — use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory — check .claude/agent-memory/'",
             "timeout": 10000
           }
         ]
@@ -542,7 +501,9 @@
   "mcpServers": {
     "memory": {
       "command": "python3",
-      "args": ["/Users/Paul.Ingham/.claude/skills/mcp_memory/server.py"]
+      "args": [
+        "/Users/Paul.Ingham/.claude/skills/mcp_memory/server.py"
+      ]
     }
   }
 }
