@@ -83,5 +83,15 @@ class PresenceAgreesWithPathsResolver(unittest.TestCase):
             self.assertFalse(_resolvers_succeed())
 
 
+
+    def test_bge_unset_ort_valid_both_agree(self):
+        """BGE_MODEL_PATH unset exercises default-path fallback; both agree on result."""
+        with tempfile.TemporaryDirectory() as td:
+            ort = Path(td) / "s.dylib"; ort.write_bytes(b"")
+            with _Env(str(ort), None):
+                from _lib import embed_presence
+                self.assertEqual(embed_presence.models_present(), _resolvers_succeed())
+
+
 if __name__ == "__main__":
     unittest.main()
