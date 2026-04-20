@@ -284,6 +284,59 @@ class RunIsIdempotent(unittest.TestCase):
             self.assertEqual(mtime_after_second, mtime_after_first)
 
 
+class RunPrintsSuccessLineAfterBootstrap(unittest.TestCase):
+    """S9 polish: happy-path bootstrap emits ONE confirmation line.
+
+    When brew install + model download + settings patch all succeed on
+    macOS, the user sees confirmation — not just subprocess noise.
+    """
+    def test_bootstrap_happy_path_prints_confirmation(self):
+        import json
+        import tempfile
+        from subprocess import CompletedProcess
+        ok = CompletedProcess(args=[], returncode=0)
+        buf = io.StringIO()
+        with tempfile.TemporaryDirectory() as d:
+            settings = Path(d) / "settings.json"
+            settings.write_text(json.dumps({"env": {}}))
+            dylib = Path(d) / "libonnxruntime.dylib"
+            dylib.touch()
+            model = Path(d) / "model.onnx"
+            model.touch()
+            env_patch = {"CLAUDE_SETTINGS_PATH": str(settings)}
+            with patch.dict(os.environ, env_patch, clear=False), \
+                 patch("embedder._lib.bootstrap.platform.system",
+                       return_value="Darwin"), \
+                 patch("embedder._lib.bootstrap._is_healthy",
+                       return_value=False), \
+                 patch("embedder._lib.bootstrap._dylib_path",
+                       return_value=dylib), \
+                 patch("embedder._lib.bootstrap._model_path",
+                       return_value=model), \
+                 patch("embedder._lib.bootstrap_steps.subprocess.run",
+                       return_value=ok):
+                with redirect_stdout(buf):
+                    code = bootstrap.run()
+        self.assertEqual(code, 0)
+        self.assertIn(
+            "embedder bootstrap complete (ORT_DYLIB_PATH written)",
+            buf.getvalue())
+
+
+class RunHealthyShortCircuitIsSilent(unittest.TestCase):
+    """S9 polish: no-op healthy path prints nothing — zero noise."""
+    def test_healthy_path_does_not_print_completion_line(self):
+        buf = io.StringIO()
+        with patch("embedder._lib.bootstrap.platform.system",
+                   return_value="Darwin"), \
+             patch("embedder._lib.bootstrap._is_healthy",
+                   return_value=True):
+            with redirect_stdout(buf):
+                code = bootstrap.run()
+        self.assertEqual(code, 0)
+        self.assertNotIn("bootstrap complete", buf.getvalue())
+
+
 class RunSurvivesSubprocessTimeout(unittest.TestCase):
     """AC9: TimeoutExpired mid-pipeline must not crash run()."""
     def test_timeout_returns_partial_not_exception(self):

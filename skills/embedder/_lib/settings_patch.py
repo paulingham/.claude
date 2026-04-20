@@ -17,9 +17,10 @@ def patch(path, key, value):
     payload = _read(path)
     env = payload.setdefault("env", {})
     if key in env:
-        return
+        return False
     env[key] = value
     _write(path, payload)
+    return True
 
 
 def _read(path):

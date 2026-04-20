@@ -41,6 +41,11 @@ if [ ! -f "${DYLIB}" ]; then
   echo "warn: ORT dylib not found at ${DYLIB} — brew install onnxruntime" >&2
 fi
 
+if [ -n "${NONINTERACTIVE:-}" ]; then
+  echo "model ready: ${MODEL_FILE}"
+  exit 0
+fi
+
 cat <<EOF
 Embedder ready. Add to your shell profile:
 
