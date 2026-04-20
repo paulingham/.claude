@@ -1,9 +1,9 @@
-"""BC4: download-model.sh gates download (non-interactive abort + consent).
+"""BC4: download-model.sh gates download (CI abort + interactive consent).
 
-In S5.1 the deferral banner was removed (the real backend now consumes the
-model). The gate itself — non-interactive abort, y/N prompt — is still
-required. The ScriptContainsGateWarning case now asserts the POSIX-only
-warning rather than the old S5.1-deferral text.
+S9 inverted NONINTERACTIVE semantics: CI=1 still aborts (no user present),
+but NONINTERACTIVE=1 now proceeds without prompting so bootstrap can drive
+the script from /project-setup. The interactive consent prompt still
+applies when neither CI nor NONINTERACTIVE is set.
 """
 import os
 import subprocess
@@ -24,13 +24,27 @@ class NoninteractiveEnvAbortsWithExitCode2(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
 
 
-class NoninteractiveVarAlsoAborts(unittest.TestCase):
-    def test_noninteractive_env_aborts(self):
-        env = {"PATH": os.environ.get("PATH", ""), "NONINTERACTIVE": "1"}
-        r = subprocess.run(
-            ["bash", str(SCRIPT)], env=env, capture_output=True,
-            text=True, timeout=10)
-        self.assertEqual(r.returncode, 2)
+class NoninteractiveVarProceedsPastPrompt(unittest.TestCase):
+    """S9 inversion: NONINTERACTIVE=1 skips the y/N prompt and continues.
+
+    Requires HOME to be writable (bootstrap supplies a tempdir). On a
+    bare env with no HOME, the script fails for unrelated reasons —
+    that's fine; we only assert it got past the abort check.
+    """
+    def test_noninteractive_env_does_not_exit_with_abort_code(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as home:
+            sentinel_dir = (
+                f"{home}/.claude/models/bge-small-en-v1.5")
+            os.makedirs(sentinel_dir, exist_ok=True)
+            open(f"{sentinel_dir}/model.onnx", "a").close()
+            env = {"PATH": os.environ.get("PATH", ""),
+                   "HOME": home,
+                   "NONINTERACTIVE": "1"}
+            r = subprocess.run(
+                ["bash", str(SCRIPT)], env=env, capture_output=True,
+                text=True, timeout=10)
+        self.assertEqual(r.returncode, 0, r.stderr)
 
 
 class ScriptContainsGateWarning(unittest.TestCase):

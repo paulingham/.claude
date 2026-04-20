@@ -48,9 +48,99 @@ class RunOnMacosHealthyIsNoop(unittest.TestCase):
 def _find_call(mock_run, needle):
     for c in mock_run.call_args_list:
         args = c.args[0] if c.args else []
-        if args and needle in args[0]:
+        if any(needle in str(a) for a in args):
             return c
     return None
+
+
+class RunWarnsWhenBrewAbsent(unittest.TestCase):
+    def test_missing_brew_logs_warn_and_returns_partial(self):
+        buf = io.StringIO()
+        with patch("embedder._lib.bootstrap.platform.system",
+                   return_value="Darwin"), \
+             patch("embedder._lib.bootstrap._is_healthy",
+                   return_value=False), \
+             patch("embedder._lib.bootstrap._dylib_path",
+                   return_value=Path("/nonexistent/libonnxruntime.dylib")), \
+             patch("embedder._lib.bootstrap._model_path",
+                   return_value=Path("/tmp/exists")), \
+             patch("embedder._lib.bootstrap_steps.shutil.which",
+                   return_value=None), \
+             patch("embedder._lib.bootstrap_steps.subprocess.run") as sub:
+            Path("/tmp/exists").touch()
+            with redirect_stdout(buf):
+                code = bootstrap.run()
+        self.assertEqual(code, bootstrap.PARTIAL)
+        self.assertIn("WARN", buf.getvalue())
+        self.assertIn("brew", buf.getvalue())
+        sub.assert_not_called()
+
+
+class RunDownloadsModelWhenMissing(unittest.TestCase):
+    def test_invokes_download_script_with_noninteractive_env(self):
+        from subprocess import CompletedProcess
+        ok = CompletedProcess(args=[], returncode=0)
+        with patch("embedder._lib.bootstrap.platform.system",
+                   return_value="Darwin"), \
+             patch("embedder._lib.bootstrap._is_healthy",
+                   return_value=False), \
+             patch("embedder._lib.bootstrap._dylib_path",
+                   return_value=Path("/tmp/exists")), \
+             patch("embedder._lib.bootstrap._model_path",
+                   return_value=Path("/nonexistent/model.onnx")), \
+             patch("embedder._lib.bootstrap_steps.subprocess.run",
+                   return_value=ok) as sub:
+            Path("/tmp/exists").touch()
+            bootstrap.run()
+        call = _find_call(sub, "download-model.sh")
+        self.assertIsNotNone(call)
+        self.assertEqual(call.kwargs["env"].get("NONINTERACTIVE"), "1")
+
+
+class RunWarnsWhenDownloadFails(unittest.TestCase):
+    def test_download_script_nonzero_returns_partial(self):
+        from subprocess import CompletedProcess
+        failed = CompletedProcess(args=[], returncode=1)
+        buf = io.StringIO()
+        with patch("embedder._lib.bootstrap.platform.system",
+                   return_value="Darwin"), \
+             patch("embedder._lib.bootstrap._is_healthy",
+                   return_value=False), \
+             patch("embedder._lib.bootstrap._dylib_path",
+                   return_value=Path("/tmp/exists")), \
+             patch("embedder._lib.bootstrap._model_path",
+                   return_value=Path("/nonexistent/model.onnx")), \
+             patch("embedder._lib.bootstrap_steps.subprocess.run",
+                   return_value=failed):
+            Path("/tmp/exists").touch()
+            with redirect_stdout(buf):
+                code = bootstrap.run()
+        self.assertEqual(code, bootstrap.PARTIAL)
+        self.assertIn("model download failed", buf.getvalue())
+
+
+class RunContinuesOnBrewFailure(unittest.TestCase):
+    def test_nonzero_returncode_warns_and_returns_partial(self):
+        from subprocess import CompletedProcess
+        failed = CompletedProcess(args=[], returncode=1)
+        buf = io.StringIO()
+        with patch("embedder._lib.bootstrap.platform.system",
+                   return_value="Darwin"), \
+             patch("embedder._lib.bootstrap._is_healthy",
+                   return_value=False), \
+             patch("embedder._lib.bootstrap._dylib_path",
+                   return_value=Path("/nonexistent/libonnxruntime.dylib")), \
+             patch("embedder._lib.bootstrap._model_path",
+                   return_value=Path("/tmp/exists")), \
+             patch("embedder._lib.bootstrap_steps.shutil.which",
+                   return_value="/opt/homebrew/bin/brew"), \
+             patch("embedder._lib.bootstrap_steps.subprocess.run",
+                   return_value=failed):
+            Path("/tmp/exists").touch()
+            with redirect_stdout(buf):
+                code = bootstrap.run()
+        self.assertEqual(code, bootstrap.PARTIAL)
+        self.assertIn("brew install failed", buf.getvalue())
 
 
 class RunInstallsOrtWhenDylibMissing(unittest.TestCase):

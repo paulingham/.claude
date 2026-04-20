@@ -51,5 +51,30 @@ class DownloadScriptPrintsExportLinesOnStdout(unittest.TestCase):
             pass
 
 
+class NoninteractiveProceedsSkippingPrompt(unittest.TestCase):
+    """S9 slice 11a: NONINTERACTIVE=1 proceeds without prompting.
+
+    Previously NONINTERACTIVE=1 aborted with exit 2 (S5 honesty gate).
+    S5.1 shipped the real backend, so the gate is obsolete. Bootstrap
+    relies on this inversion.
+    """
+    def test_noninteractive_env_runs_to_completion(self):
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as home:
+            sentinel_dir = (
+                f"{home}/.claude/models/bge-small-en-v1.5")
+            os.makedirs(sentinel_dir, exist_ok=True)
+            open(f"{sentinel_dir}/model.onnx", "a").close()
+            env = {"HOME": home,
+                   "PATH": os.environ.get("PATH", ""),
+                   "NONINTERACTIVE": "1"}
+            r = subprocess.run(
+                ["bash", str(SCRIPT)], env=env, capture_output=True,
+                text=True, timeout=10)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("export ORT_DYLIB_PATH=", r.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
