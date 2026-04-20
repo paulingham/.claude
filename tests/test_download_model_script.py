@@ -51,5 +51,59 @@ class DownloadScriptPrintsExportLinesOnStdout(unittest.TestCase):
             pass
 
 
+class NoninteractiveProceedsSkippingPrompt(unittest.TestCase):
+    """S9 slice 11a: NONINTERACTIVE=1 proceeds without prompting.
+
+    Previously NONINTERACTIVE=1 aborted with exit 2 (S5 honesty gate).
+    S5.1 shipped the real backend, so the gate is obsolete. Bootstrap
+    relies on this inversion. Under S9 polish, NONINTERACTIVE suppresses
+    the shell-profile hint (bootstrap has already written settings.json),
+    so we assert completion + a concise readiness line instead of the
+    export line.
+    """
+    def test_noninteractive_env_runs_to_completion(self):
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as home:
+            sentinel_dir = (
+                f"{home}/.claude/models/bge-small-en-v1.5")
+            os.makedirs(sentinel_dir, exist_ok=True)
+            open(f"{sentinel_dir}/model.onnx", "a").close()
+            env = {"HOME": home,
+                   "PATH": os.environ.get("PATH", ""),
+                   "NONINTERACTIVE": "1"}
+            r = subprocess.run(
+                ["bash", str(SCRIPT)], env=env, capture_output=True,
+                text=True, timeout=10)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("model ready", r.stdout)
+
+
+class NoninteractiveSuppressesShellProfileHint(unittest.TestCase):
+    """S9 polish: NONINTERACTIVE mode omits the shell-profile message.
+
+    Bootstrap has already patched ORT_DYLIB_PATH into settings.json, so
+    the 'Add to your shell profile' hint is misleading under bootstrap.
+    """
+    def test_noninteractive_stdout_omits_export_lines(self):
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as home:
+            sentinel_dir = (
+                f"{home}/.claude/models/bge-small-en-v1.5")
+            os.makedirs(sentinel_dir, exist_ok=True)
+            open(f"{sentinel_dir}/model.onnx", "a").close()
+            env = {"HOME": home,
+                   "PATH": os.environ.get("PATH", ""),
+                   "NONINTERACTIVE": "1"}
+            r = subprocess.run(
+                ["bash", str(SCRIPT)], env=env, capture_output=True,
+                text=True, timeout=10)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("shell profile", r.stdout.lower())
+        self.assertNotIn("export ORT_DYLIB_PATH=", r.stdout)
+        self.assertNotIn("export BGE_MODEL_PATH=", r.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
