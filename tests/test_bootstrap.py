@@ -246,5 +246,31 @@ class RunAsModuleInvokesRun(unittest.TestCase):
         self.assertIn("embedder bootstrap skipped", result.stdout)
 
 
+class RunSurvivesSubprocessTimeout(unittest.TestCase):
+    """AC9: TimeoutExpired mid-pipeline must not crash run()."""
+    def test_timeout_returns_partial_not_exception(self):
+        import subprocess as sp
+        timeout_exc = sp.TimeoutExpired(
+            cmd=["brew", "install", "onnxruntime"], timeout=300)
+        buf = io.StringIO()
+        with patch("embedder._lib.bootstrap.platform.system",
+                   return_value="Darwin"), \
+             patch("embedder._lib.bootstrap._is_healthy",
+                   return_value=False), \
+             patch("embedder._lib.bootstrap._dylib_path",
+                   return_value=Path("/nonexistent/libonnxruntime.dylib")), \
+             patch("embedder._lib.bootstrap._model_path",
+                   return_value=Path("/tmp/exists")), \
+             patch("embedder._lib.bootstrap_steps.shutil.which",
+                   return_value="/opt/homebrew/bin/brew"), \
+             patch("embedder._lib.bootstrap_steps.subprocess.run",
+                   side_effect=timeout_exc):
+            Path("/tmp/exists").touch()
+            with redirect_stdout(buf):
+                code = bootstrap.run()
+        self.assertEqual(code, bootstrap.PARTIAL)
+        self.assertIn("WARN", buf.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
