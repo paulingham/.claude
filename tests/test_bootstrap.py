@@ -76,6 +76,68 @@ class RunWarnsWhenBrewAbsent(unittest.TestCase):
         sub.assert_not_called()
 
 
+class RunPatchesSettingsWithResolvedDylib(unittest.TestCase):
+    def test_writes_dylib_path_to_settings_env(self):
+        import json
+        import tempfile
+        from subprocess import CompletedProcess
+        ok = CompletedProcess(args=[], returncode=0)
+        with tempfile.TemporaryDirectory() as d:
+            settings = Path(d) / "settings.json"
+            settings.write_text(json.dumps({"env": {}}))
+            dylib = Path(d) / "libonnxruntime.dylib"
+            dylib.touch()
+            model = Path(d) / "model.onnx"
+            model.touch()
+            env_patch = {"CLAUDE_SETTINGS_PATH": str(settings)}
+            with patch.dict(os.environ, env_patch, clear=False), \
+                 patch("embedder._lib.bootstrap.platform.system",
+                       return_value="Darwin"), \
+                 patch("embedder._lib.bootstrap._is_healthy",
+                       return_value=False), \
+                 patch("embedder._lib.bootstrap._dylib_path",
+                       return_value=dylib), \
+                 patch("embedder._lib.bootstrap._model_path",
+                       return_value=model), \
+                 patch("embedder._lib.bootstrap_steps.subprocess.run",
+                       return_value=ok):
+                bootstrap.run()
+            payload = json.loads(settings.read_text())
+            self.assertEqual(
+                payload["env"].get("ORT_DYLIB_PATH"), str(dylib))
+
+
+class RunDoesNotClobberExistingSetting(unittest.TestCase):
+    def test_existing_ort_dylib_path_preserved_byte_for_byte(self):
+        import json
+        import tempfile
+        from subprocess import CompletedProcess
+        ok = CompletedProcess(args=[], returncode=0)
+        with tempfile.TemporaryDirectory() as d:
+            settings = Path(d) / "settings.json"
+            settings.write_text(
+                json.dumps({"env": {"ORT_DYLIB_PATH": "/custom/path"}}))
+            before = settings.read_bytes()
+            dylib = Path(d) / "libonnxruntime.dylib"
+            dylib.touch()
+            model = Path(d) / "model.onnx"
+            model.touch()
+            env_patch = {"CLAUDE_SETTINGS_PATH": str(settings)}
+            with patch.dict(os.environ, env_patch, clear=False), \
+                 patch("embedder._lib.bootstrap.platform.system",
+                       return_value="Darwin"), \
+                 patch("embedder._lib.bootstrap._is_healthy",
+                       return_value=False), \
+                 patch("embedder._lib.bootstrap._dylib_path",
+                       return_value=dylib), \
+                 patch("embedder._lib.bootstrap._model_path",
+                       return_value=model), \
+                 patch("embedder._lib.bootstrap_steps.subprocess.run",
+                       return_value=ok):
+                bootstrap.run()
+            self.assertEqual(settings.read_bytes(), before)
+
+
 class RunDownloadsModelWhenMissing(unittest.TestCase):
     def test_invokes_download_script_with_noninteractive_env(self):
         from subprocess import CompletedProcess
@@ -165,6 +227,23 @@ class RunInstallsOrtWhenDylibMissing(unittest.TestCase):
         self.assertEqual(list(call.args[0]),
                          ["brew", "install", "onnxruntime"])
         self.assertEqual(call.kwargs.get("timeout"), 300)
+
+
+class RunAsModuleInvokesRun(unittest.TestCase):
+    """S9 AC10: `python3 -m embedder._lib.bootstrap` invokes run()."""
+    def test_module_main_exits_cleanly_without_raising(self):
+        import subprocess
+        # Force non-Darwin so we get deterministic skip output regardless
+        # of the host's doctor state.
+        result = subprocess.run(
+            [sys.executable, "-c",
+             "import platform; platform.system=lambda: 'Linux'; "
+             "from embedder._lib import bootstrap as b; "
+             "import sys; sys.exit(b.run())"],
+            env={**os.environ, "PYTHONPATH": str(REPO_ROOT / "skills")},
+            capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, bootstrap.SKIP_NON_MACOS)
+        self.assertIn("embedder bootstrap skipped", result.stdout)
 
 
 if __name__ == "__main__":

@@ -226,6 +226,40 @@ If `~/.claude/automation/daemon.sh` exists (automation system is installed):
 - [Any unusual patterns or configurations found]
 ```
 
+### 6b. Embedder bootstrap (macOS)
+
+After generating CLAUDE.md, bootstrap the semantic-rerank embedder so it
+works out of the box on a fresh macOS clone. This step is optional-but-
+automatic and platform-gated.
+
+Run:
+
+```bash
+python3 -m embedder._lib.bootstrap
+```
+
+Expected behaviour:
+- **macOS + healthy system** (doctor verdict OK): no-op, returns 0
+- **macOS + missing ORT dylib**: `brew install onnxruntime`
+- **macOS + missing BGE model**: invokes `skills/embedder/download-model.sh`
+  with `NONINTERACTIVE=1`
+- **macOS + settings.json missing `ORT_DYLIB_PATH`**: patches the file
+  atomically (existing values preserved byte-for-byte)
+- **Linux/Windows**: skipped, logs `embedder bootstrap skipped (non-macOS)`
+
+Failure semantics: bootstrap **never blocks** `/project-setup`. Every
+failure path (brew absent, download failure, settings write error)
+logs a WARN line and continues. A partial bootstrap leaves capture
+path unaffected — recall degrades to BM25-only, which is the
+existing graceful-fallback behaviour.
+
+Report the stdout line to the user so they have visible signal if any
+step was skipped. After bootstrap, the user can verify with:
+
+```bash
+python3 -m embedder cli doctor
+```
+
 ## Output
 
 - Creates `.claude/CLAUDE.md` at project root
