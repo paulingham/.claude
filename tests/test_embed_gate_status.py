@@ -49,8 +49,8 @@ def _run_embed():
             con.close()
 
 
-_MANAGED = ("CLAUDE_EMBEDDER_STATUS", "CLAUDE_EMBED_AT_CAPTURE",
-            "CLAUDE_EMBEDDER", "ORT_DYLIB_PATH", "BGE_MODEL_PATH")
+_MANAGED = ("CLAUDE_EMBEDDER_STATUS", "CLAUDE_EMBEDDER",
+            "ORT_DYLIB_PATH", "BGE_MODEL_PATH")
 
 
 class _env:
@@ -60,16 +60,21 @@ class _env:
     def __enter__(self):
         self._saved = {k: os.environ.get(k) for k in _MANAGED}
         self.tmp = tempfile.TemporaryDirectory()
+        self._models = tempfile.TemporaryDirectory()
         self.out = Path(self.tmp.name) / "s.json"
-        self._apply()
+        ort = Path(self._models.name) / "s.dylib"; ort.write_bytes(b"")
+        bge = Path(self._models.name) / "s.onnx"; bge.write_bytes(b"")
+        self._apply(str(ort), str(bge))
         _reset_embedder()
+        _reset_warn_cache()
         return self.out
 
-    def _apply(self):
+    def _apply(self, ort, bge):
         for k in _MANAGED:
             os.environ.pop(k, None)
         os.environ["CLAUDE_EMBEDDER_STATUS"] = str(self.out)
-        os.environ["CLAUDE_EMBED_AT_CAPTURE"] = "1"
+        os.environ["ORT_DYLIB_PATH"] = ort
+        os.environ["BGE_MODEL_PATH"] = bge
         if self.backend:
             os.environ["CLAUDE_EMBEDDER"] = self.backend
 
@@ -77,7 +82,14 @@ class _env:
         for k, v in self._saved.items():
             _restore(k, v)
         _reset_embedder()
+        _reset_warn_cache()
+        self._models.cleanup()
         self.tmp.cleanup()
+
+
+def _reset_warn_cache():
+    from _lib import embed_presence
+    embed_presence._reset_warn_cache()
 
 
 def _restore(key, value):

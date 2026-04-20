@@ -1,18 +1,15 @@
-"""Opt-out gate for capture-time embeddings (AC9).
-
-Default path (env unset) attempts embedding with graceful fallback.
-Opt-out via CLAUDE_EMBED_AT_CAPTURE=0 returns immediately without
-importing the embedder module — verified by test_opt_out_skips_embedder_import.
-"""
-import os
+"""Capture-time embed gate (S10): gated on model-file presence."""
 import sys
 from pathlib import Path
+
+from _lib.embed_presence import models_present, warn_missing_once
 
 _LOG = Path.home() / ".claude" / "db" / "live-writer.log"
 
 
 def maybe_embed(con, obj, content_hash):
-    if os.environ.get("CLAUDE_EMBED_AT_CAPTURE", "1") == "0":
+    if not models_present():
+        warn_missing_once()
         return
     _try_embed(con, obj, content_hash)
 
