@@ -13,8 +13,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _SKILL = str(REPO_ROOT / "skills")
-if _SKILL not in sys.path:
-    sys.path.insert(0, _SKILL)
+_REINDEX = str(REPO_ROOT / "skills" / "reindex-memory")
+for p in (_SKILL, _REINDEX):
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 
 class DoctorReportContract(unittest.TestCase):
@@ -23,6 +25,13 @@ class DoctorReportContract(unittest.TestCase):
         out = doctor.report()
         self.assertIsInstance(out, str)
         self.assertIn("verdict:", out)
+
+
+class DoctorIncludesEmbedBanner(unittest.TestCase):
+    def test_report_contains_embed_line(self):
+        from embedder._lib import doctor
+        out = doctor.report()
+        self.assertIn("embed:", out)
 
 
 if __name__ == "__main__":

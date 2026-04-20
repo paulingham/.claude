@@ -98,19 +98,25 @@ production.** Treat it as a stub for wiring tests.
 CLAUDE_EMBEDDER=fake python3 -m embedder cli doctor   # tests only
 ```
 
-## Opt-out at capture time
+## Bootstrap gates embedding
 
-Default: capture path attempts embedding on every PostToolUse write
-with graceful fallback if the model is unavailable. Explicit opt-out
-restores the zero-cost path (no embedder import) — verified by
-`test_live_writer_embed.py`.
+Capture-time embedding is gated on model file presence, not an env
+flag. `/project-setup` downloads the model and writes
+`ORT_DYLIB_PATH` + `BGE_MODEL_PATH` to `~/.claude/settings.json`. If
+either path cannot be resolved to an existing file, `maybe_embed`
+skips the embed without importing `embedder.*` (zero-cost invariant)
+and emits a one-time stderr warning:
 
-```bash
-# Embedding is on by default. To disable (zero-cost path):
-export CLAUDE_EMBED_AT_CAPTURE=0
-```
+    embedder model not bootstrapped; semantic recall disabled.
+    Run /project-setup to enable.
 
-On missing/corrupt model, the capture path logs to
+`embedder doctor` reports the gate state via an `embed:` line:
+
+    embed: off (no model — run /project-setup)   # models missing
+    embed: on (pending first write)              # present, no success yet
+    embed: on                                    # present + last_success_at set
+
+On corrupt-but-existing model, the capture path logs to
 `~/.claude/db/live-writer.log`, records the failure reason via
 `status.record_failure`, and still writes the observation — the
 embedding is skipped, not the observation.
@@ -134,6 +140,6 @@ The rerank score is `alpha/(1+idx) + (1-alpha)*cosine` with `alpha=0.5`.
 ## Invariants
 
 - **Read-only recall**: `vec_store.load` opens `?mode=ro` + `PRAGMA query_only=1`.
-- **Default zero-cost**: default capture writes do not import `embedder.embedder`.
+- **Zero-cost on missing models**: capture path does not import `embedder.embedder` unless both model files resolve.
 - **Idempotent backfill**: second run inserts 0 rows (keyed by content_hash).
 - **Stdlib only**: no pip install, no requirements.txt.

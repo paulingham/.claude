@@ -39,10 +39,22 @@ class FacadeIsOnlyBackendSurface(unittest.TestCase):
 
 class EnvVarsStayInsideEmbedderSkill(unittest.TestCase):
     def test_ort_and_bge_env_confined_to_embedder_skill(self):
-        allow = str(REPO_ROOT / "skills" / "embedder") + "/"
         hits = _grep(r"(ORT_DYLIB_PATH|BGE_MODEL_PATH)", REPO_ROOT / "skills")
-        leaks = _callers_only(hits, allow)
+        leaks = [h for h in hits if not _allowed(h)]
         self.assertEqual(leaks, [], f"Backend env leak: {leaks}")
+
+
+_ALLOWED_PREFIXES = (
+    str(REPO_ROOT / "skills" / "embedder") + "/",
+    # S10: zero-cost capture gate duplicates env names to avoid loading
+    # embedder.* on the miss path. Co-equivalence enforced by
+    # tests/test_embed_presence_coeq.py.
+    str(REPO_ROOT / "skills" / "reindex-memory" / "_lib" / "embed_presence.py"),
+)
+
+
+def _allowed(path):
+    return any(path.startswith(p) for p in _ALLOWED_PREFIXES)
 
 
 if __name__ == "__main__":
