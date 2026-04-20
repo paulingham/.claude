@@ -17,12 +17,18 @@ def apply(dylib):
 
 def _try_patch(dylib):
     try:
-        settings_patch.patch(
+        wrote = settings_patch.patch(
             settings_path(), "ORT_DYLIB_PATH", str(dylib))
-        return 0
+        return _announce(wrote)
     except settings_patch.SettingsPatchError as exc:
         print(f"WARN: settings patch failed: {exc}")
         return 1
+
+
+def _announce(wrote):
+    if wrote:
+        print("embedder bootstrap complete (ORT_DYLIB_PATH written)")
+    return 0
 
 
 def settings_path():
