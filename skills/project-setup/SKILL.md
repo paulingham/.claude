@@ -235,7 +235,7 @@ automatic and platform-gated.
 Run:
 
 ```bash
-python3 -m embedder._lib.bootstrap
+PYTHONPATH=$HOME/.claude/skills python3 -m embedder._lib.bootstrap
 ```
 
 Expected behaviour:
@@ -257,7 +257,7 @@ Report the stdout line to the user so they have visible signal if any
 step was skipped. After bootstrap, the user can verify with:
 
 ```bash
-python3 -m embedder cli doctor
+PYTHONPATH=$HOME/.claude/skills python3 -m embedder cli doctor
 ```
 
 ## Output
