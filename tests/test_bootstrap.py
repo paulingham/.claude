@@ -246,6 +246,44 @@ class RunAsModuleInvokesRun(unittest.TestCase):
         self.assertIn("embedder bootstrap skipped", result.stdout)
 
 
+class RunIsIdempotent(unittest.TestCase):
+    """AC8: two consecutive run() calls leave settings.json byte-identical."""
+    def test_second_invocation_does_not_rewrite_settings(self):
+        import json
+        import tempfile
+        import time
+        from subprocess import CompletedProcess
+        ok = CompletedProcess(args=[], returncode=0)
+        with tempfile.TemporaryDirectory() as d:
+            settings = Path(d) / "settings.json"
+            settings.write_text(json.dumps({"env": {}}))
+            dylib = Path(d) / "libonnxruntime.dylib"
+            dylib.touch()
+            model = Path(d) / "model.onnx"
+            model.touch()
+            env_patch = {"CLAUDE_SETTINGS_PATH": str(settings)}
+            with patch.dict(os.environ, env_patch, clear=False), \
+                 patch("embedder._lib.bootstrap.platform.system",
+                       return_value="Darwin"), \
+                 patch("embedder._lib.bootstrap._is_healthy",
+                       return_value=False), \
+                 patch("embedder._lib.bootstrap._dylib_path",
+                       return_value=dylib), \
+                 patch("embedder._lib.bootstrap._model_path",
+                       return_value=model), \
+                 patch("embedder._lib.bootstrap_steps.subprocess.run",
+                       return_value=ok):
+                bootstrap.run()
+                bytes_after_first = settings.read_bytes()
+                mtime_after_first = settings.stat().st_mtime_ns
+                time.sleep(0.01)
+                bootstrap.run()
+                bytes_after_second = settings.read_bytes()
+                mtime_after_second = settings.stat().st_mtime_ns
+            self.assertEqual(bytes_after_second, bytes_after_first)
+            self.assertEqual(mtime_after_second, mtime_after_first)
+
+
 class RunSurvivesSubprocessTimeout(unittest.TestCase):
     """AC9: TimeoutExpired mid-pipeline must not crash run()."""
     def test_timeout_returns_partial_not_exception(self):
