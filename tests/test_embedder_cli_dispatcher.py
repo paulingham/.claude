@@ -14,6 +14,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _DISPATCHER_MISS = "No module named embedder.__main__"
+_LIB_MISS = "No module named '_lib'"
 
 
 def _env():
@@ -44,6 +45,13 @@ class DispatcherRoutesBackfill(unittest.TestCase):
         result = _run(["backfill", "--help"])
         combined = result.stdout + result.stderr
         self.assertNotIn(_DISPATCHER_MISS, combined)
+
+
+class DoctorImportsLibAsQualified(unittest.TestCase):
+    def test_cli_doctor_does_not_raise_lib_not_found(self):
+        result = _run(["cli", "doctor"])
+        combined = result.stdout + result.stderr
+        self.assertNotIn(_LIB_MISS, combined)
 
 
 if __name__ == "__main__":
