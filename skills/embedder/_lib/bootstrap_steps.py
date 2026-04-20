@@ -19,16 +19,24 @@ def install_ort():
 def download_model():
     env = dict(os.environ)
     env["NONINTERACTIVE"] = "1"
-    result = subprocess.run(
+    return _run_timed(
         ["bash", str(bootstrap_paths.download_script())],
-        env=env, timeout=600)
-    return _rc(result, "model download failed")
+        "model download failed", timeout=600, env=env)
 
 
 def _run_brew():
-    result = subprocess.run(
-        ["brew", "install", "onnxruntime"], timeout=300)
-    return _rc(result, "brew install failed")
+    return _run_timed(
+        ["brew", "install", "onnxruntime"],
+        "brew install failed", timeout=300)
+
+
+def _run_timed(cmd, warn_msg, timeout, env=None):
+    try:
+        result = subprocess.run(cmd, env=env, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _warn(f"{warn_msg} (timed out after {timeout}s)")
+        return 1
+    return _rc(result, warn_msg)
 
 
 def _rc(result, warn_msg):
