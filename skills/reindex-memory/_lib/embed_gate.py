@@ -1,7 +1,8 @@
-"""Opt-in gate for capture-time embeddings (AC9).
+"""Opt-out gate for capture-time embeddings (AC9).
 
-Default path (env unset) returns immediately without importing the
-embedder module — verified by test_default_capture_skips_embedder.
+Default path (env unset) attempts embedding with graceful fallback.
+Opt-out via CLAUDE_EMBED_AT_CAPTURE=0 returns immediately without
+importing the embedder module — verified by test_opt_out_skips_embedder_import.
 """
 import os
 import sys
@@ -11,7 +12,7 @@ _LOG = Path.home() / ".claude" / "db" / "live-writer.log"
 
 
 def maybe_embed(con, obj, content_hash):
-    if os.environ.get("CLAUDE_EMBED_AT_CAPTURE") != "1":
+    if os.environ.get("CLAUDE_EMBED_AT_CAPTURE", "1") == "0":
         return
     _try_embed(con, obj, content_hash)
 

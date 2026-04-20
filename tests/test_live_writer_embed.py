@@ -1,4 +1,4 @@
-"""AC1 + AC2 + AC9: capture-time embedding is opt-in (default OFF)."""
+"""AC1 + AC2 + AC9: capture-time embedding is on by default; opt-out via CLAUDE_EMBED_AT_CAPTURE=0."""
 import os
 import sqlite3
 import sys
@@ -28,18 +28,49 @@ def _count_embeddings(db):
         con.close()
 
 
-class DefaultCaptureSkipsEmbedder(unittest.TestCase):
-    def test_no_embedder_import_on_default_path(self):
+class OptOutSkipsEmbedder(unittest.TestCase):
+    def test_opt_out_skips_embedder_import(self):
         _clear_embedder_env()
+        os.environ["CLAUDE_EMBED_AT_CAPTURE"] = "0"
         for mod in [m for m in list(sys.modules)
                     if m.startswith("embedder")]:
             sys.modules.pop(mod, None)
+        try:
+            self._assert_zero_cost_on_write()
+        finally:
+            _clear_embedder_env()
+
+    def _assert_zero_cost_on_write(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = Path(tmp) / "memory.sqlite"
             schema.ensure(db)
             live_writer.write_one(_obj(), db)
             self.assertEqual(_count_embeddings(db), 0)
             self.assertNotIn("embedder.embedder", sys.modules)
+
+
+class DefaultPathAttemptsEmbed(unittest.TestCase):
+    def test_default_path_imports_embedder_module(self):
+        from _lib import embed_gate
+        saved = os.environ.pop("CLAUDE_EMBED_AT_CAPTURE", None)
+        for mod in [m for m in list(sys.modules)
+                    if m.startswith("embedder")]:
+            sys.modules.pop(mod, None)
+        try:
+            self._invoke_gate_and_assert_import(embed_gate)
+        finally:
+            _restore_env("CLAUDE_EMBED_AT_CAPTURE", saved)
+
+    def _invoke_gate_and_assert_import(self, embed_gate):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "memory.sqlite"
+            schema.ensure(db)
+            con = sqlite3.connect(str(db))
+            try:
+                embed_gate.maybe_embed(con, _obj(), "h" * 64)
+            finally:
+                con.close()
+            self.assertIn("embedder.embedder", sys.modules)
 
 
 class OptInWritesEmbeddingWithFake(unittest.TestCase):
