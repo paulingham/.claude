@@ -85,7 +85,7 @@ If gate is met: invoke `/learn` as the final step of reflection. This is automat
 
 ### 6c. Update Session Memory
 
-Spawn a forked agent (background, non-blocking) with the session memory update prompt to capture engineering knowledge from this pipeline. See `rules/autonomous-intelligence.md` § Session Memory.
+Spawn a `session-memory-updater` agent (Agent tool, `subagent_type: session-memory-updater`, `run_in_background: true`) with curated engineering facts from this pipeline. See `rules/autonomous-intelligence.md` § Update Mechanism for the required prompt contents.
 
 ### 6d. Clean Up Scratchpad
 
