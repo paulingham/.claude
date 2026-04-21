@@ -28,10 +28,24 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 | "API", "endpoint", "resource" (new API) | **Feature + Scaffold** | `/pipeline` → `/api-scaffold` → `/build-implementation` |
 | "Migration", "schema", "add column" | **Feature + Scaffold** | `/pipeline` → `/db-migration` → `/build-implementation` |
 | "Docker", "CI/CD", "deploy", "infra" | **Infrastructure** | `/pipeline` → `/infra-scaffold` |
-| "Extract", "split out", "own repo", "separate service" | **Service Extraction** | `/pipeline` → `/service-extraction` (multi-repo) |
+| "Extract", "split out", "carve out", "separate", "move into its own" (no FF named) | **Module Extraction** | `/pipeline` → `/module-extraction` (same repo) |
+| "Extract to a service", "new repo", "own service", "separate deploy", or any FF named explicitly | **Service Extraction** | `/pipeline` → `/service-extraction` (multi-repo) |
 | "Logging", "monitoring", "observability" | **Infrastructure** | `/pipeline` → `/observability-setup` |
 | Multiple repos referenced, "API + frontend", cross-service | **Multi-Repo Feature** | `/pipeline` (multi-repo mode) |
-| "New service", "new repo", "scaffold service" | **Service Scaffold** | `/pipeline` → `/microservices-scaffold` (multi-repo) |
+| "New service" + FF named, "new repo" + FF named, scaffold-service request | **Service Scaffold** | `/pipeline` → `/microservices-scaffold` (multi-repo) |
+| "New service" with no FF named | **Ambiguous — probe** | Intake runs the forcing-function decision tree below |
+
+### Step 1b — Forcing-Function Decision Tree (always runs when Step 1 routes to Service Extraction / Scaffold — exits at step 1 if FF is explicit)
+
+1. **Explicit FF in the request text?** (keyword scan: "for compliance", "for independent scaling", "blast radius", "team ownership", "regulatory", "HIPAA", "PCI", "GDPR", "data residency", "polyglot")
+   - Yes → route to `/service-extraction` or `/microservices-scaffold`.
+   - No → continue.
+2. **Project already multi-repo?**
+   - Project CLAUDE.md has a `## Service Context` section → route to service.
+   - No → continue.
+3. **Default**: route to `/module-extraction`. Log the decision to `pipeline-state/{task-id}-intake.md` with rationale: "No FF detected; no existing Service Context. Defaulting to module extraction."
+
+**No user prompt.** Plan Validation challengers receive the routing rationale and can flip it if wrong.
 
 ### Step 2: Complexity Budget (MANDATORY — score before routing)
 
