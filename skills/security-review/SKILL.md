@@ -101,6 +101,8 @@ Every finding MUST be assigned a severity. Use the calibration table below:
 
 **Verdict rule:** APPROVE if no CRITICAL, HIGH, or MEDIUM findings. CHANGES_REQUESTED if any CRITICAL, HIGH, or MEDIUM findings exist. LOW and INFO are noted but do not block.
 
+**In-cycle enforcement:** CHANGES_REQUESTED findings MUST be fixed in the current pipeline. The orchestrator is not permitted to downgrade findings to follow-up tickets, ship with known-broken security behavior, or ask the user whether to defer. See `rules/pipeline-protocol.md` § In-Cycle Fix Rule. If a finding is genuinely orthogonal (different attack surface, different module), mark it INFO, not MEDIUM.
+
 ## Phase Output
 
 ```
