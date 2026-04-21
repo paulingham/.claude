@@ -66,17 +66,39 @@ Add `dev` and `build` scripts to enable visual QA via /design-qc.
 
 ### 3b. Classify Service Architecture
 
-Determine the project's role in a larger architecture:
+Determine the project's role in a larger architecture. Check signals in
+order — the first match wins. The modular-monolith row is checked FIRST
+because it is the default project shape; only fall through to the
+multi-service signals if a modules directory is not present.
 
 | Signal | Classification |
 |--------|---------------|
-| No references to other services, self-contained | **Standalone App** |
+| Single codebase with modules under `src/modules/`, `app/modules/`, `internal/modules/`, or `{package}/modules/` | **Modular Monolith** |
+| No references to other services, self-contained, no modules directory | **Standalone App** |
 | `docker-compose.yml` references other service containers | **Service in Multi-Service** |
 | Published as npm/gem/pip package, consumed by others | **Shared Library** |
 | Gateway/proxy config (Kong, Traefik, nginx config) | **API Gateway** |
 | BFF naming, channel-specific routes | **Backend for Frontend** |
 | Alexa skill.json, Google actions.yaml, Twilio config | **Voice Skill** |
 | MQTT, device shadow, firmware files | **IoT/Device Service** |
+
+For **Modular Monolith**, detect and document:
+- The modules directory location (one of the four canonical paths above)
+- The list of declared modules (each immediate subdirectory of the
+  modules directory, excluding dotfiles and `README.md`)
+- The fact that the project is a single deploy unit — no upstream or
+  downstream services by definition
+
+Generate the `## Service Context` section with these exact values:
+```markdown
+## Service Context
+- **Role**: modular-monolith
+- **Upstream**: none
+- **Downstream**: none
+- **Modules**: [comma-separated list of detected module directory names,
+  or "none declared yet" if the modules directory exists but is empty]
+- **Modules directory**: [detected path, e.g. `src/modules/`]
+```
 
 For **Service in Multi-Service**, detect and document:
 - Upstream dependencies (services this one calls)
@@ -221,6 +243,24 @@ If `~/.claude/automation/daemon.sh` exists (automation system is installed):
 ## Conventions
 - [Language-specific conventions detected]
 - [Framework patterns in use]
+
+## Module Boundaries
+[Include this section ONLY when Step 3b classified the project as
+ **Modular Monolith**. Omit for other roles.]
+
+This project is a modular monolith. Module boundaries are governed by
+`~/.claude/rules/module-boundaries-protocol.md` — read that file before
+creating a new module, adding a cross-module call, or proposing a
+service split.
+
+Currently declared modules (detected from `[modules directory path]`):
+- [module-name-1] — [one-line purpose if inferable from README, else "no description"]
+- [module-name-2] — [...]
+- [...]
+
+Splitting a module into a separate service requires a named forcing
+function (FF1–FF5) from the rules file. "We might want to split this
+later" is not a forcing function.
 
 ## Gotchas
 - [Any unusual patterns or configurations found]
