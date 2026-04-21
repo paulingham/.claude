@@ -54,9 +54,9 @@ Embedder ready. Add to your shell profile:
 
 Then backfill existing observations:
 
-  python3 -m embedder backfill --db ~/.claude/db/memory.sqlite
+  PYTHONPATH=skills python3 -m embedder backfill --db ~/.claude/db/memory.sqlite
 
-Verify: python3 -m embedder cli doctor
+Verify: PYTHONPATH=skills python3 -m embedder cli doctor
 
 If 'claude-mem embedder doctor' reports 'verdict: UNHEALTHY',
 delete the model and re-run this script:

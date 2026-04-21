@@ -79,10 +79,10 @@ export ORT_DYLIB_PATH=/opt/homebrew/lib/libonnxruntime.dylib
 export BGE_MODEL_PATH=~/.claude/models/bge-small-en-v1.5/model.onnx
 
 # 4. Backfill existing observations
-python3 -m embedder backfill --db ~/.claude/db/memory.sqlite
+PYTHONPATH=skills python3 -m embedder backfill --db ~/.claude/db/memory.sqlite
 
 # 5. Verify — doctor will show verdict: OK
-python3 -m embedder cli doctor
+PYTHONPATH=skills python3 -m embedder cli doctor
 ```
 
 ## Test-only: CLAUDE_EMBEDDER=fake
@@ -95,7 +95,7 @@ contract (`encode(text) -> bytes` of length `4 * dim`). **Do not use in
 production.** Treat it as a stub for wiring tests.
 
 ```bash
-CLAUDE_EMBEDDER=fake python3 -m embedder cli doctor   # tests only
+CLAUDE_EMBEDDER=fake PYTHONPATH=skills python3 -m embedder cli doctor   # tests only
 ```
 
 ## Bootstrap gates embedding

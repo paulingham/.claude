@@ -1,12 +1,20 @@
 """Doctor diagnostic: 6 fields + verdict. See SKILL.md and plan AC13."""
 import os
 import sys
+from pathlib import Path
 
 from embedder import status
 from embedder._lib import doctor_db, doctor_probe, doctor_verdict
 # S10: reindex-memory -> embedder import at module load is safe — banner
 # helper is stdlib-only and does not re-enter the embedder facade.
-from _lib import embed_banner
+# reindex-memory has a hyphen so it can't be imported as a package; the
+# repo idiom (see recall/_lib/api_args.py) is to prepend its dir to
+# sys.path so `from _lib import X` resolves.
+_REINDEX = str(Path(__file__).resolve().parents[3]
+               / "skills" / "reindex-memory")
+if _REINDEX not in sys.path:
+    sys.path.insert(0, _REINDEX)
+from _lib import embed_banner  # noqa: E402
 
 _FIELDS = ("ORT_DYLIB_PATH", "BGE_MODEL_PATH", "last_error",
            "last_error_at", "last_success_at")

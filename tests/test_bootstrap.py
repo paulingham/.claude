@@ -140,45 +140,57 @@ class RunDoesNotClobberExistingSetting(unittest.TestCase):
 
 class RunDownloadsModelWhenMissing(unittest.TestCase):
     def test_invokes_download_script_with_noninteractive_env(self):
+        import tempfile
         from subprocess import CompletedProcess
         ok = CompletedProcess(args=[], returncode=0)
-        with patch("embedder._lib.bootstrap.platform.system",
-                   return_value="Darwin"), \
-             patch("embedder._lib.bootstrap._is_healthy",
-                   return_value=False), \
-             patch("embedder._lib.bootstrap._dylib_path",
-                   return_value=Path("/tmp/exists")), \
-             patch("embedder._lib.bootstrap._model_path",
-                   return_value=Path("/nonexistent/model.onnx")), \
-             patch("embedder._lib.bootstrap_steps.subprocess.run",
-                   return_value=ok) as sub:
-            Path("/tmp/exists").touch()
-            bootstrap.run()
-        call = _find_call(sub, "download-model.sh")
-        self.assertIsNotNone(call)
-        self.assertEqual(call.kwargs["env"].get("NONINTERACTIVE"), "1")
+        with tempfile.TemporaryDirectory() as d:
+            tmp_settings = Path(d) / "settings.json"
+            tmp_settings.write_text('{"env": {}}')
+            env_patch = {"CLAUDE_SETTINGS_PATH": str(tmp_settings)}
+            with patch.dict(os.environ, env_patch, clear=False), \
+                 patch("embedder._lib.bootstrap.platform.system",
+                       return_value="Darwin"), \
+                 patch("embedder._lib.bootstrap._is_healthy",
+                       return_value=False), \
+                 patch("embedder._lib.bootstrap._dylib_path",
+                       return_value=Path("/tmp/exists")), \
+                 patch("embedder._lib.bootstrap._model_path",
+                       return_value=Path("/nonexistent/model.onnx")), \
+                 patch("embedder._lib.bootstrap_steps.subprocess.run",
+                       return_value=ok) as sub:
+                Path("/tmp/exists").touch()
+                bootstrap.run()
+            call = _find_call(sub, "download-model.sh")
+            self.assertIsNotNone(call)
+            self.assertEqual(call.kwargs["env"].get("NONINTERACTIVE"), "1")
 
 
 class RunWarnsWhenDownloadFails(unittest.TestCase):
     def test_download_script_nonzero_returns_partial(self):
+        import tempfile
         from subprocess import CompletedProcess
         failed = CompletedProcess(args=[], returncode=1)
         buf = io.StringIO()
-        with patch("embedder._lib.bootstrap.platform.system",
-                   return_value="Darwin"), \
-             patch("embedder._lib.bootstrap._is_healthy",
-                   return_value=False), \
-             patch("embedder._lib.bootstrap._dylib_path",
-                   return_value=Path("/tmp/exists")), \
-             patch("embedder._lib.bootstrap._model_path",
-                   return_value=Path("/nonexistent/model.onnx")), \
-             patch("embedder._lib.bootstrap_steps.subprocess.run",
-                   return_value=failed):
-            Path("/tmp/exists").touch()
-            with redirect_stdout(buf):
-                code = bootstrap.run()
-        self.assertEqual(code, bootstrap.PARTIAL)
-        self.assertIn("model download failed", buf.getvalue())
+        with tempfile.TemporaryDirectory() as d:
+            tmp_settings = Path(d) / "settings.json"
+            tmp_settings.write_text('{"env": {}}')
+            env_patch = {"CLAUDE_SETTINGS_PATH": str(tmp_settings)}
+            with patch.dict(os.environ, env_patch, clear=False), \
+                 patch("embedder._lib.bootstrap.platform.system",
+                       return_value="Darwin"), \
+                 patch("embedder._lib.bootstrap._is_healthy",
+                       return_value=False), \
+                 patch("embedder._lib.bootstrap._dylib_path",
+                       return_value=Path("/tmp/exists")), \
+                 patch("embedder._lib.bootstrap._model_path",
+                       return_value=Path("/nonexistent/model.onnx")), \
+                 patch("embedder._lib.bootstrap_steps.subprocess.run",
+                       return_value=failed):
+                Path("/tmp/exists").touch()
+                with redirect_stdout(buf):
+                    code = bootstrap.run()
+            self.assertEqual(code, bootstrap.PARTIAL)
+            self.assertIn("model download failed", buf.getvalue())
 
 
 class RunContinuesOnBrewFailure(unittest.TestCase):
