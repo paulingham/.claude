@@ -66,7 +66,22 @@
       "Bash(git branch -D main)",
       "Bash(git branch -D master)"
     ],
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "bypassPermissions",
+    "additionalDirectories": [
+      "/Users/Paul.Ingham/.claude/pipeline-state",
+      "/Users/Paul.Ingham/.claude/session-memory",
+      "/Users/Paul.Ingham/.claude/agent-memory",
+      "/Users/Paul.Ingham/.claude/learning",
+      "/Users/Paul.Ingham/.claude/automation",
+      "/Users/Paul.Ingham/.claude/skills",
+      "/Users/Paul.Ingham/.claude/tests",
+      "/Users/Paul.Ingham/.claude/hooks",
+      "/Users/Paul.Ingham/.claude/agents",
+      "/Users/Paul.Ingham/.claude/rules",
+      "/Users/Paul.Ingham/.claude/scripts",
+      "/Users/Paul.Ingham/.claude/db",
+      "/Users/Paul.Ingham/.claude/manifests"
+    ]
   },
   "hooks": {
     "Notification": [
