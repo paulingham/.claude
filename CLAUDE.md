@@ -165,6 +165,7 @@ Every agent spawn includes: instincts + agent memory + session memory + scratchp
 | `/voice-scaffold` | Scaffold voice skill/action (Alexa, Google, Twilio IVR) | VOICE_SCAFFOLDED |
 | `/bff-scaffold` | Backend for Frontend per channel (web, mobile, voice, device) | BFF_SCAFFOLDED |
 | `/cross-service-pipeline` | Cross-repo contract verification, deploy coordination | CROSS_SERVICE_VERIFIED |
+| `/module-extraction` | Extract a bounded context into an in-process module with an explicit port (same repo, no forcing function) | BOUNDARY_READY / MODULE_EXTRACTED / EXTRACTION_BLOCKED / WRONG_SKILL |
 | `/service-extraction` | Extract module to own repo: create repo, migrate, refactor, PRs | SERVICE_EXTRACTED |
 | `/debug` | Persistent debug state for complex, multi-session bugs | DEBUG_RESOLVED |
 | `/forensics` | Post-incident pipeline investigation | CLEAN / ANOMALIES_FOUND |
