@@ -1,7 +1,21 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run test)"
-    ]
+      "Bash(npm run test)",
+      "Write(/Users/Paul.Ingham/.claude/**)",
+      "Edit(/Users/Paul.Ingham/.claude/**)",
+      "Read(/Users/Paul.Ingham/.claude/**)",
+      "Bash(mkdir *)",
+      "Bash(mkdir -p *)",
+      "Bash(touch *)",
+      "Bash(git *)",
+      "Bash(rm /Users/Paul.Ingham/.claude/**)",
+      "Bash(rm -f /Users/Paul.Ingham/.claude/**)",
+      "Bash(rm -rf /Users/Paul.Ingham/.claude/pipeline-state/**)",
+      "Bash(rm -rf /Users/Paul.Ingham/.claude/session-memory/**)",
+      "Bash(rm -rf /Users/Paul.Ingham/.claude/agent-memory/**)",
+      "Bash(rm -rf /Users/Paul.Ingham/.claude/learning/**)"
+    ],
+    "defaultMode": "bypassPermissions"
   }
 }
