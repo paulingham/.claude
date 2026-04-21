@@ -35,7 +35,7 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 | "New service" + FF named, "new repo" + FF named, scaffold-service request | **Service Scaffold** | `/pipeline` → `/microservices-scaffold` (multi-repo) |
 | "New service" with no FF named | **Ambiguous — probe** | Intake runs the forcing-function decision tree below |
 
-### Step 1b — Forcing-Function Decision Tree (when Step 1 lands on Service Extraction / Scaffold via keyword-only)
+### Step 1b — Forcing-Function Decision Tree (always runs when Step 1 routes to Service Extraction / Scaffold — exits at step 1 if FF is explicit)
 
 1. **Explicit FF in the request text?** (keyword scan: "for compliance", "for independent scaling", "different language", "blast radius", "team ownership", "regulatory", "HIPAA", "PCI", "GDPR", "data residency", "polyglot")
    - Yes → route to `/service-extraction` or `/microservices-scaffold`.

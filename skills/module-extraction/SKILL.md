@@ -1,5 +1,6 @@
 ---
 name: "module-extraction"
+description: "Use when user wants to extract a bounded context into an in-process module with an explicit public port (same repo, no new process or deploy unit). Default answer to 'extract/split/separate X' when no forcing function is named."
 context: fork
 agent: software-engineer
 argument-hint: "What to extract into a module (e.g., 'extract billing into a module with an explicit port')"
@@ -142,14 +143,12 @@ Shape guidance: the port is a pure signature surface — no implementation, no d
 
 ## Phases 3–6 — Outline (Future Work)
 
-Full procedural implementation is deferred to a follow-up pipeline. Until that pipeline ships, these phases run via the standard Build phase using TDD against the Phase 2 contract.
+Full procedural implementation is deferred to a follow-up pipeline. Until that pipeline ships, the standard Build phase drives these against the Phase 2 contract via `/build-implementation` using TDD.
 
 - **Phase 3 — Directory move + namespace**: move module files into `src/modules/{name}/` (or language equivalent: `app/modules/` for Rails, `internal/` for Go, `{package}/modules/` for Python). Update internal imports. Preserve external callers via shim/barrel export during transition.
 - **Phase 4 — Enforce the seam**: add a lint rule or compiler boundary check so external code can only import from the port (see per-language table below). Remove the transitional shim after all callers migrate.
 - **Phase 5 — Seam test**: one test that exercises the module solely through the port with all collaborators injected. Proves the contract is honored without white-box access.
 - **Phase 6 — DI wiring**: convert module-internal reach-outs (SDKs, DB clients, HTTP clients) into constructor-injected dependencies. No global lookups from within the module.
-
-Full implementation of phases 3–6 is deferred to a follow-up pipeline. The standard Build phase can drive them today against the Phase 2 contract using `/build-implementation`.
 
 ## Per-Language Lint Rule Table
 
