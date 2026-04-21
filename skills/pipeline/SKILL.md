@@ -335,6 +335,14 @@ All other phases (Build single slice, Polish, Ship) use sequential Skill tool in
 1. Fix quality gate failures
 2. Re-run `/pr-creation`
 
+### WRONG_SKILL Handling
+
+When a skill returns `WRONG_SKILL: {guidance}`, the orchestrator automatically re-invokes the correct skill with the same task context. No user prompt. The re-invocation is logged to pipeline state as `re-routed from /{original-skill} to /{target-skill} (reason: {guidance})`.
+
+- **Maximum one re-route per pipeline** — a second `WRONG_SKILL` escalates to user.
+- The target skill is parsed from the guidance text (e.g., `WRONG_SKILL: use /module-extraction` → target is `/module-extraction`).
+- Routing is recorded in `pipeline-state/{task-id}-pipeline.md` under a `## Re-routes` section.
+
 ### Step 4b: Extraction Assessment (Automatic, Post-Accept)
 
 After Accept phase completes (APPROVED), check whether the codebase has grown to warrant service extraction:
