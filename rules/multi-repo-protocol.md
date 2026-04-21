@@ -1,5 +1,7 @@
 # Multi-Repo Protocol
 
+> This protocol applies to projects that are already multi-repo. New projects default to modular monolith per `rules/module-boundaries-protocol.md`. Adopt this protocol only when a forcing function is named and the pipeline has routed to `/service-extraction` or `/microservices-scaffold`.
+
 ## Project Manifest
 
 The manifest is the single source of truth for multi-repo projects. It tracks repos, their relationships, service config, and deployment order.

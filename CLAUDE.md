@@ -213,6 +213,7 @@ All detailed protocols are in `rules/` (auto-loaded each session):
 - `rules/engineering-protocol.md` — Code shape, TDD, testing standards, security baseline
 - `rules/operational-protocol.md` — Complexity Budget, error recovery principles
 - `rules/parallel-dispatch-protocol.md` — Hybrid dispatch: teams for Build/Review/Final Gate, subagents for Plan/Ship/Deploy
+- `rules/module-boundaries-protocol.md` — Modular monolith default, module contract artifacts, canonical forcing-function list (FF1–FF5)
 - `rules/multi-repo-protocol.md` — Project manifests, multi-repo pipelines, GitHub service config, linked PRs, deploy ordering
 - `rules/e2e-protocol.md` — Maestro E2E trigger matrix and prerequisites
 - `rules/reflection-protocol.md` — Post-pipeline reflection, root cause analysis, continuous improvement
