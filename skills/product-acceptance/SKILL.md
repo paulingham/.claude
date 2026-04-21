@@ -67,6 +67,8 @@ No `isolation: "worktree"` — product-reviewer is read-only.
 - **APPROVED WITH CONDITIONS**: Spawn engineer (with worktree) to address conditions. Re-run acceptance.
 - **REJECTED**: Return to Build phase with specific feedback.
 
+**In-cycle enforcement:** Conditions and rejections MUST be resolved in the current pipeline. The orchestrator is not permitted to ship APPROVED_WITH_CONDITIONS as a "follow-up ticket" compromise, and must not ask the user whether to defer. If product-reviewer surfaces a defect that makes the fix-being-shipped incomplete, broken, or misleading (e.g. docs point users at a command that still fails), that is CHANGES_REQUESTED territory — dispatch a fix-engineer, roll the fix in, re-run acceptance. See `rules/pipeline-protocol.md` § In-Cycle Fix Rule.
+
 ## Acceptance Checklist
 
 - [ ] Every AC has evidence of completion (passing test, screenshot, or demo)

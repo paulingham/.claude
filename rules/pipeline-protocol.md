@@ -98,6 +98,20 @@ Spawn code-reviewer + security-engineer as teammates in the pipeline team (per p
 
 Both reviewers use the same threshold: CRITICAL, HIGH, or MEDIUM findings trigger CHANGES_REQUESTED. LOW and INFO findings are included in the review output for the PR narrative but do not gate advancement.
 
+### In-Cycle Fix Rule (IRON LAW)
+
+> **Findings surfaced during review are fixed IN THIS PIPELINE. Never filed as follow-ups. Never surfaced as questions to the user.**
+
+This applies to findings from code-reviewer, security-engineer, product-reviewer, qa-engineer, verify phase, AND build-phase scratchpad warnings that indicate the shipped change is incomplete or leaves adjacent documented behavior broken.
+
+- **No follow-up tickets** for defects the current change exposes, leaves broken, or makes misleading. Follow-ups are ONLY for genuinely orthogonal work (different module, different contract, different user journey).
+- **No "ship as-is + file ticket"** compromises. The pipeline does not ship known-incomplete fixes.
+- **No questions to the user** asking whether to expand scope. The pipeline decides autonomously: dispatch fix-engineer, roll the fix into the current branch family, re-run targeted review, then ship.
+- **"Minimal scope" / "narrow fix" user directives** constrain *approach* (don't reorganize, don't refactor unrelated code), not *coverage* (ignore defects the fix exposes). Read user constraints literally.
+- **Escalate to the user ONLY if** the required fix is architecturally large (cross-service, new module, >~100 LOC) OR outside the current task's layer. In that case HALT the pipeline — do not ship the incomplete fix.
+
+Round counting: expanding scope to fix an in-cycle finding does NOT reset the review-round counter, but a clean re-review on the combined diff is still required before ship.
+
 ### After CHANGES_REQUESTED
 1. Spawn fix-engineer into the same pipeline team with the specific findings
 2. Fix-engineer fixes and commits
