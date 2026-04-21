@@ -5,6 +5,7 @@
 - Lean agile: thin vertical slices delivering observable user value
 - MVP mindset: smallest increment that validates the hypothesis
 - Ship-learn-iterate: deploy independently, measure, adapt
+- Modular monolith by default: in-process boundaries first; new services only when a forcing function (see `rules/module-boundaries-protocol.md`) is explicitly named.
 - Engineering discipline: TDD mandatory, SOLID, DRY, clean architecture
 - Zero waste: every output line is a test result or a real error
 - Proven correct: tests passing is necessary but not sufficient — verify it actually works
