@@ -17,7 +17,7 @@ You describe what you want. The system:
 9. **Ships** a PR with quality gate enforcement
 10. **Deploys** with post-deploy verification and automatic rollback
 
-If a module outgrows the monolith, it detects extraction signals during review and can autonomously create a new repo, migrate the code, generate contracts, refactor the monolith, and open PRs in both repos.
+**Modular monolith is the default.** New work lives as a bounded context inside the existing repo with an explicit port (in-process module). When a module needs stronger boundaries short of a separate service, `/module-extraction` is the first-class, default extraction path. Splitting a module into its own repo is **advanced** and gated behind a named forcing function (see `rules/module-boundaries-protocol.md`) — the Advanced service/multi-repo skills are invoked only when a forcing function applies.
 
 11. **Learns** from every run — agents share discoveries in real-time, engineering context survives context compaction, and the system builds instincts that make future runs smarter
 
@@ -133,6 +133,7 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `/build-implementation` | Incremental TDD with shape enforcement |
 | `/refactor` | Safe refactoring with characterization tests |
 | `/bug-fix` | Root cause analysis + regression test + fix |
+| `/module-extraction` | Default extraction path — bounded context → in-process module with an explicit port (same repo, no forcing function needed) |
 | `/tech-spike` | Time-boxed technical research |
 
 ### Scaffolding (Auto-Detected)
@@ -145,9 +146,16 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `/infra-scaffold` | No Dockerfile/CI/CD |
 | `/observability-setup` | No logging/monitoring |
 | `/voice-scaffold` | Voice skill needed (Alexa/Google/Twilio) |
-| `/bff-scaffold` | New channel needs Backend for Frontend |
-| `/microservices-scaffold` | New service extraction |
-| `/service-extraction` | Full autonomous repo creation + code migration |
+
+### Advanced — Service / Multi-Repo (forcing function required)
+Invoked only when a forcing function from `rules/module-boundaries-protocol.md` applies. Routing is automatic — `/microservices-scaffold` gates on this at its Step 0 (returns `WRONG_SKILL` if no forcing function is named). For same-repo boundary work, use `/module-extraction` instead.
+
+| Skill | Trigger |
+|-------|---------|
+| `/service-extraction` | Extract module to own repo (FF required) — autonomous repo creation + migration |
+| `/microservices-scaffold` | New microservice (FF required; Step 0 gate) |
+| `/cross-service-pipeline` | Cross-repo contract + deploy coordination |
+| `/bff-scaffold` | Channel-specific Backend for Frontend layer |
 
 ### Quality Gates
 | Skill | Verdict |
@@ -162,10 +170,9 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `/deploy` | DEPLOYED / ROLLED_BACK |
 | `/deployment-verification` | DEPLOYMENT_VERIFIED / AUTO_ROLLBACK |
 
-### Cross-Service
+### Operations & Tooling
 | Skill | Purpose |
 |-------|---------|
-| `/cross-service-pipeline` | Contract verification, deploy coordination |
 | `/harness-config` | Modify hooks, settings.json (delegates to infra-engineer) |
 | `/harness-audit` | Health check of ~/.claude/ config (+ agnix integration) |
 | `/debug` | Persistent debug state for complex, multi-session bugs |
