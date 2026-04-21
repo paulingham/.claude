@@ -37,7 +37,7 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 
 ### Step 1b — Forcing-Function Decision Tree (always runs when Step 1 routes to Service Extraction / Scaffold — exits at step 1 if FF is explicit)
 
-1. **Explicit FF in the request text?** (keyword scan: "for compliance", "for independent scaling", "different language", "blast radius", "team ownership", "regulatory", "HIPAA", "PCI", "GDPR", "data residency", "polyglot")
+1. **Explicit FF in the request text?** (keyword scan: "for compliance", "for independent scaling", "blast radius", "team ownership", "regulatory", "HIPAA", "PCI", "GDPR", "data residency", "polyglot")
    - Yes → route to `/service-extraction` or `/microservices-scaffold`.
    - No → continue.
 2. **Project already multi-repo?**
