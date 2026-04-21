@@ -81,6 +81,17 @@ Agent({
     2. The EXACT bootstrap command from the decision matrix
     3. ## Alternatives Considered (minimum 2 alternatives with rejection rationale)
     4. Any constraint-driven overrides from the Constraint Modifiers table
+    5. ## Service Topology:
+       Unless a forcing function from ~/.claude/rules/module-boundaries-protocol.md
+       (FF1–FF5) is present in the product brief, recommend a single-service
+       MODULAR MONOLITH. In-process module boundaries first; new services only
+       when a forcing function is explicitly named. If the brief implies
+       FF1–FF5 (e.g. ML inference → FF5 polyglot runtime, payment isolation
+       → FF3 fault isolation, regulated data residency → FF4 compliance),
+       call it out by name and propose a small service carve-out WITH
+       WRITTEN JUSTIFICATION tied to the specific forcing function. Do NOT
+       split services by default. 'We might want to split this later' is
+       not a forcing function — it is a modular-monolith module.
 
     Output as a structured ADR in markdown."
 })
@@ -142,14 +153,45 @@ Agent({
     After bootstrap:
     1. Verify the project builds: {build command}
     2. Verify the dev server starts: {dev command}
-    3. Commit: 'chore: bootstrap {framework} project'
+    3. Create the modular-monolith module directory scaffold (unless the
+       tech-stack ADR carved out a separate service with a named FF1–FF5).
+       Use the language-appropriate location:
+       - Node/TypeScript/Next/Vite: `src/modules/`
+       - Rails/Ruby: `app/modules/`
+       - Go: `internal/modules/`
+       - Python (package layout): `{package}/modules/`
+       Inside, create a `README.md` with this exact content (substitute the
+       path and language as appropriate):
+
+       ```markdown
+       # Modules
+
+       This project is a modular monolith. Each subdirectory here is a
+       **module**: an in-process unit with a clean public contract and a
+       private implementation. Modules talk to each other only through
+       their public interfaces — never by reaching into another module's
+       internals.
+
+       See `~/.claude/rules/module-boundaries-protocol.md` for the full
+       rules, including:
+       - What counts as a public contract vs. private internals
+       - How modules are tested at the seam
+       - The forcing-function list (FF1–FF5) that justifies promoting a
+         module to a separate service
+
+       Add new features as new modules here. Split into a separate service
+       only when a named forcing function from the rules file applies.
+       ```
+
+    4. Commit: 'chore: bootstrap {framework} project with modular-monolith layout'
 
     Do NOT install additional dependencies beyond the bootstrap.
     Do NOT configure DevX tooling — that is Step 5."
 })
 ```
 
-After merge: `package.json` (or equivalent) exists on disk. All detection logic now works.
+After merge: `package.json` (or equivalent) exists on disk, the modules
+directory scaffold is in place, and all detection logic now works.
 
 ### Step 5: DevX Setup (Infrastructure Engineer)
 

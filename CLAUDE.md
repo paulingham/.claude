@@ -5,6 +5,7 @@
 - Lean agile: thin vertical slices delivering observable user value
 - MVP mindset: smallest increment that validates the hypothesis
 - Ship-learn-iterate: deploy independently, measure, adapt
+- Modular monolith by default: in-process boundaries first; new services only when a forcing function (see `rules/module-boundaries-protocol.md`) is explicitly named.
 - Engineering discipline: TDD mandatory, SOLID, DRY, clean architecture
 - Zero waste: every output line is a test result or a real error
 - Proven correct: tests passing is necessary but not sufficient — verify it actually works
@@ -161,11 +162,8 @@ Every agent spawn includes: instincts + agent memory + session memory + scratchp
 | `/web-frontend-patterns` | React/Next.js patterns, state, a11y, performance, caching | PATTERNS_APPLIED |
 | `/deployment-verification` | Post-deploy health checks, smoke tests, auto-rollback | DEPLOYMENT_VERIFIED |
 | `/load-test` | Performance testing: load, stress, baselines, SLA verification | PERFORMANCE_VERIFIED |
-| `/microservices-scaffold` | Service template, API gateway, service discovery, tracing | SERVICE_SCAFFOLDED |
 | `/voice-scaffold` | Scaffold voice skill/action (Alexa, Google, Twilio IVR) | VOICE_SCAFFOLDED |
-| `/bff-scaffold` | Backend for Frontend per channel (web, mobile, voice, device) | BFF_SCAFFOLDED |
-| `/cross-service-pipeline` | Cross-repo contract verification, deploy coordination | CROSS_SERVICE_VERIFIED |
-| `/service-extraction` | Extract module to own repo: create repo, migrate, refactor, PRs | SERVICE_EXTRACTED |
+| `/module-extraction` | Extract a bounded context into an in-process module with an explicit port (same repo, no forcing function) | BOUNDARY_READY / MODULE_EXTRACTED / EXTRACTION_BLOCKED / WRONG_SKILL |
 | `/debug` | Persistent debug state for complex, multi-session bugs | DEBUG_RESOLVED |
 | `/forensics` | Post-incident pipeline investigation | CLEAN / ANOMALIES_FOUND |
 | `/workstream` | Manage isolated workstreams for parallel development | WORKSTREAM_CREATED |
@@ -177,6 +175,17 @@ Every agent spawn includes: instincts + agent memory + session memory + scratchp
 | `/greenfield-scaffold` | Full project bootstrap from scratch: discovery, tech stack, UI architecture, framework init, DevX, design, infra, seed data | GREENFIELD_SCAFFOLD_COMPLETE |
 | `/creative-direction` | Pre-build design thinking: brand brief → fonts, palette, layout, interaction paradigm | CREATIVE_DIRECTION_COMPLETE |
 | `/design-system-init` | Generate design tokens, primitives, dark mode for a project | DESIGN_SYSTEM_READY |
+
+#### Advanced — Service / Multi-Repo (forcing function required)
+
+These skills are invoked only when a forcing function from `rules/module-boundaries-protocol.md` is named. The pipeline will route automatically — you do not invoke them directly. `/microservices-scaffold` enforces this at its Step 0.
+
+| Skill | When to Invoke | Verdict |
+|-------|----------------|---------|
+| `/service-extraction` | Extract module to own repo (FF required) | SERVICE_EXTRACTED |
+| `/microservices-scaffold` | New microservice (FF required; Step 0 gate) | SERVICE_SCAFFOLDED / WRONG_SKILL |
+| `/cross-service-pipeline` | Cross-repo contract + deploy coordination | CROSS_SERVICE_VERIFIED |
+| `/bff-scaffold` | Channel-specific BFF layer | BFF_SCAFFOLDED |
 
 ### Definition of Done
 
@@ -213,6 +222,7 @@ All detailed protocols are in `rules/` (auto-loaded each session):
 - `rules/engineering-protocol.md` — Code shape, TDD, testing standards, security baseline
 - `rules/operational-protocol.md` — Complexity Budget, error recovery principles
 - `rules/parallel-dispatch-protocol.md` — Hybrid dispatch: teams for Build/Review/Final Gate, subagents for Plan/Ship/Deploy
+- `rules/module-boundaries-protocol.md` — Modular monolith default, module contract artifacts, canonical forcing-function list (FF1–FF5)
 - `rules/multi-repo-protocol.md` — Project manifests, multi-repo pipelines, GitHub service config, linked PRs, deploy ordering
 - `rules/e2e-protocol.md` — Maestro E2E trigger matrix and prerequisites
 - `rules/reflection-protocol.md` — Post-pipeline reflection, root cause analysis, continuous improvement

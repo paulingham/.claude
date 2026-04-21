@@ -28,6 +28,14 @@ Autonomously extracts a bounded context from a monolith into its own repository.
 
 ## Process
 
+### Step 0 — Forcing-Function Gate
+
+Before any extraction work, verify at least one FF from `rules/module-boundaries-protocol.md` is named in the task context:
+
+1. Scan the task description for explicit FF phrasing (compliance, scaling, polyglot, blast radius, team ownership, regulatory, HIPAA, PCI, GDPR, data residency).
+2. Scan pipeline state (`pipeline-state/{task-id}-intake.md`) for an intake-stamped FF rationale.
+3. If neither is present, exit immediately with verdict `WRONG_SKILL: no forcing function detected — use /module-extraction instead`.
+
 ### Step 1: Analyze Extraction Boundary
 
 Identify what's being extracted:
