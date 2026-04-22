@@ -43,7 +43,7 @@ Register via `mcpServers`:
 "mcpServers": {
   "memory": {
     "command": "python3",
-    "args": ["/Users/Paul.Ingham/.claude/skills/mcp_memory/server.py"]
+    "args": ["$HOME/.claude/skills/mcp_memory/server.py"]
   }
 }
 ```
