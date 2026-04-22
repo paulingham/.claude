@@ -47,3 +47,46 @@ teardown() {
   [ "$status" -eq 0 ]
   [ "$output" = "unknown" ]
 }
+
+# ---------- install_pkg (AC3.2, AC3.3, AC3.4) ----------
+
+@test "install_pkg prints brew install on macos via INSTALL_PKG_CMD_PRINTER" {
+  run bash -c "export INSTALL_PKG_CMD_PRINTER=echo; source '$LIB_DIR/install-pkg.sh'; install_pkg jq macos"
+  [ "$status" -eq 0 ]
+  [ "$output" = "brew install jq" ]
+}
+
+@test "install_pkg prints sudo apt-get on ubuntu" {
+  run bash -c "export INSTALL_PKG_CMD_PRINTER=echo; source '$LIB_DIR/install-pkg.sh'; install_pkg ripgrep ubuntu"
+  [ "$status" -eq 0 ]
+  [ "$output" = "sudo apt-get install -y ripgrep" ]
+}
+
+@test "install_pkg prints sudo apt-get on debian" {
+  run bash -c "export INSTALL_PKG_CMD_PRINTER=echo; source '$LIB_DIR/install-pkg.sh'; install_pkg jq debian"
+  [ "$status" -eq 0 ]
+  [ "$output" = "sudo apt-get install -y jq" ]
+}
+
+@test "install_pkg prints sudo dnf on fedora" {
+  run bash -c "export INSTALL_PKG_CMD_PRINTER=echo; source '$LIB_DIR/install-pkg.sh'; install_pkg jq fedora"
+  [ "$status" -eq 0 ]
+  [ "$output" = "sudo dnf install -y jq" ]
+}
+
+@test "install_pkg prints pacman on arch" {
+  run bash -c "export INSTALL_PKG_CMD_PRINTER=echo; source '$LIB_DIR/install-pkg.sh'; install_pkg jq arch"
+  [ "$status" -eq 0 ]
+  [ "$output" = "sudo pacman -S --noconfirm jq" ]
+}
+
+@test "install_pkg prints apk on alpine" {
+  run bash -c "export INSTALL_PKG_CMD_PRINTER=echo; source '$LIB_DIR/install-pkg.sh'; install_pkg jq alpine"
+  [ "$status" -eq 0 ]
+  [ "$output" = "sudo apk add --no-cache jq" ]
+}
+
+@test "install_pkg returns non-zero on unknown os" {
+  run bash -c "export INSTALL_PKG_CMD_PRINTER=echo; source '$LIB_DIR/install-pkg.sh'; install_pkg jq unknown"
+  [ "$status" -ne 0 ]
+}
