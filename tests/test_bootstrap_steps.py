@@ -51,5 +51,24 @@ class DownloadModelSurvivesTimeout(unittest.TestCase):
         self.assertIn("download", buf.getvalue())
 
 
+class InstallOrtLinuxDispatchesAptGet(unittest.TestCase):
+    """Slice 1: install_ort on Linux invokes apt-get, not brew."""
+    def test_linux_shells_out_to_apt_get_install(self):
+        from subprocess import CompletedProcess
+        ok = CompletedProcess(args=[], returncode=0)
+        with patch("embedder._lib.bootstrap_install.platform.system",
+                   return_value="Linux"), \
+             patch("embedder._lib.bootstrap_steps.shutil.which",
+                   return_value="/usr/bin/apt-get"), \
+             patch("embedder._lib.bootstrap_steps.subprocess.run",
+                   return_value=ok) as sub:
+            code = bootstrap_steps.install_ort()
+        self.assertEqual(code, 0)
+        cmd = sub.call_args.args[0]
+        self.assertEqual(cmd[0], "sudo")
+        self.assertIn("apt-get", cmd)
+        self.assertIn("libonnxruntime-dev", cmd)
+
+
 if __name__ == "__main__":
     unittest.main()

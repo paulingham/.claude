@@ -1,23 +1,24 @@
-"""S9: embedder bootstrap for zero-config macOS install. Graceful fallback."""
+"""embedder bootstrap: macOS + Linux zero-config; Windows uses WSL."""
 import platform
 import sys
 
 from embedder._lib import (
     bootstrap_paths, bootstrap_settings, bootstrap_steps, doctor_probe)
 
-SKIP_NON_MACOS = 10
+WIN_UNSUPPORTED = 10
+SKIP_NON_MACOS = WIN_UNSUPPORTED  # back-compat alias
 PARTIAL = 20
 
 
 def run():
-    if platform.system() != "Darwin":
+    if platform.system() == "Windows":
         return _skip()
     return 0 if _is_healthy() else _bootstrap()
 
 
 def _skip():
-    print("embedder bootstrap skipped (non-macOS)")
-    return SKIP_NON_MACOS
+    print("embedder bootstrap skipped (Windows not supported — use WSL)")
+    return WIN_UNSUPPORTED
 
 
 def _bootstrap():
