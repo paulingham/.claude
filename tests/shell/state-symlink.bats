@@ -71,6 +71,57 @@ _seed_harness_state() {
   [ -L "$wt/db/memory.sqlite" ]
 }
 
+@test "AC5c.1 integration: new-session.sh against \$HOME/.claude creates symlinks in worktree" {
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$FAKE_HARNESS" --name s1
+  [ "$status" -eq 0 ]
+  local wt="$SESSIONS_ROOT/claude/s1"
+  [ -L "$wt/session-memory" ]
+  [ -L "$wt/learning" ]
+  [ -L "$wt/manifests" ]
+  [ -L "$wt/db/memory.sqlite" ]
+}
+
+@test "AC5c.2 integration: --no-state-share skips all symlinks" {
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$FAKE_HARNESS" --name s2 --no-state-share
+  [ "$status" -eq 0 ]
+  local wt="$SESSIONS_ROOT/claude/s2"
+  [ ! -L "$wt/session-memory" ]
+  [ ! -L "$wt/learning" ]
+  [ ! -L "$wt/manifests" ]
+  [ ! -L "$wt/db/memory.sqlite" ]
+}
+
+@test "AC5c.3 integration: non-harness repo yields no state symlinks" {
+  local other="$WORK_DIR/otherrepo"
+  mkdir -p "$other"
+  (
+    cd "$other" || exit 1
+    git init -q -b main
+    git config user.email ci@example.com
+    git config user.name ci
+    echo x > README.md; git add README.md; git commit -q -m initial
+  )
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$other" --name s3
+  [ "$status" -eq 0 ]
+  local wt="$SESSIONS_ROOT/otherrepo/s3"
+  [ ! -L "$wt/session-memory" ]
+  [ ! -L "$wt/learning" ]
+  [ ! -L "$wt/manifests" ]
+  [ ! -L "$wt/db/memory.sqlite" ]
+  git -C "$other" worktree remove --force "$wt" 2>/dev/null || true
+}
+
+@test "AC5c.4: _is_canonical_harness resolves symlinked \$HOME to true, non-harness repo to false" {
+  # stage a symlink path that points to the real harness (simulates macOS /var -> /private/var)
+  local alt="$WORK_DIR/alt-home"
+  ln -sfn "$FAKE_HOME" "$alt"
+  run bash -c "source '$LIB_DIR/state-symlink.sh'; _is_canonical_harness '$alt/.claude' && echo YES"
+  [ "$status" -eq 0 ]
+  [ "$output" = "YES" ]
+  run bash -c "source '$LIB_DIR/state-symlink.sh'; _is_canonical_harness '$WORK_DIR/not-harness' && echo YES || echo NO"
+  [ "$output" = "NO" ]
+}
+
 @test "_verify_symlinks logs missing/dangling links to stderr" {
   local wt="$WORK_DIR/session-wt-verify"
   mkdir -p "$wt/db"
