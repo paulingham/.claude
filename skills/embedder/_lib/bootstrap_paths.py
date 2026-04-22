@@ -12,8 +12,7 @@ from pathlib import Path
 _MAC_CANDIDATES = ("/opt/homebrew/lib/libonnxruntime.dylib",
                    "/usr/local/lib/libonnxruntime.dylib")
 _LINUX_CANDIDATES = ("/usr/lib/x86_64-linux-gnu/libonnxruntime.so",
-                     "/usr/lib/libonnxruntime.so",
-                     "/usr/local/lib/libonnxruntime.so")
+                     "/usr/lib/libonnxruntime.so")
 
 
 def dylib_path():

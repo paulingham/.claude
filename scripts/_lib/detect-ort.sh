@@ -9,7 +9,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/detect-os.sh"
 _ort_candidates_for_os() {
   case "$1" in
     macos) echo "/opt/homebrew/lib/libonnxruntime.dylib /usr/local/lib/libonnxruntime.dylib" ;;
-    ubuntu|debian) echo "/usr/lib/x86_64-linux-gnu/libonnxruntime.so /usr/lib/libonnxruntime.so /usr/local/lib/libonnxruntime.so" ;;
+    ubuntu|debian) echo "/usr/lib/x86_64-linux-gnu/libonnxruntime.so /usr/lib/libonnxruntime.so" ;;
     *) echo "" ;;
   esac
 }

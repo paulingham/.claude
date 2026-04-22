@@ -48,12 +48,12 @@ teardown() {
   [[ "${output%%/usr/local*}" == *"/opt/homebrew"* ]]
 }
 
-@test "_ort_candidates_for_os ubuntu lists x86_64-linux-gnu before /usr/local .so" {
+@test "_ort_candidates_for_os ubuntu lists only distro-managed .so paths" {
   run bash -c "source '$LIB_DIR/detect-ort.sh'; _ort_candidates_for_os ubuntu"
   [ "$status" -eq 0 ]
   [[ "$output" == *"/usr/lib/x86_64-linux-gnu/libonnxruntime.so"* ]]
-  [[ "$output" == *"/usr/local/lib/libonnxruntime.so"* ]]
-  [[ "${output%%/usr/local*}" == *"/usr/lib/x86_64-linux-gnu"* ]]
+  [[ "$output" == *"/usr/lib/libonnxruntime.so"* ]]
+  [[ "$output" != *"/usr/local/lib/libonnxruntime.so"* ]]
 }
 
 @test "_ort_candidates_for_os debian yields the same candidate list as ubuntu" {
