@@ -70,7 +70,7 @@ Engineering context that survives context compaction. Not conversation notes —
 ~/.claude/session-memory/{project-hash}/notes.md
 ```
 
-Project hash: `git remote get-url origin 2>/dev/null | openssl md5 -r 2>/dev/null | awk '{print $1}' || echo "local"`
+Project hash: source `hooks/_lib/project-hash.sh` and call `_project_hash --fallback "local"`. The helper picks `md5sum` on Linux and falls back to `openssl dgst -md5` on macOS (portable across both OSes without relying on mac-specific `openssl` flags).
 
 ### Template
 
