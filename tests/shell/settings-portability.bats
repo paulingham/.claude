@@ -39,6 +39,12 @@ setup() {
   [ "$(jq -r '.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS' "$TOP")" = "1" ]
 }
 
+@test "AC2.8 ORT_DYLIB_PATH is not hardcoded in settings.json" {
+  # Linux binaries use .so, macOS uses .dylib — no single literal path works
+  # across OSes. Bootstrap must resolve the path at runtime per OS.
+  [ "$(jq -r '.env.ORT_DYLIB_PATH // "absent"' "$TOP")" = "absent" ]
+}
+
 @test "AC2.7 HF_TOKEN value unchanged vs pre-edit capture" {
   [ -f "$PRE_TOKEN" ] || skip "pre-edit HF_TOKEN capture missing at $PRE_TOKEN"
   [ "$(jq -r '.env.HF_TOKEN' "$TOP")" = "$(cat "$PRE_TOKEN")" ]

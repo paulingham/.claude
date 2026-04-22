@@ -36,9 +36,14 @@ if [ ! -f "${MODEL_FILE}" ]; then
   mv "${MODEL_FILE}.partial" "${MODEL_FILE}"
 fi
 
-DYLIB="${ORT_DYLIB_PATH:-/opt/homebrew/lib/libonnxruntime.dylib}"
-if [ ! -f "${DYLIB}" ]; then
-  echo "warn: ORT dylib not found at ${DYLIB} — brew install onnxruntime" >&2
+# Resolve ORT library path via OS-aware sibling helper (macOS .dylib, Linux .so).
+# shellcheck source=../../scripts/_lib/detect-ort.sh
+# shellcheck disable=SC1091  # runtime-resolved path — bats tests exercise the wiring
+source "$(dirname "${BASH_SOURCE[0]}")/../../scripts/_lib/detect-ort.sh"
+DYLIB="$(detect_ort)"
+if [ -z "${DYLIB}" ]; then
+  echo "warn: ORT library not found — install onnxruntime (brew on macOS, apt-get on Linux)" >&2
+  DYLIB="<install-onnxruntime-first>"
 fi
 
 if [ -n "${NONINTERACTIVE:-}" ]; then

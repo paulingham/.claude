@@ -19,16 +19,39 @@ if _SKILL not in sys.path:
 from embedder._lib import bootstrap  # noqa: E402
 
 
-class RunOnNonMacosSkips(unittest.TestCase):
-    def test_linux_returns_skip_code_and_logs_skip_message(self):
-        buf = io.StringIO()
-        with patch("embedder._lib.bootstrap.platform.system",
-                   return_value="Linux"):
-            with redirect_stdout(buf):
+class RunOnLinuxBootstraps(unittest.TestCase):
+    """Slice 1: Linux is no longer skipped — bootstrap runs with apt-get."""
+    def test_linux_non_healthy_invokes_install_and_download_steps(self):
+        from subprocess import CompletedProcess
+        ok = CompletedProcess(args=[], returncode=0)
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            settings = Path(d) / "settings.json"
+            settings.write_text('{"env": {}}')
+            missing_dylib = Path(d) / "libonnxruntime.so"
+            env_patch = {"CLAUDE_SETTINGS_PATH": str(settings),
+                         "CLAUDE_BOOTSTRAP_CONSENT": "1"}
+            with patch.dict(os.environ, env_patch, clear=False), \
+                 patch("embedder._lib.bootstrap.platform.system",
+                       return_value="Linux"), \
+                 patch("embedder._lib.bootstrap._is_healthy",
+                       return_value=False), \
+                 patch("embedder._lib.bootstrap._dylib_path",
+                       return_value=missing_dylib), \
+                 patch("embedder._lib.bootstrap._model_path",
+                       return_value=Path("/nonexistent/model.onnx")), \
+                 patch("embedder._lib.bootstrap_install.platform.system",
+                       return_value="Linux"), \
+                 patch("embedder._lib.bootstrap_steps.shutil.which",
+                       return_value="/usr/bin/apt-get"), \
+                 patch("embedder._lib.bootstrap_steps.subprocess.run",
+                       return_value=ok) as sub:
                 code = bootstrap.run()
-        self.assertEqual(code, bootstrap.SKIP_NON_MACOS)
-        self.assertIn("embedder bootstrap skipped (non-macOS)",
-                      buf.getvalue())
+        self.assertNotEqual(code, 10)  # no longer SKIP_NON_MACOS
+        commands = [list(c.args[0]) for c in sub.call_args_list]
+        self.assertTrue(
+            any("apt-get" in c for c in commands),
+            f"expected apt-get dispatch on Linux, got {commands}")
 
 
 class RunOnMacosHealthyIsNoop(unittest.TestCase):
@@ -242,19 +265,22 @@ class RunInstallsOrtWhenDylibMissing(unittest.TestCase):
 
 
 class RunAsModuleInvokesRun(unittest.TestCase):
-    """S9 AC10: `python3 -m embedder._lib.bootstrap` invokes run()."""
+    """S9 AC10: `python3 -m embedder._lib.bootstrap` invokes run().
+
+    Slice 1: Linux is no longer skipped — only Windows is. Force Windows
+    to produce deterministic skip output without needing a live ORT on
+    the host.
+    """
     def test_module_main_exits_cleanly_without_raising(self):
         import subprocess
-        # Force non-Darwin so we get deterministic skip output regardless
-        # of the host's doctor state.
         result = subprocess.run(
             [sys.executable, "-c",
-             "import platform; platform.system=lambda: 'Linux'; "
+             "import platform; platform.system=lambda: 'Windows'; "
              "from embedder._lib import bootstrap as b; "
              "import sys; sys.exit(b.run())"],
             env={**os.environ, "PYTHONPATH": str(REPO_ROOT / "skills")},
             capture_output=True, text=True, timeout=30)
-        self.assertEqual(result.returncode, bootstrap.SKIP_NON_MACOS)
+        self.assertEqual(result.returncode, bootstrap.WIN_UNSUPPORTED)
         self.assertIn("embedder bootstrap skipped", result.stdout)
 
 
