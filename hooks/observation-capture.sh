@@ -18,6 +18,9 @@ esac
 # Get project hash from git remote (used for LEARNING_DIR path — backward compatible)
 # shellcheck source=_lib/project-hash.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
+# shellcheck source=_lib/state-dir.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"
+_ensure_state_dir
 PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
 
 # Get human-readable project name
@@ -36,21 +39,21 @@ if [[ -f "$OBS_FILE" ]]; then
     fi
 fi
 
-# Session ID: prefer env var, fall back to temp file per parent process
-SESSION_FILE="/tmp/claude-session-${PPID}"
+# Session ID: prefer env var, fall back to state file per parent process
+SESSION_FILE=$(_state_path "session-${PPID}")
 if [[ -n "${CLAUDE_SESSION_ID:-}" ]]; then
     SESSION_ID="$CLAUDE_SESSION_ID"
 elif [[ -f "$SESSION_FILE" ]]; then
     SESSION_ID=$(cat "$SESSION_FILE")
 else
     SESSION_ID=$(uuidgen 2>/dev/null || echo "sess-${RANDOM}-${RANDOM}")
-    echo "$SESSION_ID" > "$SESSION_FILE"
+    printf '%s\n' "$SESSION_ID" | _state_write "session-${PPID}"
 fi
 
 # Session start time: create on first invocation per session
-START_TIME_FILE="/tmp/claude-session-start-${PPID}"
+START_TIME_FILE=$(_state_path "session-start-${PPID}")
 if [[ ! -f "$START_TIME_FILE" ]]; then
-    date +%s > "$START_TIME_FILE"
+    date +%s | _state_write "session-start-${PPID}"
 fi
 
 # Pipeline phase: from env var, or detect from active pipeline state file
@@ -67,11 +70,12 @@ if [[ -z "$PHASE" ]]; then
     fi
 fi
 
-# Agent role: from env var, or from temp file written by subagent-context.sh
+# Agent role: from env var, or from state file written by subagent-context.sh
 AGENT_ROLE="${CLAUDE_AGENT_ROLE:-}"
 if [[ -z "$AGENT_ROLE" ]]; then
-    if [[ -f /tmp/claude-agent-role ]]; then
-        AGENT_ROLE=$(cat /tmp/claude-agent-role 2>/dev/null || true)
+    AGENT_ROLE_FILE=$(_state_path "agent-role-${PPID}")
+    if [[ -f "$AGENT_ROLE_FILE" ]]; then
+        AGENT_ROLE=$(cat "$AGENT_ROLE_FILE" 2>/dev/null || true)
     fi
 fi
 

@@ -47,9 +47,12 @@ if [ -n "$ctx_pct" ]; then
     fi
     ctx_info=" ${ctx_color}ctx:${ctx_int}%\033[0m"
 
-    # Bridge context data for hooks
+    # Bridge context data for hooks (per-install per-session state, Cloud-safe).
+    # PPID-scoped so concurrent Claude sessions sharing $HOME do not collide.
     if [ -n "$ctx_int" ]; then
-        echo "$ctx_int" > /tmp/claude-ctx-percent 2>/dev/null
+        # shellcheck source=hooks/_lib/state-dir.sh
+        source "${HOME}/.claude/hooks/_lib/state-dir.sh" 2>/dev/null && _ensure_state_dir 2>/dev/null && \
+          printf '%s\n' "$ctx_int" | _state_write "ctx-percent-${PPID}" 2>/dev/null
     fi
 fi
 

@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Context Warning — PostToolUse hook (all tools)
-# Reads context usage from /tmp/claude-ctx-percent (written by statusline)
+# Reads context usage from $HOME/.claude/state/ctx-percent (written by statusline)
 # Injects warnings at thresholds: 65% used = WARNING, 75% used = CRITICAL
 # Advisory only (exit 0). Debounced to avoid spam.
 
 # Hook profile
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+# shellcheck source=_lib/state-dir.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"
+_ensure_state_dir
 
-CTX_FILE="/tmp/claude-ctx-percent"
+CTX_FILE=$(_state_path "ctx-percent-${PPID}")
 
 # Skip if no context data available
 if [[ ! -f "$CTX_FILE" ]]; then
@@ -27,8 +30,9 @@ if [[ "$CTX_PCT" -lt 65 ]]; then
 fi
 
 # Debounce: use a counter file to avoid spamming
-DEBOUNCE_FILE="/tmp/claude-hook-guard/context-warning-count"
-mkdir -p -m 700 /tmp/claude-hook-guard
+HOOK_GUARD_DIR=$(_state_path "hook-guard")
+mkdir -p -m 700 "$HOOK_GUARD_DIR"
+DEBOUNCE_FILE="$HOOK_GUARD_DIR/context-warning-count"
 
 COUNT=0
 if [[ -f "$DEBOUNCE_FILE" ]]; then
@@ -37,7 +41,7 @@ if [[ -f "$DEBOUNCE_FILE" ]]; then
 fi
 
 COUNT=$((COUNT + 1))
-echo "$COUNT" > "$DEBOUNCE_FILE"
+( umask 077 && printf '%s\n' "$COUNT" > "$DEBOUNCE_FILE" )
 
 # Warn every 10 tool calls in WARNING zone (65-74%), every 5 in CRITICAL zone (75+)
 if [[ "$CTX_PCT" -ge 75 ]]; then
