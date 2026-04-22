@@ -3,6 +3,7 @@
 # Respects ORT_DYLIB_PATH override; otherwise probes OS-dispatched candidates.
 # Tests override ORT_DYLIB_PATH or ORT_CANDIDATE_PATHS to stay hermetic.
 # shellcheck source=detect-os.sh
+# shellcheck disable=SC1091  # runtime-resolved sibling; tests source it too
 source "$(dirname "${BASH_SOURCE[0]}")/detect-os.sh"
 
 _ort_candidates_for_os() {

@@ -2,15 +2,10 @@
 import sys
 
 from embedder import status as status_mod
+from embedder._lib import cli_setup_text
 
-SETUP_TEXT = (
-    "Embedder setup:\n"
-    "  export ORT_DYLIB_PATH=/opt/homebrew/lib/libonnxruntime.dylib\n"
-    "  export BGE_MODEL_PATH=~/.claude/models/bge-small-en-v1.5/model.onnx\n"
-    "  skills/embedder/download-model.sh\n")
-
-_WINDOWS_MSG = ("Windows is not supported. Use WSL (Windows Subsystem for"
-                " Linux) and re-run setup from inside the Linux shell.\n")
+# Back-compat re-exports — legacy readers may import SETUP_TEXT / setup_text.
+from embedder._lib.cli_setup_text import SETUP_TEXT, setup_text  # noqa: F401
 
 
 def probe():
@@ -35,7 +30,7 @@ def status():
 
 def setup():
     if sys.platform == "win32":
-        sys.stdout.write(_WINDOWS_MSG)
+        sys.stdout.write(cli_setup_text.WINDOWS_MSG)
         return 1
-    sys.stdout.write(SETUP_TEXT)
+    sys.stdout.write(cli_setup_text.setup_text())
     return 0
