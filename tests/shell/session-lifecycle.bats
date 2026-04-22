@@ -51,6 +51,65 @@ teardown() {
   [ -z "$output" ]
 }
 
+@test "AC5b.4a: remove-session refuses when uncommitted changes present (exit 1)" {
+  bash "$SCRIPTS_DIR/new-session.sh" --repo "$REPO_A" --name foo >/dev/null
+  local wt="$SESSIONS_ROOT/alpha/foo"
+  echo dirty > "$wt/newfile.txt"
+  run bash "$SCRIPTS_DIR/remove-session.sh" foo
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"uncommitted"* ]]
+  [ -d "$wt" ]
+}
+
+@test "AC5b.4b: remove-session --force overrides uncommitted-changes guard" {
+  bash "$SCRIPTS_DIR/new-session.sh" --repo "$REPO_A" --name foo >/dev/null
+  local wt="$SESSIONS_ROOT/alpha/foo"
+  echo dirty > "$wt/newfile.txt"
+  run bash "$SCRIPTS_DIR/remove-session.sh" foo --force
+  [ "$status" -eq 0 ]
+  [ ! -d "$wt" ]
+  run git -C "$REPO_A" branch --list "session/foo"
+  [ -z "$output" ]
+}
+
+@test "AC5b.5: remove-session errors on ambiguous name across two repos" {
+  bash "$SCRIPTS_DIR/new-session.sh" --repo "$REPO_A" --name bar >/dev/null
+  bash "$SCRIPTS_DIR/new-session.sh" --repo "$REPO_B" --name bar >/dev/null
+  run bash "$SCRIPTS_DIR/remove-session.sh" bar
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"ambiguous"* ]]
+  [[ "$output" == *"alpha/bar"* ]]
+  [[ "$output" == *"beta/bar"* ]]
+  [ -d "$SESSIONS_ROOT/alpha/bar" ]
+  [ -d "$SESSIONS_ROOT/beta/bar" ]
+}
+
+@test "AC5b.5b: remove-session accepts {slug}/{name} to disambiguate" {
+  bash "$SCRIPTS_DIR/new-session.sh" --repo "$REPO_A" --name bar >/dev/null
+  bash "$SCRIPTS_DIR/new-session.sh" --repo "$REPO_B" --name bar >/dev/null
+  run bash "$SCRIPTS_DIR/remove-session.sh" alpha/bar
+  [ "$status" -eq 0 ]
+  [ ! -d "$SESSIONS_ROOT/alpha/bar" ]
+  [ -d "$SESSIONS_ROOT/beta/bar" ]
+  run git -C "$REPO_A" branch --list "session/bar"
+  [ -z "$output" ]
+  run git -C "$REPO_B" branch --list "session/bar"
+  [[ "$output" == *"session/bar"* ]]
+}
+
+@test "AC5b.6: shellcheck clean on list-sessions.sh and remove-session.sh" {
+  if ! command -v shellcheck >/dev/null 2>&1; then skip "shellcheck not installed"; fi
+  run shellcheck "$SCRIPTS_DIR/list-sessions.sh" "$SCRIPTS_DIR/remove-session.sh"
+  [ "$status" -eq 0 ]
+}
+
+@test "AC5b.6: bash -n clean on list-sessions.sh and remove-session.sh" {
+  run bash -n "$SCRIPTS_DIR/list-sessions.sh"
+  [ "$status" -eq 0 ]
+  run bash -n "$SCRIPTS_DIR/remove-session.sh"
+  [ "$status" -eq 0 ]
+}
+
 # ---------- list-sessions.sh ----------
 
 @test "AC5b.1: list-sessions on empty root prints 'No active sessions.' exit 0" {

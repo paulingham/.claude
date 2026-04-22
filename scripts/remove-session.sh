@@ -27,8 +27,7 @@ _is_clean() {
     && [[ -z "$(git -C "$1" ls-files --others --exclude-standard 2>/dev/null)" ]]
 }
 
-_do_remove() {
-  [[ "$4" -eq 1 ]] || _is_clean "$1" || _die "uncommitted changes in $1 (use --force)"
+_remove_worktree_and_branch() {
   git -C "$2" worktree remove --force "$1" 2>/dev/null || rm -rf "$1"
   git -C "$2" worktree prune
   git -C "$2" branch -D "session/$3" 2>/dev/null || true
@@ -39,7 +38,8 @@ main() {
   [[ -n "$arg" ]] || _die "usage: remove-session.sh <name|slug/name> [--force]" 2
   wt="$(_resolve_wt "$(_sessions_root)" "$arg")" || exit 1
   repo="$(_repo_from_wt "$wt")" || _die "not a git worktree: $wt"
-  _do_remove "$wt" "$repo" "$(basename "$wt")" "$force"
+  [[ "$force" -eq 1 ]] || _is_clean "$wt" || _die "uncommitted changes in $wt (use --force)"
+  _remove_worktree_and_branch "$wt" "$repo" "$(basename "$wt")"
 }
 
 main "$@"
