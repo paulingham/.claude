@@ -144,13 +144,56 @@ _run_gate_branch() {
   grep -q 'should_install_dippy' "$REPO_ROOT/setup.sh"
 }
 
+@test "detect_os + should_install_dippy compose correctly on macos (setup.sh integration)" {
+  # setup.sh feeds detect_os's output into should_install_dippy. Verify the
+  # composition: a Darwin uname -> macos -> install branch.
+  run bash -c "
+    uname() { echo Darwin; }; export -f uname
+    source '$LIB_DIR/detect-os.sh'
+    source '$LIB_DIR/dippy-gate.sh'
+    os=\$(detect_os)
+    should_install_dippy \"\$os\" && echo 'INSTALL' || echo 'SKIP'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"INSTALL"* ]]
+}
+
+@test "detect_os + should_install_dippy compose correctly on ubuntu (setup.sh integration)" {
+  # Ubuntu -> detect_os returns 'ubuntu' -> default is skip.
+  printf 'ID=ubuntu\n' > "$TMP_DIR/os-release"
+  run bash -c "
+    uname() { echo Linux; }; export -f uname
+    OS_RELEASE_PATH='$TMP_DIR/os-release'
+    source '$LIB_DIR/detect-os.sh'
+    source '$LIB_DIR/dippy-gate.sh'
+    os=\$(detect_os)
+    should_install_dippy \"\$os\" && echo 'INSTALL' || echo 'SKIP'
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SKIP"* ]]
+}
+
 @test "setup.sh fails fast with a clear error if dippy-gate.sh is missing" {
   # Hard-require: a missing gate lib is a packaging bug, not a silent fallback.
-  # Copy the source-block prefix of setup.sh into a tempdir with no lib present,
-  # run it, and assert non-zero exit + a clear diagnostic mentioning the file.
-  mkdir -p "$TMP_DIR/scripts/_lib"  # deliberately empty — no dippy-gate.sh here
-  head -n 18 "$REPO_ROOT/setup.sh" > "$TMP_DIR/setup_prefix.sh"
+  # Extract the bootstrap source block (up to the end-marker) and run it in a
+  # tempdir where detect-os.sh is present but dippy-gate.sh is not — asserts
+  # non-zero exit + a diagnostic naming dippy-gate.sh specifically.
+  mkdir -p "$TMP_DIR/scripts/_lib"
+  cp "$LIB_DIR/detect-os.sh" "$TMP_DIR/scripts/_lib/"
+  awk '/^# --- end bootstrap ---$/{exit} {print}' \
+    "$REPO_ROOT/setup.sh" > "$TMP_DIR/setup_prefix.sh"
   run bash "$TMP_DIR/setup_prefix.sh"
   [ "$status" -ne 0 ]
   [[ "$output" == *"dippy-gate.sh"* ]]
+}
+
+@test "setup.sh fails fast with a clear error if detect-os.sh is missing" {
+  # Hard-require: OS detection is a packaging prerequisite. Missing lib = exit.
+  mkdir -p "$TMP_DIR/scripts/_lib"
+  cp "$LIB_DIR/dippy-gate.sh" "$TMP_DIR/scripts/_lib/"
+  awk '/^# --- end bootstrap ---$/{exit} {print}' \
+    "$REPO_ROOT/setup.sh" > "$TMP_DIR/setup_prefix.sh"
+  run bash "$TMP_DIR/setup_prefix.sh"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"detect-os.sh"* ]]
 }

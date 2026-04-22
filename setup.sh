@@ -5,17 +5,24 @@
 
 set -uo pipefail
 
-# Source the dippy gate library (decides whether dippy + claude-devtools install
-# based on OS + CLAUDE_REQUIRE_DIPPY env var). The lib ships in this tree; its
-# absence is a packaging bug, so fail fast with a clear diagnostic rather than
-# falling through to an undefined `should_install_dippy` (which would silently
-# skip on every OS, contradicting the Mac-only default).
+# Source the bootstrap libs: detect-os.sh provides the canonical OS identifier,
+# dippy-gate.sh decides whether dippy + claude-devtools install based on
+# (OS, CLAUDE_REQUIRE_DIPPY). Both libs ship in this tree; their absence is a
+# packaging bug, so fail fast with a clear diagnostic rather than falling
+# through to undefined functions (which would silently skip on every OS,
+# contradicting the Mac-only default).
 _SETUP_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1091
+source "$_SETUP_DIR/scripts/_lib/detect-os.sh" || {
+  printf 'FATAL: cannot source %s/scripts/_lib/detect-os.sh\n' "$_SETUP_DIR" >&2
+  exit 1
+}
 # shellcheck disable=SC1091
 source "$_SETUP_DIR/scripts/_lib/dippy-gate.sh" || {
   printf 'FATAL: cannot source %s/scripts/_lib/dippy-gate.sh\n' "$_SETUP_DIR" >&2
   exit 1
 }
+# --- end bootstrap ---
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -90,8 +97,7 @@ print_header "Step 2: Installing external tools"
 # CLAUDE_REQUIRE_DIPPY=1 forces install on any OS (opt-in on Linux).
 # CLAUDE_REQUIRE_DIPPY=0 forces skip on any OS (opt-out on macOS).
 # Unset: macOS installs, Linux skips.
-_setup_os_kind() { [[ "$(uname -s)" == "Darwin" ]] && echo macos || echo linux; }
-_SETUP_OS="$(_setup_os_kind)"
+_SETUP_OS="$(detect_os)"
 
 if should_install_dippy "$_SETUP_OS"; then
   echo ""
