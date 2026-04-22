@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Pipeline State Guard — PreToolUse hook for Agent tool
 #
 # HARD BLOCK (exit 2): Write-capable agents cannot be spawned without

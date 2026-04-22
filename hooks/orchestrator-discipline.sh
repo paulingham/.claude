@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Orchestrator Discipline Hook — PreToolUse hook for Write and Edit tools
 #
 # Blocks the orchestrator from writing source files directly.

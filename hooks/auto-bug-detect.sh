@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Auto Bug Detection — PostToolUse hook for Edit
 # Detects bug-fix patterns from old_string/new_string diffs.
 # Logs to ~/.claude/metrics/bugs-detected.jsonl
@@ -8,6 +8,8 @@ source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 
 source ~/.claude/hooks/loop-guard.sh && check_loop_guard "auto-bug-detect" || exit 0
 # shellcheck source=_lib/project-hash.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
+# shellcheck source=_lib/state-dir.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
@@ -43,7 +45,7 @@ TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 PROJECT=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
 
 # Deduplication: skip if same file+category logged in last 5 minutes
-DEDUP_DIR="/tmp/claude-hook-guard/bug-detect"
+DEDUP_DIR="$(_state_path hook-guard)/bug-detect"
 mkdir -p -m 700 "$DEDUP_DIR"
 
 log_bug() {

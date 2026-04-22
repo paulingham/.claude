@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Config Protection — PreToolUse hook for Write and Edit
 # Blocks modifications to linter/formatter config files.
 # Prevents agents from weakening linting rules to pass checks.

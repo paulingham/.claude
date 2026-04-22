@@ -446,8 +446,8 @@ For new projects without a CLAUDE.md, the system automatically runs `/project-se
 
 | Tool | Purpose | Install | Required? |
 |------|---------|---------|-----------|
-| [Dippy](https://github.com/ldayton/Dippy) | AST-based bash command safety | `brew install dippy` | Yes (dontAsk mode) |
-| [claude-devtools](https://github.com/matt1398/claude-devtools) | Session observability | `brew install --cask claude-devtools` | Recommended |
+| [Dippy](https://github.com/ldayton/Dippy) | AST-based bash command safety | `brew install dippy` (macOS only; see `CLAUDE_REQUIRE_DIPPY` under Cloud portability) | Yes on macOS (dontAsk mode) |
+| [claude-devtools](https://github.com/matt1398/claude-devtools) | Session observability | `brew install --cask claude-devtools` (macOS only; gated by `CLAUDE_REQUIRE_DIPPY`) | Recommended on macOS |
 | [parry-guard](https://github.com/vaporif/parry) | ML injection detection (DeBERTa v3) | `cargo install --git ... --features candle` | Required (needs Rust + HF token) |
 | [hcom](https://github.com/aannoo/hcom) | Inter-agent communication | `npm install -g hcom` | Recommended |
 | [agnix](https://github.com/agent-sh/agnix) | Config linting | `npx agnix` (no install) | Optional |
@@ -455,7 +455,19 @@ For new projects without a CLAUDE.md, the system automatically runs `/project-se
 
 ## Cloud portability
 
-The harness runs on macOS and Ubuntu 24.04 from the same tree. `scripts/install-tools.sh` detects the OS via `/etc/os-release`, installs `gh`, `jq`, `ripgrep`, `sqlite3`, and `python3>=3.11` via the platform's package manager, and bootstraps a shared virtualenv at `$HOME/.claude/.venv`. The script is idempotent — re-runs only install what's missing — and accepts `--yes` for unattended provisioning on fresh VMs.
+The harness runs on macOS and Ubuntu 24.04 from the same tree. `scripts/install-tools.sh` detects the OS via `/etc/os-release`, installs `gh`, `jq`, `ripgrep`, `sqlite3`, `python3>=3.11`, and the C/OpenSSL build toolchain (`build-essential`, `libssl-dev`, `pkg-config`, `curl` on Debian/Ubuntu; `gcc`, `gcc-c++`, `openssl-devel` on Fedora) via the platform's package manager, and bootstraps a shared virtualenv at `$HOME/.claude/.venv`. The script is idempotent — re-runs only install what's missing — and accepts `--yes` for unattended provisioning on fresh VMs.
+
+### `CLAUDE_REQUIRE_DIPPY` — Homebrew-only tool gating
+
+`dippy` and `claude-devtools` are Homebrew-only. `setup.sh` gates them behind `CLAUDE_REQUIRE_DIPPY`:
+
+| Value  | macOS   | Linux   | Use |
+|--------|---------|---------|-----|
+| unset  | install | skip    | Default — best-effort per-platform |
+| `1`    | install | install | Opt-in on Linux (you have a working install path) |
+| `0`    | skip    | skip    | Opt-out on macOS (e.g. minimal dev shell) |
+
+Skipped installs emit a single `INFO:` line explaining why (platform + env var status).
 
 ## Session isolation
 

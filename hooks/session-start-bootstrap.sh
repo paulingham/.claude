@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Session-start hook: bootstrap skill awareness and iron laws
 # Outputs a concise skill directory reminder so the model knows what skills exist
 
