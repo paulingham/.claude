@@ -5,6 +5,13 @@
 
 set -uo pipefail
 
+# Source the dippy gate library (decides whether dippy + claude-devtools install
+# based on OS + CLAUDE_REQUIRE_DIPPY env var). Falls back gracefully if missing
+# (e.g. during partial installs) — unset var + missing gate == Mac-only default.
+_SETUP_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1091
+[[ -r "$_SETUP_DIR/scripts/_lib/dippy-gate.sh" ]] && source "$_SETUP_DIR/scripts/_lib/dippy-gate.sh"
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
@@ -74,8 +81,14 @@ fi
 # -------------------------------------------------------------------
 print_header "Step 2: Installing external tools"
 
-# -- Dippy (AST-based bash command safety) --
-if [[ "$(uname -s)" == "Darwin" ]]; then
+# -- Dippy + claude-devtools (Mac-only by default; gated by CLAUDE_REQUIRE_DIPPY) --
+# CLAUDE_REQUIRE_DIPPY=1 forces install on any OS (opt-in on Linux).
+# CLAUDE_REQUIRE_DIPPY=0 forces skip on any OS (opt-out on macOS).
+# Unset: macOS installs, Linux skips.
+_setup_os_kind() { [[ "$(uname -s)" == "Darwin" ]] && echo macos || echo linux; }
+_SETUP_OS="$(_setup_os_kind)"
+
+if should_install_dippy "$_SETUP_OS"; then
   echo ""
   echo "  Dippy (AST-based bash command safety)..."
   if command_exists dippy; then
@@ -87,12 +100,7 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
       record_failed "dippy (brew tap ldayton/dippy && brew install dippy)"
     fi
   fi
-else
-  record_skipped "dippy (Mac-only tool)"
-fi
 
-# -- claude-devtools (session observability) --
-if [[ "$(uname -s)" == "Darwin" ]]; then
   echo ""
   echo "  claude-devtools (session observability)..."
   if brew list --cask claude-devtools > /dev/null 2>&1; then
@@ -105,7 +113,9 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     fi
   fi
 else
-  record_skipped "claude-devtools (Mac-only tool)"
+  print_warning "dippy + claude-devtools: skipped — $(dippy_skip_reason "$_SETUP_OS")"
+  SKIPPED+=("dippy (gated)")
+  SKIPPED+=("claude-devtools (gated)")
 fi
 
 # -- Rust toolchain --
