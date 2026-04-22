@@ -86,9 +86,11 @@ _stat_mode() {
 }
 
 @test "H3.12 two concurrent shells write independent session markers (PID scoping)" {
-  # Simulates two Cloud sessions sharing a host: each shell has a distinct PID,
-  # so when it invokes observation-capture, the session-<PPID> markers must
-  # be disjoint and readable from each shell.
+  # Within-install per-session PID scoping (combined with H3.13 for cross-install
+  # isolation). Each shell has a distinct PID, so when it invokes
+  # observation-capture, the session-<PPID> markers must be disjoint and
+  # readable from each shell. H3.13 covers the orthogonal case: two installs
+  # on one host must not share a state directory at all.
   payload='{"tool_name":"Read","tool_input":{"file_path":"/x"},"tool_output":{}}'
   bash -c "echo '$payload' | bash '$REPO_ROOT/hooks/observation-capture.sh'; echo \$PPID" > "$TMP_HOME/p1.txt" &
   bg1=$!
