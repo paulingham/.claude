@@ -15,6 +15,10 @@ _state_path() {
 
 _ensure_state_dir() {
   local dir; dir=$(_state_dir)
-  mkdir -p "$dir" 2>/dev/null || return 1
-  chmod 700 "$dir" 2>/dev/null || true
+  (umask 077 && mkdir -p "$dir") || return 1
+}
+
+_state_write() {
+  local name="$1"
+  ( umask 077 && cat > "$(_state_path "$name")" )
 }
