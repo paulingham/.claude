@@ -17,9 +17,19 @@ teardown() {
   rm -rf "$TMP_DIR"
 }
 
-@test "no tracked *.sh file uses '#!/bin/bash' shebang" {
+@test "no file under repo root uses '#!/bin/bash' shebang" {
+  # Cross-checks the guard: uses find-based selection (not git ls-files), so a
+  # bug in either side would be caught by disagreement. Excludes worktrees,
+  # .git, and node_modules — everywhere else gets scanned regardless of ext.
   cd "$REPO_ROOT"
-  run bash -c "git ls-files '*.sh' | xargs grep -l '^#!/bin/bash' 2>/dev/null || true"
+  run bash -c "
+    find . \
+      -path ./.claude/worktrees -prune -o \
+      -path ./.git -prune -o \
+      -path ./node_modules -prune -o \
+      -type f -print0 \
+    | xargs -0 grep -l '^#!/bin/bash' 2>/dev/null || true
+  "
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
@@ -55,4 +65,40 @@ teardown() {
   [ "$status" -ne 0 ]
   echo "$output" | grep -q 'one.sh'
   echo "$output" | grep -q 'two.sh'
+}
+
+@test "check-shebangs.sh detects '#!/bin/bash' in .bash files" {
+  cd "$TMP_DIR"
+  git init -q
+  printf '#!/bin/bash\necho hi\n' > profile.bash
+  chmod +x profile.bash
+  git add profile.bash
+  git -c user.email=t@t -c user.name=t commit -q -m seed
+  run "$GUARD"
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -q 'profile.bash'
+}
+
+@test "check-shebangs.sh detects '#!/bin/bash' in extensionless executables" {
+  cd "$TMP_DIR"
+  git init -q
+  printf '#!/bin/bash\necho hi\n' > runner
+  chmod +x runner
+  git add runner
+  git -c user.email=t@t -c user.name=t commit -q -m seed
+  run "$GUARD"
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -q 'runner'
+}
+
+@test "check-shebangs.sh detects offenders with spaces in filenames" {
+  cd "$TMP_DIR"
+  git init -q
+  printf '#!/bin/bash\n' > "has space.sh"
+  chmod +x "has space.sh"
+  git add "has space.sh"
+  git -c user.email=t@t -c user.name=t commit -q -m seed
+  run "$GUARD"
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -q 'has space.sh'
 }
