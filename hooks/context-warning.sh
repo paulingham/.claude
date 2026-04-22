@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Context Warning — PostToolUse hook (all tools)
 # Reads context usage from /tmp/claude-ctx-percent (written by statusline)
 # Injects warnings at thresholds: 65% used = WARNING, 75% used = CRITICAL

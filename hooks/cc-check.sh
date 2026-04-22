@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Cyclomatic Complexity Check — PostToolUse ADVISORY hook
 # Fires after Write/Edit on source files (not tests, not config).
 # Warns (exit 0) if cyclomatic complexity exceeds 5. Never hard-blocks.

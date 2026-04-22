@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Function Body Length Check — PostToolUse hook (runs alongside code-shape-check.sh)
 # Checks source files for function bodies exceeding the line limit.
 # Uses language-specific heuristics to detect function boundaries.

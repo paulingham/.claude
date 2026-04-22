@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Injection Scan — PostToolUse hook for Write and Edit
 # Scans content of files written under ~/.claude/ for prompt injection patterns.
 # Advisory only (exit 0 + stderr warning). Never blocks legitimate writes.

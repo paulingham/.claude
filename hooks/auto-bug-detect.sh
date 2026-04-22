@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Auto Bug Detection — PostToolUse hook for Edit
 # Detects bug-fix patterns from old_string/new_string diffs.
 # Logs to ~/.claude/metrics/bugs-detected.jsonl

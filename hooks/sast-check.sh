@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # SAST Check — PreToolUse hook for PR creation
 # Runs static analysis security testing on changed files before PR creation.
 # Hard blocks (exit 2) if HIGH/ERROR severity issues found.

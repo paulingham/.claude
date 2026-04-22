@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Agent Skill Reminder — PreToolUse hook for Agent tool
 #
 # Three checks in order:

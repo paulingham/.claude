@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Intake Reminder — UserPromptSubmit hook
 #
 # Two modes:

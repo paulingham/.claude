@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Observation Capture — PostToolUse hook (all tools)
 # Captures tool usage observations for the continuous learning system.
 # Appends to ~/.claude/learning/{project-hash}/observations.jsonl
