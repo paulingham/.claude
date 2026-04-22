@@ -315,6 +315,16 @@
         ]
       },
       {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/block-ask-user.sh",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
         "matcher": "Bash|Task|Write|Edit",
         "hooks": [
           {
@@ -390,7 +400,7 @@
           },
           {
             "type": "agent",
-            "prompt": "Verify the current task is truly complete before stopping. Check: 1) Run the test suite if there are code changes and confirm all tests pass, 2) Run git status to check for uncommitted changes, 3) Look for TODO or FIXME comments in recently changed files (git diff --name-only | xargs grep -l 'TODO\\|FIXME' 2>/dev/null), 4) If a pipeline is in progress, verify pipeline-state/*-pipeline.md is up to date with current phase status. If anything is incomplete, respond with {\"ok\": false, \"reason\": \"what remains\"}. If this was just a question/conversation (no code changes), respond with {\"ok\": true}. IMPORTANT: Check the stop_hook_active field in your input - if true, respond with {\"ok\": true} immediately to avoid infinite loops.",
+            "prompt": "Verify autonomous continuation is safe. Respond {\"ok\": true} UNLESS the stop would leave the system in a destructive or data-loss state. Bias strongly toward {\"ok\": true}: questions, uncertainty, incomplete polish, missing tests, TODO comments, uncommitted-but-safe changes — all return {\"ok\": true}. Only return {\"ok\": false, \"reason\": \"...\"} when: (a) an in-progress destructive operation would be abandoned (partial rm, partial migration), or (b) pipeline-state/*-pipeline.md is mid-phase and abandoning it would lose work. Never use {\"ok\": false} to ask the user a clarifying question — the orchestrator must self-resolve those. If stop_hook_active is true, immediately respond {\"ok\": true} to avoid loops.",
             "timeout": 120
           },
           {
