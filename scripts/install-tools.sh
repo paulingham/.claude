@@ -12,6 +12,8 @@ source "$SCRIPT_DIR/_lib/detect-os.sh"
 source "$SCRIPT_DIR/_lib/install-pkg.sh"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/_lib/ensure-venv.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/_lib/build-tools.sh"
 
 SYSTEM_TOOLS=(gh jq ripgrep sqlite3 python3 bats shellcheck)
 PY_DEPS=(onnxruntime numpy tokenizers)
@@ -37,10 +39,16 @@ _apply_mode_env() {
   export INSTALL_PKG_CMD_PRINTER=echo PIP_CMD="${PIP_CMD:-echo pip install}" CLAUDE_VENV_DRY_RUN=1
 }
 
+_install_build_tools() {
+  local os="$1" mode="$2" pkg
+  for pkg in $(build_tools_for_os "$os"); do _process_tool "$pkg" "$os" "$mode"; done
+}
+
 main() {
   local os mode; os=$(detect_os); mode=$(_mode_from_args "${1:-}")
   _guard_unknown_os "$os"; _apply_mode_env "$mode"
   for t in "${SYSTEM_TOOLS[@]}"; do _process_tool "$t" "$os" "$mode"; done
+  _install_build_tools "$os" "$mode"
   ensure_venv "${PY_DEPS[@]}"
   [[ "$mode" != "none" ]] || { echo "re-run with --yes to execute" >&2; exit 1; }
 }
