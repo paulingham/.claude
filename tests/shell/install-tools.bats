@@ -90,3 +90,22 @@ teardown() {
   run bash -c "export INSTALL_PKG_CMD_PRINTER=echo; source '$LIB_DIR/install-pkg.sh'; install_pkg jq unknown"
   [ "$status" -ne 0 ]
 }
+
+# ---------- ensure_venv (AC3.5) ----------
+
+@test "ensure_venv with PIP_CMD=echo prints pip command and does not invoke real pip" {
+  local venv="$TMP_DIR/test-venv-$$"
+  run bash -c "export CLAUDE_VENV_PATH='$venv' PIP_CMD='echo PIP:'; source '$LIB_DIR/ensure-venv.sh'; ensure_venv onnxruntime numpy tokenizers"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PIP: onnxruntime numpy tokenizers"* ]]
+}
+
+@test "ensure_venv is idempotent: second call does not recreate venv" {
+  local venv="$TMP_DIR/venv-idem"
+  mkdir -p "$venv"  # simulate pre-existing venv
+  local mtime_before; mtime_before=$(stat -f %m "$venv" 2>/dev/null || stat -c %Y "$venv")
+  run bash -c "export CLAUDE_VENV_PATH='$venv' PIP_CMD='echo PIP:'; source '$LIB_DIR/ensure-venv.sh'; ensure_venv numpy"
+  [ "$status" -eq 0 ]
+  local mtime_after; mtime_after=$(stat -f %m "$venv" 2>/dev/null || stat -c %Y "$venv")
+  [ "$mtime_before" = "$mtime_after" ]
+}
