@@ -29,7 +29,7 @@ _mode_from_args() {
 }
 
 _guard_unknown_os() {
-  [[ "$1" == "unknown" ]] && { echo "unknown OS; cannot proceed" >&2; exit 1; } || true
+  [[ "$1" != "unknown" ]] || { echo "unknown OS; cannot proceed" >&2; exit 1; }
 }
 
 _apply_mode_env() {
@@ -39,10 +39,10 @@ _apply_mode_env() {
 
 main() {
   local os mode; os=$(detect_os); mode=$(_mode_from_args "${1:-}")
-  _guard_unknown_os "$os" "$mode"; _apply_mode_env "$mode"
+  _guard_unknown_os "$os"; _apply_mode_env "$mode"
   for t in "${SYSTEM_TOOLS[@]}"; do _process_tool "$t" "$os" "$mode"; done
   ensure_venv "${PY_DEPS[@]}"
-  [[ "$mode" == "none" ]] && { echo "re-run with --yes to execute" >&2; exit 1; } || exit 0
+  [[ "$mode" != "none" ]] || { echo "re-run with --yes to execute" >&2; exit 1; }
 }
 
 main "$@"

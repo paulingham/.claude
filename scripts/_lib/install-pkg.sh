@@ -3,15 +3,20 @@
 # Tests set INSTALL_PKG_CMD_PRINTER=echo to capture the command without
 # executing it. When unset, the resolved command runs for real.
 
-_pkg_cmd_for_os() {
-  case "$2" in
-    macos) echo "brew install $1" ;;
-    ubuntu|debian) echo "sudo apt-get install -y $1" ;;
-    fedora) echo "sudo dnf install -y $1" ;;
-    arch) echo "sudo pacman -S --noconfirm $1" ;;
-    alpine) echo "sudo apk add --no-cache $1" ;;
+_pm_prefix_for_os() {
+  case "$1" in
+    macos) echo "brew install" ;;
+    ubuntu|debian) echo "sudo apt-get install -y" ;;
+    fedora) echo "sudo dnf install -y" ;;
+    arch) echo "sudo pacman -S --noconfirm" ;;
+    alpine) echo "sudo apk add --no-cache" ;;
     *) return 1 ;;
   esac
+}
+
+_pkg_cmd_for_os() {
+  local prefix; prefix=$(_pm_prefix_for_os "$2") || return 1
+  echo "$prefix $1"
 }
 
 install_pkg() {
