@@ -2,11 +2,13 @@
 # Re-entrancy loop guard — source this and call check_loop_guard "hook-name".
 # Returns 1 (skip) if the named hook has fired more than MAX_CALLS times in WINDOW_SECS.
 # Prevents infinite hook loops in pathological agent behaviour.
+# shellcheck source=_lib/state-dir.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh" 2>/dev/null || true
 check_loop_guard() {
   local hook_name="$1"
   local max_calls="${2:-10}"
   local window_secs="${3:-60}"
-  local guard_dir="/tmp/claude-hook-guard"
+  local guard_dir; guard_dir=$(_state_path "hook-guard")
   local guard_file="${guard_dir}/${hook_name}"
   mkdir -p -m 700 "$guard_dir"
   local now

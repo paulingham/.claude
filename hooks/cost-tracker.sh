@@ -20,10 +20,12 @@ TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 PROJECT=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
 # shellcheck source=_lib/project-hash.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
+# shellcheck source=_lib/state-dir.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"
 PROJECT_HASH=$(_project_hash --fallback "")
 
-# Session ID: read from temp file (created by observation-capture)
-SESSION_FILE="/tmp/claude-session-${PPID}"
+# Session ID: read from state file (created by observation-capture)
+SESSION_FILE=$(_state_path "session-${PPID}")
 if [[ -f "$SESSION_FILE" ]]; then
     SESSION_ID=$(cat "$SESSION_FILE")
 else
@@ -31,7 +33,7 @@ else
 fi
 
 # Duration: calculate from session start time file
-START_TIME_FILE="/tmp/claude-session-start-${PPID}"
+START_TIME_FILE=$(_state_path "session-start-${PPID}")
 if [[ -f "$START_TIME_FILE" ]]; then
     START_EPOCH=$(cat "$START_TIME_FILE")
     NOW_EPOCH=$(date +%s)

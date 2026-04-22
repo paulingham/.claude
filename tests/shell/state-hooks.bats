@@ -37,6 +37,33 @@ teardown() {
   [ "$(cat "$CLAUDE_STATE_DIR/ctx-percent")" = "42" ]
 }
 
+@test "H3.11 auto-bug-detect uses state dir for dedup (not /tmp)" {
+  ! grep -q '/tmp/claude-hook-guard' "$REPO_ROOT/hooks/auto-bug-detect.sh"
+  grep -q '_state_path' "$REPO_ROOT/hooks/auto-bug-detect.sh"
+}
+
+@test "H3.10 loop-guard uses state dir for hook-guard files" {
+  run bash -c "source '$REPO_ROOT/hooks/loop-guard.sh'; source '$REPO_ROOT/hooks/_lib/state-dir.sh'; check_loop_guard 'probe' 10 60"
+  [ "$status" -eq 0 ]
+  [ -f "$CLAUDE_STATE_DIR/hook-guard/probe" ]
+  ! grep -q '/tmp/claude-hook-guard' "$REPO_ROOT/hooks/loop-guard.sh"
+}
+
+@test "H3.9 subagent-context writes agent-role to state dir" {
+  run bash -c "echo '{\"subagent_type\":\"software-engineer\"}' | bash '$REPO_ROOT/hooks/subagent-context.sh'"
+  [ "$status" -eq 0 ]
+  [ -f "$CLAUDE_STATE_DIR/agent-role" ]
+  [ "$(cat "$CLAUDE_STATE_DIR/agent-role")" = "software-engineer" ]
+}
+
+@test "H3.8 cost-tracker reads session markers from state dir (not /tmp)" {
+  # Seed a session id and start time under state dir for this PID.
+  # PPID inside the hook is the subshell created by `bash -c`, so we probe
+  # grep-level: the hook should source state-dir.sh and never touch /tmp.
+  grep -q '_state_path' "$REPO_ROOT/hooks/cost-tracker.sh"
+  ! grep -q '/tmp/claude-session' "$REPO_ROOT/hooks/cost-tracker.sh"
+}
+
 @test "H3.6 context-warning reads ctx-percent from state dir" {
   # Write a critical ctx-percent into the state dir; hook must emit the warning.
   echo "80" > "$CLAUDE_STATE_DIR/ctx-percent"
