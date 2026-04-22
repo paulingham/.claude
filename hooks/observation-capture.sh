@@ -17,7 +17,7 @@ esac
 
 # Get project hash from git remote (used for LEARNING_DIR path — backward compatible)
 # shellcheck source=_lib/project-hash.sh
-source "$HOME/.claude/hooks/_lib/project-hash.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
 PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
 
 # Get human-readable project name

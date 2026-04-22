@@ -12,7 +12,29 @@ teardown() {
   rm -rf "$TMP_DIR"
 }
 
-# ---------- AC1.1 / AC1.2: stdin form digests ----------
+# ---------- AC1.2: both backends produce identical digests (Linux↔macOS parity) ----------
+# Linux ships md5sum by default; macOS ships openssl. AC1.2 asserts the helper
+# returns the same digest regardless of which backend is chosen. This proves
+# portability without requiring Docker — both code paths are exercised locally.
+
+@test "AC1.2 md5sum backend and openssl backend produce identical digests for 'abc'" {
+  if ! command -v md5sum >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; then
+    skip "Both md5sum AND openssl required on PATH to exercise both backends"
+  fi
+  via_md5sum=$(printf 'abc' | md5sum | awk '{print $1}')
+  via_openssl=$(printf 'abc' | openssl dgst -md5 | awk '{print $NF}')
+  [ "$via_md5sum" = "$via_openssl" ]
+  [ "$via_md5sum" = "900150983cd24fb0d6963f7d28e17f72" ]
+}
+
+@test "AC1.2 _md5_hash via openssl branch returns 900150983cd24fb0d6963f7d28e17f72" {
+  # Force the openssl branch by stubbing md5sum as missing from command -v.
+  run bash -c "source '$LIB'; command() { if [ \"\$1\" = -v ] && [ \"\$2\" = md5sum ]; then return 1; fi; builtin command \"\$@\"; }; printf 'abc' | _md5_hash"
+  [ "$status" -eq 0 ]
+  [ "$output" = "900150983cd24fb0d6963f7d28e17f72" ]
+}
+
+# ---------- AC1.1: stdin form digests ----------
 
 @test "AC1.1 _md5_hash 'abc' returns 900150983cd24fb0d6963f7d28e17f72" {
   run bash -c "source '$LIB'; printf 'abc' | _md5_hash"

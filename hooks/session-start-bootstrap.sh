@@ -117,7 +117,7 @@ fi
 # Session memory (orientation after compaction)
 # ---------------------------------------------------------------------------
 # shellcheck source=_lib/project-hash.sh
-source "$HOME/.claude/hooks/_lib/project-hash.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
 PROJECT_HASH=$(_project_hash --fallback "local")
 SESSION_NOTES="$HOME/.claude/session-memory/$PROJECT_HASH/notes.md"
 if [[ -f "$SESSION_NOTES" ]]; then

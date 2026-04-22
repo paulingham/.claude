@@ -19,7 +19,7 @@ mkdir -p "$METRICS_DIR"
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 PROJECT=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
 # shellcheck source=_lib/project-hash.sh
-source "$HOME/.claude/hooks/_lib/project-hash.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
 PROJECT_HASH=$(_project_hash --fallback "")
 
 # Session ID: read from temp file (created by observation-capture)

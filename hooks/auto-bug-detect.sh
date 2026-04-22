@@ -7,7 +7,7 @@
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 source ~/.claude/hooks/loop-guard.sh && check_loop_guard "auto-bug-detect" || exit 0
 # shellcheck source=_lib/project-hash.sh
-source ~/.claude/hooks/_lib/project-hash.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')

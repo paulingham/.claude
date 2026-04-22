@@ -165,7 +165,7 @@ rm -f "/tmp/claude-session-${MY_PID}"
 rm -f "/tmp/claude-session-start-${MY_PID}"
 
 # Get the project hash that observation-capture will use
-source "$HOME/.claude/hooks/_lib/project-hash.sh"
+source "$HOOKS_DIR/_lib/project-hash.sh"
 OBS_PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
 OBS_FILE="$HOME/.claude/learning/$OBS_PROJECT_HASH/observations.jsonl"
 
@@ -297,7 +297,7 @@ LW_DB="$LW_HOME/.claude/db/memory.sqlite"
 sqlite3 "$LW_DB" < "$LW_HOME/.claude/db/schema.sql"
 
 # Resolve the project hash the hook will compute (hook uses git from $PWD).
-source "$HOME/.claude/hooks/_lib/project-hash.sh"
+source "$HOOKS_DIR/_lib/project-hash.sh"
 LW_PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
 LW_JSONL="$LW_HOME/.claude/learning/$LW_PROJECT_HASH/observations.jsonl"
 
