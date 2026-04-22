@@ -3,7 +3,6 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_HOOK_PROFILE": "standard",
     "CLAUDE_PIPELINE_TASK_ID": "",
-    "HCOM": "$HOME/.local/bin/hcom",
     "HF_TOKEN": "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",
     "ORT_DYLIB_PATH": "/opt/homebrew/lib/libonnxruntime.dylib",
     "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
@@ -87,7 +86,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} notify",
+            "command": "$HOME/.local/bin/hcom notify",
             "timeout": 10000
           }
         ]
@@ -98,7 +97,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} permission-request",
+            "command": "$HOME/.local/bin/hcom permission-request",
             "timeout": 10000
           }
         ]
@@ -189,7 +188,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} post",
+            "command": "$HOME/.local/bin/hcom post",
             "timeout": 86400
           }
         ]
@@ -312,7 +311,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} pre",
+            "command": "$HOME/.local/bin/hcom pre",
             "timeout": 10000
           }
         ]
@@ -332,7 +331,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} sessionend",
+            "command": "$HOME/.local/bin/hcom sessionend",
             "timeout": 10000
           }
         ]
@@ -362,7 +361,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} sessionstart",
+            "command": "$HOME/.local/bin/hcom sessionstart",
             "timeout": 10000
           }
         ]
@@ -397,7 +396,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} poll",
+            "command": "$HOME/.local/bin/hcom poll",
             "timeout": 86400
           }
         ]
@@ -424,7 +423,7 @@
           },
           {
             "type": "command",
-            "command": "${HCOM} subagent-start",
+            "command": "$HOME/.local/bin/hcom subagent-start",
             "timeout": 10000
           }
         ]
@@ -449,7 +448,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} subagent-stop",
+            "command": "$HOME/.local/bin/hcom subagent-stop",
             "timeout": 86400
           }
         ]
@@ -469,7 +468,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${HCOM} userpromptsubmit",
+            "command": "$HOME/.local/bin/hcom userpromptsubmit",
             "timeout": 10000
           }
         ]
