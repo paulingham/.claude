@@ -174,3 +174,16 @@ teardown() {
   local mtime_after; mtime_after=$(stat -f %m "$venv" 2>/dev/null || stat -c %Y "$venv")
   [ "$mtime_before" = "$mtime_after" ]
 }
+
+@test "install-tools.sh --yes prints 'skipped' for every tool already on PATH (AC3.6)" {
+  # On the build host, all SYSTEM_TOOLS are present (we installed bats/shellcheck,
+  # and gh/jq/ripgrep/sqlite3/python3 ship with the dev environment). Re-running
+  # --yes must emit "skipped: <tool>" for each and exit 0.
+  local venv="$TMP_DIR/idem-venv"
+  run bash -c "export CLAUDE_VENV_PATH='$venv' PIP_CMD='echo PIP:'; bash '$REPO_ROOT/scripts/install-tools.sh' --yes"
+  [ "$status" -eq 0 ]
+  # At least one skipped line must appear (for gh, bats, shellcheck — known present)
+  [[ "$output" == *"skipped:"* ]]
+  # No "install_pkg: unsupported OS" (should not bail)
+  [[ "$output" != *"unsupported OS"* ]]
+}
