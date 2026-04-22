@@ -6,7 +6,6 @@
     "HCOM": "/Users/Paul.Ingham/.local/bin/hcom",
     "HF_TOKEN_PATH": "/Users/Paul.Ingham/.config/parry-guard/hf_token",
     "HF_TOKEN": "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",
-    "PARRY_IGNORE_DIRS": "/Users/Paul.Ingham/.claude",
     "ORT_DYLIB_PATH": "/opt/homebrew/lib/libonnxruntime.dylib",
     "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
     "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1",
@@ -129,11 +128,6 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/observation-capture.sh",
             "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "~/.cargo/bin/parry-guard hook",
-            "timeout": 10000
           }
         ]
       },
@@ -235,16 +229,6 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/governance-capture.sh",
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "dippy check",
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "~/.cargo/bin/parry-guard hook",
             "timeout": 10000
           }
         ]
@@ -478,11 +462,6 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/intake-reminder.sh",
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "~/.cargo/bin/parry-guard hook",
             "timeout": 10000
           }
         ]
