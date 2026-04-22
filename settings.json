@@ -3,7 +3,7 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_HOOK_PROFILE": "standard",
     "CLAUDE_PIPELINE_TASK_ID": "",
-    "HF_TOKEN": "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",
+    "HCOM": "$HOME/.local/bin/hcom",
     "ORT_DYLIB_PATH": "/opt/homebrew/lib/libonnxruntime.dylib",
     "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
     "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1",
