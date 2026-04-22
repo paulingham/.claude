@@ -16,6 +16,6 @@ if [[ -z "$AGENT_TYPE" ]]; then
     exit 0
 fi
 
-printf '%s\n' "$AGENT_TYPE" | _state_write "agent-role" 2>/dev/null || true
+printf '%s\n' "$AGENT_TYPE" | _state_write "agent-role-${PPID}" 2>/dev/null || true
 
 exit 0

@@ -385,8 +385,12 @@ echo ""
 # -- subagent-context tests --------------------------------------------------
 echo "-- subagent-context.sh --"
 
+# subagent-context writes agent-role-${PPID}. When we spawn the hook via
+# `bash hook.sh`, the hook's PPID = MY_PID (this script's PID).
+AGENT_ROLE_FILE=$(_state_path "agent-role-${MY_PID}")
+
 # Cleanup temp file before tests
-rm -f $(_state_path agent-role)
+rm -f "$AGENT_ROLE_FILE"
 
 # Test: syntax check
 bash -n "$HOOKS_DIR/subagent-context.sh" > /dev/null 2>&1
@@ -397,22 +401,22 @@ echo '{"subagent_type":"software-engineer"}' | bash "$HOOKS_DIR/subagent-context
 SC_EXIT=$?
 run_test "subagent-context: exits 0" 0 $SC_EXIT
 
-if [[ -f $(_state_path agent-role) ]]; then
-  SC_ROLE=$(cat $(_state_path agent-role))
+if [[ -f "$AGENT_ROLE_FILE" ]]; then
+  SC_ROLE=$(cat "$AGENT_ROLE_FILE")
   if [[ "$SC_ROLE" == "software-engineer" ]]; then
-    pass "subagent-context: writes role to $(_state_path agent-role)"
+    pass "subagent-context: writes role to $AGENT_ROLE_FILE"
   else
-    fail "subagent-context: writes role to $(_state_path agent-role)" "software-engineer" "$SC_ROLE"
+    fail "subagent-context: writes role to $AGENT_ROLE_FILE" "software-engineer" "$SC_ROLE"
   fi
 else
-  fail "subagent-context: writes role to $(_state_path agent-role)" "file exists" "not found"
+  fail "subagent-context: writes role to $AGENT_ROLE_FILE" "file exists" "not found"
 fi
 
 # Test: agent_type fallback field
-rm -f $(_state_path agent-role)
+rm -f "$AGENT_ROLE_FILE"
 echo '{"agent_type":"infrastructure-engineer"}' | bash "$HOOKS_DIR/subagent-context.sh" 2>/dev/null
-if [[ -f $(_state_path agent-role) ]]; then
-  SC_ROLE2=$(cat $(_state_path agent-role))
+if [[ -f "$AGENT_ROLE_FILE" ]]; then
+  SC_ROLE2=$(cat "$AGENT_ROLE_FILE")
   if [[ "$SC_ROLE2" == "infrastructure-engineer" ]]; then
     pass "subagent-context: reads agent_type as fallback"
   else
@@ -423,18 +427,18 @@ else
 fi
 
 # Test: empty input exits 0, no file written
-rm -f $(_state_path agent-role)
+rm -f "$AGENT_ROLE_FILE"
 echo '{}' | bash "$HOOKS_DIR/subagent-context.sh" 2>/dev/null
 SC_EMPTY_EXIT=$?
 run_test "subagent-context: empty input exits 0" 0 $SC_EMPTY_EXIT
-if [[ ! -f $(_state_path agent-role) ]]; then
+if [[ ! -f "$AGENT_ROLE_FILE" ]]; then
   pass "subagent-context: empty input writes no temp file"
 else
   fail "subagent-context: empty input writes no temp file" "no file" "file exists"
 fi
 
 # Cleanup
-rm -f $(_state_path agent-role)
+rm -f "$AGENT_ROLE_FILE"
 
 echo ""
 
@@ -444,7 +448,8 @@ echo "-- observation-capture.sh (file-based fallbacks) --"
 # Test: agent_role fallback from the agent-role state file
 rm -f "$(_state_path "session-${MY_PID}")"
 rm -f "$(_state_path "session-start-${MY_PID}")"
-echo "code-reviewer" > $(_state_path agent-role)
+AGENT_ROLE_FILE=$(_state_path "agent-role-${MY_PID}")
+echo "code-reviewer" > "$AGENT_ROLE_FILE"
 
 echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
   CLAUDE_SESSION_ID="test-fallback-role" \
@@ -463,7 +468,7 @@ else
 fi
 
 # Test: env var takes precedence over temp file
-echo "wrong-role" > $(_state_path agent-role)
+echo "wrong-role" > "$AGENT_ROLE_FILE"
 
 echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
   CLAUDE_SESSION_ID="test-envvar-precedence" \
@@ -497,7 +502,7 @@ task_id: test-phase-fallback
 - Review: pending
 EOPIPE
 
-rm -f $(_state_path agent-role)
+rm -f "$AGENT_ROLE_FILE"
 
 echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
   CLAUDE_SESSION_ID="test-phase-fallback" \
@@ -517,7 +522,7 @@ fi
 
 # Cleanup test pipeline file
 rm -f "$OC_TEST_PIPELINE"
-rm -f $(_state_path agent-role)
+rm -f "$AGENT_ROLE_FILE"
 
 echo ""
 

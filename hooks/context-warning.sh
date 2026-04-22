@@ -10,7 +10,7 @@ source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"
 _ensure_state_dir
 
-CTX_FILE=$(_state_path "ctx-percent")
+CTX_FILE=$(_state_path "ctx-percent-${PPID}")
 
 # Skip if no context data available
 if [[ ! -f "$CTX_FILE" ]]; then

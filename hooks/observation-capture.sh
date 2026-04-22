@@ -73,7 +73,7 @@ fi
 # Agent role: from env var, or from state file written by subagent-context.sh
 AGENT_ROLE="${CLAUDE_AGENT_ROLE:-}"
 if [[ -z "$AGENT_ROLE" ]]; then
-    AGENT_ROLE_FILE=$(_state_path "agent-role")
+    AGENT_ROLE_FILE=$(_state_path "agent-role-${PPID}")
     if [[ -f "$AGENT_ROLE_FILE" ]]; then
         AGENT_ROLE=$(cat "$AGENT_ROLE_FILE" 2>/dev/null || true)
     fi

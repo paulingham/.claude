@@ -64,10 +64,12 @@ _stat_mode() {
 
 @test "H3.7 statusline writes ctx-percent to state dir" {
   # Statusline reads JSON on stdin with a context.used_percent field.
+  # Writes ctx-percent-${PPID} for per-session isolation within an install.
   run bash -c "echo '{\"workspace\":{\"current_dir\":\"$HOME\"},\"context\":{\"used_percent\":42}}' | bash '$REPO_ROOT/statusline-robbyrussell.sh' >/dev/null"
   [ "$status" -eq 0 ]
-  [ -f "$CLAUDE_STATE_DIR/ctx-percent" ]
-  [ "$(cat "$CLAUDE_STATE_DIR/ctx-percent")" = "42" ]
+  ctx_file=$(find "$CLAUDE_STATE_DIR" -maxdepth 1 -name 'ctx-percent-*' -type f | head -1)
+  [ -n "$ctx_file" ]
+  [ "$(cat "$ctx_file")" = "42" ]
 }
 
 @test "H3.13 per-install isolation: two distinct \$HOMEs yield disjoint state dirs" {
@@ -112,10 +114,12 @@ _stat_mode() {
 }
 
 @test "H3.9 subagent-context writes agent-role to state dir" {
+  # Writes agent-role-${PPID} for per-session isolation within an install.
   run bash -c "echo '{\"subagent_type\":\"software-engineer\"}' | bash '$REPO_ROOT/hooks/subagent-context.sh'"
   [ "$status" -eq 0 ]
-  [ -f "$CLAUDE_STATE_DIR/agent-role" ]
-  [ "$(cat "$CLAUDE_STATE_DIR/agent-role")" = "software-engineer" ]
+  role_file=$(find "$CLAUDE_STATE_DIR" -maxdepth 1 -name 'agent-role-*' -type f | head -1)
+  [ -n "$role_file" ]
+  [ "$(cat "$role_file")" = "software-engineer" ]
 }
 
 @test "H3.8 cost-tracker reads session markers from state dir (not /tmp)" {
@@ -127,12 +131,15 @@ _stat_mode() {
 }
 
 @test "H3.6 context-warning reads ctx-percent from state dir" {
-  # Write a critical ctx-percent into the state dir; hook must emit the warning.
-  echo "80" > "$CLAUDE_STATE_DIR/ctx-percent"
-  # Seed the debounce counter so the very next call fires (mod-5 == 0).
-  mkdir -p "$CLAUDE_STATE_DIR/hook-guard"
-  echo "4" > "$CLAUDE_STATE_DIR/hook-guard/context-warning-count"
-  run bash -c "echo '{}' | bash '$REPO_ROOT/hooks/context-warning.sh' 2>&1"
+  # Writes ctx-percent-${PPID} into state dir; hook must emit the warning.
+  # Keying by the subshell PID the hook will see ($$ in the bash -c subshell).
+  run bash -c '
+    pid_proxy=$$
+    echo "80" > "$CLAUDE_STATE_DIR/ctx-percent-$pid_proxy"
+    mkdir -p "$CLAUDE_STATE_DIR/hook-guard"
+    echo "4" > "$CLAUDE_STATE_DIR/hook-guard/context-warning-count"
+    echo "{}" | bash "'"$REPO_ROOT"'/hooks/context-warning.sh" 2>&1
+  '
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "CRITICAL CONTEXT WARNING"
 }
@@ -162,4 +169,58 @@ _stat_mode() {
   [ -n "$ctx_file" ]
   mode=$(_stat_mode "$ctx_file")
   [ "$mode" = "600" ]
+}
+
+@test "H3.17 statusline scopes ctx-percent by PPID (two sessions on one host do not collide)" {
+  # Simulate two Claude Code processes writing different ctx percentages
+  # concurrently. Each writer's PPID is unique, so there must be two files.
+  bash -c "echo '{\"workspace\":{\"current_dir\":\"$HOME\"},\"context\":{\"used_percent\":25}}' | bash '$REPO_ROOT/statusline-robbyrussell.sh' >/dev/null" &
+  bg1=$!
+  bash -c "echo '{\"workspace\":{\"current_dir\":\"$HOME\"},\"context\":{\"used_percent\":70}}' | bash '$REPO_ROOT/statusline-robbyrussell.sh' >/dev/null" &
+  bg2=$!
+  wait $bg1
+  wait $bg2
+  count=$(find "$CLAUDE_STATE_DIR" -maxdepth 1 -name 'ctx-percent-*' -type f | wc -l | tr -d ' ')
+  [ "$count" -ge 2 ]
+}
+
+@test "H3.18 subagent-context scopes agent-role by PPID (two orchestrators do not collide)" {
+  bash -c "echo '{\"subagent_type\":\"software-engineer\"}' | bash '$REPO_ROOT/hooks/subagent-context.sh'" &
+  bg1=$!
+  bash -c "echo '{\"subagent_type\":\"code-reviewer\"}' | bash '$REPO_ROOT/hooks/subagent-context.sh'" &
+  bg2=$!
+  wait $bg1
+  wait $bg2
+  count=$(find "$CLAUDE_STATE_DIR" -maxdepth 1 -name 'agent-role-*' -type f | wc -l | tr -d ' ')
+  [ "$count" -ge 2 ]
+}
+
+@test "H3.19 context-warning reads ctx-percent-\${PPID} (PPID-scoped)" {
+  # Write ctx-percent keyed by the subshell PID the hook will see.
+  run bash -c '
+    pid_proxy=$$
+    mkdir -p "$CLAUDE_STATE_DIR/hook-guard"
+    echo "80" > "$CLAUDE_STATE_DIR/ctx-percent-$pid_proxy"
+    echo "4" > "$CLAUDE_STATE_DIR/hook-guard/context-warning-count"
+    echo "{}" | bash "'"$REPO_ROOT"'/hooks/context-warning.sh" 2>&1
+  '
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "CRITICAL CONTEXT WARNING"
+}
+
+@test "H3.20 observation-capture reads agent-role-\${PPID} (PPID-scoped)" {
+  # Write agent-role keyed by the subshell PID the hook will see.
+  run bash -c '
+    pid_proxy=$$
+    echo "code-reviewer" > "$CLAUDE_STATE_DIR/agent-role-$pid_proxy"
+    echo "{\"tool_name\":\"Read\",\"tool_input\":{\"file_path\":\"/x\"},\"tool_output\":{}}" | \
+      CLAUDE_SESSION_ID=test-ppid-scope \
+      bash "'"$REPO_ROOT"'/hooks/observation-capture.sh" 2>/dev/null
+  '
+  [ "$status" -eq 0 ]
+  # Find the observations jsonl the hook wrote to
+  obs_file=$(find "$HOME/.claude/learning" -name observations.jsonl -type f | head -1)
+  [ -n "$obs_file" ]
+  role=$(tail -1 "$obs_file" | jq -r '.agent_role // empty')
+  [ "$role" = "code-reviewer" ]
 }
