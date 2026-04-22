@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Quality Gate Hook - Final check before PR creation
 # PreToolUse hook for Bash commands containing "gh pr create"
 #

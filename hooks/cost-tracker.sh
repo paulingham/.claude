@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Cost Tracker — Stop hook
 # Appends session metrics to ~/.claude/metrics/costs.jsonl
 # Passive logging only (exit 0).
