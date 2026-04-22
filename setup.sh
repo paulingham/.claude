@@ -84,7 +84,8 @@ case "$(uname -s)" in
         fi
         ;;
     Linux)
-        print_success "Linux detected -- skipping brew check"
+        print_success "Linux detected -- brew not required"
+        print_success "  (use scripts/install-tools.sh for distro-native package installs)"
         ;;
 esac
 
