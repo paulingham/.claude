@@ -183,24 +183,46 @@ EOF
   [ "$output" = "0" ]
 }
 
-@test "AC1.5e _project_hash returns md5 digest when git remote succeeds" {
+@test "AC1.5e _project_hash returns md5 digest (with newline) when git remote succeeds" {
+  # _project_hash appends a trailing newline to the git remote URL before
+  # hashing, to preserve byte-for-byte parity with the pre-migration
+  # 'git ... | openssl md5 -r' pipe (which preserved git's trailing newline).
   mkdir -p "$TMP_DIR/bin"
   cat >"$TMP_DIR/bin/git" <<'EOF'
 #!/usr/bin/env bash
 if [[ "$1" == "remote" && "$2" == "get-url" && "$3" == "origin" ]]; then
-  printf 'https://example.com/repo.git'
+  printf 'https://example.com/repo.git'  # url as-is; _project_hash adds \n
   exit 0
 fi
 exit 0
 EOF
   chmod +x "$TMP_DIR/bin/git"
-  expected="bc6fa1f09b2a9f7a7bdfb9a3b91eeaaa"  # md5(https://example.com/repo.git) — verify live
-  expected=$(printf 'https://example.com/repo.git' | md5sum 2>/dev/null | awk '{print $1}')
+  expected=$(printf 'https://example.com/repo.git\n' | md5sum 2>/dev/null | awk '{print $1}')
   if [[ -z "$expected" ]]; then
-    expected=$(printf 'https://example.com/repo.git' | openssl dgst -md5 | awk '{print $NF}')
+    expected=$(printf 'https://example.com/repo.git\n' | openssl dgst -md5 | awk '{print $NF}')
   fi
   export PATH="$TMP_DIR/bin:$PATH"
   run bash -c "source '$LIB'; _project_hash --fallback 'local'"
   [ "$status" -eq 0 ]
   [ "$output" = "$expected" ]
+}
+
+@test "AC1.5f _project_hash byte-for-byte parity with pre-migration pipeline" {
+  # Critical: digest must match the old 'git remote | openssl md5 -r | awk'
+  # form so existing session-memory/ and learning/ directories keyed by the
+  # pre-migration hash remain addressable.
+  if ! command -v openssl >/dev/null 2>&1; then
+    skip "openssl required for parity cross-check"
+  fi
+  mkdir -p "$TMP_DIR/repo"
+  git -C "$TMP_DIR/repo" init -q 2>/dev/null
+  git -C "$TMP_DIR/repo" remote add origin "https://example.com/parity-check.git" 2>/dev/null
+  pre=$(cd "$TMP_DIR/repo" && git remote get-url origin | openssl md5 -r 2>/dev/null | awk '{print $1}')
+  if [[ -z "$pre" ]]; then
+    # macOS openssl has no -r; use dgst
+    pre=$(cd "$TMP_DIR/repo" && git remote get-url origin | openssl dgst -md5 | awk '{print $NF}')
+  fi
+  run bash -c "cd '$TMP_DIR/repo' && source '$LIB' && _project_hash --fallback 'local'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$pre" ]
 }

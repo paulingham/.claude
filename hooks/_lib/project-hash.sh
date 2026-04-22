@@ -23,5 +23,5 @@ _project_hash() {
   local fallback; fallback=$(_project_hash_fallback "$@")
   local url; url=$(git remote get-url origin 2>/dev/null) || { echo "$fallback"; return; }
   [[ -z "$url" ]] && { echo "$fallback"; return; }
-  printf '%s' "$url" | _md5_hash || echo "$fallback"
+  printf '%s\n' "$url" | _md5_hash || echo "$fallback"
 }
