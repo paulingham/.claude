@@ -37,6 +37,35 @@ teardown() {
   [ "$(cat "$CLAUDE_STATE_DIR/ctx-percent")" = "42" ]
 }
 
+@test "H3.13 per-install isolation: two distinct \$HOMEs yield disjoint state dirs" {
+  # Two "installs" (two HOME values) must never share a state file.
+  install1="$TMP_HOME/install1"
+  install2="$TMP_HOME/install2"
+  mkdir -p "$install1/.claude/state" "$install2/.claude/state"
+  HOME="$install1" CLAUDE_STATE_DIR="$install1/.claude/state" \
+    bash -c "source '$REPO_ROOT/hooks/_lib/state-dir.sh'; echo hello-A > \"\$(_state_path test-marker)\""
+  HOME="$install2" CLAUDE_STATE_DIR="$install2/.claude/state" \
+    bash -c "source '$REPO_ROOT/hooks/_lib/state-dir.sh'; echo hello-B > \"\$(_state_path test-marker)\""
+  [ "$(cat "$install1/.claude/state/test-marker")" = "hello-A" ]
+  [ "$(cat "$install2/.claude/state/test-marker")" = "hello-B" ]
+}
+
+@test "H3.12 two concurrent shells write independent session markers (PID scoping)" {
+  # Simulates two Cloud sessions sharing a host: each shell has a distinct PID,
+  # so when it invokes observation-capture, the session-<PPID> markers must
+  # be disjoint and readable from each shell.
+  payload='{"tool_name":"Read","tool_input":{"file_path":"/x"},"tool_output":{}}'
+  bash -c "echo '$payload' | bash '$REPO_ROOT/hooks/observation-capture.sh'; echo \$PPID" > "$TMP_HOME/p1.txt" &
+  bg1=$!
+  bash -c "echo '$payload' | bash '$REPO_ROOT/hooks/observation-capture.sh'; echo \$PPID" > "$TMP_HOME/p2.txt" &
+  bg2=$!
+  wait $bg1
+  wait $bg2
+  # Two distinct session-<pid> files must exist (no collision, no overwrite).
+  count=$(find "$CLAUDE_STATE_DIR" -maxdepth 1 -name 'session-*' -type f | wc -l | tr -d ' ')
+  [ "$count" -ge 2 ]
+}
+
 @test "H3.11 auto-bug-detect uses state dir for dedup (not /tmp)" {
   ! grep -q '/tmp/claude-hook-guard' "$REPO_ROOT/hooks/auto-bug-detect.sh"
   grep -q '_state_path' "$REPO_ROOT/hooks/auto-bug-detect.sh"

@@ -9,8 +9,12 @@ HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PASS=0
 FAIL=0
 
+# shellcheck source=../_lib/state-dir.sh
+source "$HOOKS_DIR/_lib/state-dir.sh"
+_ensure_state_dir
+
 # When the test spawns a hook via `bash hook.sh`, the hook's PPID = this script's PID.
-# So session temp files are keyed by $$ (this script's PID), not $PPID.
+# So state files are keyed by $$ (this script's PID), not $PPID.
 MY_PID="$$"
 
 pass() { echo "  PASS: $1"; PASS=$(( PASS + 1 )); }
@@ -59,7 +63,7 @@ echo "-- loop-guard.sh --"
 source "$HOOKS_DIR/loop-guard.sh"
 
 # Clear any existing guard file for test isolation
-rm -f "/tmp/claude-hook-guard/test-loop-guard-hook"
+rm -f "$(_state_path hook-guard)/test-loop-guard-hook"
 
 LOOP_FAILED=false
 for i in $(seq 1 11); do
@@ -161,8 +165,8 @@ echo ""
 echo "-- observation-capture.sh (enriched) --"
 
 # Setup: clean session temp files keyed by MY_PID (hook's PPID = this script's PID)
-rm -f "/tmp/claude-session-${MY_PID}"
-rm -f "/tmp/claude-session-start-${MY_PID}"
+rm -f "$(_state_path "session-${MY_PID}")"
+rm -f "$(_state_path "session-start-${MY_PID}")"
 
 # Get the project hash that observation-capture will use
 source "$HOOKS_DIR/_lib/project-hash.sh"
@@ -249,8 +253,8 @@ if [[ -f "$OBS_FILE" ]]; then
 fi
 
 # Test: session start time file created (keyed by MY_PID since hook's PPID = our PID)
-if [[ -f "/tmp/claude-session-start-${MY_PID}" ]]; then
-  START_TIME=$(cat "/tmp/claude-session-start-${MY_PID}")
+if [[ -f "$(_state_path "session-start-${MY_PID}")" ]]; then
+  START_TIME=$(cat "$(_state_path "session-start-${MY_PID}")")
   if [[ "$START_TIME" =~ ^[0-9]+$ ]]; then
     pass "observation-capture: session start time file created"
   else
@@ -261,12 +265,12 @@ else
 fi
 
 # Test: session_id fallback (generated when env var not set)
-rm -f "/tmp/claude-session-${MY_PID}"
+rm -f "$(_state_path "session-${MY_PID}")"
 echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
   bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
 
-if [[ -f "/tmp/claude-session-${MY_PID}" ]]; then
-  GENERATED_ID=$(cat "/tmp/claude-session-${MY_PID}")
+if [[ -f "$(_state_path "session-${MY_PID}")" ]]; then
+  GENERATED_ID=$(cat "$(_state_path "session-${MY_PID}")")
   if [[ -n "$GENERATED_ID" ]]; then
     pass "observation-capture: generates session_id when env var unset"
   else
@@ -305,7 +309,7 @@ LW_JSONL="$LW_HOME/.claude/learning/$LW_PROJECT_HASH/observations.jsonl"
 LW_BEFORE=$(sqlite3 "$LW_DB" "SELECT COUNT(*) FROM observations")
 
 # Test: hook inserts a row into SQLite when DB exists.
-rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}"
+rm -f "$(_state_path "session-${MY_PID}")" "$(_state_path "session-start-${MY_PID}")"
 echo '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/x.ts"},"tool_output":{}}' | \
   HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-session-1" \
   bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
@@ -321,7 +325,7 @@ fi
 
 # AC4: Missing DB -> hook exits 0, no DB created, JSONL still appended.
 rm -f "$LW_DB"
-rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}"
+rm -f "$(_state_path "session-${MY_PID}")" "$(_state_path "session-start-${MY_PID}")"
 rm -f "$LW_JSONL"
 echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/y.ts"},"tool_output":{}}' | \
   HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-session-nodb" \
@@ -342,7 +346,7 @@ fi
 # AC6: malformed stdin -> hook exits 0, no SQLite write, no JSONL write.
 sqlite3 "$LW_DB" < "$HOOKS_DIR/../db/schema.sql"
 LW_MALFORMED_BEFORE=$(sqlite3 "$LW_DB" "SELECT COUNT(*) FROM observations")
-rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}" "$LW_JSONL"
+rm -f "$(_state_path "session-${MY_PID}")" "$(_state_path "session-start-${MY_PID}")" "$LW_JSONL"
 echo 'not-json-at-all' | \
   HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-malformed" \
   bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
@@ -358,7 +362,7 @@ fi
 # AC5: SQLite failure path -> JSONL still appended, hook exits 0.
 # Simulate by making the DB file unreadable (chmod 000) so sqlite3_open fails.
 chmod 000 "$LW_DB"
-rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}" "$LW_JSONL"
+rm -f "$(_state_path "session-${MY_PID}")" "$(_state_path "session-start-${MY_PID}")" "$LW_JSONL"
 echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/z.ts"},"tool_output":{}}' | \
   HOME="$LW_HOME" CLAUDE_SESSION_ID="lw-locked" \
   bash "$HOOKS_DIR/observation-capture.sh" 2>/dev/null
@@ -373,7 +377,7 @@ fi
 
 # Cleanup
 rm -rf "$LW_TMP"
-rm -f "/tmp/claude-session-${MY_PID}" "/tmp/claude-session-start-${MY_PID}"
+rm -f "$(_state_path "session-${MY_PID}")" "$(_state_path "session-start-${MY_PID}")"
 
 echo ""
 
@@ -382,7 +386,7 @@ echo ""
 echo "-- subagent-context.sh --"
 
 # Cleanup temp file before tests
-rm -f /tmp/claude-agent-role
+rm -f $(_state_path agent-role)
 
 # Test: syntax check
 bash -n "$HOOKS_DIR/subagent-context.sh" > /dev/null 2>&1
@@ -393,22 +397,22 @@ echo '{"subagent_type":"software-engineer"}' | bash "$HOOKS_DIR/subagent-context
 SC_EXIT=$?
 run_test "subagent-context: exits 0" 0 $SC_EXIT
 
-if [[ -f /tmp/claude-agent-role ]]; then
-  SC_ROLE=$(cat /tmp/claude-agent-role)
+if [[ -f $(_state_path agent-role) ]]; then
+  SC_ROLE=$(cat $(_state_path agent-role))
   if [[ "$SC_ROLE" == "software-engineer" ]]; then
-    pass "subagent-context: writes role to /tmp/claude-agent-role"
+    pass "subagent-context: writes role to $(_state_path agent-role)"
   else
-    fail "subagent-context: writes role to /tmp/claude-agent-role" "software-engineer" "$SC_ROLE"
+    fail "subagent-context: writes role to $(_state_path agent-role)" "software-engineer" "$SC_ROLE"
   fi
 else
-  fail "subagent-context: writes role to /tmp/claude-agent-role" "file exists" "not found"
+  fail "subagent-context: writes role to $(_state_path agent-role)" "file exists" "not found"
 fi
 
 # Test: agent_type fallback field
-rm -f /tmp/claude-agent-role
+rm -f $(_state_path agent-role)
 echo '{"agent_type":"infrastructure-engineer"}' | bash "$HOOKS_DIR/subagent-context.sh" 2>/dev/null
-if [[ -f /tmp/claude-agent-role ]]; then
-  SC_ROLE2=$(cat /tmp/claude-agent-role)
+if [[ -f $(_state_path agent-role) ]]; then
+  SC_ROLE2=$(cat $(_state_path agent-role))
   if [[ "$SC_ROLE2" == "infrastructure-engineer" ]]; then
     pass "subagent-context: reads agent_type as fallback"
   else
@@ -419,28 +423,28 @@ else
 fi
 
 # Test: empty input exits 0, no file written
-rm -f /tmp/claude-agent-role
+rm -f $(_state_path agent-role)
 echo '{}' | bash "$HOOKS_DIR/subagent-context.sh" 2>/dev/null
 SC_EMPTY_EXIT=$?
 run_test "subagent-context: empty input exits 0" 0 $SC_EMPTY_EXIT
-if [[ ! -f /tmp/claude-agent-role ]]; then
+if [[ ! -f $(_state_path agent-role) ]]; then
   pass "subagent-context: empty input writes no temp file"
 else
   fail "subagent-context: empty input writes no temp file" "no file" "file exists"
 fi
 
 # Cleanup
-rm -f /tmp/claude-agent-role
+rm -f $(_state_path agent-role)
 
 echo ""
 
 # -- observation-capture fallback tests (file-based context) ----------------
 echo "-- observation-capture.sh (file-based fallbacks) --"
 
-# Test: agent_role fallback from /tmp/claude-agent-role
-rm -f "/tmp/claude-session-${MY_PID}"
-rm -f "/tmp/claude-session-start-${MY_PID}"
-echo "code-reviewer" > /tmp/claude-agent-role
+# Test: agent_role fallback from the agent-role state file
+rm -f "$(_state_path "session-${MY_PID}")"
+rm -f "$(_state_path "session-start-${MY_PID}")"
+echo "code-reviewer" > $(_state_path agent-role)
 
 echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
   CLAUDE_SESSION_ID="test-fallback-role" \
@@ -459,7 +463,7 @@ else
 fi
 
 # Test: env var takes precedence over temp file
-echo "wrong-role" > /tmp/claude-agent-role
+echo "wrong-role" > $(_state_path agent-role)
 
 echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
   CLAUDE_SESSION_ID="test-envvar-precedence" \
@@ -493,7 +497,7 @@ task_id: test-phase-fallback
 - Review: pending
 EOPIPE
 
-rm -f /tmp/claude-agent-role
+rm -f $(_state_path agent-role)
 
 echo '{"tool_name":"Read","tool_input":{"file_path":"/tmp/test.ts"},"tool_output":{}}' | \
   CLAUDE_SESSION_ID="test-phase-fallback" \
@@ -513,7 +517,7 @@ fi
 
 # Cleanup test pipeline file
 rm -f "$OC_TEST_PIPELINE"
-rm -f /tmp/claude-agent-role
+rm -f $(_state_path agent-role)
 
 echo ""
 
@@ -649,8 +653,8 @@ echo ""
 echo "-- cost-tracker.sh (enriched) --"
 
 # Setup: write session temp files keyed by MY_PID (cost-tracker hook's PPID = our PID)
-echo "test-cost-session-$$" > "/tmp/claude-session-${MY_PID}"
-echo "$(( $(date +%s) - 120 ))" > "/tmp/claude-session-start-${MY_PID}"
+echo "test-cost-session-$$" > "$(_state_path "session-${MY_PID}")"
+echo "$(( $(date +%s) - 120 ))" > "$(_state_path "session-start-${MY_PID}")"
 
 CT_METRICS_FILE="$HOME/.claude/metrics/costs.jsonl"
 CT_LINES_BEFORE=0
@@ -712,8 +716,8 @@ if [[ -f "$CT_METRICS_FILE" ]]; then
 fi
 
 # Cleanup session temp files
-rm -f "/tmp/claude-session-${MY_PID}"
-rm -f "/tmp/claude-session-start-${MY_PID}"
+rm -f "$(_state_path "session-${MY_PID}")"
+rm -f "$(_state_path "session-start-${MY_PID}")"
 
 echo ""
 
