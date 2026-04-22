@@ -3,22 +3,19 @@ import platform
 import sys
 
 from embedder._lib import (
-    bootstrap_paths, bootstrap_settings, bootstrap_steps, doctor_probe)
+    bootstrap_os_gate, bootstrap_paths, bootstrap_settings,
+    bootstrap_steps, doctor_probe)
 
-WIN_UNSUPPORTED = 10
+WIN_UNSUPPORTED = bootstrap_os_gate.WIN_UNSUPPORTED
 SKIP_NON_MACOS = WIN_UNSUPPORTED  # back-compat alias
-PARTIAL = 20
+PARTIAL = bootstrap_os_gate.PARTIAL
 
 
 def run():
-    if platform.system() == "Windows":
-        return _skip()
+    system = platform.system()
+    if system not in bootstrap_os_gate.SUPPORTED:
+        return bootstrap_os_gate.handle_unsupported(system)
     return 0 if _is_healthy() else _bootstrap()
-
-
-def _skip():
-    print("embedder bootstrap skipped (Windows not supported — use WSL)")
-    return WIN_UNSUPPORTED
 
 
 def _bootstrap():

@@ -9,10 +9,13 @@ import os
 import platform
 from pathlib import Path
 
+from embedder._lib.bootstrap_errors import UnsupportedOSError
+
 _MAC_CANDIDATES = ("/opt/homebrew/lib/libonnxruntime.dylib",
                    "/usr/local/lib/libonnxruntime.dylib")
 _LINUX_CANDIDATES = ("/usr/lib/x86_64-linux-gnu/libonnxruntime.so",
                      "/usr/lib/libonnxruntime.so")
+_CANDIDATES_BY_OS = {"Darwin": _MAC_CANDIDATES, "Linux": _LINUX_CANDIDATES}
 
 
 def dylib_path():
@@ -23,7 +26,11 @@ def dylib_path():
 
 
 def _candidates():
-    return _LINUX_CANDIDATES if platform.system() == "Linux" else _MAC_CANDIDATES
+    system = platform.system()
+    if system not in _CANDIDATES_BY_OS:
+        raise UnsupportedOSError(
+            f"Unsupported OS: {system}. Supported: macOS, Linux.")
+    return _CANDIDATES_BY_OS[system]
 
 
 def _first_existing(paths):
