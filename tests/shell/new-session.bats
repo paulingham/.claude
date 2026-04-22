@@ -1,14 +1,15 @@
 #!/usr/bin/env bats
 # Specs for scripts/new-session.sh and its _lib/ helpers.
 # Each test sets CLAUDE_SESSIONS_ROOT to a temp dir and creates a throwaway
-# git repo at /tmp/ns_<pid>_<n> so the system's real state is never touched.
+# git repo under $WORK_DIR so the system's real state is never touched.
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   LIB_DIR="$REPO_ROOT/scripts/_lib"
   SCRIPTS_DIR="$REPO_ROOT/scripts"
   SESSIONS_ROOT="$(mktemp -d)"
-  TESTREPO="$(mktemp -d)/testrepo"
+  WORK_DIR="$(mktemp -d)"
+  TESTREPO="$WORK_DIR/testrepo"
   mkdir -p "$TESTREPO"
   (
     cd "$TESTREPO" || exit 1
@@ -28,7 +29,7 @@ teardown() {
       [[ -n "$wt" ]] && git -C "$TESTREPO" worktree remove --force "$wt" 2>/dev/null || true
     done < <(find "$SESSIONS_ROOT" -mindepth 2 -maxdepth 2 -type d 2>/dev/null)
   fi
-  rm -rf "$SESSIONS_ROOT" "$(dirname "$TESTREPO")" 2>/dev/null || true
+  rm -rf "$SESSIONS_ROOT" "$WORK_DIR" 2>/dev/null || true
 }
 
 # ---------- _repo_slug (helper) ----------
@@ -125,4 +126,80 @@ teardown() {
   [ "$head_before" != "$head_after" ]
   run git -C "$wt" rev-parse --abbrev-ref HEAD
   [ "$output" = "session/foo" ]
+}
+
+@test "AC5a.8: shellcheck clean on new-session.sh and both _lib helpers" {
+  if ! command -v shellcheck >/dev/null 2>&1; then skip "shellcheck not installed"; fi
+  run shellcheck "$SCRIPTS_DIR/new-session.sh" "$LIB_DIR/session-paths.sh" "$LIB_DIR/session-name.sh"
+  [ "$status" -eq 0 ]
+}
+
+@test "AC5a.8: bash -n clean on new-session.sh and both _lib helpers" {
+  run bash -n "$SCRIPTS_DIR/new-session.sh"
+  [ "$status" -eq 0 ]
+  run bash -n "$LIB_DIR/session-paths.sh"
+  [ "$status" -eq 0 ]
+  run bash -n "$LIB_DIR/session-name.sh"
+  [ "$status" -eq 0 ]
+}
+
+@test "AC5a.9: concurrent invocations yield exactly one valid worktree, no dangling branch" {
+  local sh="$SCRIPTS_DIR/new-session.sh" rep="$TESTREPO"
+  local la; la=$(mktemp); local lb; lb=$(mktemp)
+  bash "$sh" --repo "$rep" --name foo >"$la" 2>&1 &
+  local pid_a=$!
+  bash "$sh" --repo "$rep" --name foo >"$lb" 2>&1 &
+  local pid_b=$!
+  local a=0 b=0
+  wait "$pid_a" || a=$?
+  wait "$pid_b" || b=$?
+  local wins=$(( (a == 0) + (b == 0) ))
+  [ "$wins" = "1" ] || {
+    echo "A rc=$a log:$(cat "$la")"; echo "B rc=$b log:$(cat "$lb")"; false
+  }
+  # exactly one session/foo branch
+  local branches; branches=$(git -C "$rep" branch --list "session/foo" | wc -l | tr -d ' ')
+  [ "$branches" = "1" ]
+  # exactly one worktree for it
+  local wts; wts=$(git -C "$rep" worktree list | grep -c "\[session/foo\]" || true)
+  [ "$wts" = "1" ]
+  rm -f "$la" "$lb"
+}
+
+@test "AC5a.10: --repo pointed at an existing worktree creates session worktree against common-dir" {
+  # pre-create an agent-style worktree (linked to the testrepo common-dir)
+  local agent_wt="$WORK_DIR/agent-wt"
+  mkdir -p "$(dirname "$agent_wt")"
+  run git -C "$TESTREPO" worktree add -b agent-feature "$agent_wt"
+  [ "$status" -eq 0 ]
+  # now run new-session.sh against that worktree path
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$agent_wt" --name session-in-wt
+  [ "$status" -eq 0 ]
+  # session worktree exists and is on session/<name>
+  local slug; slug=$(basename "$agent_wt" | tr '[:upper:]' '[:lower:]')
+  local swt="$SESSIONS_ROOT/$slug/session-in-wt"
+  [ -d "$swt" ]
+  run git -C "$swt" rev-parse --abbrev-ref HEAD
+  [ "$output" = "session/session-in-wt" ]
+  # main repo's git worktree list sees the new session worktree
+  run bash -c "git -C '$TESTREPO' worktree list | grep -F '$swt'"
+  [ "$status" -eq 0 ]
+  # original agent worktree is not disturbed
+  run git -C "$agent_wt" rev-parse --abbrev-ref HEAD
+  [ "$output" = "agent-feature" ]
+  git -C "$TESTREPO" worktree remove --force "$swt" 2>/dev/null || true
+  git -C "$TESTREPO" worktree remove --force "$agent_wt" 2>/dev/null || true
+}
+
+@test "AC5a.7: nested git worktree add inside a session worktree succeeds" {
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$TESTREPO" --name outer
+  [ "$status" -eq 0 ]
+  local outer="$SESSIONS_ROOT/testrepo/outer"
+  local nested="$SESSIONS_ROOT/testrepo/outer-nested"
+  run git -C "$outer" worktree add -b "agent/inner" "$nested"
+  [ "$status" -eq 0 ]
+  [ -d "$nested" ]
+  run git -C "$nested" rev-parse --abbrev-ref HEAD
+  [ "$output" = "agent/inner" ]
+  git -C "$outer" worktree remove --force "$nested" || rm -rf "$nested"
 }
