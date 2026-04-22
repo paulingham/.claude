@@ -15,5 +15,6 @@ _state_path() {
 
 _ensure_state_dir() {
   local dir; dir=$(_state_dir)
-  mkdir -p -m 700 "$dir" 2>/dev/null || return 1
+  mkdir -p "$dir" 2>/dev/null || return 1
+  chmod 700 "$dir" 2>/dev/null || true
 }
