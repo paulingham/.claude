@@ -136,13 +136,10 @@ _run_gate_branch() {
   [[ "$output" == *"INSTALL: dippy"* ]]
 }
 
-# ---------- setup.sh sources dippy-gate.sh and uses the gate ----------
-
-@test "setup.sh sources dippy-gate.sh and calls should_install_dippy" {
-  # Verifies that setup.sh integrates the gate — not just that the lib exists.
-  grep -q 'dippy-gate.sh' "$REPO_ROOT/setup.sh"
-  grep -q 'should_install_dippy' "$REPO_ROOT/setup.sh"
-}
+# ---------- setup.sh integrates the libs end-to-end ----------
+# Integration is proven by the fail-fast tests below (which actually execute the
+# setup.sh bootstrap prefix) and the compose tests (which exercise the same lib
+# composition setup.sh performs). No grep-based coupling to implementation text.
 
 @test "detect_os + should_install_dippy compose correctly on macos (setup.sh integration)" {
   # setup.sh feeds detect_os's output into should_install_dippy. Verify the
