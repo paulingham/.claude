@@ -442,6 +442,17 @@ The setup script is idempotent — safe to run multiple times. It checks what's 
 
 For new projects without a CLAUDE.md, the system automatically runs `/project-setup` to detect your stack, configure commands, classify service architecture, and generate a design system.
 
+### Linux / Claude Code Cloud
+
+The Prerequisites block above is macOS-first (Homebrew). On Ubuntu/Debian/Fedora boxes — including a fresh Claude Code Cloud VM — use `scripts/install-tools.sh` instead: it detects the distro via `/etc/os-release`, installs `gh`, `jq`, `ripgrep`, `sqlite3`, `python3`, and the C/OpenSSL build toolchain via the native package manager, and bootstraps the shared virtualenv at `$HOME/.claude/.venv`.
+
+```bash
+bash "$HOME/.claude/scripts/install-tools.sh" --yes   # unattended install
+bash "$HOME/.claude/setup.sh"                         # then run the bootstrap
+```
+
+`dippy` and `claude-devtools` are Homebrew-only and are skipped on Linux by default. Set `CLAUDE_REQUIRE_DIPPY=1` to opt in if you have a working install path on your Linux host. See the [`## Cloud portability`](#cloud-portability) section below for the full gating matrix.
+
 ### External Tool Reference
 
 | Tool | Purpose | Install | Required? |
