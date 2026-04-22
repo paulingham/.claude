@@ -6,14 +6,17 @@ OS dispatch lives in bootstrap_install; timeouts are caught here.
 import os
 import shutil
 import subprocess
+import sys
 
-from embedder._lib import bootstrap_install, bootstrap_paths
+from embedder._lib import bootstrap_consent, bootstrap_install, bootstrap_paths
 
 
 def install_ort():
     cmd, tool = bootstrap_install.install_cmd_for_os()
     if shutil.which(tool) is None:
         _warn(f"{tool} not on PATH — skipping onnxruntime install")
+        return 1
+    if not bootstrap_consent.grants(cmd, warn=_warn):
         return 1
     return _run_timed(cmd, f"{tool} install failed", timeout=300)
 

@@ -29,7 +29,8 @@ class RunOnLinuxBootstraps(unittest.TestCase):
             settings = Path(d) / "settings.json"
             settings.write_text('{"env": {}}')
             missing_dylib = Path(d) / "libonnxruntime.so"
-            env_patch = {"CLAUDE_SETTINGS_PATH": str(settings)}
+            env_patch = {"CLAUDE_SETTINGS_PATH": str(settings),
+                         "CLAUDE_BOOTSTRAP_CONSENT": "1"}
             with patch.dict(os.environ, env_patch, clear=False), \
                  patch("embedder._lib.bootstrap.platform.system",
                        return_value="Linux"), \

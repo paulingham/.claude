@@ -54,10 +54,13 @@ class DownloadModelSurvivesTimeout(unittest.TestCase):
 class InstallOrtLinuxDispatchesAptGet(unittest.TestCase):
     """Slice 1: install_ort on Linux invokes apt-get, not brew."""
     def test_linux_shells_out_to_apt_get_install(self):
+        import os
         from subprocess import CompletedProcess
         ok = CompletedProcess(args=[], returncode=0)
         with patch("embedder._lib.bootstrap_install.platform.system",
                    return_value="Linux"), \
+             patch.dict(os.environ,
+                        {"CLAUDE_BOOTSTRAP_CONSENT": "1"}, clear=False), \
              patch("embedder._lib.bootstrap_steps.shutil.which",
                    return_value="/usr/bin/apt-get"), \
              patch("embedder._lib.bootstrap_steps.subprocess.run",
