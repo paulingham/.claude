@@ -109,3 +109,68 @@ teardown() {
   local mtime_after; mtime_after=$(stat -f %m "$venv" 2>/dev/null || stat -c %Y "$venv")
   [ "$mtime_before" = "$mtime_after" ]
 }
+
+# ---------- install-tools.sh orchestrator (AC3.2, AC3.3, AC3.4, AC3.5, AC3.6) ----------
+
+@test "install-tools.sh --dry-run on macos prints brew install lines" {
+  run bash -c "export CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"brew install"* ]]
+  [[ "$output" == *"jq"* ]]
+  [[ "$output" == *"ripgrep"* ]]
+}
+
+@test "install-tools.sh --dry-run on ubuntu fixture prints sudo apt-get" {
+  echo 'ID=ubuntu' > "$TMP_DIR/os-release"
+  run bash -c "uname() { echo Linux; }; export -f uname; export OS_RELEASE_PATH='$TMP_DIR/os-release' CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"sudo apt-get install -y"* ]]
+  [[ "$output" == *"jq"* ]]
+  [[ "$output" == *"ripgrep"* ]]
+}
+
+@test "install-tools.sh --yes on unknown OS exits 1 with clear message" {
+  echo 'ID=slackware' > "$TMP_DIR/os-release"
+  run bash -c "uname() { echo Linux; }; export -f uname; export OS_RELEASE_PATH='$TMP_DIR/os-release' CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --yes"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"unknown OS"* ]]
+}
+
+@test "install-tools.sh with --dry-run on unknown OS exits 1 cleanly" {
+  echo 'ID=slackware' > "$TMP_DIR/os-release"
+  run bash -c "uname() { echo Linux; }; export -f uname; export OS_RELEASE_PATH='$TMP_DIR/os-release' CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"unknown OS"* ]]
+}
+
+@test "install-tools.sh with no flags on unknown OS exits 1 cleanly" {
+  echo 'ID=slackware' > "$TMP_DIR/os-release"
+  run bash -c "uname() { echo Linux; }; export -f uname; export OS_RELEASE_PATH='$TMP_DIR/os-release' CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh'"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"unknown OS"* ]]
+}
+
+@test "install-tools.sh --dry-run does not create the real venv" {
+  # AC3.5: dry-run is hermetic — PIP_CMD defaults to "echo" via dry-run wiring
+  # AND venv creation is suppressed so no physical side effects occur.
+  local fake_home="$TMP_DIR/fake_home"
+  mkdir -p "$fake_home/.claude"
+  run bash -c "export HOME='$fake_home'; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
+  [ "$status" -eq 0 ]
+  [ ! -d "$fake_home/.claude/.venv" ]
+}
+
+@test "install-tools.sh --yes hermetic: prints pip install for embedder deps, no real pip" {
+  local venv="$TMP_DIR/test-venv-$$"
+  run bash -c "export CLAUDE_VENV_PATH='$venv' PIP_CMD='echo PIP:'; bash '$REPO_ROOT/scripts/install-tools.sh' --yes"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PIP: onnxruntime numpy tokenizers"* ]]
+  # Venv path used must be the test path, not the real $HOME/.claude/.venv
+  # Second invocation: no-op w.r.t. venv creation
+  local mtime_before; mtime_before=$(stat -f %m "$venv" 2>/dev/null || stat -c %Y "$venv")
+  sleep 1
+  run bash -c "export CLAUDE_VENV_PATH='$venv' PIP_CMD='echo PIP:'; bash '$REPO_ROOT/scripts/install-tools.sh' --yes"
+  [ "$status" -eq 0 ]
+  local mtime_after; mtime_after=$(stat -f %m "$venv" 2>/dev/null || stat -c %Y "$venv")
+  [ "$mtime_before" = "$mtime_after" ]
+}

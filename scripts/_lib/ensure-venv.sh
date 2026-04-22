@@ -8,6 +8,7 @@ _venv_path() { echo "${CLAUDE_VENV_PATH:-$HOME/.claude/.venv}"; }
 _ensure_venv_dir() {
   local venv; venv=$(_venv_path)
   [[ -d "$venv" ]] && return 0
+  [[ -n "${CLAUDE_VENV_DRY_RUN:-}" ]] && { echo "would create venv at $venv"; return 0; }
   python3 -m venv "$venv"
 }
 
