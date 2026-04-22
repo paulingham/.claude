@@ -50,8 +50,8 @@ if [ -n "$ctx_pct" ]; then
     # Bridge context data for hooks (per-install state dir, Cloud-safe)
     if [ -n "$ctx_int" ]; then
         # shellcheck source=hooks/_lib/state-dir.sh
-        source "$(dirname "$0")/hooks/_lib/state-dir.sh" 2>/dev/null && _ensure_state_dir 2>/dev/null && \
-          echo "$ctx_int" > "$(_state_path ctx-percent)" 2>/dev/null
+        source "${HOME}/.claude/hooks/_lib/state-dir.sh" 2>/dev/null && _ensure_state_dir 2>/dev/null && \
+          printf '%s\n' "$ctx_int" | _state_write "ctx-percent" 2>/dev/null
     fi
 fi
 

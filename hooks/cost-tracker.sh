@@ -22,6 +22,7 @@ PROJECT=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
 # shellcheck source=_lib/state-dir.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"
+_ensure_state_dir
 PROJECT_HASH=$(_project_hash --fallback "")
 
 # Session ID: read from state file (created by observation-capture)

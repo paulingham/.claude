@@ -47,13 +47,13 @@ elif [[ -f "$SESSION_FILE" ]]; then
     SESSION_ID=$(cat "$SESSION_FILE")
 else
     SESSION_ID=$(uuidgen 2>/dev/null || echo "sess-${RANDOM}-${RANDOM}")
-    echo "$SESSION_ID" > "$SESSION_FILE"
+    printf '%s\n' "$SESSION_ID" | _state_write "session-${PPID}"
 fi
 
 # Session start time: create on first invocation per session
 START_TIME_FILE=$(_state_path "session-start-${PPID}")
 if [[ ! -f "$START_TIME_FILE" ]]; then
-    date +%s > "$START_TIME_FILE"
+    date +%s | _state_write "session-start-${PPID}"
 fi
 
 # Pipeline phase: from env var, or detect from active pipeline state file

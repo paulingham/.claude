@@ -41,7 +41,7 @@ if [[ -f "$DEBOUNCE_FILE" ]]; then
 fi
 
 COUNT=$((COUNT + 1))
-echo "$COUNT" > "$DEBOUNCE_FILE"
+( umask 077 && printf '%s\n' "$COUNT" > "$DEBOUNCE_FILE" )
 
 # Warn every 10 tool calls in WARNING zone (65-74%), every 5 in CRITICAL zone (75+)
 if [[ "$CTX_PCT" -ge 75 ]]; then

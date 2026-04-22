@@ -5,6 +5,21 @@
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   TMP_HOME="$(mktemp -d)"
+  if [[ -n "${HOME+x}" ]]; then
+    _PRIOR_HOME_SET=1; _PRIOR_HOME_VAL="$HOME"
+  else
+    _PRIOR_HOME_SET=0
+  fi
+  if [[ -n "${CLAUDE_STATE_DIR+x}" ]]; then
+    _PRIOR_STATE_DIR_SET=1; _PRIOR_STATE_DIR_VAL="$CLAUDE_STATE_DIR"
+  else
+    _PRIOR_STATE_DIR_SET=0
+  fi
+  if [[ -n "${CLAUDE_HOOK_PROFILE+x}" ]]; then
+    _PRIOR_HOOK_PROFILE_SET=1; _PRIOR_HOOK_PROFILE_VAL="$CLAUDE_HOOK_PROFILE"
+  else
+    _PRIOR_HOOK_PROFILE_SET=0
+  fi
   # Symlink the real ~/.claude hooks dir into the fake $HOME so hooks that
   # source via `~/.claude/hooks/hook-profile.sh` still resolve, while the
   # state dir under $HOME/.claude/state is isolated.
@@ -18,7 +33,25 @@ setup() {
 
 teardown() {
   rm -rf "$TMP_HOME"
-  unset CLAUDE_STATE_DIR
+  if [[ "$_PRIOR_HOME_SET" = "1" ]]; then
+    export HOME="$_PRIOR_HOME_VAL"
+  else
+    unset HOME
+  fi
+  if [[ "$_PRIOR_STATE_DIR_SET" = "1" ]]; then
+    export CLAUDE_STATE_DIR="$_PRIOR_STATE_DIR_VAL"
+  else
+    unset CLAUDE_STATE_DIR
+  fi
+  if [[ "$_PRIOR_HOOK_PROFILE_SET" = "1" ]]; then
+    export CLAUDE_HOOK_PROFILE="$_PRIOR_HOOK_PROFILE_VAL"
+  else
+    unset CLAUDE_HOOK_PROFILE
+  fi
+}
+
+_stat_mode() {
+  if stat -f %A "$1" 2>/dev/null; then :; else stat -c %a "$1"; fi
 }
 
 @test "H3.5 observation-capture writes session id marker under state dir" {
@@ -102,4 +135,31 @@ teardown() {
   run bash -c "echo '{}' | bash '$REPO_ROOT/hooks/context-warning.sh' 2>&1"
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "CRITICAL CONTEXT WARNING"
+}
+
+@test "H3.14 observation-capture writes session marker with mode 0600" {
+  run bash -c "echo '{\"tool_name\":\"Read\",\"tool_input\":{\"file_path\":\"/x\"},\"tool_output\":{}}' | bash '$REPO_ROOT/hooks/observation-capture.sh'"
+  [ "$status" -eq 0 ]
+  marker=$(find "$CLAUDE_STATE_DIR" -maxdepth 1 -name 'session-*' -type f | head -1)
+  [ -n "$marker" ]
+  mode=$(_stat_mode "$marker")
+  [ "$mode" = "600" ]
+}
+
+@test "H3.15 subagent-context writes agent-role with mode 0600" {
+  run bash -c "echo '{\"subagent_type\":\"software-engineer\"}' | bash '$REPO_ROOT/hooks/subagent-context.sh'"
+  [ "$status" -eq 0 ]
+  role_file=$(find "$CLAUDE_STATE_DIR" -maxdepth 1 -name 'agent-role*' -type f | head -1)
+  [ -n "$role_file" ]
+  mode=$(_stat_mode "$role_file")
+  [ "$mode" = "600" ]
+}
+
+@test "H3.16 statusline writes ctx-percent with mode 0600" {
+  run bash -c "echo '{\"workspace\":{\"current_dir\":\"$HOME\"},\"context\":{\"used_percent\":42}}' | bash '$REPO_ROOT/statusline-robbyrussell.sh' >/dev/null"
+  [ "$status" -eq 0 ]
+  ctx_file=$(find "$CLAUDE_STATE_DIR" -maxdepth 1 -name 'ctx-percent*' -type f | head -1)
+  [ -n "$ctx_file" ]
+  mode=$(_stat_mode "$ctx_file")
+  [ "$mode" = "600" ]
 }
