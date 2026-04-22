@@ -111,6 +111,21 @@ _seed_harness_state() {
   git -C "$other" worktree remove --force "$wt" 2>/dev/null || true
 }
 
+@test "AC5c.8: memory-follows-user — write in session A, read from session B, diff empty" {
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$FAKE_HARNESS" --name sA
+  [ "$status" -eq 0 ]
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$FAKE_HARNESS" --name sB
+  [ "$status" -eq 0 ]
+  local wa="$SESSIONS_ROOT/claude/sA" wb="$SESSIONS_ROOT/claude/sB"
+  mkdir -p "$wa/session-memory/abc123"
+  local marker="marker-$$-$(date +%s)"
+  printf '%s\n' "$marker" > "$wa/session-memory/abc123/notes.md"
+  # Read from session B via its own symlink
+  [ -f "$wb/session-memory/abc123/notes.md" ]
+  diff "$wa/session-memory/abc123/notes.md" "$wb/session-memory/abc123/notes.md"
+  [ "$(cat "$wb/session-memory/abc123/notes.md")" = "$marker" ]
+}
+
 @test "AC5c.4: _is_canonical_harness resolves symlinked \$HOME to true, non-harness repo to false" {
   # stage a symlink path that points to the real harness (simulates macOS /var -> /private/var)
   local alt="$WORK_DIR/alt-home"

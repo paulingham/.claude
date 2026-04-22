@@ -105,6 +105,8 @@ After merging a worktree branch:
 
 Never leave stale worktrees — they consume disk space and confuse test runners.
 
+For the harness-of-harness case (session worktrees of `$HOME/.claude` created by `scripts/new-session.sh`), see `knowledge/session-isolation-patterns.md` for which state is shared via symlinks vs per-branch.
+
 ## Teammate Lifecycle (team phases)
 
 Teammates are spawned just-in-time and shut down after their phase:
