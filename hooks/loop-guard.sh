@@ -3,7 +3,7 @@
 # Returns 1 (skip) if the named hook has fired more than MAX_CALLS times in WINDOW_SECS.
 # Prevents infinite hook loops in pathological agent behaviour.
 # shellcheck source=_lib/state-dir.sh
-source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh" 2>/dev/null || true
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"
 check_loop_guard() {
   local hook_name="$1"
   local max_calls="${2:-10}"
