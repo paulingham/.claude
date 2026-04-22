@@ -1,0 +1,2 @@
+# Placeholder so git tracks the empty fixtures dir.
+# Slice 1 populates this with jq/stdin fixtures for project-hash specs.

@@ -1,0 +1,3 @@
+# Marker file for bats-core discovery.
+# Presence tells bats to treat tests/shell/ as the repository root for
+# relative `load` calls in *.bats specs. Keep this file; do not delete.
