@@ -59,3 +59,70 @@ teardown() {
   [ "$status" -eq 0 ]
   [[ "$output" =~ ^[0-9]{8}-[0-9]{6}-[a-z0-9]{4}$ ]]
 }
+
+@test "_validate_name accepts plain names and rejects empty/slash/whitespace" {
+  run bash -c "source '$LIB_DIR/session-name.sh'; _validate_name foo"
+  [ "$status" -eq 0 ]
+  run bash -c "source '$LIB_DIR/session-name.sh'; _validate_name ''"
+  [ "$status" -ne 0 ]
+  run bash -c "source '$LIB_DIR/session-name.sh'; _validate_name 'a/b'"
+  [ "$status" -ne 0 ]
+  run bash -c "source '$LIB_DIR/session-name.sh'; _validate_name 'a b'"
+  [ "$status" -ne 0 ]
+}
+
+# ---------- new-session.sh integration ----------
+
+@test "AC5a.1: --repo --name creates worktree at <root>/<slug>/<name> on branch session/<name>" {
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$TESTREPO" --name foo
+  [ "$status" -eq 0 ]
+  local wt="$SESSIONS_ROOT/testrepo/foo"
+  [ -d "$wt" ]
+  [ -d "$wt/.git" ] || [ -f "$wt/.git" ]
+  run git -C "$wt" rev-parse --abbrev-ref HEAD
+  [ "$output" = "session/foo" ]
+  [ -f "$wt/README.md" ]
+}
+
+@test "AC5a.2: second invocation without --force exits 1 with clear error citing path" {
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$TESTREPO" --name foo
+  [ "$status" -eq 0 ]
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$TESTREPO" --name foo
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"$SESSIONS_ROOT/testrepo/foo"* ]]
+  [[ "$output" == *"--force"* ]]
+}
+
+@test "AC5a.5: --repo omitted defaults to \$(pwd); worktree is created against CWD repo" {
+  cd "$TESTREPO" || exit 1
+  run bash "$SCRIPTS_DIR/new-session.sh" --name bar
+  [ "$status" -eq 0 ]
+  local wt="$SESSIONS_ROOT/testrepo/bar"
+  [ -d "$wt" ]
+  run git -C "$wt" rev-parse --abbrev-ref HEAD
+  [ "$output" = "session/bar" ]
+}
+
+@test "AC5a.6: output includes literal 'cd <wt>' and 'claude' on separate lines" {
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$TESTREPO" --name baz
+  [ "$status" -eq 0 ]
+  local wt="$SESSIONS_ROOT/testrepo/baz"
+  grep -Fx "cd $wt" <<< "$output"
+  grep -Fx "claude" <<< "$output"
+}
+
+@test "AC5a.3: --force removes and recreates the worktree (new HEAD, same name)" {
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$TESTREPO" --name foo
+  [ "$status" -eq 0 ]
+  local wt="$SESSIONS_ROOT/testrepo/foo"
+  local head_before; head_before=$(git -C "$wt" rev-parse HEAD)
+  # make a new commit on main of the target repo so the new worktree's HEAD differs
+  (cd "$TESTREPO" && echo more >> README.md && git add README.md && git -c user.email=c@e -c user.name=c commit -q -m more)
+  run bash "$SCRIPTS_DIR/new-session.sh" --repo "$TESTREPO" --name foo --force
+  [ "$status" -eq 0 ]
+  [ -d "$wt" ]
+  local head_after; head_after=$(git -C "$wt" rev-parse HEAD)
+  [ "$head_before" != "$head_after" ]
+  run git -C "$wt" rev-parse --abbrev-ref HEAD
+  [ "$output" = "session/foo" ]
+}
