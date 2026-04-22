@@ -3,10 +3,10 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_HOOK_PROFILE": "standard",
     "CLAUDE_PIPELINE_TASK_ID": "",
-    "HCOM": "/Users/Paul.Ingham/.local/bin/hcom",
-    "HF_TOKEN_PATH": "/Users/Paul.Ingham/.config/parry-guard/hf_token",
+    "HCOM": "$HOME/.local/bin/hcom",
+    "HF_TOKEN_PATH": "$HOME/.config/parry-guard/hf_token",
     "HF_TOKEN": "REDACTED",
-    "PARRY_IGNORE_DIRS": "/Users/Paul.Ingham/.claude",
+    "PARRY_IGNORE_DIRS": "$HOME/.claude",
     "ORT_DYLIB_PATH": "/opt/homebrew/lib/libonnxruntime.dylib",
     "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
     "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1",
@@ -38,15 +38,15 @@
       "ExitPlanMode",
       "EnterWorktree",
       "ExitWorktree",
-      "Write(/Users/Paul.Ingham/.claude/**)",
-      "Edit(/Users/Paul.Ingham/.claude/**)",
-      "Read(/Users/Paul.Ingham/.claude/**)",
-      "Bash(rm /Users/Paul.Ingham/.claude/**)",
-      "Bash(rm -f /Users/Paul.Ingham/.claude/**)",
-      "Bash(rm -rf /Users/Paul.Ingham/.claude/pipeline-state/**)",
-      "Bash(rm -rf /Users/Paul.Ingham/.claude/session-memory/**)",
-      "Bash(rm -rf /Users/Paul.Ingham/.claude/agent-memory/**)",
-      "Bash(rm -rf /Users/Paul.Ingham/.claude/learning/**)"
+      "Write($HOME/.claude/**)",
+      "Edit($HOME/.claude/**)",
+      "Read($HOME/.claude/**)",
+      "Bash(rm $HOME/.claude/**)",
+      "Bash(rm -f $HOME/.claude/**)",
+      "Bash(rm -rf $HOME/.claude/pipeline-state/**)",
+      "Bash(rm -rf $HOME/.claude/session-memory/**)",
+      "Bash(rm -rf $HOME/.claude/agent-memory/**)",
+      "Bash(rm -rf $HOME/.claude/learning/**)"
     ],
     "deny": [
       "Bash(rm -rf /*)",
@@ -68,19 +68,19 @@
     ],
     "defaultMode": "bypassPermissions",
     "additionalDirectories": [
-      "/Users/Paul.Ingham/.claude/pipeline-state",
-      "/Users/Paul.Ingham/.claude/session-memory",
-      "/Users/Paul.Ingham/.claude/agent-memory",
-      "/Users/Paul.Ingham/.claude/learning",
-      "/Users/Paul.Ingham/.claude/automation",
-      "/Users/Paul.Ingham/.claude/skills",
-      "/Users/Paul.Ingham/.claude/tests",
-      "/Users/Paul.Ingham/.claude/hooks",
-      "/Users/Paul.Ingham/.claude/agents",
-      "/Users/Paul.Ingham/.claude/rules",
-      "/Users/Paul.Ingham/.claude/scripts",
-      "/Users/Paul.Ingham/.claude/db",
-      "/Users/Paul.Ingham/.claude/manifests"
+      "$HOME/.claude/pipeline-state",
+      "$HOME/.claude/session-memory",
+      "$HOME/.claude/agent-memory",
+      "$HOME/.claude/learning",
+      "$HOME/.claude/automation",
+      "$HOME/.claude/skills",
+      "$HOME/.claude/tests",
+      "$HOME/.claude/hooks",
+      "$HOME/.claude/agents",
+      "$HOME/.claude/rules",
+      "$HOME/.claude/scripts",
+      "$HOME/.claude/db",
+      "$HOME/.claude/manifests"
     ]
   },
   "hooks": {
@@ -517,7 +517,7 @@
     "memory": {
       "command": "python3",
       "args": [
-        "/Users/Paul.Ingham/.claude/skills/mcp_memory/server.py"
+        "$HOME/.claude/skills/mcp_memory/server.py"
       ]
     }
   }

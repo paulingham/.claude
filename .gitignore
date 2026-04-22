@@ -35,6 +35,8 @@
 !db/**
 !tests/
 !tests/**
+!scripts/
+!scripts/**
 
 # Python bytecode cache — never tracked
 **/__pycache__/
