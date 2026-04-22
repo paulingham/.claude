@@ -453,6 +453,24 @@ For new projects without a CLAUDE.md, the system automatically runs `/project-se
 | [agnix](https://github.com/agent-sh/agnix) | Config linting | `npx agnix` (no install) | Optional |
 | [Trail of Bits](https://github.com/trailofbits/skills) | Security analysis (5 plugins) | `claude plugin marketplace add` + install | Required |
 
+## Cloud portability
+
+The harness runs on macOS and Ubuntu 24.04 from the same tree. `scripts/install-tools.sh` detects the OS via `/etc/os-release`, installs `gh`, `jq`, `ripgrep`, `sqlite3`, and `python3>=3.11` via the platform's package manager, and bootstraps a shared virtualenv at `$HOME/.claude/.venv`. The script is idempotent — re-runs only install what's missing — and accepts `--yes` for unattended provisioning on fresh VMs.
+
+## Session isolation
+
+Two concurrent Claude Code sessions against the same repo would otherwise fight over HEAD. `scripts/new-session.sh` creates a git worktree per session so each gets an isolated HEAD without branch collisions; `scripts/list-sessions.sh` and `scripts/remove-session.sh` round out the lifecycle. When the harness itself (`$HOME/.claude`) is sessioned, stateful directories (`session-memory/`, `learning/`, `manifests/`, `db/memory.sqlite`) are symlinked from the canonical harness so memory, instincts, and the SQLite store stay single-writer across sessions. See `knowledge/session-isolation-patterns.md` for the full worktree-and-symlink model.
+
+## Ubuntu clone-and-run
+
+On a fresh Ubuntu 24.04 box:
+
+```bash
+git clone git@github.com:<org>/claude-harness.git "$HOME/.claude"
+bash "$HOME/.claude/scripts/install-tools.sh" --yes
+bash "$HOME/.claude/tests/shell/run.sh" --require-bats  # verifies install
+```
+
 ## License
 
 Private configuration. Not licensed for redistribution.
