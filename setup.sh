@@ -6,11 +6,16 @@
 set -uo pipefail
 
 # Source the dippy gate library (decides whether dippy + claude-devtools install
-# based on OS + CLAUDE_REQUIRE_DIPPY env var). Falls back gracefully if missing
-# (e.g. during partial installs) — unset var + missing gate == Mac-only default.
+# based on OS + CLAUDE_REQUIRE_DIPPY env var). The lib ships in this tree; its
+# absence is a packaging bug, so fail fast with a clear diagnostic rather than
+# falling through to an undefined `should_install_dippy` (which would silently
+# skip on every OS, contradicting the Mac-only default).
 _SETUP_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1091
-[[ -r "$_SETUP_DIR/scripts/_lib/dippy-gate.sh" ]] && source "$_SETUP_DIR/scripts/_lib/dippy-gate.sh"
+source "$_SETUP_DIR/scripts/_lib/dippy-gate.sh" || {
+  printf 'FATAL: cannot source %s/scripts/_lib/dippy-gate.sh\n' "$_SETUP_DIR" >&2
+  exit 1
+}
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'

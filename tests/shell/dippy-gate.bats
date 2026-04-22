@@ -143,3 +143,14 @@ _run_gate_branch() {
   grep -q 'dippy-gate.sh' "$REPO_ROOT/setup.sh"
   grep -q 'should_install_dippy' "$REPO_ROOT/setup.sh"
 }
+
+@test "setup.sh fails fast with a clear error if dippy-gate.sh is missing" {
+  # Hard-require: a missing gate lib is a packaging bug, not a silent fallback.
+  # Copy the source-block prefix of setup.sh into a tempdir with no lib present,
+  # run it, and assert non-zero exit + a clear diagnostic mentioning the file.
+  mkdir -p "$TMP_DIR/scripts/_lib"  # deliberately empty — no dippy-gate.sh here
+  head -n 18 "$REPO_ROOT/setup.sh" > "$TMP_DIR/setup_prefix.sh"
+  run bash "$TMP_DIR/setup_prefix.sh"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"dippy-gate.sh"* ]]
+}
