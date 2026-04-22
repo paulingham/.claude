@@ -88,6 +88,79 @@ EOF
   [ "$output" = "local" ]
 }
 
+# ---------- AC1.4: per-caller fallback preservation (grep assertions) ----------
+
+@test "AC1.4a session-start-bootstrap.sh uses _project_hash --fallback \"local\"" {
+  grep -q '_project_hash --fallback "local"' "$REPO_ROOT/hooks/session-start-bootstrap.sh"
+}
+
+@test "AC1.4a2 session-start-bootstrap.sh no longer uses openssl md5 -r" {
+  run grep -c "openssl md5 -r" "$REPO_ROOT/hooks/session-start-bootstrap.sh"
+  [ "$output" = "0" ]
+}
+
+@test "AC1.4b cost-tracker.sh uses _project_hash --fallback \"\"" {
+  grep -q '_project_hash --fallback ""' "$REPO_ROOT/hooks/cost-tracker.sh"
+}
+
+@test "AC1.4b2 cost-tracker.sh no longer uses openssl md5 -r" {
+  run grep -c "openssl md5 -r" "$REPO_ROOT/hooks/cost-tracker.sh"
+  [ "$output" = "0" ]
+}
+
+@test "AC1.4c observation-capture.sh uses _project_hash with basename fallback" {
+  grep -q '_project_hash --fallback "\$(basename "\$(git rev-parse --show-toplevel 2>/dev/null || pwd)")"' "$REPO_ROOT/hooks/observation-capture.sh"
+}
+
+@test "AC1.4c2 observation-capture.sh no longer uses openssl md5 -r" {
+  run grep -c "openssl md5 -r" "$REPO_ROOT/hooks/observation-capture.sh"
+  [ "$output" = "0" ]
+}
+
+@test "AC1.4d test-hooks.sh uses _project_hash basename fallback (2 sites)" {
+  # Expect two occurrences of the basename-fallback call site
+  count=$(grep -c '_project_hash --fallback "\$(basename "\$(git rev-parse --show-toplevel 2>/dev/null || pwd)")"' "$REPO_ROOT/hooks/tests/test-hooks.sh" || true)
+  [ "$count" = "2" ]
+}
+
+@test "AC1.4d2 test-hooks.sh no longer uses openssl md5 -r" {
+  run grep -c "openssl md5 -r" "$REPO_ROOT/hooks/tests/test-hooks.sh"
+  [ "$output" = "0" ]
+}
+
+@test "AC1.4e auto-bug-detect.sh calls _md5_hash directly (no _project_hash/--fallback)" {
+  grep -q '| _md5_hash' "$REPO_ROOT/hooks/auto-bug-detect.sh"
+  ! grep -q '_project_hash' "$REPO_ROOT/hooks/auto-bug-detect.sh"
+  ! grep -q -- '--fallback' "$REPO_ROOT/hooks/auto-bug-detect.sh"
+}
+
+@test "AC1.4e2 auto-bug-detect.sh no longer uses openssl md5 -r" {
+  run grep -c "openssl md5 -r" "$REPO_ROOT/hooks/auto-bug-detect.sh"
+  [ "$output" = "0" ]
+}
+
+# ---------- AC1.4 docs: rewrite openssl md5 -r references ----------
+
+@test "AC1.4f rules/autonomous-intelligence.md no openssl md5 -r" {
+  run grep -c "openssl md5 -r" "$REPO_ROOT/rules/autonomous-intelligence.md"
+  [ "$output" = "0" ]
+}
+
+@test "AC1.4g orchestrator/agent-orchestration.md no openssl md5 -r" {
+  run grep -c "openssl md5 -r" "$REPO_ROOT/orchestrator/agent-orchestration.md"
+  [ "$output" = "0" ]
+}
+
+@test "AC1.4h skills/learn/SKILL.md no openssl md5 -r" {
+  run grep -c "openssl md5 -r" "$REPO_ROOT/skills/learn/SKILL.md"
+  [ "$output" = "0" ]
+}
+
+@test "AC1.4i skills/batch-pipeline/SKILL.md no openssl md5 -r" {
+  run grep -c "openssl md5 -r" "$REPO_ROOT/skills/batch-pipeline/SKILL.md"
+  [ "$output" = "0" ]
+}
+
 @test "AC1.5e _project_hash returns md5 digest when git remote succeeds" {
   mkdir -p "$TMP_DIR/bin"
   cat >"$TMP_DIR/bin/git" <<'EOF'

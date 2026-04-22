@@ -16,7 +16,9 @@ case "$TOOL_NAME" in
 esac
 
 # Get project hash from git remote (used for LEARNING_DIR path — backward compatible)
-PROJECT_HASH=$(git remote get-url origin 2>/dev/null | openssl md5 -r 2>/dev/null | awk '{print $1}' || basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
+# shellcheck source=_lib/project-hash.sh
+source "$HOME/.claude/hooks/_lib/project-hash.sh"
+PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
 
 # Get human-readable project name
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")

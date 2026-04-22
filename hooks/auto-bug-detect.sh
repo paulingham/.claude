@@ -6,6 +6,8 @@
 
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 source ~/.claude/hooks/loop-guard.sh && check_loop_guard "auto-bug-detect" || exit 0
+# shellcheck source=_lib/project-hash.sh
+source ~/.claude/hooks/_lib/project-hash.sh
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
@@ -48,7 +50,8 @@ log_bug() {
     local category="$1"
     local summary="$2"
     local dedup_key="${FILE_PATH}_${category}"
-    local dedup_hash=$(echo "$dedup_key" | openssl md5 -r 2>/dev/null | awk '{print $1}')
+    local dedup_hash
+    dedup_hash=$(echo "$dedup_key" | _md5_hash 2>/dev/null)
     local dedup_file="$DEDUP_DIR/$dedup_hash"
 
     # Check 5-minute dedup window
