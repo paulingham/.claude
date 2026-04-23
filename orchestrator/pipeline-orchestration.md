@@ -200,6 +200,14 @@ When the orchestrator has other work available (e.g., multiple stories in a pipe
 
 The orchestrator should NOT block waiting for review results when there is other work to do.
 
+## 7c. Learning Extraction (automatic)
+
+The auto-learn gate fires via the `auto-learn-gate.sh` Stop hook, not by orchestrator checklist. At the end of any turn where the gate thresholds are met (≥3 new pipeline observations, ≥3 pipelines or ≥24h since last `/learn`, not already fired for the current pipeline), the hook prints a visible "Triggered: N observations, M pipelines" banner on stdout.
+
+When the orchestrator sees that banner in context on its next turn, invoke `/learn`. The `/learn` skill itself resets the gate counters as its final step (see `skills/learn/SKILL.md` Step 10) — the hook is the *reminder*, `/learn` is the actual extraction.
+
+The orchestrator does not need to count observations, check dates, or evaluate conditions — the hook does all of that deterministically. Escape hatch for debugging or bulk-work sessions: set `CLAUDE_DISABLE_AUTO_LEARN=1`.
+
 ## Anti-Patterns (from real incidents)
 
 ### "I have a detailed plan, I'll just spawn agents directly"

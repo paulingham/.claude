@@ -398,6 +398,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/cost-tracker.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/auto-learn-gate.sh",
+            "timeout": 10000
           }
         ]
       },

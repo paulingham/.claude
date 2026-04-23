@@ -181,6 +181,31 @@ System Proposals: (if any)
   - {proposal description}
 ```
 
+### 10. Update Auto-Learn State
+
+Reset the gate counters so `auto-learn-gate.sh` does not re-fire immediately. Run this even when the verdict is `NO_NEW_PATTERNS` or `NO_OBSERVATIONS` — the `/learn` invocation itself satisfies the gate.
+
+Preserve `last_observation_offset` and `last_fired_pipeline_id` (do NOT reset) — the offset tracks file position independent of gate firing; `last_fired_pipeline_id` maintains idempotency against re-firing for the same pipeline.
+
+```bash
+source "$HOME/.claude/hooks/_lib/project-hash.sh"
+PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
+STATE="$HOME/.claude/learning/$PROJECT_HASH/.learn-state.json"
+NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+# Preserve offset + last_fired_pipeline_id; reset counters + timestamp.
+if [[ -s "$STATE" ]]; then
+  OFF=$(jq -r '.last_observation_offset // 0' "$STATE")
+  FP=$(jq -r '.last_fired_pipeline_id // ""' "$STATE")
+else
+  OFF=0; FP=""
+fi
+
+jq -n --arg ts "$NOW" --argjson off "$OFF" --arg fp "$FP" \
+  '{last_learn_run:$ts,pipelines_since_learn:0,observations_since_learn:0,last_fired_pipeline_id:(if $fp=="" then null else $fp end),last_observation_offset:$off}' \
+  > "$STATE.tmp" && mv "$STATE.tmp" "$STATE"
+```
+
 ## Phase Output
 
 ```
