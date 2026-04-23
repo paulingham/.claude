@@ -906,6 +906,166 @@ rm -rf "$PPI_TMP"
 
 echo ""
 
+# -- trace-prompt tests ------------------------------------------------------
+echo "-- trace-prompt.sh --"
+
+TRACE_TMP=$(mktemp -d)
+TRACE_HOME="$TRACE_TMP/home"
+mkdir -p "$TRACE_HOME/.claude/pipeline-state"
+# Seed a pipeline state file so the hook can resolve task_id + phase.
+cat > "$TRACE_HOME/.claude/pipeline-state/demo-task-pipeline.md" << 'EOTP'
+---
+task_id: demo-task
+phase: build
+verdict: IN_PROGRESS
+---
+EOTP
+
+TRACE_AGENT_FIXTURE="$HOOKS_DIR/tests/fixtures/trace-prompt/agent.json"
+TRACE_SKILL_FIXTURE="$HOOKS_DIR/tests/fixtures/trace-prompt/skill.json"
+
+# Test 1: flag enabled + Agent tool -> trace file written with all 3 markers.
+CLAUDE_ENABLE_TRACE=1 HOME="$TRACE_HOME" CLAUDE_SESSION_ID="trace-sess-1" \
+  bash "$HOOKS_DIR/trace-prompt.sh" < "$TRACE_AGENT_FIXTURE" >/dev/null 2>&1
+TRACE_EXIT=$?
+run_test "trace-prompt: enabled + Agent tool -> exit 0" 0 $TRACE_EXIT
+
+TRACE_DIR="$TRACE_HOME/.claude/metrics/trace-sess-1/trace"
+TRACE_FILES=("$TRACE_DIR"/software-engineer-*.txt)
+if [[ -f "${TRACE_FILES[0]}" ]]; then
+  pass "trace-prompt: trace file created for Agent spawn"
+  TRACE_BODY=$(cat "${TRACE_FILES[0]}")
+  if echo "$TRACE_BODY" | grep -q "== SPAWN METADATA ==" \
+     && echo "$TRACE_BODY" | grep -q "== RENDERED PROMPT ==" \
+     && echo "$TRACE_BODY" | grep -q "== END =="; then
+    pass "trace-prompt: all 3 section markers present"
+  else
+    fail "trace-prompt: all 3 section markers present" "3 markers" "missing"
+  fi
+  if echo "$TRACE_BODY" | grep -q "agent_role: software-engineer" \
+     && echo "$TRACE_BODY" | grep -q "task_id: demo-task" \
+     && echo "$TRACE_BODY" | grep -q "phase: build" \
+     && echo "$TRACE_BODY" | grep -q "dispatch: team" \
+     && echo "$TRACE_BODY" | grep -q "worktree: yes"; then
+    pass "trace-prompt: metadata fields populated"
+  else
+    fail "trace-prompt: metadata fields populated" "all fields" "missing"
+  fi
+  if echo "$TRACE_BODY" | grep -q "barrel exports in src/index.ts"; then
+    pass "trace-prompt: rendered prompt body captured"
+  else
+    fail "trace-prompt: rendered prompt body captured" "prompt text" "missing"
+  fi
+else
+  fail "trace-prompt: trace file created for Agent spawn" "file exists" "not found"
+fi
+
+# Test 2: flag unset -> NO file created, still exit 0.
+rm -rf "$TRACE_HOME/.claude/metrics"
+unset CLAUDE_ENABLE_TRACE
+HOME="$TRACE_HOME" CLAUDE_SESSION_ID="trace-sess-off" \
+  bash "$HOOKS_DIR/trace-prompt.sh" < "$TRACE_AGENT_FIXTURE" >/dev/null 2>&1
+TRACE_OFF_EXIT=$?
+run_test "trace-prompt: flag unset -> exit 0 (fast-exit)" 0 $TRACE_OFF_EXIT
+if [[ ! -d "$TRACE_HOME/.claude/metrics" ]]; then
+  pass "trace-prompt: flag unset -> no metrics dir created"
+else
+  fail "trace-prompt: flag unset -> no metrics dir created" "no dir" "dir exists"
+fi
+
+# Flag explicitly 0 -> no file.
+CLAUDE_ENABLE_TRACE=0 HOME="$TRACE_HOME" CLAUDE_SESSION_ID="trace-sess-zero" \
+  bash "$HOOKS_DIR/trace-prompt.sh" < "$TRACE_AGENT_FIXTURE" >/dev/null 2>&1
+TRACE_ZERO_EXIT=$?
+run_test "trace-prompt: flag=0 -> exit 0 (fast-exit)" 0 $TRACE_ZERO_EXIT
+if [[ ! -d "$TRACE_HOME/.claude/metrics" ]]; then
+  pass "trace-prompt: flag=0 -> no metrics dir created"
+else
+  fail "trace-prompt: flag=0 -> no metrics dir created" "no dir" "dir exists"
+fi
+
+# Test 3: Skill tool -> file named skill-<name>-... is created.
+CLAUDE_ENABLE_TRACE=1 HOME="$TRACE_HOME" CLAUDE_SESSION_ID="trace-sess-skill" \
+  bash "$HOOKS_DIR/trace-prompt.sh" < "$TRACE_SKILL_FIXTURE" >/dev/null 2>&1
+TRACE_SKILL_EXIT=$?
+run_test "trace-prompt: enabled + Skill tool -> exit 0" 0 $TRACE_SKILL_EXIT
+SKILL_DIR="$TRACE_HOME/.claude/metrics/trace-sess-skill/trace"
+SKILL_FILES=("$SKILL_DIR"/skill-build-implementation-*.txt)
+if [[ -f "${SKILL_FILES[0]}" ]]; then
+  pass "trace-prompt: skill trace file named skill-<name>-*"
+  if grep -q "agent_role: skill:build-implementation" "${SKILL_FILES[0]}" \
+     && grep -q "Build the login form per AC3" "${SKILL_FILES[0]}"; then
+    pass "trace-prompt: skill metadata + args captured"
+  else
+    fail "trace-prompt: skill metadata + args captured" "both present" "missing"
+  fi
+else
+  fail "trace-prompt: skill trace file named skill-<name>-*" "file exists" "not found"
+fi
+
+# Test 4: non-Agent/Skill tool -> fast-exit, no file.
+rm -rf "$TRACE_HOME/.claude/metrics"
+CLAUDE_ENABLE_TRACE=1 HOME="$TRACE_HOME" CLAUDE_SESSION_ID="trace-sess-other" \
+  bash "$HOOKS_DIR/trace-prompt.sh" \
+  <<< '{"tool_name":"Bash","tool_input":{"command":"ls"}}' >/dev/null 2>&1
+TRACE_OTHER_EXIT=$?
+run_test "trace-prompt: non-Agent/Skill tool -> exit 0" 0 $TRACE_OTHER_EXIT
+if [[ ! -d "$TRACE_HOME/.claude/metrics" ]]; then
+  pass "trace-prompt: non-Agent/Skill tool -> no file written"
+else
+  fail "trace-prompt: non-Agent/Skill tool -> no file written" "no dir" "dir exists"
+fi
+
+# Cleanup
+rm -rf "$TRACE_TMP"
+
+echo ""
+
+# -- trace-cleanup tests -----------------------------------------------------
+echo "-- trace-cleanup.sh --"
+
+TC_TMP=$(mktemp -d)
+TC_HOME="$TC_TMP/home"
+
+# Case A: no metrics dir -> hook no-ops, exits 0.
+HOME="$TC_HOME" bash "$HOOKS_DIR/trace-cleanup.sh" >/dev/null 2>&1
+run_test "trace-cleanup: missing metrics dir -> exit 0 (no-op)" 0 $?
+
+# Case B: seed old + fresh trace files; prune only old ones.
+mkdir -p "$TC_HOME/.claude/metrics/sess-old/trace"
+mkdir -p "$TC_HOME/.claude/metrics/sess-fresh/trace"
+OLD_FILE="$TC_HOME/.claude/metrics/sess-old/trace/role-old.txt"
+FRESH_FILE="$TC_HOME/.claude/metrics/sess-fresh/trace/role-fresh.txt"
+echo "old" > "$OLD_FILE"
+echo "fresh" > "$FRESH_FILE"
+# Backdate old file to 10 days ago.
+touch -t "$(date -u -v-10d +%Y%m%d%H%M 2>/dev/null || date -u -d '10 days ago' +%Y%m%d%H%M)" "$OLD_FILE"
+
+HOME="$TC_HOME" bash "$HOOKS_DIR/trace-cleanup.sh" >/dev/null 2>&1
+TC_EXIT=$?
+run_test "trace-cleanup: populated metrics dir -> exit 0" 0 $TC_EXIT
+
+if [[ ! -f "$OLD_FILE" ]]; then
+  pass "trace-cleanup: old trace file pruned"
+else
+  fail "trace-cleanup: old trace file pruned" "removed" "still present"
+fi
+if [[ -f "$FRESH_FILE" ]]; then
+  pass "trace-cleanup: fresh trace file preserved"
+else
+  fail "trace-cleanup: fresh trace file preserved" "kept" "removed"
+fi
+if [[ ! -d "$TC_HOME/.claude/metrics/sess-old/trace" ]] \
+   && [[ ! -d "$TC_HOME/.claude/metrics/sess-old" ]]; then
+  pass "trace-cleanup: empty session dir removed after prune"
+else
+  fail "trace-cleanup: empty session dir removed after prune" "removed" "still present"
+fi
+
+rm -rf "$TC_TMP"
+
+echo ""
+
 # -- Summary -----------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
 echo ""

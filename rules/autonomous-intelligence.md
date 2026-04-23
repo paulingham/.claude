@@ -190,6 +190,37 @@ Scratchpad findings that recur across 3+ pipelines should be promoted to instinc
 - Same fragility appearing in 3+ pipelines → create instinct with confidence 0.5 (fragilities are high-value)
 - Same pattern validated across 3+ pipelines → create instinct with confidence 0.4
 
+## 4. Prompt Tracing (Optional)
+
+Debugging aid for agent failures: capture the exact rendered prompt the orchestrator sent to a spawn — skills, instincts, session memory, scratchpad, agent memory, all already composed into `tool_input.prompt` by the orchestrator.
+
+### Enabling
+
+- `CLAUDE_ENABLE_TRACE=1` in the environment enables tracing
+- Unset or `0` (default) = zero overhead — the hook's first line fast-exits
+
+### Location and Format
+
+- Path: `~/.claude/metrics/{session-id}/trace/{role}-{task-id}-{timestamp}.txt`
+- Role is sanitized (`/` and `:` replaced with `-`), so a Skill trace lands at `skill-{name}-...`
+- File layout (three sections, always present):
+  ```
+  == SPAWN METADATA ==
+  timestamp, session_id, task_id, agent_role, model, phase, dispatch, worktree
+  == RENDERED PROMPT ==
+  {full prompt body or skill args}
+  == END ==
+  ```
+
+### Retention
+
+- 7 days; pruned on SessionStart by `hooks/trace-cleanup.sh`
+- Empty trace/session dirs removed after prune
+
+### Privacy Warning
+
+Traces are local-only and may contain sensitive prompt content. Never commit the `metrics/` directory — `.gitignore` already excludes it via the allowlist default.
+
 ## Integration Points
 
 ### Pipeline Pre-flight (additions to existing protocol)

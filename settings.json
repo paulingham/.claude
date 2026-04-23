@@ -295,6 +295,16 @@
         ]
       },
       {
+        "matcher": "Agent|Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/trace-prompt.sh",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
         "matcher": "AskUserQuestion",
         "hooks": [
           {
@@ -342,6 +352,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/session-start-bootstrap.sh",
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/trace-cleanup.sh",
+            "timeout": 5000
           }
         ]
       },
