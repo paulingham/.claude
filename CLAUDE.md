@@ -134,6 +134,8 @@ Three systems make the pipeline self-improving (see `rules/autonomous-intelligen
 
 Every agent spawn includes: instincts + agent memory + session memory + scratchpad findings.
 
+Set `CLAUDE_ENABLE_TRACE=1` to capture per-spawn prompt traces to `metrics/{session}/trace/` for debugging agent failures (default off, 7-day retention, see `rules/autonomous-intelligence.md` § Prompt Tracing).
+
 ### Skill Directory
 
 | Skill | When to Invoke | Verdict |
