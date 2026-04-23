@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # SubagentStop hook: log agent completion and remind about worktree validation
 # Exit 0 = proceed, stdout added to Claude's context
 

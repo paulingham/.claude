@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Test script for session-start-bootstrap.sh
 # Validates: syntax, output structure, non-git safety, section ordering
 

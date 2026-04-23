@@ -5,6 +5,30 @@
 
 set -uo pipefail
 
+# Source the bootstrap libs: detect-os.sh provides the canonical OS identifier,
+# dippy-gate.sh decides whether dippy + claude-devtools install based on
+# (OS, CLAUDE_REQUIRE_DIPPY). Both libs ship in this tree; their absence is a
+# packaging bug, so fail fast with a clear diagnostic rather than falling
+# through to undefined functions (which would silently skip on every OS,
+# contradicting the Mac-only default).
+_SETUP_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1091
+source "$_SETUP_DIR/scripts/_lib/detect-os.sh" || {
+  printf 'FATAL: cannot source %s/scripts/_lib/detect-os.sh\n' "$_SETUP_DIR" >&2
+  exit 1
+}
+# shellcheck disable=SC1091
+source "$_SETUP_DIR/scripts/_lib/dippy-gate.sh" || {
+  printf 'FATAL: cannot source %s/scripts/_lib/dippy-gate.sh\n' "$_SETUP_DIR" >&2
+  exit 1
+}
+# shellcheck disable=SC1091
+source "$_SETUP_DIR/scripts/_lib/install-rust.sh" || {
+  printf 'FATAL: cannot source %s/scripts/_lib/install-rust.sh\n' "$_SETUP_DIR" >&2
+  exit 1
+}
+# --- end bootstrap ---
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
@@ -60,7 +84,8 @@ case "$(uname -s)" in
         fi
         ;;
     Linux)
-        print_success "Linux detected -- skipping brew check"
+        print_success "Linux detected -- brew not required"
+        print_success "  (use scripts/install-tools.sh for distro-native package installs)"
         ;;
 esac
 
@@ -74,8 +99,13 @@ fi
 # -------------------------------------------------------------------
 print_header "Step 2: Installing external tools"
 
-# -- Dippy (AST-based bash command safety) --
-if [[ "$(uname -s)" == "Darwin" ]]; then
+# -- Dippy + claude-devtools (Mac-only by default; gated by CLAUDE_REQUIRE_DIPPY) --
+# CLAUDE_REQUIRE_DIPPY=1 forces install on any OS (opt-in on Linux).
+# CLAUDE_REQUIRE_DIPPY=0 forces skip on any OS (opt-out on macOS).
+# Unset: macOS installs, Linux skips.
+_SETUP_OS="$(detect_os)"
+
+if should_install_dippy "$_SETUP_OS"; then
   echo ""
   echo "  Dippy (AST-based bash command safety)..."
   if command_exists dippy; then
@@ -87,12 +117,7 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
       record_failed "dippy (brew tap ldayton/dippy && brew install dippy)"
     fi
   fi
-else
-  record_skipped "dippy (Mac-only tool)"
-fi
 
-# -- claude-devtools (session observability) --
-if [[ "$(uname -s)" == "Darwin" ]]; then
   echo ""
   echo "  claude-devtools (session observability)..."
   if brew list --cask claude-devtools > /dev/null 2>&1; then
@@ -105,23 +130,24 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     fi
   fi
 else
-  record_skipped "claude-devtools (Mac-only tool)"
+  print_warning "dippy + claude-devtools: skipped — $(dippy_skip_reason "$_SETUP_OS")"
+  SKIPPED+=("dippy (gated)")
+  SKIPPED+=("claude-devtools (gated)")
 fi
 
 # -- Rust toolchain --
+# Linux: prefer apt/dnf (distro-trusted cargo+rustc). macOS + fallback: rustup.
 echo ""
 echo "  Rust toolchain..."
-if command_exists rustup; then
+if command_exists rustup || command_exists cargo; then
   record_skipped "rust toolchain"
-elif command_exists cargo; then
-  record_skipped "rust toolchain (cargo found, no rustup)"
 else
-  if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 2>/dev/null; then
+  if install_rust_toolchain "$_SETUP_OS"; then
     # shellcheck disable=SC1091
-    source "$HOME/.cargo/env" 2>/dev/null || true
+    [[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
     record_installed "rust toolchain"
   else
-    record_failed "rust toolchain (rustup installer)"
+    record_failed "rust toolchain (distro package manager + rustup fallback both failed)"
   fi
 fi
 

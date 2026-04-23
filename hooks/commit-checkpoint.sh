@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Commit Checkpoint — PreToolUse hook for git commit commands
 # Lightweight quality check: warns on issues but does not block.
 # Catches problems earlier than the PR quality gate.
