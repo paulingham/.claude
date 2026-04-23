@@ -22,6 +22,11 @@ source "$_SETUP_DIR/scripts/_lib/dippy-gate.sh" || {
   printf 'FATAL: cannot source %s/scripts/_lib/dippy-gate.sh\n' "$_SETUP_DIR" >&2
   exit 1
 }
+# shellcheck disable=SC1091
+source "$_SETUP_DIR/scripts/_lib/install-rust.sh" || {
+  printf 'FATAL: cannot source %s/scripts/_lib/install-rust.sh\n' "$_SETUP_DIR" >&2
+  exit 1
+}
 # --- end bootstrap ---
 
 GREEN='\033[0;32m'
@@ -79,7 +84,8 @@ case "$(uname -s)" in
         fi
         ;;
     Linux)
-        print_success "Linux detected -- skipping brew check"
+        print_success "Linux detected -- brew not required"
+        print_success "  (use scripts/install-tools.sh for distro-native package installs)"
         ;;
 esac
 
@@ -130,19 +136,18 @@ else
 fi
 
 # -- Rust toolchain --
+# Linux: prefer apt/dnf (distro-trusted cargo+rustc). macOS + fallback: rustup.
 echo ""
 echo "  Rust toolchain..."
-if command_exists rustup; then
+if command_exists rustup || command_exists cargo; then
   record_skipped "rust toolchain"
-elif command_exists cargo; then
-  record_skipped "rust toolchain (cargo found, no rustup)"
 else
-  if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 2>/dev/null; then
+  if install_rust_toolchain "$_SETUP_OS"; then
     # shellcheck disable=SC1091
-    source "$HOME/.cargo/env" 2>/dev/null || true
+    [[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
     record_installed "rust toolchain"
   else
-    record_failed "rust toolchain (rustup installer)"
+    record_failed "rust toolchain (distro package manager + rustup fallback both failed)"
   fi
 fi
 
