@@ -1,0 +1,47 @@
+{
+  "min_complexity_budget": 7,
+  "max_candidates": 3,
+  "default_roster": [
+    {
+      "slug": "opus-47",
+      "provider": "anthropic",
+      "model_id": "claude-opus-4-7",
+      "agent_model_param": "opus",
+      "tier": "frontier",
+      "cost_per_mtok_input": 5,
+      "cost_per_mtok_output": 25,
+      "required_env": null,
+      "always_include": true
+    },
+    {
+      "slug": "sonnet-46",
+      "provider": "anthropic",
+      "model_id": "claude-sonnet-4-6",
+      "agent_model_param": "sonnet",
+      "tier": "mid",
+      "cost_per_mtok_input": 3,
+      "cost_per_mtok_output": 15,
+      "required_env": null,
+      "always_include": true
+    },
+    {
+      "slug": "gpt-5-3-codex",
+      "provider": "openai",
+      "model_id": "gpt-5.3-codex",
+      "agent_model_param": null,
+      "tier": "frontier",
+      "cost_per_mtok_input": 10,
+      "cost_per_mtok_output": 30,
+      "required_env": "OPENAI_API_KEY",
+      "runner": "external-runner.sh",
+      "always_include": false
+    }
+  ],
+  "selection_weights": {
+    "test_pass_bonus": 1000,
+    "shape_compliance_bonus": 100,
+    "subjective_quality_bonus": 20,
+    "diff_size_penalty_per_100_lines": 1
+  },
+  "tie_breaker_order": ["diff_size_asc", "cost_asc"]
+}

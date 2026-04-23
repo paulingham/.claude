@@ -16,6 +16,10 @@ When a pipeline phase has a corresponding skill, the skill's procedure MUST be e
 
 For phases in the Team Phases table (see `rules/parallel-dispatch-protocol.md`), teammates are spawned into the pipeline team and read their own skill files. The orchestrator creates tasks and assigns them. See `orchestrator/parallel-dispatch-details.md` for exact dispatch procedure.
 
+## Critical-Path Build Dispatch (Best-of-N)
+
+Best-of-N Build dispatch fires ONLY when `/intake` tags the task `critical` AND Complexity Budget >= 7. It is NOT the default — standard Build dispatch handles everything else. The criticality taxonomy (payment, auth, security, cross-repo contract, production-blocking bug) lives in `/intake` Step 2d and is persisted to the intake state file so `/pipeline-resume` preserves it. Implementation is a Team dispatch variant (see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team) — N candidate engineers run in parallel worktrees, each on a different model, and a single code-reviewer selects the winner. The winner still faces the normal Review → Final Gate → Ship gates; scoring picks *which* candidate faces those gates, it does not substitute for them. Cost is roughly 2-3x a standard build; justified on high-stakes slices where a ~5% quality uplift beats the extra spend. On failure, the pipeline falls back to standard Build dispatch — it never halts and never asks the user.
+
 ## Structured Pipeline State
 
 Phase results are persisted as files in `~/.claude/pipeline-state/` to survive context compaction and enable inter-phase communication.
