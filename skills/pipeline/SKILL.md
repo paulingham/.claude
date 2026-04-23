@@ -49,6 +49,7 @@ verdict: in_progress
 timestamp: [ISO 8601]
 scale: [micro/small/medium/large]
 branch: [branch name]
+critical: [true|false]
 ---
 
 ## Pipeline: [feature name]
@@ -69,6 +70,8 @@ Classification: [feature/refactor/bug]
 ```
 
 Update this file as each phase completes with verdict, artifacts, and agent summaries.
+
+**Mirror the `critical` flag from intake.** Read `critical` from `pipeline-state/{task-id}-intake.md` (set by intake Step 2d) and write it into the pipeline state frontmatter on creation. This ensures `/pipeline-resume` preserves criticality across context compaction so the Build phase still routes correctly.
 
 **Do NOT dual-write to memory/.** The `pipeline-state/` file is the sole authority. Use `/pipeline-resume` to recover state across sessions.
 
@@ -225,6 +228,21 @@ For each phase:
 4. Read the Phase Output (Verdict, Next, Artifacts)
 5. If verdict is a failure/rejection: handle per Step 4 (Recovery)
 6. If verdict is success: update memory file with verdict and artifacts, advance to next
+
+#### Build Phase Dispatch — Criticality Check
+
+Before dispatching the Build phase, read the `critical` flag from the intake state (`pipeline-state/{task-id}-intake.md`) or the mirrored pipeline state frontmatter.
+
+- If `critical == true` AND Complexity Budget >= 7: invoke `/best-of-n` via the Skill tool instead of the normal Build dispatch.
+- If `critical == false` OR Budget < 7: use the normal Build dispatch (`/build-implementation`, or scaffold-then-build as determined in Step 2b).
+
+Handle `/best-of-n` return verdicts:
+
+- `BEST_OF_N_COMPLETE` → winner merged, continue to Polish/Review as usual.
+- `BEST_OF_N_FAILED` → fall back to standard `/build-implementation` dispatch. Log fallback in pipeline state under `## Re-routes` (e.g. `re-routed from /best-of-n to /build-implementation (reason: insufficient candidates)`).
+- `WRONG_SKILL` → expected when the gate is off; use standard `/build-implementation`. No escalation.
+
+This check fires ONLY at Build dispatch. Scaffolding, Polish, Review, Final Gate, Ship, and Deploy are unaffected by criticality.
 
 #### Polish Phase (Conditional: Budget >= 7)
 

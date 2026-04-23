@@ -147,6 +147,7 @@ Set `CLAUDE_ENABLE_TRACE=1` to capture per-spawn prompt traces to `metrics/{sess
 | `/epic-breakdown` | Decomposing epics into stories | STORIES_READY |
 | `/estimation` | Sizing stories with Complexity Budget | ESTIMATED |
 | `/story-writing` | Writing individual user stories | STORY_READY |
+| `/best-of-n` | Build phase (critical-tagged, Budget >= 7): run N candidate models in parallel, score, merge winner | BEST_OF_N_COMPLETE / BEST_OF_N_FAILED / WRONG_SKILL |
 | `/build-implementation` | Build phase: incremental TDD + shape checks | BUILD_COMPLETE |
 | `/refactor` | Build phase: safe refactoring workflow | REFACTOR_COMPLETE |
 | `/bug-fix` | Build phase: root cause analysis + TDD fix | BUG_FIXED |
