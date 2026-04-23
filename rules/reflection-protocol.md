@@ -77,11 +77,11 @@ Append a structured observation to `learning/{project-hash}/observations.jsonl`.
 
 ### 6b. Auto-Learn Gate Check
 
-Check if all conditions are met:
-- 3+ observations since last `/learn` run for this project
-- No `/learn` run in last 3 pipelines
+The gate fires automatically via the `auto-learn-gate.sh` Stop hook — the orchestrator does not need to evaluate conditions. When thresholds are met (≥3 new pipeline observations, ≥3 pipelines or ≥24h since last run, pipeline-id idempotency), the hook emits a visible "Triggered" banner on stdout. On the next turn, invoke `/learn` (which in turn resets the gate counters — see `skills/learn/SKILL.md` Step 10).
 
-If gate is met: invoke `/learn` as the final step of reflection. This is automatic — the user should never need to invoke `/learn` manually.
+Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1` suppresses the hook.
+
+See `rules/autonomous-intelligence.md` § Consolidation Gate for full semantics.
 
 ### 6c. Update Session Memory
 
