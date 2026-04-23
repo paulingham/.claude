@@ -942,6 +942,105 @@ rm -rf "$ARP_STATE_DIR"
 
 echo ""
 
+# -- per-project instincts bootstrap tests ----------------------------------
+echo "-- session-start-bootstrap.sh (per-project instincts) --"
+
+# Hermetic fake HOME so we don't pollute real ~/.claude/learning
+PPI_TMP=$(mktemp -d)
+PPI_HOME="$PPI_TMP/home"
+mkdir -p "$PPI_HOME/.claude/hooks"
+ln -s "$HOOKS_DIR/_lib" "$PPI_HOME/.claude/hooks/_lib"
+cp "$HOOKS_DIR/session-start-bootstrap.sh" "$PPI_HOME/.claude/hooks/session-start-bootstrap.sh"
+
+# Hermetic git repo with a fake remote so _project_hash returns a deterministic hash
+PPI_REPO="$PPI_TMP/repo"
+git init -q "$PPI_REPO" 2>/dev/null
+(cd "$PPI_REPO" && git remote add origin "https://example.invalid/fixture-instincts.git" 2>/dev/null)
+
+# Resolve the hash the hook will compute inside the fixture repo
+PPI_HASH=$(cd "$PPI_REPO" && source "$HOOKS_DIR/_lib/project-hash.sh" && _project_hash --fallback "local")
+PPI_LEARNING="$PPI_HOME/.claude/learning"
+PPI_PROJECT_DIR="$PPI_LEARNING/$PPI_HASH"
+PPI_INSTINCTS_DIR="$PPI_PROJECT_DIR/instincts"
+
+# Seed 3 observations
+mkdir -p "$PPI_PROJECT_DIR"
+cat > "$PPI_PROJECT_DIR/observations.jsonl" << 'EOOBS'
+{"timestamp":"2026-04-23T00:00:00Z","tool":"Edit","outcome":"success"}
+{"timestamp":"2026-04-23T00:00:01Z","tool":"Read","outcome":"success"}
+{"timestamp":"2026-04-23T00:00:02Z","tool":"Bash","outcome":"success"}
+EOOBS
+
+# First run
+PPI_OUT=$(cd "$PPI_REPO" && HOME="$PPI_HOME" bash "$PPI_HOME/.claude/hooks/session-start-bootstrap.sh" 2>/dev/null)
+PPI_EXIT=$?
+run_test "per-project instincts: hook exits 0 on first run" 0 $PPI_EXIT
+
+if [[ -d "$PPI_INSTINCTS_DIR" ]]; then
+  pass "per-project instincts: instincts dir created at $PPI_INSTINCTS_DIR"
+else
+  fail "per-project instincts: instincts dir created" "directory exists" "not found"
+fi
+
+if echo "$PPI_OUT" | grep -q "LEARN HINT: 3 observations without instincts"; then
+  pass "per-project instincts: LEARN HINT emitted with observation count"
+else
+  fail "per-project instincts: LEARN HINT emitted with observation count" "present" "missing"
+fi
+
+# Idempotence: second run must exit 0, still emit LEARN HINT, not duplicate
+PPI_OUT2=$(cd "$PPI_REPO" && HOME="$PPI_HOME" bash "$PPI_HOME/.claude/hooks/session-start-bootstrap.sh" 2>/dev/null)
+PPI_EXIT2=$?
+run_test "per-project instincts: hook exits 0 on repeat run (idempotent)" 0 $PPI_EXIT2
+
+PPI_HINT_COUNT=$(echo "$PPI_OUT2" | grep -c "LEARN HINT:")
+if [[ "$PPI_HINT_COUNT" -eq 1 ]]; then
+  pass "per-project instincts: LEARN HINT emitted exactly once per run"
+else
+  fail "per-project instincts: LEARN HINT emitted exactly once per run" "1" "$PPI_HINT_COUNT"
+fi
+
+# When an instinct exists, LEARN HINT must be suppressed
+cat > "$PPI_INSTINCTS_DIR/instinct-test.md" << 'EOINS'
+---
+confidence: 0.5
+---
+## Pattern
+Test instinct
+EOINS
+
+PPI_OUT3=$(cd "$PPI_REPO" && HOME="$PPI_HOME" bash "$PPI_HOME/.claude/hooks/session-start-bootstrap.sh" 2>/dev/null)
+if echo "$PPI_OUT3" | grep -q "LEARN HINT:"; then
+  fail "per-project instincts: LEARN HINT suppressed when instincts exist" "absent" "present"
+else
+  pass "per-project instincts: LEARN HINT suppressed when instincts exist"
+fi
+
+# Under-threshold observations (< 3 lines) must not emit LEARN HINT
+rm -f "$PPI_INSTINCTS_DIR/instinct-test.md"
+cat > "$PPI_PROJECT_DIR/observations.jsonl" << 'EOOBS'
+{"timestamp":"2026-04-23T00:00:00Z","tool":"Edit","outcome":"success"}
+EOOBS
+PPI_OUT4=$(cd "$PPI_REPO" && HOME="$PPI_HOME" bash "$PPI_HOME/.claude/hooks/session-start-bootstrap.sh" 2>/dev/null)
+if echo "$PPI_OUT4" | grep -q "LEARN HINT:"; then
+  fail "per-project instincts: LEARN HINT suppressed under threshold" "absent" "present"
+else
+  pass "per-project instincts: LEARN HINT suppressed under threshold"
+fi
+
+# SKILL.md contract: /learn first step must include mkdir -p for per-project instincts
+SKILL_FILE="$HOOKS_DIR/../skills/learn/SKILL.md"
+if grep -q 'mkdir -p "\$HOME/.claude/learning/\$PROJECT_HASH/instincts"' "$SKILL_FILE"; then
+  pass "per-project instincts: /learn SKILL.md has idempotent mkdir -p for per-project instincts"
+else
+  fail "per-project instincts: /learn SKILL.md has idempotent mkdir -p for per-project instincts" "present" "missing"
+fi
+
+# Cleanup
+rm -rf "$PPI_TMP"
+
+echo ""
+
 # -- Summary -----------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
 echo ""
