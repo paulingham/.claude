@@ -42,6 +42,16 @@
 **/__pycache__/
 *.pyc
 
+# Runtime artifacts — never tracked
+automation/logs/
+automation/.permission-reducer-last-run
+db/*.log
+db/*.log.*
+db/*.sqlite
+db/*.sqlite-journal
+db/*.sqlite-wal
+db/*.sqlite-shm
+
 # Never track secrets or credentials
 credentials.json
 .claude.json
