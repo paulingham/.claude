@@ -146,7 +146,7 @@ After all tasks shipped:
    }
    ```
 
-2. **Check auto-learn gate** — 3+ observations since last `/learn`? Invoke `/learn`.
+2. **Auto-learn gate** — the `auto-learn-gate.sh` Stop hook fires automatically when thresholds are met and prints a "Triggered" banner. On the next turn, invoke `/learn`. No manual counter check needed. Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1`.
 
 3. **Update session memory** — spawn background agent to capture engineering knowledge.
 

@@ -139,6 +139,7 @@ After every pipeline completion (in the Reflect step), write a structured observ
 ```bash
 # Append to learning/{project-hash}/observations.jsonl
 {
+  "record_type": "pipeline",
   "timestamp": "ISO 8601",
   "session_id": "...",
   "pipeline_id": "{task-id}",
@@ -159,12 +160,16 @@ After every pipeline completion (in the Reflect step), write a structured observ
 
 ### Consolidation Gate
 
-Auto-invoke `/learn` when ALL conditions are met:
-- 3+ observations since last `/learn` run for this project
-- Current pipeline just completed (natural trigger point)
-- No `/learn` run in the last 3 pipelines for this project
+The auto-learn gate is enforced by the `auto-learn-gate.sh` Stop hook. It fires a visible context message telling the orchestrator to invoke `/learn` when ALL conditions are met:
+- ≥3 pipeline observations (`record_type == "pipeline"`) since the last `/learn` run
+- ≥3 pipelines since the last `/learn` run, OR no `/learn` has ever run in this project, OR ≥24 hours have elapsed since the last run
+- Current pipeline (by `task_id`) is not the one that triggered the most recent firing (idempotency)
 
-The orchestrator checks this during the Reflect step. If gate is met, invoke `/learn` as the final step of reflection.
+Counters are persisted at `~/.claude/learning/{project-hash}/.learn-state.json`. The hook reads only newly-appended observations via a file-offset cursor, so it is idempotent across multiple Stop-event firings within the same turn. The `/learn` skill resets `pipelines_since_learn` and `observations_since_learn` to 0 and stamps `last_learn_run` when it completes (see `skills/learn/SKILL.md` Step 10).
+
+Why a hook (not a checklist item): orchestrator memory is unreliable across long runs; the hook fires deterministically on every model-turn end.
+
+**Escape hatch**: set `CLAUDE_DISABLE_AUTO_LEARN=1` in the environment to suppress gate firings (hook fast-exits). Useful for debugging or bulk-work sessions where you want to batch learning manually.
 
 ### Feedback Loop
 

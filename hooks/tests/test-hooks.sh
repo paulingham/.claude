@@ -1066,6 +1066,20 @@ rm -rf "$TC_TMP"
 
 echo ""
 
+# -- auto-learn-gate tests (delegated to dedicated harness) ------------------
+echo "-- auto-learn-gate.sh (via test-auto-learn-gate.sh) --"
+if bash "$HOOKS_DIR/tests/test-auto-learn-gate.sh" > /tmp/alg-test-out-$$.log 2>&1; then
+  ALG_PASS=$(grep -c "^  PASS: " /tmp/alg-test-out-$$.log)
+  pass "auto-learn-gate: delegated harness ($ALG_PASS sub-tests passed)"
+else
+  ALG_FAILS=$(grep -c "^  FAIL: " /tmp/alg-test-out-$$.log)
+  fail "auto-learn-gate: delegated harness" "0 failures" "$ALG_FAILS failure(s) — see /tmp/alg-test-out-$$.log"
+  cat /tmp/alg-test-out-$$.log
+fi
+rm -f /tmp/alg-test-out-$$.log
+
+echo ""
+
 # -- Summary -----------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
 echo ""
