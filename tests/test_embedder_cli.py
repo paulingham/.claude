@@ -52,5 +52,32 @@ class SetupCommandPrintsInstructions(unittest.TestCase):
         self.assertIn("ORT_DYLIB_PATH", buf.getvalue())
 
 
+class SetupCommandDispatchesByOS(unittest.TestCase):
+    """Slice 1 (cross-env-portability): Linux users see apt-get, not brew."""
+    def test_linux_setup_text_mentions_apt_get_not_brew(self):
+        from unittest.mock import patch
+        from embedder import cli
+        buf = io.StringIO()
+        with patch("embedder._lib.cli_setup_text.platform.system",
+                   return_value="Linux"):
+            with redirect_stdout(buf):
+                cli.main(["setup"])
+        out = buf.getvalue()
+        self.assertIn("apt-get", out)
+        self.assertIn("libonnxruntime.so", out)
+
+    def test_macos_setup_text_mentions_brew_and_dylib(self):
+        from unittest.mock import patch
+        from embedder import cli
+        buf = io.StringIO()
+        with patch("embedder._lib.cli_setup_text.platform.system",
+                   return_value="Darwin"):
+            with redirect_stdout(buf):
+                cli.main(["setup"])
+        out = buf.getvalue()
+        self.assertIn("brew", out)
+        self.assertIn("libonnxruntime.dylib", out)
+
+
 if __name__ == "__main__":
     unittest.main()

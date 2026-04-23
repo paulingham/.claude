@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Code Shape Check — PostToolUse BLOCKING hook
 # Fires after Write/Edit on source files (not tests, not config)
 # HARD BLOCKS (exit 2) if file exceeds line limit — forces immediate decomposition

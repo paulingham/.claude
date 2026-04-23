@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Governance Capture — PreToolUse hook for Bash, Write, Edit
 # Detects secrets and policy violations, logs to ~/.claude/metrics/governance.jsonl
 # Advisory only (exit 0).

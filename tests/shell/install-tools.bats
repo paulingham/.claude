@@ -175,6 +175,40 @@ teardown() {
   [ "$mtime_before" = "$mtime_after" ]
 }
 
+@test "install-tools.sh --dry-run on ubuntu includes Linux build toolchain (H4, M6)" {
+  echo 'ID=ubuntu' > "$TMP_DIR/os-release"
+  run bash -c "uname() { echo Linux; }; export -f uname; export OS_RELEASE_PATH='$TMP_DIR/os-release' CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"build-essential"* ]]
+  [[ "$output" == *"libssl-dev"* ]]
+  [[ "$output" == *"pkg-config"* ]]
+  [[ "$output" == *"curl"* ]]
+}
+
+@test "install-tools.sh --dry-run on debian includes Linux build toolchain (H4, M6)" {
+  echo 'ID=debian' > "$TMP_DIR/os-release"
+  run bash -c "uname() { echo Linux; }; export -f uname; export OS_RELEASE_PATH='$TMP_DIR/os-release' CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"build-essential"* ]]
+  [[ "$output" == *"libssl-dev"* ]]
+}
+
+@test "install-tools.sh --dry-run on macos does NOT include Linux build toolchain" {
+  run bash -c "export CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"build-essential"* ]]
+  [[ "$output" != *"libssl-dev"* ]]
+}
+
+@test "install-tools.sh --dry-run on fedora includes Fedora build toolchain (H4)" {
+  echo 'ID=fedora' > "$TMP_DIR/os-release"
+  run bash -c "uname() { echo Linux; }; export -f uname; export OS_RELEASE_PATH='$TMP_DIR/os-release' CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"openssl-devel"* ]]
+  [[ "$output" == *"gcc"* ]]
+  [[ "$output" == *"curl"* ]]
+}
+
 @test "install-tools.sh --yes prints 'skipped' for every tool already on PATH (AC3.6)" {
   # On the build host, all SYSTEM_TOOLS are present (we installed bats/shellcheck,
   # and gh/jq/ripgrep/sqlite3/python3 ship with the dev environment). Re-running

@@ -66,6 +66,8 @@ skills/embedder/
 
 ## Setup
 
+### macOS
+
 ```bash
 # 1. Install ORT
 brew install onnxruntime
@@ -84,6 +86,28 @@ PYTHONPATH=skills python3 -m embedder backfill --db ~/.claude/db/memory.sqlite
 # 5. Verify — doctor will show verdict: OK
 PYTHONPATH=skills python3 -m embedder cli doctor
 ```
+
+### Linux (Debian / Ubuntu)
+
+```bash
+# 1. Install ORT (apt ships libonnxruntime-dev on Ubuntu 22.04+; for older
+#    distros fall back to the upstream .deb or a /usr/local build)
+sudo apt-get install -y libonnxruntime-dev
+
+# 2. Download the model
+./skills/embedder/download-model.sh
+
+# 3. Export env vars (the script prints these; detect-ort.sh resolves the
+#    library path automatically — set ORT_DYLIB_PATH only to override)
+export ORT_DYLIB_PATH=/usr/lib/x86_64-linux-gnu/libonnxruntime.so
+export BGE_MODEL_PATH=~/.claude/models/bge-small-en-v1.5/model.onnx
+
+# 4. Backfill + 5. Verify — same as macOS
+PYTHONPATH=skills python3 -m embedder backfill --db ~/.claude/db/memory.sqlite
+PYTHONPATH=skills python3 -m embedder cli doctor
+```
+
+Windows is not supported natively. Use WSL and follow the Linux path from inside the Linux shell.
 
 ## Test-only: CLAUDE_EMBEDDER=fake
 
