@@ -233,14 +233,10 @@ For each phase:
 
 Before dispatching the Build phase, read the `critical` flag from the intake state (`pipeline-state/{task-id}-intake.md`) or the mirrored pipeline state frontmatter.
 
-- If `critical == true` AND Complexity Budget >= 7: invoke `/best-of-n` via the Skill tool instead of the normal Build dispatch.
-- If `critical == false` OR Budget < 7: use the normal Build dispatch (`/build-implementation`, or scaffold-then-build as determined in Step 2b).
+- If `critical == true` AND Complexity Budget >= 7: dispatch via the **Best-of-N Build Team** variant (see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team). This is not a separate skill — it is a dispatch mode of the Build Team that runs N candidate models in parallel and selects the winner. The winner still proceeds through the normal Review → Final Gate → Ship gates.
+- Otherwise: use the standard Build dispatch (single-engineer subagent with worktree, or standard Build Team for multi-slice / multi-domain work).
 
-Handle `/best-of-n` return verdicts:
-
-- `BEST_OF_N_COMPLETE` → winner merged, continue to Polish/Review as usual.
-- `BEST_OF_N_FAILED` → fall back to standard `/build-implementation` dispatch. Log fallback in pipeline state under `## Re-routes` (e.g. `re-routed from /best-of-n to /build-implementation (reason: insufficient candidates)`).
-- `WRONG_SKILL` → expected when the gate is off; use standard `/build-implementation`. No escalation.
+**Fallback**: on `BEST_OF_N_FAILED` (e.g. insufficient candidates after env-var validation, or all candidates failed their own tests), automatically fall back to the standard Build dispatch and log the fallback in pipeline state under `## Re-routes` (e.g. `re-routed from best-of-n to standard build (reason: insufficient candidates)`). The pipeline never halts on a Best-of-N failure and never asks the user.
 
 This check fires ONLY at Build dispatch. Scaffolding, Polish, Review, Final Gate, Ship, and Deploy are unaffected by criticality.
 
