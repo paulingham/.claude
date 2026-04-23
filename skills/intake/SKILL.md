@@ -141,6 +141,27 @@ If ANY signal is true:
 [Intake] Manifest: {path} / will be created / N/A
 ```
 
+### Step 2d: Criticality Tag (MANDATORY)
+
+Emit `critical: true` when ANY of these apply to the task (not merely the files it touches):
+
+- **Payment flow**: keywords `payment`, `billing`, `stripe`, `charge`, `subscription`, `checkout`, `invoice`
+- **Auth flow**: keywords `auth`, `login`, `session`, `jwt`, `oauth`, `sso`, `password`, `2fa`, `mfa`
+- **Security-sensitive**: keywords `permission`, `rbac`, `authorization`, `csrf`, `xss`, `sanitize`, `encrypt`, `secret`, `credential`
+- **Cross-repo contract change**: a manifest exists AND the task modifies files matching `*contract*`, `*.proto`, `openapi.*`, or `*schema*`
+- **Production-blocking bug**: classification is Bug Fix AND the user text mentions `production`, `prod outage`, `blocking`, `revenue`, `p0`, `p1`, or `incident`
+
+A keyword match alone is not sufficient; the tag reflects the actual scope. If the change only *touches* auth code but is not *about* auth behaviour (e.g. a copy change in an auth screen, a log format tweak), do not tag.
+
+Always print one of:
+
+```
+[Intake] Criticality: critical
+[Intake] Criticality: standard
+```
+
+Persist the flag to `pipeline-state/{task-id}-intake.md` frontmatter as `critical: true|false`. `/pipeline` reads this flag to decide whether the Build phase routes to `/best-of-n` or the standard `/build-implementation`.
+
 ### Step 3: Pre-flight Check
 
 Before invoking pipeline, verify and auto-fix:
