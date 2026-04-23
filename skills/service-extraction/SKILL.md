@@ -216,7 +216,7 @@ Extracted [module] into independent service.
 - Database: independent (migrated tables)
 - Contract: contracts/openapi.yaml
 
-Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 git push -u origin main
 ```
