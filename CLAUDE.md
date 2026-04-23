@@ -10,6 +10,8 @@
 - Zero waste: every output line is a test result or a real error
 - Proven correct: tests passing is necessary but not sufficient — verify it actually works
 
+> **Default Opus model**: `claude-opus-4-7` (GA 2026-04-16). Pricing unchanged from 4.6 ($5/$25 per-M tokens) — no budget reforecast.
+
 ## Session Start (Automatic)
 
 On every session start, before responding to the user's first message:
