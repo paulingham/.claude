@@ -83,6 +83,10 @@ Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1` suppresses the hook.
 
 See `rules/autonomous-intelligence.md` § Consolidation Gate for full semantics.
 
+### 6b-bis. Model-Efficiency Check (Every 20 Observations)
+
+If `observations_since_learn` in `~/.claude/learning/{project-hash}/.learn-state.json` is a non-zero multiple of 20, invoke `/eval-model-effectiveness` to refresh the model recommendation report. This is advisory — the report is written to disk; no live config is changed. Skip silently if the state file is missing or the counter is 0.
+
 ### 6c. Update Session Memory
 
 Spawn a `session-memory-updater` agent (Agent tool, `subagent_type: session-memory-updater`, `run_in_background: true`) with curated engineering facts from this pipeline. See `rules/autonomous-intelligence.md` § Update Mechanism for the required prompt contents.

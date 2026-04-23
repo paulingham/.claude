@@ -54,6 +54,8 @@ Global wins for quality standards; project wins for project-specific conventions
 
 **Model self-tuning**: For tunable agents, the orchestrator checks `learning/instincts/` for model-efficiency instincts. If data shows Sonnet achieves identical outcomes for a phase/task-type, the model is downgraded. Architect and security-engineer are never downgraded (design and security decisions require highest capability). See `orchestrator/agent-orchestration.md` § Instinct Injection.
 
+**Model-efficiency recommendations (advisory)**: `/eval-model-effectiveness` produces a recommendation report at `~/.claude/learning/{project-hash}/model-recommendations.md` by analysing observations + cost records per `(agent_role, task-classification)`. It is **advisory only** — it never modifies agent configs and never routes models at runtime. A human operator reviews the report and decides whether to edit an agent's `model:` frontmatter. `architect` and `security-engineer` are hard-locked out of recommendations.
+
 ### Agent Teams (Hybrid Model)
 
 One team per pipeline (`TeamCreate("pipeline-{task-id}")`). Teammates spawned just-in-time, shut down after phase.
@@ -176,6 +178,7 @@ Set `CLAUDE_ENABLE_TRACE=1` to capture per-spawn prompt traces to `metrics/{sess
 | `/design-qc` | Visual QA screenshots for product acceptance | SCREENSHOTS_CAPTURED |
 | `/learn` | Analyze observations, extract instincts (learned patterns) | LEARNED |
 | `/health-scan` | Proactive codebase health: security, deps, coverage, tech debt | HEALTHY / CRITICAL_ISSUES |
+| `/eval-model-effectiveness` | Advisory analysis of agent model efficiency from observations + costs | RECOMMENDATIONS_READY |
 | `/greenfield-scaffold` | Full project bootstrap from scratch: discovery, tech stack, UI architecture, framework init, DevX, design, infra, seed data | GREENFIELD_SCAFFOLD_COMPLETE |
 | `/creative-direction` | Pre-build design thinking: brand brief → fonts, palette, layout, interaction paradigm | CREATIVE_DIRECTION_COMPLETE |
 | `/design-system-init` | Generate design tokens, primitives, dark mode for a project | DESIGN_SYSTEM_READY |
