@@ -64,18 +64,47 @@ echo "Debug: /debug (persistent state for complex bugs)"
 echo "Utils: /forensics (post-incident investigation) | /workstream (parallel feature isolation)"
 
 # Learning system
+# shellcheck source=_lib/project-hash.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
 LEARNING_DIR="$HOME/.claude/learning"
+LEARNING_PROJECT_HASH=$(_project_hash --fallback "local")
+PROJECT_INSTINCTS_DIR="$LEARNING_DIR/$LEARNING_PROJECT_HASH/instincts"
+
+# Bootstrap per-project instincts dir (idempotent, silent)
+mkdir -p "$PROJECT_INSTINCTS_DIR" 2>/dev/null
+
 if [[ -d "$LEARNING_DIR" ]]; then
-    INSTINCT_COUNT=$(find "$LEARNING_DIR/instincts" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-    if [[ "$INSTINCT_COUNT" -gt 0 ]]; then
+    # Count instincts: per-project first, falling back to global
+    PROJECT_INSTINCT_COUNT=$(find "$PROJECT_INSTINCTS_DIR" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+    GLOBAL_INSTINCT_COUNT=$(find "$LEARNING_DIR/instincts" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+    INSTINCT_SOURCE_DIR=""
+    INSTINCT_COUNT=0
+    if [[ "$PROJECT_INSTINCT_COUNT" -gt 0 ]]; then
+        INSTINCT_SOURCE_DIR="$PROJECT_INSTINCTS_DIR"
+        INSTINCT_COUNT="$PROJECT_INSTINCT_COUNT"
+    elif [[ "$GLOBAL_INSTINCT_COUNT" -gt 0 ]]; then
+        INSTINCT_SOURCE_DIR="$LEARNING_DIR/instincts"
+        INSTINCT_COUNT="$GLOBAL_INSTINCT_COUNT"
+    fi
+    if [[ -n "$INSTINCT_SOURCE_DIR" ]]; then
         echo ""
         echo "LEARNED PATTERNS ($INSTINCT_COUNT instincts):"
-        # Show top 5 by confidence
-        for f in $(grep -l "confidence:" "$LEARNING_DIR/instincts/"*.md 2>/dev/null | head -5); do
+        # Show top 5 by confidence (order as grep returns — sorting left to /learn)
+        for f in $(grep -l "confidence:" "$INSTINCT_SOURCE_DIR"/*.md 2>/dev/null | head -5); do
             CONF=$(grep "confidence:" "$f" | head -1 | awk '{print $2}')
             PATTERN=$(grep "^## Pattern" -A1 "$f" | tail -1)
             echo "  [$CONF] $PATTERN"
         done
+    fi
+
+    # Nudge /learn when observations have accumulated but no per-project instincts exist
+    OBSERVATIONS_FILE="$LEARNING_DIR/$LEARNING_PROJECT_HASH/observations.jsonl"
+    if [[ -f "$OBSERVATIONS_FILE" && "$PROJECT_INSTINCT_COUNT" -eq 0 ]]; then
+        OBS_COUNT=$(wc -l < "$OBSERVATIONS_FILE" 2>/dev/null | tr -d ' ')
+        if [[ "$OBS_COUNT" =~ ^[0-9]+$ && "$OBS_COUNT" -ge 3 ]]; then
+            echo ""
+            echo "LEARN HINT: $OBS_COUNT observations without instincts — invoke /learn"
+        fi
     fi
 fi
 

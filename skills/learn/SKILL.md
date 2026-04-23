@@ -20,13 +20,20 @@ The key insight: hooks observe 100% of tool usage (deterministic). Pipeline anal
 
 ## Process
 
-### 1. Identify Project
+### 1. Identify Project & Bootstrap Instincts Dir
+
+Resolve the project hash and ensure the per-project instincts directory exists. `mkdir -p` is idempotent — this must succeed on first `/learn` invocation in a project (when no instincts have been created yet) without erroring.
 
 ```bash
 source "$HOME/.claude/hooks/_lib/project-hash.sh"
 PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
+
+# Idempotent: safe to run on first invocation (no instincts yet) and on repeat runs.
+mkdir -p "$HOME/.claude/learning/$PROJECT_HASH/instincts"
 ```
+
+On first run in a project, this directory will be empty. `/learn` must still succeed — step 5 will populate it from the accumulated observations.
 
 ### 2. Read Data Sources
 
@@ -82,15 +89,15 @@ Preventable findings become build-targeted instincts: "In {project}, always {che
 
 ### 5. Create or Update Instincts
 
-For each detected pattern, check `~/.claude/learning/instincts/`:
+Project-scoped instincts live in `~/.claude/learning/{project-hash}/instincts/`. Global (promoted) instincts live in `~/.claude/learning/instincts/global/`. Check both when looking for existing matches, but create new project-scoped instincts in the per-project directory.
 
-**If instinct exists** (matching pattern):
+**If instinct exists** (matching pattern, either location):
 - Bump `evidence_count`
 - Update `last_seen` timestamp
 - Adjust confidence: `+0.1` per new evidence, max `0.95`
 - Recurring preventable findings: `+0.2` instead of `+0.1`
 
-**If new pattern**, create `~/.claude/learning/instincts/instinct-{hash}.md`:
+**If new pattern**, create `~/.claude/learning/{project-hash}/instincts/instinct-{hash}.md`:
 
 ```markdown
 ---
