@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Story 6 — single-case runner tests (run-case.sh + lib/*).
+set -u
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+RUN="$ROOT/skills/internal-eval/run"
+PASS=0; FAIL=0
+
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/assert.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/run_case_checks.sh"
+
+check_status_enum "$RUN"
+check_result_writer "$RUN"
+check_isolation_env "$RUN"
+check_isolation_paths "$RUN"
+
+echo "# pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]
