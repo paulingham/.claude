@@ -30,3 +30,11 @@ shadow_home_path() { echo "$1/home/$2"; }
 
 # inner_state_dir <run-dir> <case-id>    -- where inner pipeline-state/ lands
 inner_state_dir()  { echo "$1/inner/$2"; }
+
+# mount_harness_root <shadow-home> <harness-root>
+# Symlinks $shadow_home/.claude → harness-root so inner skill resolution
+# (which reads $HOME/.claude/...) finds the pinned worktree.
+mount_harness_root() {
+  mkdir -p "$1"
+  ln -snf "$2" "$1/.claude"
+}
