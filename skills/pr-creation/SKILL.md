@@ -104,11 +104,19 @@ git push
 
 ### 5. Create Pull Request
 
+Before calling `gh pr create`, append the eval-baseline stamp to the body:
+
 ```bash
-# Create PR with detailed description
+# Capture the stamp (harness repo only; no-op in other projects)
+STAMP=""
+if [ -x "$HOME/.claude/skills/internal-eval/score/stamp-pr-body.sh" ]; then
+  STAMP="$(bash "$HOME/.claude/skills/internal-eval/score/stamp-pr-body.sh" 2>/dev/null || true)"
+fi
+
+# Create PR with detailed description + eval baseline stamp
 gh pr create \
   --title "type(scope): description (TICKET-123)" \
-  --body "$(cat <<'EOF'
+  --body "$(cat <<EOF
 ## Summary
 [3-5 sentence overview of what changed and why]
 
@@ -124,9 +132,13 @@ gh pr create \
 
 ## Related
 Closes [TICKET-XXX or issue number]
+
+${STAMP}
 EOF
 )"
 ```
+
+The eval-baseline stamp is appended to every PR body so reviewers see the latest suite pass rate + `harness_ref` SHA without per-PR reruns. See `~/.claude/skills/internal-eval/score/stamp-pr-body.sh`.
 
 ## Branch Naming Conventions
 
