@@ -4,12 +4,12 @@
 REQUIRED_META_KEYS=(case_id classification source_pr min_harness_ref max_harness_ref
                     flakiness_tier scoring_mode timeout_minutes cost_ceiling_usd synthetic)
 
-assert_artifact() { local ex="$1" kind="$2" name="$3"; assert "_example/$name exists" "is_$kind" "$ex/$name"; }
+assert_artifact() { local d="$1" kind="$2" name="$3" label="$4"; assert "$label/$name exists" "is_$kind" "$d/$name"; }
 
 check_artifacts() {
-  local ex="$1"
+  local d="$1" label="${2:-$(basename "$1")}"
   for spec in file:task.md dir:context file:expected.md dir:golden-diff file:metadata.json; do
-    assert_artifact "$ex" "${spec%%:*}" "${spec##*:}"
+    assert_artifact "$d" "${spec%%:*}" "${spec##*:}" "$label"
   done
 }
 

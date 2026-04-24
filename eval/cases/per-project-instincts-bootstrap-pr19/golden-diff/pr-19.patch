@@ -1,0 +1,213 @@
+diff --git a/hooks/session-start-bootstrap.sh b/hooks/session-start-bootstrap.sh
+index 59aced9..6d4ec94 100755
+--- a/hooks/session-start-bootstrap.sh
++++ b/hooks/session-start-bootstrap.sh
+@@ -64,19 +64,48 @@ echo "Debug: /debug (persistent state for complex bugs)"
+ echo "Utils: /forensics (post-incident investigation) | /workstream (parallel feature isolation)"
+ 
+ # Learning system
++# shellcheck source=_lib/project-hash.sh
++source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
+ LEARNING_DIR="$HOME/.claude/learning"
++LEARNING_PROJECT_HASH=$(_project_hash --fallback "local")
++PROJECT_INSTINCTS_DIR="$LEARNING_DIR/$LEARNING_PROJECT_HASH/instincts"
++
++# Bootstrap per-project instincts dir (idempotent, silent)
++mkdir -p "$PROJECT_INSTINCTS_DIR" 2>/dev/null
++
+ if [[ -d "$LEARNING_DIR" ]]; then
+-    INSTINCT_COUNT=$(find "$LEARNING_DIR/instincts" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+-    if [[ "$INSTINCT_COUNT" -gt 0 ]]; then
++    # Count instincts: per-project first, falling back to global
++    PROJECT_INSTINCT_COUNT=$(find "$PROJECT_INSTINCTS_DIR" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
++    GLOBAL_INSTINCT_COUNT=$(find "$LEARNING_DIR/instincts" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
++    INSTINCT_SOURCE_DIR=""
++    INSTINCT_COUNT=0
++    if [[ "$PROJECT_INSTINCT_COUNT" -gt 0 ]]; then
++        INSTINCT_SOURCE_DIR="$PROJECT_INSTINCTS_DIR"
++        INSTINCT_COUNT="$PROJECT_INSTINCT_COUNT"
++    elif [[ "$GLOBAL_INSTINCT_COUNT" -gt 0 ]]; then
++        INSTINCT_SOURCE_DIR="$LEARNING_DIR/instincts"
++        INSTINCT_COUNT="$GLOBAL_INSTINCT_COUNT"
++    fi
++    if [[ -n "$INSTINCT_SOURCE_DIR" ]]; then
+         echo ""
+         echo "LEARNED PATTERNS ($INSTINCT_COUNT instincts):"
+-        # Show top 5 by confidence
+-        for f in $(grep -l "confidence:" "$LEARNING_DIR/instincts/"*.md 2>/dev/null | head -5); do
++        # Show top 5 by confidence (order as grep returns — sorting left to /learn)
++        for f in $(grep -l "confidence:" "$INSTINCT_SOURCE_DIR"/*.md 2>/dev/null | head -5); do
+             CONF=$(grep "confidence:" "$f" | head -1 | awk '{print $2}')
+             PATTERN=$(grep "^## Pattern" -A1 "$f" | tail -1)
+             echo "  [$CONF] $PATTERN"
+         done
+     fi
++
++    # Nudge /learn when observations have accumulated but no per-project instincts exist
++    OBSERVATIONS_FILE="$LEARNING_DIR/$LEARNING_PROJECT_HASH/observations.jsonl"
++    if [[ -f "$OBSERVATIONS_FILE" && "$PROJECT_INSTINCT_COUNT" -eq 0 ]]; then
++        OBS_COUNT=$(wc -l < "$OBSERVATIONS_FILE" 2>/dev/null | tr -d ' ')
++        if [[ "$OBS_COUNT" =~ ^[0-9]+$ && "$OBS_COUNT" -ge 3 ]]; then
++            echo ""
++            echo "LEARN HINT: $OBS_COUNT observations without instincts — invoke /learn"
++        fi
++    fi
+ fi
+ 
+ # ---------------------------------------------------------------------------
+diff --git a/hooks/tests/test-hooks.sh b/hooks/tests/test-hooks.sh
+index dc2be5a..da26caf 100755
+--- a/hooks/tests/test-hooks.sh
++++ b/hooks/tests/test-hooks.sh
+@@ -942,6 +942,105 @@ rm -rf "$ARP_STATE_DIR"
+ 
+ echo ""
+ 
++# -- per-project instincts bootstrap tests ----------------------------------
++echo "-- session-start-bootstrap.sh (per-project instincts) --"
++
++# Hermetic fake HOME so we don't pollute real ~/.claude/learning
++PPI_TMP=$(mktemp -d)
++PPI_HOME="$PPI_TMP/home"
++mkdir -p "$PPI_HOME/.claude/hooks"
++ln -s "$HOOKS_DIR/_lib" "$PPI_HOME/.claude/hooks/_lib"
++cp "$HOOKS_DIR/session-start-bootstrap.sh" "$PPI_HOME/.claude/hooks/session-start-bootstrap.sh"
++
++# Hermetic git repo with a fake remote so _project_hash returns a deterministic hash
++PPI_REPO="$PPI_TMP/repo"
++git init -q "$PPI_REPO" 2>/dev/null
++(cd "$PPI_REPO" && git remote add origin "https://example.invalid/fixture-instincts.git" 2>/dev/null)
++
++# Resolve the hash the hook will compute inside the fixture repo
++PPI_HASH=$(cd "$PPI_REPO" && source "$HOOKS_DIR/_lib/project-hash.sh" && _project_hash --fallback "local")
++PPI_LEARNING="$PPI_HOME/.claude/learning"
++PPI_PROJECT_DIR="$PPI_LEARNING/$PPI_HASH"
++PPI_INSTINCTS_DIR="$PPI_PROJECT_DIR/instincts"
++
++# Seed 3 observations
++mkdir -p "$PPI_PROJECT_DIR"
++cat > "$PPI_PROJECT_DIR/observations.jsonl" << 'EOOBS'
++{"timestamp":"2026-04-23T00:00:00Z","tool":"Edit","outcome":"success"}
++{"timestamp":"2026-04-23T00:00:01Z","tool":"Read","outcome":"success"}
++{"timestamp":"2026-04-23T00:00:02Z","tool":"Bash","outcome":"success"}
++EOOBS
++
++# First run
++PPI_OUT=$(cd "$PPI_REPO" && HOME="$PPI_HOME" bash "$PPI_HOME/.claude/hooks/session-start-bootstrap.sh" 2>/dev/null)
++PPI_EXIT=$?
++run_test "per-project instincts: hook exits 0 on first run" 0 $PPI_EXIT
++
++if [[ -d "$PPI_INSTINCTS_DIR" ]]; then
++  pass "per-project instincts: instincts dir created at $PPI_INSTINCTS_DIR"
++else
++  fail "per-project instincts: instincts dir created" "directory exists" "not found"
++fi
++
++if echo "$PPI_OUT" | grep -q "LEARN HINT: 3 observations without instincts"; then
++  pass "per-project instincts: LEARN HINT emitted with observation count"
++else
++  fail "per-project instincts: LEARN HINT emitted with observation count" "present" "missing"
++fi
++
++# Idempotence: second run must exit 0, still emit LEARN HINT, not duplicate
++PPI_OUT2=$(cd "$PPI_REPO" && HOME="$PPI_HOME" bash "$PPI_HOME/.claude/hooks/session-start-bootstrap.sh" 2>/dev/null)
++PPI_EXIT2=$?
++run_test "per-project instincts: hook exits 0 on repeat run (idempotent)" 0 $PPI_EXIT2
++
++PPI_HINT_COUNT=$(echo "$PPI_OUT2" | grep -c "LEARN HINT:")
++if [[ "$PPI_HINT_COUNT" -eq 1 ]]; then
++  pass "per-project instincts: LEARN HINT emitted exactly once per run"
++else
++  fail "per-project instincts: LEARN HINT emitted exactly once per run" "1" "$PPI_HINT_COUNT"
++fi
++
++# When an instinct exists, LEARN HINT must be suppressed
++cat > "$PPI_INSTINCTS_DIR/instinct-test.md" << 'EOINS'
++---
++confidence: 0.5
++---
++## Pattern
++Test instinct
++EOINS
++
++PPI_OUT3=$(cd "$PPI_REPO" && HOME="$PPI_HOME" bash "$PPI_HOME/.claude/hooks/session-start-bootstrap.sh" 2>/dev/null)
++if echo "$PPI_OUT3" | grep -q "LEARN HINT:"; then
++  fail "per-project instincts: LEARN HINT suppressed when instincts exist" "absent" "present"
++else
++  pass "per-project instincts: LEARN HINT suppressed when instincts exist"
++fi
++
++# Under-threshold observations (< 3 lines) must not emit LEARN HINT
++rm -f "$PPI_INSTINCTS_DIR/instinct-test.md"
++cat > "$PPI_PROJECT_DIR/observations.jsonl" << 'EOOBS'
++{"timestamp":"2026-04-23T00:00:00Z","tool":"Edit","outcome":"success"}
++EOOBS
++PPI_OUT4=$(cd "$PPI_REPO" && HOME="$PPI_HOME" bash "$PPI_HOME/.claude/hooks/session-start-bootstrap.sh" 2>/dev/null)
++if echo "$PPI_OUT4" | grep -q "LEARN HINT:"; then
++  fail "per-project instincts: LEARN HINT suppressed under threshold" "absent" "present"
++else
++  pass "per-project instincts: LEARN HINT suppressed under threshold"
++fi
++
++# SKILL.md contract: /learn first step must include mkdir -p for per-project instincts
++SKILL_FILE="$HOOKS_DIR/../skills/learn/SKILL.md"
++if grep -q 'mkdir -p "\$HOME/.claude/learning/\$PROJECT_HASH/instincts"' "$SKILL_FILE"; then
++  pass "per-project instincts: /learn SKILL.md has idempotent mkdir -p for per-project instincts"
++else
++  fail "per-project instincts: /learn SKILL.md has idempotent mkdir -p for per-project instincts" "present" "missing"
++fi
++
++# Cleanup
++rm -rf "$PPI_TMP"
++
++echo ""
++
+ # -- Summary -----------------------------------------------------------------
+ echo "=== Results: $PASS passed, $FAIL failed ==="
+ echo ""
+diff --git a/skills/learn/SKILL.md b/skills/learn/SKILL.md
+index 51d014a..b41b6d8 100644
+--- a/skills/learn/SKILL.md
++++ b/skills/learn/SKILL.md
+@@ -20,14 +20,21 @@ The key insight: hooks observe 100% of tool usage (deterministic). Pipeline anal
+ 
+ ## Process
+ 
+-### 1. Identify Project
++### 1. Identify Project & Bootstrap Instincts Dir
++
++Resolve the project hash and ensure the per-project instincts directory exists. `mkdir -p` is idempotent — this must succeed on first `/learn` invocation in a project (when no instincts have been created yet) without erroring.
+ 
+ ```bash
+ source "$HOME/.claude/hooks/_lib/project-hash.sh"
+ PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
+ PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
++
++# Idempotent: safe to run on first invocation (no instincts yet) and on repeat runs.
++mkdir -p "$HOME/.claude/learning/$PROJECT_HASH/instincts"
+ ```
+ 
++On first run in a project, this directory will be empty. `/learn` must still succeed — step 5 will populate it from the accumulated observations.
++
+ ### 2. Read Data Sources
+ 
+ Three data sources feed pattern detection:
+@@ -82,15 +89,15 @@ Preventable findings become build-targeted instincts: "In {project}, always {che
+ 
+ ### 5. Create or Update Instincts
+ 
+-For each detected pattern, check `~/.claude/learning/instincts/`:
++Project-scoped instincts live in `~/.claude/learning/{project-hash}/instincts/`. Global (promoted) instincts live in `~/.claude/learning/instincts/global/`. Check both when looking for existing matches, but create new project-scoped instincts in the per-project directory.
+ 
+-**If instinct exists** (matching pattern):
++**If instinct exists** (matching pattern, either location):
+ - Bump `evidence_count`
+ - Update `last_seen` timestamp
+ - Adjust confidence: `+0.1` per new evidence, max `0.95`
+ - Recurring preventable findings: `+0.2` instead of `+0.1`
+ 
+-**If new pattern**, create `~/.claude/learning/instincts/instinct-{hash}.md`:
++**If new pattern**, create `~/.claude/learning/{project-hash}/instincts/instinct-{hash}.md`:
+ 
+ ```markdown
+ ---
