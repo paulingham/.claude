@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# gh shim for Story 4 tests. Reads canned responses from $CLAUDE_EVAL_FIX_DIR.
+set -u
+FIX="${CLAUDE_EVAL_FIXTURE:-empty}"
+DIR="${CLAUDE_EVAL_FIX_DIR:-}"
+[ -z "$DIR" ] && { echo "gh shim: CLAUDE_EVAL_FIX_DIR unset" >&2; exit 2; }
+
+_dispatch_diff() {
+  local pr="$1" mode="$2"
+  if [ "$mode" = "--name-only" ]; then
+    cat "$DIR/${FIX}-pr${pr}-names.txt" 2>/dev/null || echo ""
+  else
+    cat "$DIR/${FIX}-pr${pr}.patch" 2>/dev/null || echo ""
+  fi
+}
+
+case "$1 $2" in
+  "pr list") cat "$DIR/${FIX}-list.json" 2>/dev/null || echo "[]" ;;
+  "pr diff") shift 2; _dispatch_diff "$1" "${2:-}" ;;
+  "pr view") shift 2; cat "$DIR/${FIX}-pr${1}-view.json" 2>/dev/null || echo '{}' ;;
+  *) echo "gh shim: unhandled: $*" >&2; exit 2 ;;
+esac
