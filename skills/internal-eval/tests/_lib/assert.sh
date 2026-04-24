@@ -5,6 +5,11 @@ assert() {
   if "$@"; then PASS=$((PASS+1)); echo "ok - $msg"; else FAIL=$((FAIL+1)); echo "not ok - $msg"; fi
 }
 
+assert_not() {
+  local msg="$1"; shift
+  if ! "$@"; then PASS=$((PASS+1)); echo "ok - $msg"; else FAIL=$((FAIL+1)); echo "not ok - $msg"; fi
+}
+
 is_file()     { [ -f "$1" ]; }
 is_dir()      { [ -d "$1" ]; }
 is_ignored()  { (cd "$1" && git check-ignore -q "$2"); }
