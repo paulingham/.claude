@@ -26,5 +26,6 @@ check_timeout_status "$ROOT" "$RUN"
 check_pass_status "$ROOT" "$RUN"
 check_infra_failure "$ROOT" "$RUN"
 check_real_dispatch "$ROOT" "$RUN"
+check_real_dispatch_short_circuit "$ROOT" "$RUN"
 
 echo "# pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]

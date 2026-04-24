@@ -75,9 +75,33 @@ echo "args=\$*" > "$log"
 [ "\${CLAUDE_PIPELINE_BYPASS:-}" = "1" ] && echo "BYPASS=1" >> "$log"
 [ "\${CLAUDE_DISABLE_AUTO_LEARN:-}" = "1" ] && echo "NOLEARN=1" >> "$log"
 [ -n "\${EVAL_RUN_ID:-}" ] && echo "RUN=\$EVAL_RUN_ID" >> "$log"
+echo "PIPELINE_COMPLETE"
 exit 0
 EOF
   chmod +x "$bin"
+}
+
+check_real_dispatch_short_circuit() {
+  local root="$1"; local run="$2"
+  local tmp; tmp="$(mktemp -d)"
+  _write_fake_claude_question "$tmp/claude"
+  env -i PATH="$PATH" HOME="$HOME" EVAL_CLAUDE_BIN="$tmp/claude" EVAL_RUNS_DIR="$tmp" \
+    bash "$run/run-case.sh" --case-id per-project-instincts-bootstrap-pr19 \
+      --run-id rshort --timeout 10 >/dev/null
+  local result="$tmp/rshort/cases/per-project-instincts-bootstrap-pr19/result.json"
+  assert "short-circuit: no PIPELINE_COMPLETE marker → failed_build" \
+    _eq "$(jq -r .status "$result")" "failed_build"
+  rm -rf "$tmp"
+}
+
+_write_fake_claude_question() {
+  cat > "$1" <<'EOF'
+#!/usr/bin/env bash
+echo "Before I kick off, I want to flag context..."
+echo "Should I proceed with option 1 or option 2?"
+exit 0
+EOF
+  chmod +x "$1"
 }
 
 check_timeout_status() {

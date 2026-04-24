@@ -35,16 +35,3 @@ _dispatch_inner() {
 _invoke_stub() {
   run_with_timeout "$TIMEOUT_SEC" "$EVAL_INNER_STUB" "$1" "$2"
 }
-
-# _invoke_real <run_dir> <inner> — real `claude -p /pipeline`; rc 2 on infra.
-_invoke_real() {
-  local bin="${EVAL_CLAUDE_BIN:-claude}" task
-  task="${EVAL_CASES_DIR:-$PWD/eval/cases}/$CASE_ID/task.md"
-  _real_preflight "$bin" "$task" || return 2
-  run_with_timeout "$TIMEOUT_SEC" "$bin" -p "/pipeline $(cat "$task")" >"$2/pipeline.stdout" 2>"$2/pipeline.stderr"
-}
-
-_real_preflight() {
-  command -v "$1" >/dev/null 2>&1 || { echo "[run-case] claude bin not found: $1" >&2; return 1; }
-  [ -f "$2" ] || { echo "[run-case] missing task.md: $2" >&2; return 1; }
-}

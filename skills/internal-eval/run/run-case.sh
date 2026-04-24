@@ -23,6 +23,8 @@ source "$HERE/lib/result-emit.sh"
 # shellcheck disable=SC1091
 source "$HERE/lib/inner-spawn.sh"
 # shellcheck disable=SC1091
+source "$HERE/lib/real-dispatch.sh"
+# shellcheck disable=SC1091
 source "$HERE/lib/runner.sh"
 
 main "$@"
