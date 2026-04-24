@@ -22,8 +22,8 @@ This skill is the orchestration shell. The heavy lifting lives in three sub-skil
 | Command | Purpose |
 |---|---|
 | `/internal-eval run [--suite default] [--model opus] [--harness-ref <sha>] [--baseline]` | Run the suite. `--baseline` stamps results as the new baseline instead of diffing against one. |
-| `/internal-eval capture backfill --limit N` | Scan recent merged PRs for oracle-matching candidates, write to `eval/cases/.candidates/`. |
-| `/internal-eval capture promote <case-id>` | Promote a candidate from `.candidates/` into `eval/cases/` (becomes part of the suite). |
+| `/internal-eval capture backfill [--limit N] [--since YYYY-MM-DD]` | Scan recent merged PRs via `gh pr list`, oracle-filter through `capture/oracle-paths.json`, write candidates to `eval/cases/.candidates/{case-id}/` (5 artifacts each) + exclusion report to `eval/.candidates/.exclusion-report-{ISO}.md`. Privacy-gated: requires `eval/.privacy-acked` marker. |
+| `/internal-eval capture promote <case-id>` | Atomically move `eval/cases/.candidates/{case-id}/` → `eval/cases/{case-id}/`. Validates `metadata.json`; refuses if destination already exists. |
 | `/internal-eval inspect <case-id>` | Diagnostic: show per-case metadata, latest result, oracle diff. Populated by Story 8. |
 
 ## Process
