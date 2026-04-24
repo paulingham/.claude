@@ -19,6 +19,16 @@ _run_hook_acked() {
   printf '%s %s' "$rc" "$elapsed"
 }
 
+_run_hook_file_acked() {
+  local hooks="$1" tmp="$2" rc start end elapsed
+  touch "$tmp/eval/.privacy-acked"
+  start=$(date +%s%N 2>/dev/null || date +%s)
+  (cd "$tmp" && unset CLAUDE_EVAL_CAPTURE_ACKED && export CLAUDE_EVAL_CAPTURE_NOFORK=1 && \
+    hook_stdin_pr_merge 42 | bash "$hooks/eval-capture-on-merge.sh" >/dev/null 2>&1); rc=$?
+  end=$(date +%s%N 2>/dev/null || date +%s); elapsed=$(( (end - start) / 1000000 ))
+  printf '%s %s' "$rc" "$elapsed"
+}
+
 _run_worker() {
   local hooks="$1" tmp="$2" fix="$3" pr="$4" fixture="$5"
   (cd "$tmp" && PATH="$tmp/bin:$PATH" \
