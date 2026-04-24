@@ -69,6 +69,33 @@ check_retry_quarantined_runs_once() {
   assert "retry: quarantined → 1 attempt (no retry)" _eq "$calls" 1
 }
 
+check_result_json_has_attempts() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/status.sh"
+  local tmp; tmp="$(mktemp -d)"
+  write_result_json "$tmp/r.json" case=c1 run=r1 status=passed duration=1 cost=0 \
+    rounds=0 rework=false harness=abc model=opus flakiness=retriable-2x \
+    scoring=exact ts="2026-04-24T00:00:00Z" inner="" reason="" attempts=2
+  assert "result.json: attempts field emitted" _eq "$(jq -r .attempts "$tmp/r.json")" 2
+  assert "result.json: flakiness_tier preserved" \
+    _eq "$(jq -r .flakiness_tier "$tmp/r.json")" "retriable-2x"
+  rm -rf "$tmp"
+}
+
+check_emit_status_forwards_attempts() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/status.sh"
+  # shellcheck disable=SC1091
+  source "$run/lib/result-emit.sh"
+  local tmp; tmp="$(mktemp -d)"
+  CASE_ID=c1 RUN_ID=r1 MODEL=opus \
+    emit_status "$tmp/r.json" passed inner-dir sha123 5 "" 3
+  assert "emit_status: forwards attempts arg" _eq "$(jq -r .attempts "$tmp/r.json")" 3
+  rm -rf "$tmp"
+}
+
 check_score_dispatch_gate_fail() {
   local run="$1"
   # shellcheck disable=SC1091

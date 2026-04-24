@@ -16,9 +16,9 @@ rc_reason() {
 
 emit_status() {
   local out="$1"; local status="$2"; local inner="$3"; local sha="$4"
-  local duration="$5"; local reason="$6"
+  local duration="$5"; local reason="$6"; local attempts="${7:-1}"
   write_result_json "$out" case="$CASE_ID" run="$RUN_ID" status="$status" \
     duration="$duration" cost=0 rounds=0 rework=false harness="$sha" model="$MODEL" \
-    flakiness=deterministic scoring=test-passing \
+    flakiness=deterministic scoring=test-passing attempts="$attempts" \
     ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)" inner="$inner" reason="$reason"
 }

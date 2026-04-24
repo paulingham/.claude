@@ -19,5 +19,7 @@ check_retry_deterministic_no_retry "$RUN"
 check_retry_2x_passes_second "$RUN"
 check_retry_2x_all_fail "$RUN"
 check_retry_quarantined_runs_once "$RUN"
+check_result_json_has_attempts "$RUN"
+check_emit_status_forwards_attempts "$RUN"
 
 echo "# pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]
