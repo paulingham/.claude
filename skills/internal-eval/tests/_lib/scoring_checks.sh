@@ -25,6 +25,50 @@ check_exact_mode_fail() {
   rm -rf "$tmp"
 }
 
+check_retry_deterministic_no_retry() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/retry.sh"
+  local calls=0; _incr() { calls=$((calls+1)); return 1; }
+  score_with_retry deterministic _incr >/dev/null || true
+  assert "retry: deterministic → 1 attempt only" _eq "$calls" 1
+}
+
+check_retry_2x_passes_second() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/retry.sh"
+  local calls=0
+  _fail_then_pass() { calls=$((calls+1)); [ "$calls" -ge 2 ]; }
+  local out; out="$(score_with_retry retriable-2x _fail_then_pass 2>&1)"
+  local rc=$?
+  assert "retry: 2x passes on attempt 2"  _eq "$rc" 0
+  assert "retry: emitted attempts=2"      _eq "$out" "attempts=2"
+}
+
+check_retry_2x_all_fail() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/retry.sh"
+  local tmp; tmp="$(mktemp -d)"; : > "$tmp/calls"
+  _always_fail() { echo x >> "$tmp/calls"; return 1; }
+  local out; out="$(score_with_retry retriable-2x _always_fail 2>&1)"
+  local rc=$?
+  assert_not "retry: 2x returns non-zero after budget" [ "$rc" = 0 ]
+  assert "retry: 2x capped at 2 attempts" _eq "$(wc -l < "$tmp/calls" | tr -d ' ')" 2
+  assert "retry: emitted attempts=2"      _eq "$out" "attempts=2"
+  rm -rf "$tmp"
+}
+
+check_retry_quarantined_runs_once() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/retry.sh"
+  local calls=0; _fail() { calls=$((calls+1)); return 1; }
+  score_with_retry quarantined _fail >/dev/null || true
+  assert "retry: quarantined → 1 attempt (no retry)" _eq "$calls" 1
+}
+
 check_score_dispatch_gate_fail() {
   local run="$1"
   # shellcheck disable=SC1091

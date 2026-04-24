@@ -15,5 +15,9 @@ check_test_passing_mode "$RUN"
 check_score_dispatch_gate_fail "$RUN"
 check_score_dispatch_exact_pass "$RUN"
 check_score_dispatch_exact_fail "$RUN"
+check_retry_deterministic_no_retry "$RUN"
+check_retry_2x_passes_second "$RUN"
+check_retry_2x_all_fail "$RUN"
+check_retry_quarantined_runs_once "$RUN"
 
 echo "# pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]
