@@ -16,12 +16,18 @@ case "$TOOL_NAME" in
 esac
 
 # Get project hash from git remote (used for LEARNING_DIR path — backward compatible)
+# Nested-pipeline isolation: CLAUDE_PROJECT_HASH override redirects to an isolated
+# namespace. See skills/internal-eval/run/ISOLATION.md.
 # shellcheck source=_lib/project-hash.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
 # shellcheck source=_lib/state-dir.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"
 _ensure_state_dir
-PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
+if [[ -n "${CLAUDE_PROJECT_HASH:-}" ]]; then
+    PROJECT_HASH="$CLAUDE_PROJECT_HASH"
+else
+    PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
+fi
 
 # Get human-readable project name
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")

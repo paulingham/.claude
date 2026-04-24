@@ -54,8 +54,9 @@ if [[ "$IS_WRITE_CAPABLE" != true ]]; then
     exit 0
 fi
 
-# Check for bypass env var
+# Check for bypass env var (nested-pipeline isolation — see skills/internal-eval/run/ISOLATION.md)
 if [[ "${CLAUDE_PIPELINE_BYPASS:-}" == "1" ]]; then
+    echo "[guard] bypass: EVAL_RUN_ID=${EVAL_RUN_ID:-?} EVAL_CASE_ID=${EVAL_CASE_ID:-?}" >&2
     exit 0
 fi
 
