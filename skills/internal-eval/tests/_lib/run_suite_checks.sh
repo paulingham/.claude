@@ -48,6 +48,50 @@ check_resume_detection() {
   rm -rf "$tmp"
 }
 
+_make_cases() {
+  local cases_root="$1"; shift
+  for c in "$@"; do
+    mkdir -p "$cases_root/$c"
+    printf '# %s\n' "$c" > "$cases_root/$c/task.md"
+  done
+}
+
+_pass_stub() {
+  local dst="$1"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$dst"; chmod +x "$dst"
+}
+
+check_suite_end_to_end() {
+  local run="$1"
+  local tmp; tmp="$(mktemp -d)"
+  _make_cases "$tmp/cases" a b c
+  local stub="$tmp/pass.sh"; _pass_stub "$stub"
+  EVAL_CASES_DIR="$tmp/cases" EVAL_RUNS_DIR="$tmp/runs" EVAL_INNER_STUB="$stub" \
+    bash "$run/run-suite.sh" --run-id e2e --concurrency 2 >/dev/null
+  assert "e2e: aggregate.json exists" is_file "$tmp/runs/e2e/aggregate.json"
+  assert "e2e: suite.json exists"      is_file "$tmp/runs/e2e/suite.json"
+  assert "e2e: all 3 result.jsons" \
+    _eq "$(find "$tmp/runs/e2e/cases" -name result.json | wc -l | tr -d ' ')" "3"
+  assert "e2e: passed=3" _eq "$(jq -r .passed "$tmp/runs/e2e/aggregate.json")" "3"
+  rm -rf "$tmp"
+}
+
+check_suite_resume_skips() {
+  local run="$1"
+  local tmp; tmp="$(mktemp -d)"
+  _make_cases "$tmp/cases" a b c
+  local stub="$tmp/pass.sh"; _pass_stub "$stub"
+  # Pre-seed case "a" as already done with a sentinel content.
+  mkdir -p "$tmp/runs/rsum/cases/a"
+  echo '{"status":"preserved","case_id":"a"}' > "$tmp/runs/rsum/cases/a/result.json"
+  EVAL_CASES_DIR="$tmp/cases" EVAL_RUNS_DIR="$tmp/runs" EVAL_INNER_STUB="$stub" \
+    bash "$run/run-suite.sh" --run-id rsum --concurrency 2 --resume >/dev/null
+  assert "resume: case a result.json preserved (not rewritten)" \
+    _eq "$(jq -r .status "$tmp/runs/rsum/cases/a/result.json")" "preserved"
+  assert "resume: case b rewritten"  is_file "$tmp/runs/rsum/cases/b/result.json"
+  rm -rf "$tmp"
+}
+
 check_pool_runs_all() {
   local run="$1"
   # shellcheck disable=SC1091
