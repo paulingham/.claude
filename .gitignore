@@ -37,6 +37,12 @@
 !tests/**
 !scripts/
 !scripts/**
+!eval/
+!eval/**
+
+# Internal eval harness — runtime + candidate cases are local-only
+eval/cases/.candidates/
+eval/runs/
 
 # Python bytecode cache — never tracked
 **/__pycache__/
