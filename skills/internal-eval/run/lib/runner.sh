@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Main run-case driver. Composes args + isolation + harness-ref + scoring into
 # a single case execution that emits result.json under EVAL_RUNS_DIR/$RUN_ID/.
-# Inner /pipeline spawn is stubbed via EVAL_INNER_STUB (Story 6 scope);
-# Story 7 wires real pipeline dispatch.
+# Inner /pipeline defaults to real `claude`; EVAL_INNER_STUB / EVAL_CLAUDE_BIN
+# are test seams.
 
 main() {
   parse_args "$@"
@@ -33,7 +33,18 @@ _dispatch_inner() {
 }
 
 _invoke_stub() {
-  local run_dir="$1"; local inner="$2"
-  [ -n "${EVAL_INNER_STUB:-}" ] || { echo "[run-case] no EVAL_INNER_STUB; real dispatch is Story 7" >&2; return 2; }
-  run_with_timeout "$TIMEOUT_SEC" "$EVAL_INNER_STUB" "$run_dir" "$inner"
+  run_with_timeout "$TIMEOUT_SEC" "$EVAL_INNER_STUB" "$1" "$2"
+}
+
+# _invoke_real <run_dir> <inner> — real `claude -p /pipeline`; rc 2 on infra.
+_invoke_real() {
+  local bin="${EVAL_CLAUDE_BIN:-claude}" task
+  task="${EVAL_CASES_DIR:-$PWD/eval/cases}/$CASE_ID/task.md"
+  _real_preflight "$bin" "$task" || return 2
+  run_with_timeout "$TIMEOUT_SEC" "$bin" -p "/pipeline $(cat "$task")" >"$2/pipeline.stdout" 2>"$2/pipeline.stderr"
+}
+
+_real_preflight() {
+  command -v "$1" >/dev/null 2>&1 || { echo "[run-case] claude bin not found: $1" >&2; return 1; }
+  [ -f "$2" ] || { echo "[run-case] missing task.md: $2" >&2; return 1; }
 }

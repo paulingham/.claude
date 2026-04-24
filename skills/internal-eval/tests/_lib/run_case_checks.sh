@@ -39,13 +39,45 @@ check_pass_status() {
 check_infra_failure() {
   local root="$1"; local run="$2"
   local tmp; tmp="$(mktemp -d)"
-  EVAL_RUNS_DIR="$tmp" bash "$run/run-case.sh" \
-    --case-id per-project-instincts-bootstrap-pr19 --run-id rinfra \
-    --timeout 5 >/dev/null 2>&1
+  EVAL_CLAUDE_BIN="$tmp/nonexistent-claude-bin" EVAL_RUNS_DIR="$tmp" \
+    bash "$run/run-case.sh" --case-id per-project-instincts-bootstrap-pr19 \
+      --run-id rinfra --timeout 5 >/dev/null 2>&1
   local result="$tmp/rinfra/cases/per-project-instincts-bootstrap-pr19/result.json"
-  assert "infra: no stub wired → failed_infra" \
+  assert "infra: claude bin missing → failed_infra" \
     _eq "$(jq -r .status "$result")" "failed_infra"
   rm -rf "$tmp"
+}
+
+check_real_dispatch() {
+  local root="$1"; local run="$2"
+  local tmp; tmp="$(mktemp -d)"
+  _write_fake_claude "$tmp/claude" "$tmp/claude.log"
+  env -i PATH="$PATH" HOME="$HOME" EVAL_CLAUDE_BIN="$tmp/claude" EVAL_RUNS_DIR="$tmp" \
+    bash "$run/run-case.sh" --case-id per-project-instincts-bootstrap-pr19 \
+      --run-id rreal --timeout 10 >/dev/null
+  local result="$tmp/rreal/cases/per-project-instincts-bootstrap-pr19/result.json"
+  assert "real dispatch: result status = passed" _eq "$(jq -r .status "$result")" "passed"
+  assert "real dispatch: claude binary was invoked" is_file "$tmp/claude.log"
+  assert "real dispatch: invoked with /pipeline prefix" _grep "$tmp/claude.log" "/pipeline"
+  assert "real dispatch: inner EVAL_INNER_STUB cleared" _grep "$tmp/claude.log" "STUB_EMPTY=1"
+  assert "real dispatch: CLAUDE_PIPELINE_BYPASS=1 exported" _grep "$tmp/claude.log" "BYPASS=1"
+  assert "real dispatch: CLAUDE_DISABLE_AUTO_LEARN=1 exported" _grep "$tmp/claude.log" "NOLEARN=1"
+  assert "real dispatch: EVAL_RUN_ID exported" _grep "$tmp/claude.log" "RUN=rreal"
+  rm -rf "$tmp"
+}
+
+_write_fake_claude() {
+  local bin="$1"; local log="$2"
+  cat > "$bin" <<EOF
+#!/usr/bin/env bash
+echo "args=\$*" > "$log"
+[ -z "\${EVAL_INNER_STUB:-}" ] && echo "STUB_EMPTY=1" >> "$log"
+[ "\${CLAUDE_PIPELINE_BYPASS:-}" = "1" ] && echo "BYPASS=1" >> "$log"
+[ "\${CLAUDE_DISABLE_AUTO_LEARN:-}" = "1" ] && echo "NOLEARN=1" >> "$log"
+[ -n "\${EVAL_RUN_ID:-}" ] && echo "RUN=\$EVAL_RUN_ID" >> "$log"
+exit 0
+EOF
+  chmod +x "$bin"
 }
 
 check_timeout_status() {

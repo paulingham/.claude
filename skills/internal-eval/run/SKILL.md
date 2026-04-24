@@ -112,9 +112,11 @@ execution for `scoring_mode=test-passing`.
 
 - `EVAL_RUNS_DIR=<path>` — override the default `eval/runs/` root (used by tests)
 - `EVAL_INNER_STUB=<script>` — inject a fake inner pipeline for fast hermetic
-  testing. The stub is called with `<run_dir> <inner_state_dir>` args and its
-  exit code is mapped via `rc_to_status`. Story 7 replaces this with real
-  `/pipeline` dispatch.
+  testing. When set, the stub is called with `<run_dir> <inner_state_dir>` args
+  and its exit code is mapped via `rc_to_status`. When unset, the runner
+  invokes the real `claude` CLI against the case's `task.md`.
+- `EVAL_CLAUDE_BIN=<path>` — override the `claude` binary resolved by the real
+  dispatch path (default: `claude` on PATH). Missing binary → `failed_infra`.
 - `CLAUDE_HARNESS_REPO=<path>` — override the git repo that `resolve_harness_root`
   worktree-adds from (default `$HOME/.claude`). Used by the harness-ref pinned
   fixture test to prove different SHAs produce different trees.

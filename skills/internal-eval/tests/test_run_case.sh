@@ -25,5 +25,6 @@ check_kill_midrun_cleanliness "$ROOT" "$RUN"
 check_timeout_status "$ROOT" "$RUN"
 check_pass_status "$ROOT" "$RUN"
 check_infra_failure "$ROOT" "$RUN"
+check_real_dispatch "$ROOT" "$RUN"
 
 echo "# pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]
