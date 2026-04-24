@@ -7,6 +7,7 @@ PASS=0; FAIL=0
 
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/assert.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/scoring_checks.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/scoring_mode_emit_checks.sh"
 
 check_exact_mode_pass "$RUN"
 check_exact_mode_fail "$RUN"
@@ -21,5 +22,7 @@ check_retry_2x_all_fail "$RUN"
 check_retry_quarantined_runs_once "$RUN"
 check_result_json_has_attempts "$RUN"
 check_emit_status_forwards_attempts "$RUN"
+check_emit_status_scoring_modes "$RUN"
+check_runner_threads_scoring_mode "$RUN"
 
 echo "# pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]
