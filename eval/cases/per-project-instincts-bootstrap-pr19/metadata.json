@@ -1,0 +1,14 @@
+{
+  "case_id": "per-project-instincts-bootstrap-pr19",
+  "classification": "bug-fix",
+  "source_pr": "https://github.com/paulingham/.claude/pull/19",
+  "min_harness_ref": "84ea38a5d649e893bebbd62adee93660f9b02064",
+  "max_harness_ref": null,
+  "flakiness_tier": "deterministic",
+  "scoring_mode": "test-passing",
+  "timeout_minutes": 30,
+  "cost_ceiling_usd": 5,
+  "synthetic": false,
+  "authored_at": "2026-04-24T08:23:10Z",
+  "authored_by": "manual"
+}
