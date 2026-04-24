@@ -192,6 +192,42 @@ check_harness_ref() {
   assert "harness-ref: live default root" _eq "$(resolve_harness_root "" /tmp/nope)" "$HOME"
 }
 
+check_harness_ref_inner_load_pinned() {
+  local root="$1"; local run="$2"
+  local fx; fx="$(mktemp -d)"
+  local sha; sha="$(_setup_inner_load_fixture "$fx")"
+  _run_inner_load_probe "$run" "$fx" "$sha"
+  assert "harness-ref inner load: stub log exists" is_file "$fx/stub.log"
+  assert "harness-ref inner load: reads sha1 content" _grep "$fx/stub.log" "sha1-marker"
+  assert_not "harness-ref inner load: not sha2 content" _grep "$fx/stub.log" "sha2-marker"
+  rm -rf "$fx"
+}
+
+_setup_inner_load_fixture() {
+  local fx="$1"; mkdir -p "$fx/repo/skills/foo"
+  (cd "$fx/repo" && git init -q && git config user.email t@t && git config user.name t \
+    && _commit_marker "skills/foo/SKILL.md" "sha1-marker" v1 \
+    && git rev-parse HEAD > "$fx/sha1" \
+    && _commit_marker "skills/foo/SKILL.md" "sha2-marker" v2) >&2
+  cat "$fx/sha1"
+}
+
+_commit_marker() {
+  printf '%s\n' "$2" > "$1"; git add "$1"; git commit -q -m "$3"
+}
+
+_run_inner_load_probe() {
+  local run="$1"; local fx="$2"; local sha="$3"
+  local stub="$fx/stub.sh"
+  printf '#!/usr/bin/env bash\ncat "$HOME/.claude/skills/foo/SKILL.md" > "%s/stub.log" 2>&1\n' "$fx" > "$stub"
+  chmod +x "$stub"
+  CLAUDE_HARNESS_REPO="$fx/repo" EVAL_RUNS_DIR="$fx/runs" EVAL_INNER_STUB="$stub" \
+    bash "$run/run-case.sh" --case-id per-project-instincts-bootstrap-pr19 \
+      --run-id rload --harness-ref "$sha" --timeout 10 >/dev/null 2>&1
+}
+
+_grep() { grep -q "$2" "$1"; }
+
 check_isolation_paths() {
   local run="$1"
   # shellcheck disable=SC1091

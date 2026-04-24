@@ -27,7 +27,7 @@ _run_case() {
 
 _dispatch_inner() {
   local out="$1" run_dir="$2" inner="$3" sha="$4" mode="$5" start rc dur
-  mkdir -p "$inner"; start=$(date +%s); _invoke_stub "$run_dir" "$inner"; rc=$?
+  mkdir -p "$inner"; start=$(date +%s); _run_inner "$run_dir" "$inner" "$sha"; rc=$?
   dur=$(( $(date +%s) - start ))
   emit_status "$out" "$(rc_to_status "$rc")" "$inner" "$sha" "$dur" "$(rc_reason "$rc")" 1 "$mode"
 }
