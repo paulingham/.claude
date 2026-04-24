@@ -23,6 +23,15 @@ check_fast_exit_acked() {
   rm -rf "$tmp"
 }
 
+check_fast_exit_file_acked() {
+  local tmp rc elapsed; tmp="$(make_capture_tmp)"
+  read -r rc elapsed <<<"$(_run_hook_file_acked "$1" "$tmp")"
+  assert "file-acked: exit 0"            rc_eq "$rc" "0"
+  assert "file-acked: under 1000ms"      millis_under "$elapsed" "1000"
+  assert "file-acked: worker was called" is_file "$tmp/eval/runs/.capture-log/worker-invoked.marker"
+  rm -rf "$tmp"
+}
+
 check_settings_registration() {
   assert "settings.json registers eval-capture hook" \
     grep_file "$1/settings.json" "eval-capture-on-merge.sh"
