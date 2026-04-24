@@ -14,11 +14,14 @@ rc_reason() {
   esac
 }
 
+_emit_result() {
+  write_result_json "$1" case="$CASE_ID" run="$RUN_ID" status="$2" \
+    duration="$3" cost=0 rounds=0 rework=false harness="$4" model="$MODEL" \
+    flakiness=deterministic scoring="$5" attempts="$6" \
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)" inner="$7" reason="$8"
+}
+
 emit_status() {
-  local out="$1"; local status="$2"; local inner="$3"; local sha="$4"
-  local duration="$5"; local reason="$6"; local attempts="${7:-1}"
-  write_result_json "$out" case="$CASE_ID" run="$RUN_ID" status="$status" \
-    duration="$duration" cost=0 rounds=0 rework=false harness="$sha" model="$MODEL" \
-    flakiness=deterministic scoring=test-passing attempts="$attempts" \
-    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)" inner="$inner" reason="$reason"
+  local att="${7:-1}" mode="${8:-test-passing}"
+  _emit_result "$1" "$2" "$5" "$4" "$mode" "$att" "$3" "$6"
 }

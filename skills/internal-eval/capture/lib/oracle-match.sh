@@ -1,24 +1,28 @@
 #!/usr/bin/env bash
-# Oracle path matcher. Reads oracle-paths.json, matches a list of file paths.
-# Matches if ANY path hits ANY include glob.
+# Oracle path matcher. A path matches iff it hits an include AND no exclude.
 set -u
 
 _globs() { jq -r --arg k "$1" '.[$k] // [] | .[]' "$2" 2>/dev/null; }
 
-# Matches a single path against a single bash extglob pattern.
 _match_glob() {
   local path="$1" glob="$2"
-  shopt -s extglob globstar
+  shopt -s extglob 2>/dev/null; shopt -s globstar 2>/dev/null
   [[ "$path" == $glob ]]
 }
 
-_check_one_path() {
-  local path="$1" json="$2" g
+_hits_any_glob() {
+  local path="$1" json="$2" key="$3" g
   while IFS= read -r g; do
     [ -z "$g" ] && continue
     _match_glob "$path" "$g" && return 0
-  done < <(_globs include "$json")
+  done < <(_globs "$key" "$json")
   return 1
+}
+
+_check_one_path() {
+  local path="$1" json="$2"
+  _hits_any_glob "$path" "$json" exclude && return 1
+  _hits_any_glob "$path" "$json" include
 }
 
 oracle_match_paths() {

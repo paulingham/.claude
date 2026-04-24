@@ -12,21 +12,24 @@ main() {
   _run_case "$run_dir" "$case_dir"
 }
 
+_case_ctx() {
+  inner="$(inner_state_dir "$1" "$CASE_ID")"
+  sha="$(resolve_harness_sha "$HARNESS_REF")"
+  mode="$(resolve_scoring_mode "$CASE_ID")"
+}
+
 _run_case() {
-  local run_dir="$1"; local case_dir="$2"
-  local inner; inner="$(inner_state_dir "$run_dir" "$CASE_ID")"
-  local sha;   sha="$(resolve_harness_sha "$HARNESS_REF")"
-  [ "$DRY_RUN" = 1 ] && { emit_status "$case_dir/result.json" dry_run_ok "$inner" "$sha" 0 ""; return; }
-  _dispatch_inner "$case_dir/result.json" "$run_dir" "$inner" "$sha"
+  local run_dir="$1" case_dir="$2" inner sha mode
+  _case_ctx "$run_dir"
+  [ "$DRY_RUN" = 1 ] && { emit_status "$case_dir/result.json" dry_run_ok "$inner" "$sha" 0 "" 1 "$mode"; return; }
+  _dispatch_inner "$case_dir/result.json" "$run_dir" "$inner" "$sha" "$mode"
 }
 
 _dispatch_inner() {
-  local out="$1"; local run_dir="$2"; local inner="$3"; local sha="$4"
-  mkdir -p "$inner"
-  local start; start=$(date +%s)
-  _invoke_stub "$run_dir" "$inner"; local rc=$?
-  local dur=$(( $(date +%s) - start ))
-  emit_status "$out" "$(rc_to_status "$rc")" "$inner" "$sha" "$dur" "$(rc_reason "$rc")"
+  local out="$1" run_dir="$2" inner="$3" sha="$4" mode="$5" start rc dur
+  mkdir -p "$inner"; start=$(date +%s); _invoke_stub "$run_dir" "$inner"; rc=$?
+  dur=$(( $(date +%s) - start ))
+  emit_status "$out" "$(rc_to_status "$rc")" "$inner" "$sha" "$dur" "$(rc_reason "$rc")" 1 "$mode"
 }
 
 _invoke_stub() {
