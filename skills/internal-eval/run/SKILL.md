@@ -14,8 +14,9 @@ implements the case's prompt, captures verdicts + cost + duration, and writes
 `eval/runs/{run-id}/cases/{case-id}/result.json`. Isolation from the outer
 pipeline is governed by the env-var contract in `ISOLATION.md` (Story 6a).
 
-Story 7 builds concurrency + resumability + aggregation on top of this single
-case-runner building block.
+Story 7's `run-suite.sh` wraps `run-case.sh` with concurrency, resumability,
+and aggregation — this is the entry point the `/internal-eval` skill (Story
+12) will ultimately invoke. See § Suite Orchestration below.
 
 ## Entry Point
 
@@ -142,3 +143,101 @@ result.json schema, and dry-run short-circuit.
 Suite-level verdict (EVAL_PASSED / EVAL_FAILED) is emitted by the parent
 `/internal-eval` skill after Story 7 orchestrates many of these and Story 8
 aggregates + diffs.
+
+## Suite Orchestration (Story 7)
+
+```
+skills/internal-eval/run/run-suite.sh \
+  --run-id <id> \
+  [--suite default] \
+  [--model opus|sonnet] \
+  [--harness-ref <sha>] \
+  [--concurrency N]   # default 4
+  [--resume]
+```
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--run-id` | required | Namespaces all output paths under `eval/runs/<id>/` |
+| `--suite` | `default` | `default` expands to `eval/cases/*` minus `_example/` and `.candidates/`; any other value is treated as a literal case-id (single-case mode) |
+| `--model` | `opus` | Threaded to every `run-case.sh` invocation |
+| `--harness-ref` | empty → live | SHA to pin; ONE shared worktree created at suite start and reused across every case (not per-case) |
+| `--concurrency` | `4` | Max parallel `run-case.sh` workers (bash-3.2-compatible pool) |
+| `--resume` | off | Skip any case whose `cases/<id>/result.json` already exists on disk |
+
+### Outputs (per run)
+
+```
+eval/runs/<run-id>/
+  suite.json           # run-level state (status: running|completed|interrupted)
+  harness-wt/          # shared harness-ref worktree (only when --harness-ref given)
+  cases/<case-id>/
+    result.json        # written by run-case.sh
+    inner/             # inner pipeline state (Story 6 isolation)
+  home/<case-id>/      # shadow HOME per case (Story 6 isolation)
+  aggregate.json       # written after all cases complete (also on interrupt)
+```
+
+### aggregate.json Schema
+
+```json
+{
+  "run_id": "...", "suite": "...", "model": "opus", "harness_ref": "...",
+  "total_cases": 10, "passed": 7,
+  "failed_diff": 1, "failed_build": 1, "failed_timeout": 0, "failed_infra": 1,
+  "pass_rate": 0.777,
+  "total_duration_sec": 12.3, "total_cost_usd": 0.42,
+  "completed_at": "2026-04-24T09:20:00Z",
+  "case_results": [{"case_id": "c1", "status": "passed"}]
+}
+```
+
+`pass_rate = passed / (total_cases - failed_infra)`. `failed_infra` is
+excluded from the denominator (plan validation B4/B6): harness-side failures
+never count as regressions. If `total_cases - failed_infra == 0`, `pass_rate`
+is `0`.
+
+### Signal Handling
+
+`run-suite.sh` traps `INT` and `TERM`. On signal: a partial `aggregate.json`
+is written (whatever cases completed so far), `suite.json.status` flips to
+`interrupted`, and the process exits 130. Note: background bash scripts
+ignore SIGINT by default (POSIX job-control); production CI and the test
+suite both send SIGTERM for cancellation.
+
+### Resumability
+
+`--resume` skips any case whose `eval/runs/<run-id>/cases/<case-id>/result.json`
+already exists on disk. First run executes all cases; `--resume` runs work
+through the remainder. Aggregation reads every result.json on disk —
+existing + newly-written — so prior results are preserved end-to-end.
+
+### Concurrency
+
+The job pool uses `jobs -r -p | wc -l` as the gate (bash-3.2 compatible; no
+`wait -n`). At most `--concurrency` workers run at any time; cases beyond
+that queue waiting for a slot. Each worker is an independent
+`bash run-case.sh` invocation — results are written to disk by the worker,
+not piped back.
+
+### Lib Decomposition (Story 7 additions)
+
+| File | Responsibility |
+|---|---|
+| `lib/suite-args.sh` | Flag parser for run-suite (separate from run-case `args.sh`) |
+| `lib/suite-resume.sh` | `case_already_done`, `filter_pending_cases` |
+| `lib/suite-aggregate.sh` | Reads per-case result.json, writes aggregate.json |
+| `lib/suite-aggregate.jq` | jq program computing counts + pass_rate |
+| `lib/suite-harness.sh` | One-time shared harness-ref worktree (wraps `resolve_harness_root`) |
+| `lib/suite-pool.sh` | Bash-3.2 job pool (`run_pool <max> <launcher_fn> <case...>`) |
+| `lib/suite-enumerate.sh` | `enumerate_cases` (default-suite glob) |
+| `lib/suite-state.sh` | `write_suite_state` (suite.json writer) |
+| `lib/suite-dispatch.sh` | `dispatch_case` — launcher the pool calls per case |
+| `lib/suite-main.sh` | `suite_main` orchestrator composing the above |
+
+### Test Hooks
+
+- `EVAL_CASES_DIR=<path>` — override default `eval/cases/` root (used by tests)
+- `EVAL_RUNS_DIR=<path>` — override default `eval/runs/` root (shared with run-case)
+- `EVAL_INNER_STUB=<script>` — inherited by every case; stubs the inner pipeline
+- `CLAUDE_HARNESS_REPO=<path>` — override the repo that `--harness-ref` worktree-adds from
