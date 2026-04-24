@@ -30,4 +30,3 @@ shadow_home_path() { echo "$1/home/$2"; }
 
 # inner_state_dir <run-dir> <case-id>    -- where inner pipeline-state/ lands
 inner_state_dir()  { echo "$1/inner/$2"; }
-

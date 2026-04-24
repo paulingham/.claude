@@ -22,6 +22,66 @@ check_result_writer() {
   rm -rf "$tmp"
 }
 
+check_pass_status() {
+  local root="$1"; local run="$2"
+  local tmp; tmp="$(mktemp -d)"
+  local stub="$tmp/pass.sh"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$stub"; chmod +x "$stub"
+  EVAL_RUNS_DIR="$tmp" EVAL_INNER_STUB="$stub" \
+    bash "$run/run-case.sh" --case-id per-project-instincts-bootstrap-pr19 \
+      --run-id rpass --timeout 5 >/dev/null
+  local result="$tmp/rpass/cases/per-project-instincts-bootstrap-pr19/result.json"
+  assert "pass: status = passed" _eq "$(jq -r .status "$result")" "passed"
+  rm -rf "$tmp"
+}
+
+check_infra_failure() {
+  local root="$1"; local run="$2"
+  local tmp; tmp="$(mktemp -d)"
+  EVAL_RUNS_DIR="$tmp" bash "$run/run-case.sh" \
+    --case-id per-project-instincts-bootstrap-pr19 --run-id rinfra \
+    --timeout 5 >/dev/null 2>&1
+  local result="$tmp/rinfra/cases/per-project-instincts-bootstrap-pr19/result.json"
+  assert "infra: no stub wired → failed_infra" \
+    _eq "$(jq -r .status "$result")" "failed_infra"
+  rm -rf "$tmp"
+}
+
+check_timeout_status() {
+  local root="$1"; local run="$2"
+  local tmp; tmp="$(mktemp -d)"
+  local stub="$tmp/slow.sh"
+  printf '#!/usr/bin/env bash\nsleep 10\n' > "$stub"; chmod +x "$stub"
+  EVAL_RUNS_DIR="$tmp" EVAL_INNER_STUB="$stub" \
+    bash "$run/run-case.sh" --case-id per-project-instincts-bootstrap-pr19 \
+      --run-id rto --timeout 1 >/dev/null
+  local result="$tmp/rto/cases/per-project-instincts-bootstrap-pr19/result.json"
+  assert "timeout: result.json exists"    is_file "$result"
+  assert "timeout: status = failed_timeout" \
+    _eq "$(jq -r .status "$result")" "failed_timeout"
+  rm -rf "$tmp"
+}
+
+check_kill_midrun_cleanliness() {
+  local root="$1"; local run="$2"
+  local tmp; tmp="$(mktemp -d)"
+  local stub="$tmp/slow.sh"
+  printf '#!/usr/bin/env bash\ntrap "" TERM\nsleep 30\n' > "$stub"; chmod +x "$stub"
+  local outer="$root/pipeline-state"
+  local before_hash; before_hash="$(_hash_dir "$outer")"
+  EVAL_RUNS_DIR="$tmp" EVAL_INNER_STUB="$stub" \
+    bash "$run/run-case.sh" --case-id per-project-instincts-bootstrap-pr19 \
+      --run-id rkill --timeout 1 >/dev/null
+  local after_hash; after_hash="$(_hash_dir "$outer")"
+  assert "kill-midrun: outer pipeline-state unchanged" _eq "$before_hash" "$after_hash"
+  assert_not "kill-midrun: no eval-* residue in outer" \
+    _has_residue "$outer" "eval-rkill-"
+  rm -rf "$tmp"
+}
+
+_hash_dir()    { (cd "$1" 2>/dev/null && find . -type f 2>/dev/null | LC_ALL=C sort | xargs md5sum 2>/dev/null | md5sum); }
+_has_residue() { ls "$1"/*"$2"* >/dev/null 2>&1; }
+
 check_inner_state_location() {
   local root="$1"; local run="$2"
   local tmp; tmp="$(mktemp -d)"

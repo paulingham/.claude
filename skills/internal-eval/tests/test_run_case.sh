@@ -20,5 +20,9 @@ check_timeout "$RUN"
 check_dry_run "$ROOT" "$RUN"
 check_run_case_keys "$ROOT" "$RUN"
 check_inner_state_location "$ROOT" "$RUN"
+check_kill_midrun_cleanliness "$ROOT" "$RUN"
+check_timeout_status "$ROOT" "$RUN"
+check_pass_status "$ROOT" "$RUN"
+check_infra_failure "$ROOT" "$RUN"
 
 echo "# pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]

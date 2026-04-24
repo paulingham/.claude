@@ -17,6 +17,8 @@ source "$HERE/lib/timeout.sh"
 # shellcheck disable=SC1091
 source "$HERE/lib/args.sh"
 # shellcheck disable=SC1091
+source "$HERE/lib/result-emit.sh"
+# shellcheck disable=SC1091
 source "$HERE/lib/runner.sh"
 
 main "$@"
