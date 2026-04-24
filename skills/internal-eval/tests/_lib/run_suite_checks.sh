@@ -48,6 +48,74 @@ check_resume_detection() {
   rm -rf "$tmp"
 }
 
+check_pool_runs_all() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/suite-pool.sh"
+  local tmp; tmp="$(mktemp -d)"
+  _pool_launcher() { local c="$1"; : > "$tmp/done-$c"; }
+  run_pool 2 _pool_launcher a b c d e
+  local done_count; done_count="$(ls "$tmp"/done-* 2>/dev/null | wc -l | tr -d ' ')"
+  assert "pool: all 5 cases ran" _eq "$done_count" "5"
+  rm -rf "$tmp"
+}
+
+check_pool_respects_concurrency() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/suite-pool.sh"
+  local tmp; tmp="$(mktemp -d)"
+  # Launcher writes pid-start-stop markers; assert no 3 overlap (concurrency=2).
+  _concurrent_launcher() { _mark_start_stop "$tmp" "$1"; }
+  run_pool 2 _concurrent_launcher a b c d
+  local max_overlap; max_overlap="$(_compute_max_overlap "$tmp")"
+  assert "pool: max parallel ≤ concurrency (2)" test "$max_overlap" -le 2
+  rm -rf "$tmp"
+}
+
+_mark_start_stop() {
+  local dir="$1"; local c="$2"
+  date +%s.%N > "$dir/start-$c"; sleep 0.3; date +%s.%N > "$dir/stop-$c"
+}
+
+_compute_max_overlap() {
+  local dir="$1"
+  # Build timeline: each start event +1, each stop -1, running max.
+  { for f in "$dir"/start-*; do printf "%s +1\n" "$(cat "$f")"; done
+    for f in "$dir"/stop-*;  do printf "%s -1\n" "$(cat "$f")"; done; } \
+    | sort -n | awk 'BEGIN{m=0;c=0}{c+=$2; if(c>m)m=c}END{print m}'
+}
+
+check_shared_harness_live() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/suite-harness.sh"
+  local root; root="$(setup_shared_harness "" /tmp/suite-wt-nope)"
+  assert "shared-harness: empty SHA → \$HOME" _eq "$root" "$HOME"
+}
+
+check_shared_harness_pinned() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/suite-harness.sh"
+  local fx; fx="$(mktemp -d)"; mkdir -p "$fx/repo"
+  local sha; sha="$(_suite_setup_fixture "$fx")"
+  local root; root="$(CLAUDE_HARNESS_REPO="$fx/repo" setup_shared_harness "$sha" "$fx/wt")"
+  assert "shared-harness: pinned returns wt path" _eq "$root" "$fx/wt"
+  assert "shared-harness: worktree directory exists" is_dir "$fx/wt"
+  # Call again with same SHA: should NOT re-create (idempotent).
+  local root2; root2="$(CLAUDE_HARNESS_REPO="$fx/repo" setup_shared_harness "$sha" "$fx/wt")"
+  assert "shared-harness: second call same path (reuse)" _eq "$root2" "$fx/wt"
+  rm -rf "$fx"
+}
+
+_suite_setup_fixture() {
+  local fx="$1"
+  (cd "$fx/repo" && git init -q && git config user.email t@t && git config user.name t \
+    && touch x && git add x && git commit -q -m v1) >&2
+  (cd "$fx/repo" && git rev-parse HEAD)
+}
+
 _write_stub_result() {
   local path="$1"; local status="$2"; local cid="$3"
   mkdir -p "$(dirname "$path")"

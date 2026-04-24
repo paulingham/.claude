@@ -16,5 +16,9 @@ check_resume_filter "$RUN"
 check_aggregate_counts "$RUN"
 check_aggregate_pass_rate "$RUN"
 check_aggregate_empty_denominator "$RUN"
+check_shared_harness_live "$RUN"
+check_shared_harness_pinned "$RUN"
+check_pool_runs_all "$RUN"
+check_pool_respects_concurrency "$RUN"
 
 echo "# pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]
