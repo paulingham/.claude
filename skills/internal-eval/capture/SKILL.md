@@ -40,9 +40,25 @@ agent: software-engineer
 - `lib/gh-pr-to-case.sh` — PR → 5 artifacts helper
 - `lib/backfill-run.sh` — the orchestrating loop
 
-## Privacy Gate (Story 5)
+## Auto-capture (Story 5)
 
-Auto-capture writes ONLY to `.candidates/` (gitignored). Promotion requires either the committed marker `eval/.privacy-acked` OR `CLAUDE_EVAL_CAPTURE_ACKED=1` in the environment. Hook exits in <1s via a detached background job; bounded retention via `eval/capture.log`.
+A PostToolUse hook auto-captures merged harness PRs as eval candidates.
+
+| Aspect | Value |
+|---|---|
+| Trigger | `PostToolUse` matcher `Bash` — inspects `tool_input.command` for `gh pr merge <N>` |
+| Hook file | `hooks/eval-capture-on-merge.sh` (dispatcher) |
+| Worker | `hooks/_lib/eval-capture-worker.sh` (background, `nohup & disown`) |
+| Privacy gate | Committed marker `eval/.privacy-acked` OR `CLAUDE_EVAL_CAPTURE_ACKED=1` — no prompt, no silent capture |
+| Contamination filter | Skips PRs with `mergedAt` before `2026-01-01` (Opus 4.7 training cutoff) |
+| Oracle filter | Reuses `lib/oracle-match.sh` — skips PRs with no test-changes |
+| Output | `eval/cases/.candidates/` only — never writes to live `eval/cases/` |
+| Promotion | Manual via `promote.sh` — auto-capture never promotes |
+| Audit log | `eval/runs/.capture-log/{timestamp}-pr{N}.log` per invocation |
+| Latency | Hook exits in <1s; worker runs detached |
+| Test hook | `CLAUDE_EVAL_CAPTURE_NOFORK=1` runs worker synchronously (tests only) |
+
+When the privacy gate is not acked, the hook exits 0 with a single stderr line: `[eval-capture] privacy gate not acked — skipping`.
 
 ## Testing
 
