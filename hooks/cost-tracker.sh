@@ -54,6 +54,16 @@ if [[ -n "$SESSION_ID" ]]; then
     fi
 fi
 
+# Nested-pipeline isolation: tag record with eval_run_id + eval_case_id when BOTH
+# are set. See skills/internal-eval/run/ISOLATION.md.
+EVAL_ARGS=()
+if [[ -n "${EVAL_RUN_ID:-}" && -n "${EVAL_CASE_ID:-}" ]]; then
+    EVAL_ARGS+=(--arg eval_run "$EVAL_RUN_ID" --arg eval_case "$EVAL_CASE_ID")
+    EVAL_FIELDS=',"eval_run_id":$eval_run,"eval_case_id":$eval_case'
+else
+    EVAL_FIELDS=""
+fi
+
 # Build enriched metrics record
 jq -c -n \
     --arg ts "$TIMESTAMP" \
@@ -62,14 +72,16 @@ jq -c -n \
     --arg hash "$PROJECT_HASH" \
     --argjson duration "$DURATION_S" \
     --argjson tools "$TOOL_CALLS" \
-    '{
-        "timestamp": $ts,
-        "session_id": $sid,
-        "project": $project,
-        "project_hash": $hash,
-        "event": "session_end",
-        "duration_s": $duration,
-        "tool_calls": $tools
-    }' >> "$METRICS_DIR/costs.jsonl" 2>/dev/null || true
+    "${EVAL_ARGS[@]}" \
+    "{
+        \"timestamp\": \$ts,
+        \"session_id\": \$sid,
+        \"project\": \$project,
+        \"project_hash\": \$hash,
+        \"event\": \"session_end\",
+        \"duration_s\": \$duration,
+        \"tool_calls\": \$tools
+        ${EVAL_FIELDS}
+    }" >> "$METRICS_DIR/costs.jsonl" 2>/dev/null || true
 
 exit 0
