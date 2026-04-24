@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Background worker for eval-capture. Contamination filter + oracle filter + case write.
+# Background worker for eval-capture. Contamination + oracle filters + case write.
 # Invoked as: bash eval-capture-worker.sh <pr-number>
-# CWD is expected to be the repo root (same as the hook).
+# CWD is the repo root. The test hook (CLAUDE_EVAL_CAPTURE_NOFORK=1) runs synchronously;
+# production hook forks this via nohup & disown.
 set -u
 
-mkdir -p eval/runs/.capture-log
-: > "eval/runs/.capture-log/worker-invoked.marker"
+HERE_ECW="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$HERE_ECW/eval-capture-worker-core.sh"
 
-exit 0
+eval_capture_worker "${1:-}"

@@ -19,6 +19,7 @@ check_worker_oracle_filter "$HOOKS" "$ROOT"
 check_worker_happy_path    "$HOOKS" "$ROOT"
 check_worker_never_promotes "$HOOKS" "$ROOT"
 check_worker_capture_log   "$HOOKS" "$ROOT"
+check_worker_capture_log_on_skip "$HOOKS" "$ROOT"
 check_settings_registration "$ROOT"
 check_skill_md_updated     "$ROOT"
 
