@@ -39,6 +39,8 @@
 !scripts/**
 !eval/
 !eval/**
+!.github/
+!.github/**
 
 # Internal eval harness — runtime + candidate cases are local-only.
 # Ignore directory contents but persist the directories themselves via tracked .gitkeep.
