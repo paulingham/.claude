@@ -12,7 +12,7 @@ enumerate_cases() {
 _enumerate_default() {
   find "$1" -mindepth 1 -maxdepth 1 -type d 2>/dev/null \
     | _basename_each \
-    | grep -v '^_example$\|^\.candidates$' || true
+    | grep -vE '^(_example|\.candidates)$' || true
 }
 
 _basename_each() { while IFS= read -r p; do basename "$p"; done; }

@@ -76,6 +76,58 @@ check_suite_end_to_end() {
   rm -rf "$tmp"
 }
 
+check_suite_sigint() {
+  local run="$1"
+  local tmp; tmp="$(mktemp -d)"
+  _make_cases "$tmp/cases" a b c d
+  # Slow stub so we can signal mid-run. Use SIGTERM: background bash scripts
+  # ignore SIGINT by default (POSIX job-control). Production CI also uses TERM.
+  local stub="$tmp/slow.sh"
+  printf '#!/usr/bin/env bash\nsleep 3\n' > "$stub"; chmod +x "$stub"
+  EVAL_CASES_DIR="$tmp/cases" EVAL_RUNS_DIR="$tmp/runs" EVAL_INNER_STUB="$stub" \
+    bash "$run/run-suite.sh" --run-id rsig --concurrency 2 & local pid=$!
+  sleep 0.8; kill -TERM "$pid" 2>/dev/null; wait "$pid" 2>/dev/null || true
+  assert "signal: suite.json status = interrupted" \
+    _eq "$(jq -r .status "$tmp/runs/rsig/suite.json" 2>/dev/null)" "interrupted"
+  assert "signal: aggregate.json written on interrupt" \
+    is_file "$tmp/runs/rsig/aggregate.json"
+  rm -rf "$tmp"
+}
+
+check_suite_harness_shared_once() {
+  local run="$1"
+  local tmp; tmp="$(mktemp -d)"
+  _make_cases "$tmp/cases" a b c
+  local stub="$tmp/pass.sh"; _pass_stub "$stub"
+  # Set up a tiny fixture repo so --harness-ref has something real to check out.
+  mkdir -p "$tmp/hrepo"
+  (cd "$tmp/hrepo" && git init -q && git config user.email t@t && git config user.name t \
+    && touch marker && git add marker && git commit -q -m v1) >/dev/null
+  local sha; sha="$(cd "$tmp/hrepo" && git rev-parse HEAD)"
+  EVAL_CASES_DIR="$tmp/cases" EVAL_RUNS_DIR="$tmp/runs" EVAL_INNER_STUB="$stub" \
+    CLAUDE_HARNESS_REPO="$tmp/hrepo" \
+    bash "$run/run-suite.sh" --run-id rhw --concurrency 2 --harness-ref "$sha" >/dev/null
+  assert "harness-shared: single harness worktree under run-dir" \
+    is_dir "$tmp/runs/rhw/harness-wt"
+  # The worktree appears exactly once; not per case.
+  local wt_count; wt_count="$(find "$tmp/runs/rhw" -name harness-wt -type d | wc -l | tr -d ' ')"
+  assert "harness-shared: exactly one harness-wt directory" _eq "$wt_count" "1"
+  rm -rf "$tmp"
+}
+
+check_suite_enumeration() {
+  local run="$1"
+  local tmp; tmp="$(mktemp -d)"
+  mkdir -p "$tmp/cases/_example" "$tmp/cases/.candidates" \
+           "$tmp/cases/real-one" "$tmp/cases/real-two"
+  # shellcheck disable=SC1091
+  source "$run/lib/suite-enumerate.sh"
+  local cases; cases="$(enumerate_cases default "$tmp/cases" | LC_ALL=C sort | tr '\n' ' ')"
+  assert "enumerate: default suite excludes _example and .candidates" \
+    _eq "$cases" "real-one real-two "
+  rm -rf "$tmp"
+}
+
 check_suite_resume_skips() {
   local run="$1"
   local tmp; tmp="$(mktemp -d)"

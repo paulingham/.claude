@@ -22,5 +22,8 @@ check_pool_runs_all "$RUN"
 check_pool_respects_concurrency "$RUN"
 check_suite_end_to_end "$RUN"
 check_suite_resume_skips "$RUN"
+check_suite_sigint "$RUN"
+check_suite_enumeration "$RUN"
+check_suite_harness_shared_once "$RUN"
 
 echo "# pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]
