@@ -12,10 +12,11 @@ argument-hint: "run | capture backfill | capture promote <case-id> | inspect <ca
 
 Runs the harness against a suite of captured real-world cases (stored under `eval/cases/`), scores each case against its oracle, and diffs the result set against a baseline. Produces a regression verdict that gates harness changes: the harness must not silently degrade on the cases we already know how to solve.
 
-This skill is the orchestration shell. The heavy lifting lives in three sub-skills:
+This skill is the orchestration shell. The heavy lifting lives in four sub-skills:
 - `capture/` — turning real merged PRs into promoted cases
 - `run/` — executing the inner pipeline per case under isolation
 - `score/` — oracle scoring + baseline diff + report rendering
+- `validate/` — **delivery validation**: proves the baseline → inject → diff → restore → confirm-clean flow end-to-end with a stubbed inner pipeline. See `validate/SKILL.md`. Run via `bash skills/internal-eval/validate/run-validation-sequence.sh`.
 
 ## Entry Commands
 
