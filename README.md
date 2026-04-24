@@ -494,6 +494,16 @@ bash "$HOME/.claude/scripts/install-tools.sh" --yes
 bash "$HOME/.claude/tests/shell/run.sh" --require-bats  # verifies install
 ```
 
+## Internal Evaluation
+
+The internal-eval harness runs a fixed suite of real Claude Code cases against the current harness, captures pass/fail + tier per case, compares to a stored baseline, and surfaces regressions before they ship. It is how the 80% adoption claim is produced and re-validated.
+
+- Skill: `skills/internal-eval/` with sub-skills `capture/`, `run/`, `score/`, `validate/`
+- Invoke: `bash skills/internal-eval/run/run-suite.sh --run-id <id> --model opus`
+- Baselines: `eval/baselines/` (per-model, append-only — promotion gated by `/internal-eval`)
+- Privacy gate: requires `eval/.privacy-acked` marker OR `CLAUDE_EVAL_CAPTURE_ACKED=1` in the environment before any session capture runs
+- **80% claim**: Measured on `eval/baselines/{latest}-opus-4-7.md`, not SWE-bench Verified. Methodology: strict binary pass (all ACs satisfied AND all pipeline gates green). Case count, contamination filter, and flakiness tiers documented in `skills/internal-eval/SKILL.md`.
+
 ## License
 
 Private configuration. Not licensed for redistribution.

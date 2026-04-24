@@ -12,6 +12,8 @@
 
 > **Default Opus model**: `claude-opus-4-7` (GA 2026-04-16). Pricing unchanged from 4.6 ($5/$25 per-M tokens) — no budget reforecast.
 
+> **80% claim**: Measured on `eval/baselines/{latest}-opus-4-7.md`, not SWE-bench Verified. See `skills/internal-eval/SKILL.md` for methodology.
+
 ## Session Start (Automatic)
 
 On every session start, before responding to the user's first message:
