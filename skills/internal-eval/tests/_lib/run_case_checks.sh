@@ -22,6 +22,56 @@ check_result_writer() {
   rm -rf "$tmp"
 }
 
+check_inner_state_location() {
+  local root="$1"; local run="$2"
+  local tmp; tmp="$(mktemp -d)"
+  EVAL_RUNS_DIR="$tmp" bash "$run/run-case.sh" \
+    --case-id per-project-instincts-bootstrap-pr19 --run-id rloc --dry-run >/dev/null
+  local result="$tmp/rloc/cases/per-project-instincts-bootstrap-pr19/result.json"
+  local inner; inner="$(jq -r .inner_pipeline_state "$result")"
+  assert "inner state: path under eval run-dir" _matches "$inner" "$tmp/rloc/inner/"
+  assert_not "inner state: path NOT under shared pipeline-state" \
+    _matches "$inner" "/pipeline-state/"
+  rm -rf "$tmp"
+}
+
+_matches() { case "$1" in *"$2"*) return 0 ;; *) return 1 ;; esac }
+
+check_run_case_keys() {
+  local root="$1"; local run="$2"
+  local tmp; tmp="$(mktemp -d)"
+  EVAL_RUNS_DIR="$tmp" bash "$run/run-case.sh" \
+    --case-id per-project-instincts-bootstrap-pr19 --run-id rkey --dry-run >/dev/null
+  local result="$tmp/rkey/cases/per-project-instincts-bootstrap-pr19/result.json"
+  for k in $REQUIRED_RESULT_KEYS; do
+    assert "run-case result.json has key $k" json_has "$result" "$k"
+  done
+  rm -rf "$tmp"
+}
+
+check_dry_run() {
+  local root="$1"; local run="$2"
+  local tmp; tmp="$(mktemp -d)"
+  EVAL_RUNS_DIR="$tmp" bash "$run/run-case.sh" \
+    --case-id per-project-instincts-bootstrap-pr19 --run-id rdry --dry-run >/dev/null
+  local result="$tmp/rdry/cases/per-project-instincts-bootstrap-pr19/result.json"
+  assert "dry-run: result.json exists" is_file "$result"
+  assert "dry-run: status = dry_run_ok" \
+    _eq "$(jq -r .status "$result")" "dry_run_ok"
+  assert_not "dry-run: did not create inner pipeline-state" \
+    is_dir "$tmp/rdry/inner/per-project-instincts-bootstrap-pr19/pipeline-state"
+  rm -rf "$tmp"
+}
+
+check_timeout() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/timeout.sh"
+  assert "timeout: fast cmd succeeds"  run_with_timeout 2 true
+  assert_not "timeout: slow cmd exits non-zero" run_with_timeout 1 sleep 5
+  assert "timeout: exit 124 = timed out"  _eq "$(run_with_timeout 1 sleep 5; echo $?)" "124"
+}
+
 check_scoring_stub() {
   local run="$1"
   # shellcheck disable=SC1091

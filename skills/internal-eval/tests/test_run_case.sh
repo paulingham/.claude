@@ -16,5 +16,9 @@ check_harness_ref "$RUN"
 check_harness_ref_pinned "$RUN"
 check_harness_ref_failure "$RUN"
 check_scoring_stub "$RUN"
+check_timeout "$RUN"
+check_dry_run "$ROOT" "$RUN"
+check_run_case_keys "$ROOT" "$RUN"
+check_inner_state_location "$ROOT" "$RUN"
 
 echo "# pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]
