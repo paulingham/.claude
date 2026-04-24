@@ -32,6 +32,7 @@ check_pass_status() {
       --run-id rpass --timeout 5 >/dev/null
   local result="$tmp/rpass/cases/per-project-instincts-bootstrap-pr19/result.json"
   assert "pass: status = passed" _eq "$(jq -r .status "$result")" "passed"
+  assert "pass: attempts=1 emitted by default" _eq "$(jq -r .attempts "$result")" 1
   rm -rf "$tmp"
 }
 

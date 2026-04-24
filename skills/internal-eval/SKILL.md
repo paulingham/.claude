@@ -50,9 +50,9 @@ Delegate to `skills/internal-eval/score/SKILL.md`. The score sub-skill computes 
 
 ### Step 5: Emit verdict
 
-- `--baseline` flag set → write the run's results to `eval/baseline.json` with `harness_ref` SHA + timestamp stamp; emit `EVAL_BASELINE_CAPTURED`.
-- Otherwise, if any deterministic case shows a regression (pass→fail in the diff) → emit `EVAL_FAILED` and surface the regressions in the report.
-- Otherwise → emit `EVAL_PASSED`.
+- `--baseline` flag set → delegate to `score/capture-baseline.sh --run-id {id}` which writes `eval/baselines/{YYYY-MM-DD}-{model}.md` (YAML frontmatter: harness_ref, timestamp, run_id, counts) and updates the `latest-{model}.md` symlink; emit `EVAL_BASELINE_CAPTURED`.
+- Otherwise, delegate to `score/diff-vs-baseline.sh --run-id {id}` which writes `regression.json` + `regression.md`. If `regression_count > 0` → emit `EVAL_FAILED`. Otherwise → emit `EVAL_PASSED`.
+- Regression math operates on the intersection of harness-ref-compatible, non-quarantined cases. `failed_infra` and `failed_timeout` are neutral and never count as regressions.
 
 ## Verdict
 
@@ -76,7 +76,7 @@ Report: eval/runs/{run-id}/report.md
 ## Prerequisite
 
 - `eval/cases/` exists (scaffolded by Story 1).
-- Baseline stamped at least once via `/internal-eval run --baseline` before `EVAL_FAILED` is meaningful. Without a baseline, runs emit `EVAL_PASSED` with a note that no baseline exists.
+- Baseline stamped at least once via `/internal-eval run --baseline` (produces `eval/baselines/{YYYY-MM-DD}-{model}.md` + `latest-{model}.md` symlink) before `EVAL_FAILED` is meaningful. Without a baseline, runs emit `EVAL_PASSED` with a note that no baseline exists.
 
 ## Anti-Patterns
 

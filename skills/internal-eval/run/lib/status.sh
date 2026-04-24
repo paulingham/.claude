@@ -18,9 +18,10 @@ _kv_get() {
 }
 
 # write_result_json <path> k=v ... (keys: case run status duration cost rounds
-# rework harness model flakiness scoring ts inner reason).
+# rework harness model flakiness scoring ts inner reason attempts).
 write_result_json() {
   local out="$1"; shift
+  local att; att="$(_kv_get attempts "$@")"; [ -n "$att" ] || att=1
   jq -n \
     --arg case_id "$(_kv_get case "$@")" --arg run_id "$(_kv_get run "$@")" \
     --arg status "$(_kv_get status "$@")" --argjson dur "$(_kv_get duration "$@")" \
@@ -29,8 +30,9 @@ write_result_json() {
     --arg model "$(_kv_get model "$@")" --arg flak "$(_kv_get flakiness "$@")" \
     --arg scoring "$(_kv_get scoring "$@")" --arg ts "$(_kv_get ts "$@")" \
     --arg inner "$(_kv_get inner "$@")" --arg reason "$(_kv_get reason "$@")" \
+    --argjson attempts "$att" \
     '{case_id:$case_id,run_id:$run_id,status:$status,duration_sec:$dur,
       cost_usd:$cost,review_rounds:$rounds,rework:$rework,harness_ref:$harness,
       model:$model,flakiness_tier:$flak,scoring_mode:$scoring,timestamp:$ts,
-      inner_pipeline_state:$inner,failure_reason:$reason}' > "$out"
+      inner_pipeline_state:$inner,failure_reason:$reason,attempts:$attempts}' > "$out"
 }
