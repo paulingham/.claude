@@ -3,6 +3,7 @@
 # single focused assertion; keeps the test runner thin.
 
 REQUIRED_RESULT_KEYS="case_id run_id status duration_sec cost_usd review_rounds rework harness_ref model flakiness_tier scoring_mode timestamp inner_pipeline_state failure_reason"
+FIXTURE=""
 
 check_result_writer() {
   local run="$1"
@@ -19,6 +20,65 @@ check_result_writer() {
     assert "write_result_json: has key $k"           json_has "$tmp/result.json" "$k"
   done
   rm -rf "$tmp"
+}
+
+check_scoring_stub() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/scoring.sh"
+  assert "scoring: all gates green → passed" \
+    _eq "$(score_case APPROVE APPROVE VERIFIED COVERED APPROVED)" "passed"
+  assert "scoring: review CHANGES_REQUESTED → failed_diff" \
+    _eq "$(score_case CHANGES_REQUESTED APPROVE VERIFIED COVERED APPROVED)" "failed_diff"
+  assert "scoring: verify UNVERIFIED → failed_diff" \
+    _eq "$(score_case APPROVE APPROVE UNVERIFIED COVERED APPROVED)" "failed_diff"
+  assert "scoring: accept REJECTED → failed_diff" \
+    _eq "$(score_case APPROVE APPROVE VERIFIED COVERED REJECTED)" "failed_diff"
+}
+
+check_harness_ref_failure() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/harness-ref.sh"
+  local tmp; tmp="$(mktemp -d)"; mkdir -p "$tmp/norepo"
+  assert_not "harness-ref: bad sha → non-zero exit" \
+    _call_resolve_with_bad_repo "$tmp/norepo" "$tmp/wt"
+  rm -rf "$tmp"
+}
+
+_call_resolve_with_bad_repo() {
+  CLAUDE_HARNESS_REPO="$1" resolve_harness_root "deadbeef" "$2" >/dev/null
+}
+
+check_harness_ref_pinned() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/harness-ref.sh"
+  FIXTURE="$(mktemp -d)"
+  local sha; sha="$(_setup_harness_fixture "$FIXTURE")"
+  local wt="$FIXTURE/wt"
+  local root; root="$(CLAUDE_HARNESS_REPO="$FIXTURE/repo" resolve_harness_root "$sha" "$wt")"
+  assert "harness-ref: pinned root = wt path" _eq "$root" "$wt"
+  assert "harness-ref: pinned tree has marker v1" is_file "$root/marker-v1"
+  assert_not "harness-ref: pinned tree lacks v2" is_file "$root/marker-v2"
+  rm -rf "$FIXTURE"
+}
+
+_setup_harness_fixture() {
+  local fx="$1"; mkdir -p "$fx/repo"
+  (cd "$fx/repo" && git init -q && git config user.email t@t && git config user.name t \
+    && touch marker-v1 && git add marker-v1 && git commit -q -m v1 \
+    && git rev-parse HEAD > "$fx/sha1" \
+    && touch marker-v2 && git add marker-v2 && git commit -q -m v2) >&2
+  cat "$fx/sha1"
+}
+
+check_harness_ref() {
+  local run="$1"
+  # shellcheck disable=SC1091
+  source "$run/lib/harness-ref.sh"
+  assert "harness-ref: live default sha" _eq "$(resolve_harness_sha "")" "live"
+  assert "harness-ref: live default root" _eq "$(resolve_harness_root "" /tmp/nope)" "$HOME"
 }
 
 check_isolation_paths() {

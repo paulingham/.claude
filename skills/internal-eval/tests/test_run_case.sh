@@ -12,5 +12,9 @@ check_status_enum "$RUN"
 check_result_writer "$RUN"
 check_isolation_env "$RUN"
 check_isolation_paths "$RUN"
+check_harness_ref "$RUN"
+check_harness_ref_pinned "$RUN"
+check_harness_ref_failure "$RUN"
+check_scoring_stub "$RUN"
 
 echo "# pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]
