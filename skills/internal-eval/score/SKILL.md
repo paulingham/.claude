@@ -1,21 +1,27 @@
 ---
 name: "internal-eval-score"
-description: "Sub-skill of /internal-eval. Scores per-case results against oracles and diffs the run against the baseline. Populated by Story 8 (scoring modes, flakiness tiers, 4-quadrant diff, report)."
+description: "Sub-skill of /internal-eval. Scores per-case results against oracles, captures baselines, and diffs the run against the baseline across 4 quadrants."
 context: fork
 agent: software-engineer
 ---
 
 # Internal Eval — Score
 
-## Status
+## Entry Points
 
-Stub. Populated by Story 8 (scoring modes, flakiness tiers, 4-quadrant baseline diff, report renderer, and the `inspect` subcommand details).
+| Script | Purpose |
+|---|---|
+| `capture-baseline.sh --run-id <id>` | Snapshot `eval/runs/{id}/aggregate.json` into `eval/baselines/{YYYY-MM-DD}-{model}.md`; updates `latest-{model}.md` symlink |
+| `diff-vs-baseline.sh --run-id <id> [--baseline path]` | Emit `regression.json` + `regression.md` under the run dir; verdict `EVAL_FAILED` if any regression |
+
+Library modules in `score/lib/` (all ≤50 lines): `baseline-args`, `baseline-write`, `baseline-parse`, `regression-args`, `regression-compute`, `compat-window`, `compat-filter`, `quadrants.jq`, `regression-md`.
 
 ## Purpose
 
 1. Score each case result against its oracle per the case's `scoring_mode`.
-2. Diff the current run against `eval/baseline.json` across 4 quadrants.
-3. Render `eval/runs/{run-id}/report.md` and decide pass/fail.
+2. Capture a baseline snapshot from an aggregate run (`capture-baseline.sh`).
+3. Diff the current run against that baseline across 4 quadrants (`diff-vs-baseline.sh`).
+4. Produce `regression.json` + human-readable `regression.md`; emit `EVAL_PASSED` / `EVAL_FAILED`.
 
 ## Scoring Modes (per-case, Story 8 A10)
 
@@ -44,6 +50,15 @@ Computed on the intersection of cases present in both runs (honoring `min_harnes
 | `removed` | in baseline only | Neutral |
 | `added` | in current only | Neutral |
 
+## Neutrality Rules
+
+- `failed_infra` — harness infra failure, NEVER a regression (runner bug, not model bug)
+- `failed_timeout` — wall-clock timeout, NEVER a regression (handle via timeout tuning)
+- `quarantined` cases — excluded from both regression count AND intersection count
+
 ## Verdict
 
-Populated by Story 8. This sub-skill produces inputs to the parent `/internal-eval` verdict (`EVAL_PASSED` vs `EVAL_FAILED`).
+- `regression_count == 0` → `EVAL_PASSED`
+- `regression_count > 0`  → `EVAL_FAILED`
+
+This sub-skill's output is consumed by the parent `/internal-eval` verdict.
