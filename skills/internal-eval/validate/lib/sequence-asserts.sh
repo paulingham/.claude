@@ -35,10 +35,8 @@ run_phase_d_asserts() {
 }
 
 run_phase_e_asserts() {
-  local tmp="$1"
-  assert_verdict "$tmp/runs/restore/regression.json" "EVAL_PASSED"
-  assert_regression_count_ge "$tmp/runs/restore/regression.json" 0
-  local rc; rc="$(jq -r .regression_count "$tmp/runs/restore/regression.json")"
-  [ "$rc" = "0" ] \
-    || { echo "[assert] phase-E: regression_count=$rc (want 0)" >&2; return 1; }
+  local r="$1/runs/restore/regression.json"
+  assert_verdict "$r" "EVAL_PASSED"
+  local rc; rc="$(jq -r .regression_count "$r")"
+  [ "$rc" = "0" ] || { echo "[assert] phase-E: regression_count=$rc (want 0)" >&2; return 1; }
 }

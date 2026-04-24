@@ -3,6 +3,8 @@
 # artifacts a promoted case carries (metadata, task, expected, context/, golden).
 # Used by the validation sequence — NOT a replacement for backfill in production.
 
+_seed_jq_file="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/metadata.jq"
+
 _seed_artifacts() {
   local d="$1"; local cid="$2"
   echo "# task for $cid" > "$d/task.md"
@@ -19,12 +21,7 @@ _seed_one_case() {
 
 _seed_metadata() {
   local d="$1"; local cid="$2"; local mode="$3"
-  jq -n --arg id "$cid" --arg mode "$mode" \
-    '{case_id:$id,classification:"feature",source_pr:"",
-      min_harness_ref:"0000000000000000000000000000000000000000",
-      max_harness_ref:null,flakiness_tier:"deterministic",
-      scoring_mode:$mode,timeout_minutes:30,cost_ceiling_usd:5,synthetic:true}' \
-    > "$d/metadata.json"
+  jq -n --arg id "$cid" --arg mode "$mode" -f "$_seed_jq_file" > "$d/metadata.json"
 }
 
 # seed_cases <cases-dir>  -- writes 3 cases covering each scoring_mode.
