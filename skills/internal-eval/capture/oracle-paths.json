@@ -1,0 +1,17 @@
+{
+  "include": [
+    "tests/**/*.bats",
+    "hooks/tests/**",
+    "skills/*/tests/**",
+    "tests/test_*.py",
+    "**/*_test.py",
+    "**/*_spec.rb",
+    "**/*.test.ts",
+    "**/*.test.js"
+  ],
+  "exclude": [
+    "**/*.md",
+    "**/README*",
+    "docs/**"
+  ]
+}

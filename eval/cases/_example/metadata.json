@@ -1,0 +1,12 @@
+{
+  "case_id": "example-case-id",
+  "classification": "feature",
+  "source_pr": "https://github.com/paulingham/.claude/pull/21",
+  "min_harness_ref": "0000000000000000000000000000000000000000",
+  "max_harness_ref": null,
+  "flakiness_tier": "deterministic",
+  "scoring_mode": "test-passing",
+  "timeout_minutes": 30,
+  "cost_ceiling_usd": 5,
+  "synthetic": false
+}
