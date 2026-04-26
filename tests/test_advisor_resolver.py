@@ -261,5 +261,40 @@ class SkillDocsUseIntendedDefaultFraming(unittest.TestCase):
             self.assertNotIn("Path B -- advisory", text, f"{path.name}: standalone Path B framing leaked")
 
 
+_DOC_TOUCHPOINTS = [
+    REPO_ROOT / "skills" / "code-review" / "SKILL.md",
+    REPO_ROOT / "skills" / "security-review" / "SKILL.md",
+    REPO_ROOT / "rules" / "parallel-dispatch-protocol.md",
+    REPO_ROOT / "CLAUDE.md",
+]
+
+
+class ProvisionalMarkingPresentAtEveryDocTouchpoint(unittest.TestCase):
+    def test_provisional_marking_present_at_every_doc_touchpoint(self):
+        import re as _re
+        # Advisor-mode cost figures only: explicit percentages or savings claims.
+        # Bare "cheaper" appears in unrelated Best-of-N tie-breaker text.
+        pattern = _re.compile(r"(\b40\s?%|\b60\s?%|\bsavings\b)", _re.IGNORECASE)
+        for path in _DOC_TOUCHPOINTS:
+            lines = path.read_text().splitlines()
+            self._assert_at_least_one_cost_figure(path, lines, pattern)
+            self._assert_each_cost_figure_marked(path, lines, pattern)
+
+    def _assert_at_least_one_cost_figure(self, path, lines, pattern):
+        if not any(pattern.search(line) for line in lines):
+            self.fail(f"{path.name}: no advisor-mode cost figure found — must mention pairing cost")
+
+    def _assert_each_cost_figure_marked(self, path, lines, pattern):
+        for idx, line in enumerate(lines):
+            if not pattern.search(line):
+                continue
+            window = "\n".join(lines[max(0, idx - 3):idx + 4])
+            self.assertIn("PROVISIONAL", window,
+                          f"{path.name}:{idx+1}: cost figure missing PROVISIONAL within 3 lines")
+            wider = "\n".join(lines[max(0, idx - 10):idx + 11])
+            self.assertIn("advisor-baseline", wider,
+                          f"{path.name}:{idx+1}: cost figure missing advisor-baseline reference within 10 lines")
+
+
 if __name__ == "__main__":
     unittest.main()
