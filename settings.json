@@ -220,6 +220,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash ~/.claude/hooks/main-branch-guard.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
             "command": "bash ~/.claude/hooks/quality-gate.sh",
             "timeout": 10000
           },
@@ -470,6 +475,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/subagent-stop-trajectory.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/worktree-cwd-check.sh",
+            "timeout": 5000
           }
         ]
       },
