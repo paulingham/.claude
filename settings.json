@@ -245,6 +245,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/governance-capture.sh",
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/runtime-guard.sh",
+            "timeout": 5000
           }
         ]
       },
@@ -270,6 +275,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/governance-capture.sh",
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/runtime-guard.sh",
+            "timeout": 5000
           }
         ]
       },
@@ -295,6 +305,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/governance-capture.sh",
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/runtime-guard.sh",
+            "timeout": 5000
           }
         ]
       },
@@ -319,6 +334,11 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/depth-guard.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/runtime-guard.sh",
             "timeout": 5000
           }
         ]
