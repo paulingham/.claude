@@ -167,6 +167,30 @@ class StdinScriptEmitsDecisionAndResolved(unittest.TestCase):
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+class SettingsRegistersAdvisorHook(unittest.TestCase):
+    def test_settings_registers_advisor_hook(self):
+        settings = json.loads((REPO_ROOT / "settings.json").read_text())
+        agent_groups = [g for g in settings["hooks"]["PreToolUse"]
+                        if g.get("matcher") == "Agent"]
+        self.assertEqual(len(agent_groups), 1, "expected exactly one PreToolUse Agent group")
+        commands = [h["command"] for h in agent_groups[0]["hooks"]]
+        self._assert_existing_hooks_unchanged(commands)
+        self._assert_advisor_hook_registered_after_thinking(commands)
+
+    def _assert_existing_hooks_unchanged(self, commands):
+        self.assertIn("bash ~/.claude/hooks/pipeline-state-guard.sh", commands)
+        self.assertIn("bash ~/.claude/hooks/agent-skill-reminder.sh", commands)
+        self.assertIn("bash ~/.claude/hooks/pre-agent-thinking.sh", commands)
+
+    def _assert_advisor_hook_registered_after_thinking(self, commands):
+        advisor_cmd = "bash ~/.claude/hooks/pre-agent-advisor.sh"
+        self.assertIn(advisor_cmd, commands)
+        thinking_idx = commands.index("bash ~/.claude/hooks/pre-agent-thinking.sh")
+        advisor_idx = commands.index(advisor_cmd)
+        self.assertGreater(advisor_idx, thinking_idx,
+                           "advisor hook must be registered AFTER thinking hook")
+
+
 def _read_agent_frontmatter(name):
     import re
     import yaml
