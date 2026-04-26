@@ -18,23 +18,27 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 [[ -z "$COMMAND" ]] && exit 0
 is_forbidden_command "$COMMAND" || exit 0
 
+_mbg_redact() {
+  printf '%s' "$1" | sed -E 's#(://)[^/@[:space:]]+:[^/@[:space:]]+@#\1REDACTED@#g'
+}
+
 _mbg_emit_record() {
-  jq -nc --arg ts "$1" --arg sid "$2" --arg tid "$3" --arg cmd "$COMMAND" \
+  jq -nc --arg ts "$1" --arg sid "$2" --arg tid "$3" --arg cmd "$(_mbg_redact "$COMMAND")" \
     '{timestamp:$ts,session_id:$sid,task_id:$tid,command:$cmd,source:"prevented",action:"prevented"}'
 }
 
 _mbg_log_violation() {
-  local sid="${CLAUDE_SESSION_ID:-local-$$}" tid="${CLAUDE_PIPELINE_TASK_ID:-}" dir
-  dir="$HOME/.claude/metrics/$sid"; mkdir -p "$dir" 2>/dev/null || return 0
+  local sid tid dir; sid="${CLAUDE_SESSION_ID:-local-$$}"; sid="${sid//[^a-zA-Z0-9_.-]/}"
+  tid="${CLAUDE_PIPELINE_TASK_ID:-}"; dir="$HOME/.claude/metrics/${sid:-local-$$}"
+  mkdir -p "$dir" 2>/dev/null || return 0
   _mbg_emit_record "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$sid" "$tid" \
     >> "$dir/main-branch-violations.jsonl" 2>/dev/null || true
 }
 
 _mbg_print_block() {
-  printf 'BLOCKED: REPO_ROOT HEAD must stay on `main`. The command:\n  %s\n' "$COMMAND" >&2
+  printf 'BLOCKED: REPO_ROOT HEAD must stay on `main`. The command:\n  %s\n' "$(_mbg_redact "$COMMAND")" >&2
   printf 'contains a HEAD-mutating clause without a delegation prefix.\n' >&2
-  printf 'Use one of: `git -C "$WORKTREE" ...`, `git --git-dir="$WORKTREE/.git" ...`,\n' >&2
-  printf '`cd "$WORKTREE" && ...`, or `(cd "$WORKTREE" && ...)`.\n' >&2
+  printf 'Use a delegation prefix: `cd "$WT" && ...`, `git -C "$WT" ...`, or `git --git-dir="$WT/.git" ...`\n' >&2
   printf 'See rules/agent-protocol.md > Main-Branch Invariant.\n' >&2
 }
 

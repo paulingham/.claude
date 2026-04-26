@@ -163,3 +163,29 @@ _run_guard_capture() {
   CLAUDE_HOOK_PROFILE=standard run _run_guard Bash 'git checkout foo'
   [ "$status" -eq 2 ]
 }
+
+# HIGH-5 (security) — CLAUDE_SESSION_ID path traversal MUST be sanitized
+# before being used in the metrics path.
+@test "AC2.23 CLAUDE_SESSION_ID with ../../etc cannot escape metrics dir" {
+  CLAUDE_SESSION_ID="../../etc" run _run_guard Bash 'git checkout foo'
+  [ "$status" -eq 2 ]
+  # No file should land outside the metrics tree.
+  [ ! -f "$HOME/etc/main-branch-violations.jsonl" ]
+  [ ! -f "$HOME/.claude/etc/main-branch-violations.jsonl" ]
+  # The sanitized path must exist under metrics/.
+  found=$(find "$HOME/.claude/metrics" -name "main-branch-violations.jsonl" 2>/dev/null | wc -l | tr -d ' ')
+  [ "$found" -ge 1 ]
+}
+
+# HIGH-6 (security) — URL-embedded credentials MUST be redacted before logging.
+@test "AC2.24 secrets in URL credentials redacted in violation log" {
+  cmd='git push https://user:supersecret@github.com/org/repo HEAD:main'
+  run _run_guard Bash "$cmd"
+  [ "$status" -eq 2 ]
+  log="$HOME/.claude/metrics/$CLAUDE_SESSION_ID/main-branch-violations.jsonl"
+  [ -f "$log" ]
+  # The secret must NOT appear in the log.
+  ! grep -q 'supersecret' "$log"
+  # The redaction marker MUST appear.
+  grep -q 'REDACTED' "$log"
+}
