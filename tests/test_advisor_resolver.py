@@ -32,6 +32,18 @@ class ParsesFrontmatterWithExecutorAndAdvisor(unittest.TestCase):
         self.assertEqual(result["model"], "opus")
 
 
+class ResolverReturnsSoloWhenNoPairingInFrontmatter(unittest.TestCase):
+    def test_resolver_returns_solo_when_no_pairing_in_frontmatter(self):
+        tool_input = {"subagent_type": "code-reviewer"}
+        env = {"ANTHROPIC_API_KEY": "sk-test"}
+        frontmatter = {"model": "opus"}  # no executor, no advisor
+        result = resolve(tool_input=tool_input, env=env, frontmatter=frontmatter)
+        self.assertIsNone(result["executor"])
+        self.assertIsNone(result["advisor"])
+        self.assertEqual(result["fallback_reason"], "no-pairing-frontmatter")
+        self.assertEqual(result["source"], "no-pairing-frontmatter")
+
+
 class ResolverReturnsFrontmatterPairingWhenBothPresent(unittest.TestCase):
     def test_resolver_returns_frontmatter_pairing_when_both_present(self):
         tool_input = {"subagent_type": "code-reviewer"}
