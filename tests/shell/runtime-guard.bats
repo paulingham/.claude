@@ -206,3 +206,45 @@ EOF
   run bash -c "echo '$input' | bash $HOOK"
   [ "$status" -eq 0 ]
 }
+
+@test "T3.20 SubagentStop cleanup removes teammate start file (HIGH #1 regression)" {
+  # Spawn a TEAMMATE (with name + team_name set) — represents the most common
+  # dispatch class. The bug: SubagentStop payload does NOT reliably expose
+  # tool_input.name / tool_input.team_name, so cleanup-side computed a different
+  # key and the .start file leaked.
+  local agent_input='{"tool_name":"Agent","tool_input":{"subagent_type":"software-engineer","name":"build-engineer","team_name":"pipeline-x"}}'
+  bash -c "echo '$agent_input' | bash $HOOK" >/dev/null
+  [ "$(ls "$RUNTIME_DIR"/*.start 2>/dev/null | wc -l | tr -d ' ')" = "1" ]
+  local task_id="rg-stop-tm"
+  cat > "$TMP/.claude/pipeline-state/${task_id}-pipeline.md" <<EOF
+---
+task_id: $task_id
+verdict: in_progress
+---
+EOF
+  # SubagentStop event — note: no tool_input wrapper, fields at top level
+  # (mirrors what subagent-stop-trajectory.sh actually receives).
+  local stop_input='{"subagent_type":"software-engineer","subagent_id":"sa-123"}'
+  run bash -c "echo '$stop_input' | CLAUDE_PIPELINE_TASK_ID=$task_id bash $STOP_HOOK"
+  [ "$status" -eq 0 ]
+  [ "$(ls "$RUNTIME_DIR"/*.start 2>/dev/null | wc -l | tr -d ' ')" = "0" ]
+}
+
+@test "T3.21 _rg_compute_key requires only subagent_type (per-class semantic)" {
+  # Document the per-class trade-off: the key is derived from subagent_type ONLY,
+  # so spawn and SubagentStop always agree even when SubagentStop omits name/team.
+  source "$REPO_ROOT/hooks/_lib/runtime-guard-key.sh"
+  local k1 k2
+  k1=$(_rg_compute_key "software-engineer" "" "")
+  k2=$(_rg_compute_key "software-engineer" "build-engineer" "pipeline-x")
+  [ -n "$k1" ]
+  [ "$k1" = "$k2" ]
+}
+
+@test "T3.22 _rg_compute_key falls back to 'unknown' when no hasher available" {
+  source "$REPO_ROOT/hooks/_lib/runtime-guard-key.sh"
+  local key
+  # Restrict PATH to just the bats/coreutils minimum, excluding sha1sum and shasum.
+  key=$(PATH="/var/empty" _rg_compute_key "software-engineer" "" "")
+  [ "$key" = "unknown" ]
+}

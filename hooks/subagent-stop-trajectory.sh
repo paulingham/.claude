@@ -55,12 +55,10 @@ jq -n \
   >> "$TRAJECTORY_FILE" 2>/dev/null || true
 
 # Slice 3 / AC3.12 — runtime-guard start-file cleanup.
-# Shared key derivation with hooks/runtime-guard.sh via _lib/runtime-guard-key.sh.
+# Key derives from subagent_type ONLY (per-class) so cleanup matches spawn.
 # shellcheck source=/dev/null
 source "$(dirname "$0")/_lib/runtime-guard-key.sh" 2>/dev/null && {
-  STOP_NAME=$(echo "$INPUT" | jq -r '.tool_input.name // .name // ""' 2>/dev/null || echo "")
-  STOP_TEAM=$(echo "$INPUT" | jq -r '.tool_input.team_name // .team_name // ""' 2>/dev/null || echo "")
-  RG_KEY=$(_rg_compute_key "$AGENT_TYPE" "$STOP_NAME" "$STOP_TEAM")
+  RG_KEY=$(_rg_compute_key "$AGENT_TYPE")
   SID="${CLAUDE_SESSION_ID:-local-$$}"; SID="${SID//[^a-zA-Z0-9_.-]/}"
   rm -f "$HOME/.claude/metrics/${SID:-local-$$}/subagent-runtimes/${RG_KEY}.start" 2>/dev/null || true
 }
