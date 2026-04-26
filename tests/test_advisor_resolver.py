@@ -246,5 +246,20 @@ class HookLogsToJsonlOnReviewerSpawn(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
 
 
+_SKILL_FILES = [
+    REPO_ROOT / "skills" / "code-review" / "SKILL.md",
+    REPO_ROOT / "skills" / "security-review" / "SKILL.md",
+]
+
+
+class SkillDocsUseIntendedDefaultFraming(unittest.TestCase):
+    def test_skill_docs_use_intended_default_framing(self):
+        for path in _SKILL_FILES:
+            text = path.read_text()
+            self.assertIn("intended default", text, f"{path.name}: missing 'intended default'")
+            self.assertIn("currently advisory", text, f"{path.name}: missing 'currently advisory'")
+            self.assertNotIn("Path B -- advisory", text, f"{path.name}: standalone Path B framing leaked")
+
+
 if __name__ == "__main__":
     unittest.main()
