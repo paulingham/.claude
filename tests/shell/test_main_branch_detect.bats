@@ -115,3 +115,58 @@ _assert_allowed() {
 @test "T43 allowed: git fetch origin +refs/heads/*:refs/remotes/origin/* (remote-tracking)" {
   _assert_allowed 'git fetch origin +refs/heads/*:refs/remotes/origin/*'
 }
+
+# ---------------------------------------------------------------------------
+# R1 fixes — review-driven matrix extension
+# ---------------------------------------------------------------------------
+
+# Finding #1 (HIGH code) — multi-clause bypass: `git -C` / `--git-dir=` are
+# self-contained on a single clause and MUST NOT carry delegation across `&&`.
+@test "T44 forbidden: git -C /tmp/wt status && git checkout main"        { _assert_forbidden 'git -C /tmp/wt status && git checkout main'; }
+@test "T45 forbidden: git --git-dir=/tmp/.git status && git checkout main" { _assert_forbidden 'git --git-dir=/tmp/.git status && git checkout main'; }
+@test "T46 allowed: cd /tmp/wt && git status && git checkout main (cd persists)" { _assert_allowed 'cd /tmp/wt && git status && git checkout main'; }
+@test "T47 allowed: cd /tmp/wt && git status && gh pr create --title x"  { _assert_allowed 'cd /tmp/wt && git status && gh pr create --title x'; }
+
+# CRITICAL-1 (security) — delete-remote-main via empty-source refspec.
+@test "T48 forbidden: git push origin :main (delete-remote)"             { _assert_forbidden 'git push origin :main'; }
+@test "T49 forbidden: git push origin +:main (forced delete-remote)"     { _assert_forbidden 'git push origin +:main'; }
+@test "T50 forbidden: git push origin :refs/heads/main (qualified delete)" { _assert_forbidden 'git push origin :refs/heads/main'; }
+
+# CRITICAL-2 (security) — delete-remote-main via --delete / -d flags.
+@test "T51 forbidden: git push origin --delete main"                     { _assert_forbidden 'git push origin --delete main'; }
+@test "T52 forbidden: git push origin -d main"                           { _assert_forbidden 'git push origin -d main'; }
+@test "T53 forbidden: git push --delete origin main"                     { _assert_forbidden 'git push --delete origin main'; }
+
+# CRITICAL-3 (security) — direct ref rewrites bypass checkout/switch entirely.
+@test "T54 forbidden: git update-ref refs/heads/main HEAD"               { _assert_forbidden 'git update-ref refs/heads/main HEAD'; }
+@test "T55 forbidden: git update-ref refs/heads/main abc123def"          { _assert_forbidden 'git update-ref refs/heads/main abc123def'; }
+@test "T56 forbidden: git symbolic-ref HEAD refs/heads/feat/x"           { _assert_forbidden 'git symbolic-ref HEAD refs/heads/feat/x'; }
+@test "T57 allowed: git update-ref refs/heads/feature-x HEAD"            { _assert_allowed 'git update-ref refs/heads/feature-x HEAD'; }
+
+# HIGH-1 (security) — wrapper bypass: defer execution to bypass regex match.
+@test "T58 forbidden: bash -c 'git checkout main'"                       { _assert_forbidden "bash -c 'git checkout main'"; }
+@test "T59 forbidden: sh -c 'git checkout main'"                         { _assert_forbidden "sh -c 'git checkout main'"; }
+@test "T60 forbidden: eval 'git checkout main'"                          { _assert_forbidden "eval 'git checkout main'"; }
+@test "T61 forbidden: xargs git checkout"                                { _assert_forbidden 'xargs git checkout'; }
+@test "T62 forbidden: find -exec git checkout" {
+  _assert_forbidden 'find . -name x -exec git checkout HEAD ;'
+}
+@test "T63 allowed: bash hook.sh (no -c form)"                           { _assert_allowed 'bash hook.sh'; }
+
+# HIGH-2 (security) — env-prefix and absolute-path bypass.
+@test "T64 forbidden: GIT_DIR=/tmp/x git checkout main"                  { _assert_forbidden 'GIT_DIR=/tmp/x git checkout main'; }
+@test "T65 forbidden: GIT_DIR=/tmp/x GIT_INDEX_FILE=/tmp/i git checkout main" { _assert_forbidden 'GIT_DIR=/tmp/x GIT_INDEX_FILE=/tmp/i git checkout main'; }
+@test "T66 forbidden: /usr/bin/git checkout main"                        { _assert_forbidden '/usr/bin/git checkout main'; }
+@test "T67 forbidden: /opt/homebrew/bin/git checkout main"               { _assert_forbidden '/opt/homebrew/bin/git checkout main'; }
+@test "T68 allowed: GIT_AUTHOR_NAME=Bot git status"                      { _assert_allowed 'GIT_AUTHOR_NAME=Bot git status'; }
+
+# HIGH-3 (security) — multi-refspec fetch: any destination resolving to main is forbidden.
+@test "T69 forbidden: git fetch origin foo:bar main:main"                { _assert_forbidden 'git fetch origin foo:bar main:main'; }
+@test "T70 forbidden: git fetch origin a:refs/remotes/origin/x main:refs/heads/main" { _assert_forbidden 'git fetch origin a:refs/remotes/origin/x main:refs/heads/main'; }
+@test "T71 allowed: git fetch origin a:refs/remotes/origin/a b:refs/remotes/origin/b" { _assert_allowed 'git fetch origin a:refs/remotes/origin/a b:refs/remotes/origin/b'; }
+
+# HIGH-4 (security) — git -c <opt> rebase|merge|reset|checkout|switch must be blocked.
+@test "T72 forbidden: git -c rebase.autoStash=true rebase main"          { _assert_forbidden 'git -c rebase.autoStash=true rebase main'; }
+@test "T73 forbidden: git -c core.editor=vi -c color.ui=auto checkout main" { _assert_forbidden 'git -c core.editor=vi -c color.ui=auto checkout main'; }
+@test "T74 forbidden: git -c merge.tool=vimdiff merge feat"              { _assert_forbidden 'git -c merge.tool=vimdiff merge feat'; }
+@test "T75 allowed: git -c color.ui=auto status"                         { _assert_allowed 'git -c color.ui=auto status'; }
