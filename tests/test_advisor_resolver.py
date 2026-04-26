@@ -4,8 +4,10 @@ Mirrors `tests/test_thinking_defaults.py` shape: precedence-by-precedence
 RED-GREEN cycle, then stdin-script smoke, then bash-wrapper smoke. The
 resolver itself is pure (no I/O) — see `hooks/_lib/advisor_resolver.py`.
 """
+import inspect
 import unittest
 
+import advisor_resolver
 from advisor_resolver import parse_frontmatter, resolve
 
 
@@ -30,6 +32,24 @@ class ParsesFrontmatterWithExecutorAndAdvisor(unittest.TestCase):
         self.assertEqual(result["executor"], "claude-sonnet-4-6")
         self.assertEqual(result["advisor"], "claude-opus-4-7")
         self.assertEqual(result["model"], "opus")
+
+
+class ResolverDocumentsRuntimeUnavailabilityFutureState(unittest.TestCase):
+    """Slice 7 guard — the future-state runtime-advisor-unavailable contract
+    must survive refactors. Asserts the docstring marker is present AND no
+    code path today returns that fallback_reason."""
+
+    def test_resolver_docstring_contains_runtime_marker(self):
+        self.assertIn("runtime-advisor-unavailable", resolve.__doc__)
+
+    def test_no_code_path_returns_runtime_unavailable_today(self):
+        source = inspect.getsource(advisor_resolver)
+        # The marker may appear in the docstring; assert it does NOT appear in
+        # any return-statement string literal (no live code path returns it).
+        for line in source.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("return") or stripped.startswith("_solo("):
+                self.assertNotIn("runtime-advisor-unavailable", stripped)
 
 
 class ResolverIgnoresNonReviewerAgents(unittest.TestCase):
