@@ -125,6 +125,20 @@ Teammates do NOT auto-load `agents/*.md`. The orchestrator MUST append this to e
 
 This is automatic and mandatory -- the user should never need to mention it.
 
+### Thinking Injection (Automatic)
+
+The `pre-agent-thinking.sh` PreToolUse hook is currently **advisory/log-only**: the Agent tool input schema does not yet expose `thinking`, so the hook resolves the defaults and records them but does NOT block any spawn. Behavior:
+
+- **Missing `thinking` field on an Agent spawn**: hook exits 0 and logs the resolved `{effort, display}` to `metrics/{session}/hook-injections.jsonl` with `source: "logged"`. No stderr block. No refusal.
+- **Present `thinking` field**: hook exits 0, no validation.
+- **Non-Agent tools**: hook exits 0 immediately.
+
+Operators inspect `metrics/{session}/hook-injections.jsonl` to see what defaults the hook would have applied for any given spawn.
+
+**Forward pointer**: When Claude Code lands `modified_tool_input` for hook returns (Path A) or the Agent tool input schema exposes `thinking`, the hook's enforcement layer flips. The resolver, tests, and precedence rules are unchanged.
+
+See `rules/thinking-defaults.md` § Hook Behavior for the full precedence table and field semantics.
+
 ### Instinct Injection (Automatic)
 
 Before spawning any agent (subagent or teammate), the orchestrator loads relevant instincts:
