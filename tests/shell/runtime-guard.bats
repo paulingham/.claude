@@ -249,3 +249,66 @@ EOF
   key=$(PATH="/var/empty" _rg_compute_key "software-engineer" "" "")
   [ "$key" = "unknown" ]
 }
+
+@test "T3.23 runtime-violations.jsonl includes task_id (R2 product finding #4)" {
+  _make_start "key-tid" 1801 "subagent" "tid-test"
+  local input='{"tool_name":"Bash","tool_input":{"command":"echo hi"}}'
+  CLAUDE_PIPELINE_TASK_ID="task-runtime-x" run bash -c "echo '$input' | bash $HOOK"
+  [ "$status" -eq 2 ]
+  local log="$TMP/.claude/metrics/rg-test-$$/runtime-violations.jsonl"
+  [ -f "$log" ]
+  grep -q '"task_id":"task-runtime-x"' "$log"
+  grep -q '"agent_key":' "$log"
+  grep -q '"display_name":"tid-test"' "$log"
+  grep -q '"elapsed_seconds":' "$log"
+  grep -q '"cap_seconds":' "$log"
+  grep -q '"action":"shutdown_signaled"' "$log"
+  grep -q '"timestamp":' "$log"
+  grep -q '"session_id":' "$log"
+}
+
+@test "T3.24 malformed .start file (non-numeric ts) is silently skipped" {
+  # Edge: an over-cap good file alongside a malformed file → only good triggers.
+  mkdir -p "$RUNTIME_DIR"
+  printf 'abc:subagent:malformed\n' > "$RUNTIME_DIR/bad.start"
+  printf 'no-colons-at-all\n' > "$RUNTIME_DIR/worse.start"
+  local input='{"tool_name":"Bash","tool_input":{"command":"echo hi"}}'
+  run bash -c "echo '$input' | bash $HOOK"
+  [ "$status" -eq 0 ]
+  # Now add an over-cap valid file — the malformed ones must not block detection.
+  _make_start "good" 1801 "subagent" "good-agent"
+  run bash -c "echo '$input' | bash $HOOK"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q "good-agent"
+  echo "$output" | grep -qv "malformed"
+}
+
+@test "T3.25 SubagentStop cleanup is idempotent when start file absent" {
+  # Pipeline state file required for the trajectory writer to proceed.
+  local task_id="rg-idemp"
+  mkdir -p "$TMP/.claude/pipeline-state"
+  printf -- '---\ntask_id: %s\nverdict: in_progress\n---\n' "$task_id" \
+    > "$TMP/.claude/pipeline-state/${task_id}-pipeline.md"
+  # No start file present — cleanup must not error.
+  local stop_input='{"subagent_type":"software-engineer","subagent_id":"sa-idemp"}'
+  run bash -c "echo '$stop_input' | CLAUDE_PIPELINE_TASK_ID=$task_id bash $STOP_HOOK"
+  [ "$status" -eq 0 ]
+  # Re-running cleanup is also a no-op.
+  run bash -c "echo '$stop_input' | CLAUDE_PIPELINE_TASK_ID=$task_id bash $STOP_HOOK"
+  [ "$status" -eq 0 ]
+}
+
+@test "T3.26 empty CLAUDE_SESSION_ID writes to local-\$pid runtime path" {
+  # Empty SID must produce a 'local-<pid>' path segment, never '//'.
+  # Mode A: spawn an Agent with empty SID and assert the start file lands
+  # under metrics/local-*/subagent-runtimes/, not under metrics//.
+  local input='{"tool_name":"Agent","tool_input":{"subagent_type":"se-empty-sid"}}'
+  CLAUDE_SESSION_ID="" run bash -c "echo '$input' | bash $HOOK"
+  [ "$status" -eq 0 ]
+  # Critical invariant: no double-slash directory was created.
+  [ ! -d "$TMP/.claude/metrics//subagent-runtimes" ]
+  # And SOME local-* directory exists with one start file.
+  local count
+  count=$(ls -1 "$TMP/.claude/metrics/local-"*/subagent-runtimes/*.start 2>/dev/null | wc -l | tr -d ' ')
+  [ "$count" -ge 1 ]
+}
