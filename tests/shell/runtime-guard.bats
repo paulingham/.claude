@@ -171,6 +171,7 @@ EOF
   for f in "$REPO_ROOT/hooks/runtime-guard.sh" \
            "$REPO_ROOT/hooks/_lib/runtime-guard-record.sh" \
            "$REPO_ROOT/hooks/_lib/runtime-guard-check.sh" \
+           "$REPO_ROOT/hooks/_lib/runtime-guard-emit.sh" \
            "$REPO_ROOT/hooks/_lib/runtime-guard-key.sh"; do
     local n; n=$(wc -l < "$f")
     [ "$n" -le 50 ] || { echo "FAIL: $f has $n lines"; false; }

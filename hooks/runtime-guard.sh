@@ -16,6 +16,8 @@ source "${HOOK_DIR}/_lib/runtime-guard-key.sh"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/runtime-guard-record.sh"
 # shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/runtime-guard-emit.sh"
+# shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/runtime-guard-check.sh"
 
 INPUT=$(cat)
@@ -26,14 +28,14 @@ _rg_runtime_dir() {
   echo "$HOME/.claude/metrics/${sid:-local-$$}/subagent-runtimes"
 }
 
+_rg_extract_inputs() {
+  echo "$INPUT" | jq -r '"\(.tool_input.subagent_type // "")|\(.tool_input.name // "")|\(.tool_input.team_name // "")"'
+}
+
 _rg_record() {
-  local stype name team key class display
-  stype=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // ""')
-  name=$(echo "$INPUT" | jq -r '.tool_input.name // ""')
-  team=$(echo "$INPUT" | jq -r '.tool_input.team_name // ""')
-  key=$(_rg_compute_key "$stype" "$name" "$team")
-  class=$(_rg_class_of "$team"); display="${name:-$stype}"
-  _rg_write_start "$(_rg_runtime_dir)" "$key" "$class" "$display"
+  local stype name team
+  IFS='|' read -r stype name team <<< "$(_rg_extract_inputs)"
+  _rg_write_start "$(_rg_runtime_dir)" "$(_rg_compute_key "$stype")" "$(_rg_class_of "$team")" "${name:-$stype}"
 }
 
 _rg_dispatch() {
