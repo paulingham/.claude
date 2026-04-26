@@ -32,6 +32,22 @@ class ParsesFrontmatterWithExecutorAndAdvisor(unittest.TestCase):
         self.assertEqual(result["model"], "opus")
 
 
+class ResolverRespectsMissingApiKey(unittest.TestCase):
+    def test_resolver_respects_missing_api_key(self):
+        tool_input = {"subagent_type": "code-reviewer"}
+        env = {}  # ANTHROPIC_API_KEY absent
+        frontmatter = {
+            "model": "opus",
+            "executor": "claude-sonnet-4-6",
+            "advisor": "claude-opus-4-7",
+        }
+        result = resolve(tool_input=tool_input, env=env, frontmatter=frontmatter)
+        self.assertIsNone(result["executor"])
+        self.assertIsNone(result["advisor"])
+        self.assertEqual(result["fallback_reason"], "no-api-key")
+        self.assertEqual(result["source"], "no-api-key")
+
+
 class ResolverRespectsEnvDisabled(unittest.TestCase):
     def test_resolver_respects_env_disabled(self):
         tool_input = {"subagent_type": "code-reviewer"}

@@ -17,6 +17,10 @@ def _env_disabled(env):
     return _solo("env-disabled") if (env or {}).get("CLAUDE_REVIEW_ADVISOR_DISABLED") == "1" else None
 
 
+def _no_api_key(env):
+    return _solo("no-api-key") if not (env or {}).get("ANTHROPIC_API_KEY") else None
+
+
 def _frontmatter_pairing(frontmatter):
     executor = (frontmatter or {}).get("executor")
     advisor = (frontmatter or {}).get("advisor")
@@ -38,7 +42,7 @@ def resolve(tool_input, env, frontmatter):
 
     Returns dict with keys: executor, advisor, fallback_reason, source.
     """
-    for layer in (_env_disabled(env), _frontmatter_pairing(frontmatter)):
+    for layer in (_env_disabled(env), _no_api_key(env), _frontmatter_pairing(frontmatter)):
         if layer:
             return layer
     return _solo("no-pairing-frontmatter")
