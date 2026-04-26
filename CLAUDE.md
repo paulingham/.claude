@@ -46,6 +46,12 @@ Every Agent spawn carries a `thinking` field — `effort` (`low|medium|high|xhig
 
 **Note:** the hook is currently **advisory/log-only** — the Agent tool input schema does not yet expose `thinking`, so refusals are logged but no spawn is blocked. Will be promoted to enforcement when the field is exposed.
 
+### Advisor-Mode Reviews (Opus 4.7)
+
+`code-reviewer` and `security-engineer` ship with `executor: claude-sonnet-4-6` + `advisor: claude-opus-4-7` in their frontmatter. Sonnet drives the review, Opus is consulted on judgement calls. This is the **intended default** — currently advisory because the Agent input schema does not yet expose `advisor`. The `pre-agent-advisor.sh` PreToolUse hook logs the would-be pairing to `metrics/{session}/advisor-dispatch.jsonl`; no spawn is blocked, no model is downgraded. Will become the enforced default the moment the schema lands.
+
+**Cost** (PROVISIONAL pending advisor-baseline; see `eval/baselines/{latest}-advisor-baseline.md`): Sonnet+Opus-advisor pairing is roughly ~40% cheaper per review than naive Opus-solo, with quality-equivalence (≥95% verdict-agreement on the regression suite) targeted but not yet measured. Override with `CLAUDE_REVIEW_ADVISOR_DISABLED=1` to force Opus-solo.
+
 ### Agent Team
 
 | Agent | Phase | Worktree | Default Model | Tunable |

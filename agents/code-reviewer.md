@@ -6,6 +6,8 @@ tools:
   - Grep
   - Glob
 model: opus
+executor: claude-sonnet-4-6
+advisor: claude-opus-4-7
 memory: project
 maxTurns: 40
 disallowedTools:
