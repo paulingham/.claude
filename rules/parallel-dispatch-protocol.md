@@ -11,6 +11,8 @@ The pipeline uses two dispatch mechanisms:
 | **Subagent** (Agent tool) | Plan, Ship, Deploy, single-slice Build | None (background) | Low (ephemeral) |
 | **Team** (TeamCreate) | Plan Validation (autonomous), Multi-slice Build, Review, Final Gate | Tmux split panes | Higher (persistent sessions) |
 
+> **Main-branch invariant.** All teammates and subagents commit to feature branches via worktrees, never to `main` in REPO_ROOT. Every HEAD-mutating git command MUST be expressed as `git -C "$WORKTREE" ...` or `(cd "$WORKTREE" && ...)`. Bare forms like `git checkout foo` and `gh pr create` are blocked by the `main-branch-guard.sh` PreToolUse hook regardless of caller cwd. REPO_ROOT HEAD must read `main` at every observation point. See `rules/agent-protocol.md > ## Main-Branch Invariant` for the canonical forbidden/allowed surface and the enforcement hooks.
+
 ## Team Phases
 
 ### Plan Validation Team (ALL pipelines)
