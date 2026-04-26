@@ -52,6 +52,10 @@ Every Agent spawn carries a `thinking` field — `effort` (`low|medium|high|xhig
 
 **Cost** (PROVISIONAL pending advisor-baseline; see `eval/baselines/{latest}-advisor-baseline.md`): Sonnet+Opus-advisor pairing is roughly ~40% cheaper per review than naive Opus-solo, with quality-equivalence (≥95% verdict-agreement on the regression suite) targeted but not yet measured. Override with `CLAUDE_REVIEW_ADVISOR_DISABLED=1` to force Opus-solo.
 
+### Per-Agent Tool Allowlists (Path B)
+
+Every agent's `tools:` frontmatter declares the tools that agent may invoke (YAML list, one tool per line). The `pre-agent-allowlist.sh` PreToolUse hook reads the spawned `subagent_type`, loads the matching frontmatter via `agent_tools_loader`, and computes a subset check against `tool_input.allowed_tools`. Any superset request is logged to `metrics/{session}/tool-allowlist.jsonl` with `source: "path-b-advisory"` — no spawn is refused today because the Agent input schema does not yet expose `allowed_tools`. Disable per-session with `CLAUDE_DISABLE_TOOL_ALLOWLIST=1`; suppressed by `CLAUDE_HOOK_PROFILE=minimal`. Will be promoted to enforcement (exit 2 on `would_block`) the moment the schema lands. See `rules/agent-protocol.md` § Per-Agent Tool Scoping for the full contract.
+
 ### Agent Team
 
 | Agent | Phase | Worktree | Default Model | Tunable |
