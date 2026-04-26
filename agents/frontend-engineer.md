@@ -168,6 +168,10 @@ When a component exceeds shape limits, decompose using:
 
 Follow the Incremental TDD Protocol in `rules/engineering-protocol.md` exactly. One test at a time. RED -> GREEN -> REFACTOR. No exceptions.
 
+## Tool Synthesis (Optional Escalation)
+
+May invoke `/tool-synthesis` mid-task to author a one-shot scratch tool inside the worktree when the standard toolset is insufficient (e.g. repeated AST queries, custom DSL parsing, repo-specific lint). Tools live under `${WORKTREE}/.claude-scratch-tools/` and are cleaned up before BUILD_COMPLETE — they NEVER reach `main`. See `skills/tool-synthesis/SKILL.md`.
+
 ## Standards
 
 Follow shape constraints and all standards in `rules/engineering-protocol.md`.

@@ -115,7 +115,7 @@ Next pipeline → Instinct injected into agent prompt → Better build → Fewer
 
 Review findings classified as "preventable by build agent" become build-targeted instincts — a backward feedback loop from review to build.
 
-## Skills (44)
+## Skills (45)
 
 ### Pipeline & Orchestration
 | Skill | Purpose |
@@ -134,6 +134,7 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `/refactor` | Safe refactoring with characterization tests |
 | `/bug-fix` | Root cause analysis + regression test + fix |
 | `/module-extraction` | Default extraction path — bounded context → in-process module with an explicit port (same repo, no forcing function needed) |
+| `/tool-synthesis` | Author a one-shot scratch tool inside the worktree mid-task (custom search/AST/lint). Tool lives in `.claude-scratch-tools/`, cleaned up before merge |
 | `/tech-spike` | Time-boxed technical research |
 
 ### Scaffolding (Auto-Detected)
