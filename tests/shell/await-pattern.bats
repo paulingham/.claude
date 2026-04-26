@@ -262,3 +262,15 @@ _jsonl_path() {
   bash -n "$LIB"
   bash -n "$EMIT"
 }
+
+@test "T-DOC-1 orchestrator/parallel-dispatch-details.md has Waiting for Checkpoints section" {
+  grep -q "Waiting for Checkpoints" "$REPO_ROOT/orchestrator/parallel-dispatch-details.md"
+  grep -q "await-pattern.sh" "$REPO_ROOT/orchestrator/parallel-dispatch-details.md"
+  grep -q "DEPRECATED" "$REPO_ROOT/orchestrator/parallel-dispatch-details.md"
+}
+
+@test "T-DOC-2 rules/parallel-dispatch-protocol.md has Checkpoint Vocabulary section" {
+  grep -q "Checkpoint Vocabulary" "$REPO_ROOT/rules/parallel-dispatch-protocol.md"
+  grep -q "\[CHECKPOINT\]" "$REPO_ROOT/rules/parallel-dispatch-protocol.md"
+  grep -q "tests-green" "$REPO_ROOT/rules/parallel-dispatch-protocol.md"
+}
