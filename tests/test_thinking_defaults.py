@@ -169,5 +169,25 @@ class DebugStateFileTriggersTextDisplay(unittest.TestCase):
         self.assertEqual(result["display"], "omitted")
 
 
+class DebugFrontmatterTriggersTextDisplay(unittest.TestCase):
+    def test_debug_frontmatter_triggers_text_display(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_state(tmp, "live-debug",
+                         "---\ntask_id: live-debug\nphase: debugging\n---\n")
+            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+                state = read_active_state()
+            result = resolve(tool_input={}, env={}, state=state)
+        self.assertTrue(state["debug_active"])
+        self.assertEqual(result["display"], "text")
+
+
+class SoftwareEngineerCriticalBudget10YieldsHighNotXhigh(unittest.TestCase):
+    def test_software_engineer_critical_budget_10_yields_high_not_xhigh(self):
+        tool_input = {"subagent_type": "software-engineer"}
+        state = {"critical": True, "budget": 10}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "high")
+
+
 if __name__ == "__main__":
     unittest.main()
