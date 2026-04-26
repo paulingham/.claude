@@ -4,6 +4,7 @@
 set -uo pipefail
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "minimal" || exit 0
 source ~/.claude/hooks/_lib/main-branch-detect.sh
+source ~/.claude/hooks/_lib/worktree-cwd-pairing.sh
 
 _wcc_resolve_task_id() {
   local id="${CLAUDE_PIPELINE_TASK_ID:-}" f
@@ -18,30 +19,18 @@ _wcc_emit_record() {
     '{timestamp:$ts,session_id:$sid,task_id:$tid,source:$src} + (if $extra=="" then {} else {current_head:$extra} end)'
 }
 
-_wcc_confirm_lines() {
-  local log="$1"; while IFS= read -r line; do
-    [[ "$(echo "$line" | jq -r '.source // empty')" == "prevented" ]] && _wcc_emit_record "post-confirmed" >> "$log"
-  done
-}
-
-_wcc_pair_prevented() {
-  local cursor; cursor=$(cat "$1" 2>/dev/null || echo 0)
-  local total; total=$(wc -l < "$2" 2>/dev/null | tr -d ' ')
-  [[ "$total" -le "$cursor" ]] && return 0
-  tail -n +$((cursor+1)) "$2" 2>/dev/null | _wcc_confirm_lines "$2"
-  printf '%s' "$total" > "$1"
-}
-
 _wcc_drift_check() {
-  local repo_root="$HOME/.claude" head
+  local repo_root="${CLAUDE_REPO_ROOT:-$HOME/.claude}" head
   head=$(git -C "$repo_root" rev-parse --abbrev-ref HEAD 2>/dev/null) || return 0
   [[ "$head" == "main" ]] && return 0
-  _wcc_emit_record "drift-detected" "$head" >> "$HOME/.claude/metrics/$SESSION/main-branch-violations.jsonl"
+  mkdir -p "$(dirname "$LOG")" 2>/dev/null
+  _wcc_emit_record "drift-detected" "$head" >> "$LOG"
 }
 
 TASK_ID="$(_wcc_resolve_task_id)"; TASK_ID="${TASK_ID//[^a-zA-Z0-9_.-]/}"
 [[ -z "$TASK_ID" ]] && exit 0
-SESSION="${CLAUDE_SESSION_ID:-local-$$}"
+SESSION="${CLAUDE_SESSION_ID:-local-$$}"; SESSION="${SESSION//[^a-zA-Z0-9_.-]/}"
+SESSION="${SESSION:-local-$$}"
 LOG="$HOME/.claude/metrics/$SESSION/main-branch-violations.jsonl"
 mkdir -p "$HOME/.claude/state" 2>/dev/null
 CURSOR="$HOME/.claude/state/worktree-cwd-check-cursor-${TASK_ID}"

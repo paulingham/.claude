@@ -135,3 +135,52 @@ _last_record() {
   ids=$(jq -s '[.[].subagent_id] | unique | length' "$TRAJ_FILE")
   [ "$ids" = "2" ]
 }
+
+# HIGH-5 (security) — CLAUDE_SESSION_ID with traversal must NOT escape metrics dir.
+@test "AC3.8 traversal CLAUDE_SESSION_ID is sanitized in cwd-check" {
+  ( cd "$HOME/.claude" && git init -q -b feat/x \
+    && git config user.email t@t && git config user.name t \
+    && git commit -q --allow-empty -m drift )
+  # Pre-create the parent of the traversed path so a successful escape would write a file.
+  mkdir -p "$HOME/.claude/metrics/../../etc"
+  CLAUDE_SESSION_ID="../../etc" run _run_check
+  [ "$status" -eq 0 ]
+  # No log file outside metrics tree.
+  [ ! -f "$HOME/etc/main-branch-violations.jsonl" ]
+  [ ! -f "$HOME/.claude/etc/main-branch-violations.jsonl" ]
+  # The drift-detected entry MUST land under metrics/ at a sanitized session dir
+  # (sanitization strips `/` from the session id, leaving `....etc`).
+  ls "$HOME/.claude/metrics/" >/dev/null 2>&1
+  found=$(find "$HOME/.claude/metrics" -name "main-branch-violations.jsonl" 2>/dev/null | wc -l | tr -d ' ')
+  [ "$found" -ge 1 ]
+}
+
+# MEDIUM-1 — repo_root MUST be parameterizable via CLAUDE_REPO_ROOT.
+@test "AC3.9 CLAUDE_REPO_ROOT overrides hardcoded HOME/.claude in drift check" {
+  ALT_ROOT=$(mktemp -d)/altrepo
+  mkdir -p "$ALT_ROOT"
+  ( cd "$ALT_ROOT" && git init -q -b feat/alt \
+    && git config user.email t@t && git config user.name t \
+    && git commit -q --allow-empty -m alt )
+  CLAUDE_REPO_ROOT="$ALT_ROOT" run _run_check
+  [ "$status" -eq 0 ]
+  # Drift on alt repo should be detected.
+  [ "$(_count_source drift-detected)" -ge 1 ]
+  last_drift=$(grep '"source":"drift-detected"' "$LOG" | tail -1)
+  [ "$(echo "$last_drift" | jq -r .current_head)" = "feat/alt" ]
+  rm -rf "$(dirname "$ALT_ROOT")"
+}
+
+# MEDIUM-2 — corrupt cursor file MUST be reset to 0, not propagate garbage.
+@test "AC3.10 corrupt cursor file resets to 0 (no garbage offsets)" {
+  _seed_prevented "git checkout foo"
+  # Pre-poison the cursor with non-numeric garbage.
+  printf '%s' "not-a-number" > "$CURSOR"
+  run _run_check
+  [ "$status" -eq 0 ]
+  # post-confirmed entries SHOULD have been emitted (cursor reset to 0 means we re-paired).
+  [ "$(_count_source post-confirmed)" -ge 1 ]
+  # And the cursor MUST now hold a non-negative integer.
+  cursor_val=$(cat "$CURSOR")
+  [[ "$cursor_val" =~ ^[0-9]+$ ]]
+}
