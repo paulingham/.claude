@@ -125,6 +125,28 @@ Teammates do NOT auto-load `agents/*.md`. The orchestrator MUST append this to e
 
 This is automatic and mandatory -- the user should never need to mention it.
 
+### Thinking Injection (Automatic)
+
+Every Agent spawn MUST include a `thinking` field on `tool_input`. The `pre-agent-thinking.sh` PreToolUse hook validates this on every spawn — missing fields cause an exit-2 block (Path B) with the resolved defaults in the stdout reason. The orchestrator computes the field per `rules/thinking-defaults.md`:
+
+- Default `effort=high`, `display=omitted` for every role
+- `architect` + (critical OR budget>=7) → `effort=xhigh`
+- `security-engineer` + critical AND budget>=7 → `effort=xhigh`
+- Best-of-N candidates (`name` starts with `boN-`) + budget>=7 → `effort=xhigh`
+- Active debug pipeline state → `display=text`
+- `CLAUDE_THINKING_EFFORT` / `CLAUDE_THINKING_DISPLAY` env vars override everything
+
+Spawn template:
+```
+Agent({
+  subagent_type: "architect",
+  thinking: { effort: "xhigh", display: "omitted" },  // computed per rules/thinking-defaults.md
+  ...
+})
+```
+
+If a spawn is blocked, read the hook's stderr — it includes the exact `{effort, display}` values to add.
+
 ### Instinct Injection (Automatic)
 
 Before spawning any agent (subagent or teammate), the orchestrator loads relevant instincts:
