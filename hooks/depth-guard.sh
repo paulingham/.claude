@@ -24,7 +24,7 @@ _dg_resolve_depth() {
 
 _dg_block() {
   local depth="$1" max="$2" stype="$3"
-  printf 'BLOCKED: subagent recursion max recursion depth exceeded.\n' >&2
+  printf 'BLOCKED: subagent max recursion depth exceeded.\n' >&2
   printf '  current depth: %s, max: %s\n' "$depth" "$max" >&2
   printf 'See rules/agent-protocol.md > Resource Bounds.\n' >&2
   _dg_log_violation "$depth" "$max" "$stype"
