@@ -338,6 +338,11 @@
           },
           {
             "type": "command",
+            "command": "bash ~/.claude/hooks/pre-agent-allowlist.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
             "command": "bash ~/.claude/hooks/depth-guard.sh",
             "timeout": 5000
           },
