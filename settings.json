@@ -6,7 +6,10 @@
     "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
     "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1",
     "CLAUDE_CODE_SUBAGENT_MODEL": "opus",
-    "CLAUDE_ENABLE_TRACE": "1"
+    "CLAUDE_ENABLE_TRACE": "1",
+    "CLAUDE_SUBAGENT_MAX_DEPTH": "3",
+    "CLAUDE_SUBAGENT_MAX_RUNTIME": "1800",
+    "CLAUDE_TEAMMATE_MAX_RUNTIME": "3600"
   },
   "permissions": {
     "allow": [
@@ -242,6 +245,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/governance-capture.sh",
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/runtime-guard.sh",
+            "timeout": 5000
           }
         ]
       },
@@ -267,6 +275,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/governance-capture.sh",
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/runtime-guard.sh",
+            "timeout": 5000
           }
         ]
       },
@@ -292,6 +305,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/governance-capture.sh",
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/runtime-guard.sh",
+            "timeout": 5000
           }
         ]
       },
@@ -316,6 +334,16 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/pre-agent-advisor.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/depth-guard.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/runtime-guard.sh",
             "timeout": 5000
           }
         ]
@@ -545,7 +573,7 @@
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-daltonized",
   "teammateMode": "auto",
-  "remoteControlAtStartup": false,
+  "remoteControlAtStartup": true,
   "mcpServers": {
     "memory": {
       "command": "python3",

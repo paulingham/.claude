@@ -259,3 +259,61 @@ excludes `.claude/worktrees/`. Add exclusion if missing:
 - **rspec**: `--exclude-pattern '.claude/**'` in .rspec
 - **Go**: Module-scoped by default (no issue unless using recursive `./...`)
 - **Other**: Add equivalent exclusion for the project's test runner
+
+## Resource Bounds
+
+The harness caps subagent recursion depth and per-job wall-clock time so no
+pipeline can run away. Caps live in the `settings.json` `env` block (single
+source of truth):
+
+| Bound | Default | Env override |
+|-------|---------|--------------|
+| Subagent recursion depth | 3 | `CLAUDE_SUBAGENT_MAX_DEPTH` |
+| Subagent wall-clock | 1800s | `CLAUDE_SUBAGENT_MAX_RUNTIME` |
+| Teammate wall-clock | 3600s | `CLAUDE_TEAMMATE_MAX_RUNTIME` |
+
+**Enforcement hooks:**
+
+- `hooks/depth-guard.sh` (PreToolUse Agent): refuses spawn when
+  `CLAUDE_SUBAGENT_DEPTH >= max`. Top-level orchestrator (variable unset)
+  is treated as depth 0. Logs `metrics/$SID/depth-violations.jsonl` with
+  `record_type:"depth_violation"`, `depth`, `max_depth`, `subagent_type`,
+  `task_id`, `action:"prevented"`. Exit 2 on block.
+- `hooks/runtime-guard.sh` (PreToolUse Agent|Bash|Write|Edit; Read
+  excluded — high-volume, fast-bounded). Mode A on Agent records
+  `metrics/$SID/subagent-runtimes/<key>.start` (idempotent — first-seen
+  timestamp wins). Mode B on Bash|Write|Edit performs an orchestrator-level
+  global scan and emits a shutdown directive on stderr (exit 2) for any
+  start-file whose elapsed time exceeds the per-class cap. No
+  `CLAUDE_SUBAGENT_ID` dependency — Option C global scan reads start-file
+  bodies (`<unix_ts>:<class>:<display>`) for stderr enrichment. Logs
+  `metrics/$SID/runtime-violations.jsonl`.
+- `hooks/subagent-stop-trajectory.sh` — extended on SubagentStop to delete
+  the matching `<key>.start` file, preventing stale-timestamp false
+  positives on re-spawn with the same key. Shared SHA1 derivation via
+  `_lib/runtime-guard-key.sh`.
+
+**Shutdown semantics by class** (honest Path-B disclosure):
+
+- **Teammate** (`team_name` non-empty): stderr block is the exact
+  `SendMessage({type:"shutdown_request", name:"<display>"})` form,
+  directly actionable per `## Teammate Lifecycle (team phases)` above.
+- **Non-team subagent**: stderr says "next tool call blocked; orchestrator
+  should re-dispatch per rules/operational-protocol.md". No equivalent
+  out-of-band kill exists in the current Agent tool input schema; the
+  next tool the runaway subagent attempts is refused at PreToolUse, the
+  orchestrator interprets the violation log, and decides re-dispatch
+  (retry-twice-then-escalate). Mirrors the `pre-agent-thinking.sh` Path-B
+  precedent — a degraded-but-correct enforcement today, one-line flip
+  when the API surface lands.
+
+**Depth propagation contract:** orchestrators MUST set
+`CLAUDE_SUBAGENT_DEPTH = parent_depth + 1` in the shell that invokes Agent
+before each spawn. The child inherits the variable via process env. See
+`orchestrator/agent-orchestration.md > § Spawn Procedure` and
+`orchestrator/parallel-dispatch-details.md > § Team Dispatch` for the
+literal example bash assignment.
+
+**Forensics:** `metrics/$SID/depth-violations.jsonl` and
+`metrics/$SID/runtime-violations.jsonl` join on `session_id` + `task_id`
+for retroactive auditing of cap breaches.
