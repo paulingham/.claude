@@ -58,9 +58,11 @@ if git branch | grep -q "build/test-boN-bad"; then
 fi
 echo "PASS: loser cleanup"
 
-gate_low="$(check_budget_gate 5)"
-gate_high="$(check_budget_gate 7)"
-assert_eq "WRONG_SKILL" "$gate_low" "budget gate rejects low budget"
-assert_eq "OK" "$gate_high" "budget gate accepts high budget"
+gate_below="$(check_budget_gate 4)"
+gate_at="$(check_budget_gate 5)"
+gate_above="$(check_budget_gate 7)"
+assert_eq "WRONG_SKILL" "$gate_below" "budget gate rejects below threshold"
+assert_eq "OK" "$gate_at" "budget gate accepts at threshold"
+assert_eq "OK" "$gate_above" "budget gate accepts above threshold"
 
 echo "ALL TESTS PASSED"

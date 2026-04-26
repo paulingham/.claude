@@ -68,6 +68,27 @@ Sections:
 - `== Evidence ==` — per non-locked cell: observation count, success rate per model, cost/success per model, cost delta, confidence flag.
 - `== How to apply ==` — instructions for a human operator to edit the agent definition file frontmatter. The orchestrator does NOT auto-apply.
 
+## Best-of-N Tuning (Advisory)
+
+Once Best-of-N has accumulated enough data, this skill also produces an advisory ROI verdict on the gate threshold (`min_budget` in `skills/best-of-n/config.json`).
+
+**Data sources**:
+- `~/.claude/learning/{project-hash}/observations.jsonl` — pipelines that ran Best-of-N (detect via `phases.build.dispatch == "best-of-n"`) vs. standard build
+- `~/.claude/metrics/costs.jsonl` — `total_cost_usd` per pipeline, joined by `pipeline_id`
+
+**Metrics**:
+- **Quality uplift**: delta in `clean_first_pass_pct` and `rework_rate` between Best-of-N and matched standard pipelines (matched on `task_class` + Complexity Budget bucket).
+- **Extra cost ratio**: `mean(cost_per_pipeline | best-of-n) / mean(cost_per_pipeline | standard)` for the same matched cells.
+
+**Decision tree**:
+- **ROI HEALTHY**: quality uplift >= 5% absolute AND extra cost ratio <= 2.5x → no change recommended.
+- **BORDERLINE**: 2% <= uplift < 5% OR 2.5x < ratio <= 3.5x → flag for human review; do not recommend a config change.
+- **ROI POOR**: uplift < 2% AND/OR ratio > 3.5x → recommend raising `min_budget` (e.g. 5 → 6 or 5 → 7) to reduce Best-of-N firing rate. Advisory text only.
+
+**Confidence gate**: require ≥ 10 Best-of-N pipelines AND ≥ 10 matched standard pipelines in the same `(task_class, budget bucket)` cell. Below threshold → `INSUFFICIENT_DATA` for the Best-of-N section; remainder of the report still publishes.
+
+**Advisory only**: this section never auto-edits `config.json` and never changes the gate at runtime. A human operator decides whether to bump `min_budget` based on the report.
+
 ## Safeguards (IRON LAW)
 
 - Does NOT modify any agent `.md` file.

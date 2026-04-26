@@ -162,6 +162,26 @@ Always print one of:
 
 Persist the flag to `pipeline-state/{task-id}-intake.md` frontmatter as `critical: true|false`. `/pipeline` reads this flag to decide whether the Build phase routes to `/best-of-n` or the standard `/build-implementation`.
 
+### Step 2d-bis: Best-of-N Tag (MANDATORY)
+
+Derive `bestofn`:
+`bestofn = critical OR (task_class == "feature" AND complexity_budget >= 5)`
+
+Bug, refactor, and spike pipelines are excluded from the budget path.
+
+Always print:
+```
+[Intake] Best-of-N: enabled (reason: critical | feature+budget>=5)
+```
+or:
+```
+[Intake] Best-of-N: disabled
+```
+
+Persist both to `pipeline-state/{task-id}-intake.md` frontmatter:
+- `task_class: {the classification from Step 1}`
+- `bestofn: true|false`
+
 ### Step 3: Pre-flight Check
 
 Before invoking pipeline, verify and auto-fix:
@@ -179,6 +199,8 @@ Output the classification and route:
 ```
 [Intake] Classification: [type]
 [Intake] Complexity: [small/medium/large] ([N] files, [coverage], [scope])
+[Intake] Criticality: [critical/standard]
+[Intake] Best-of-N: [enabled/disabled]
 [Intake] Entry skill: /[skill-name]
 [Intake] Pipeline phases: [list]
 ```

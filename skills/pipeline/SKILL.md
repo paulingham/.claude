@@ -71,7 +71,7 @@ Classification: [feature/refactor/bug]
 
 Update this file as each phase completes with verdict, artifacts, and agent summaries.
 
-**Mirror the `critical` flag from intake.** Read `critical` from `pipeline-state/{task-id}-intake.md` (set by intake Step 2d) and write it into the pipeline state frontmatter on creation. This ensures `/pipeline-resume` preserves criticality across context compaction so the Build phase still routes correctly.
+**Mirror the `critical`, `task_class`, and `bestofn` flags from intake.** Read all three from `pipeline-state/{task-id}-intake.md` (set by intake Steps 2d and 2d-bis) and write them into the pipeline state frontmatter on creation. This ensures `/pipeline-resume` preserves the dispatch decision across context compaction so the Build phase still routes correctly.
 
 **Do NOT dual-write to memory/.** The `pipeline-state/` file is the sole authority. Use `/pipeline-resume` to recover state across sessions.
 
@@ -229,16 +229,17 @@ For each phase:
 5. If verdict is a failure/rejection: handle per Step 4 (Recovery)
 6. If verdict is success: update memory file with verdict and artifacts, advance to next
 
-#### Build Phase Dispatch — Criticality Check
+#### Build Phase Dispatch — Best-of-N Check
 
-Before dispatching the Build phase, read the `critical` flag from the intake state (`pipeline-state/{task-id}-intake.md`) or the mirrored pipeline state frontmatter.
+Read `bestofn` from the pipeline state frontmatter (mirrored from `pipeline-state/{task-id}-intake.md` at pipeline creation; computed by intake Step 2d-bis as `critical OR (task_class == "feature" AND budget >= 5)`).
 
-- If `critical == true` AND Complexity Budget >= 7: dispatch via the **Best-of-N Build Team** variant (see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team). This is not a separate skill — it is a dispatch mode of the Build Team that runs N candidate models in parallel and selects the winner. The winner still proceeds through the normal Review → Final Gate → Ship gates.
+- If `bestofn == true`: dispatch via the **Best-of-N Build Team** variant (see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team). This is not a separate skill — it is a dispatch mode of the Build Team that runs N candidate models in parallel and selects the winner. The winner still proceeds through the normal Review → Final Gate → Ship gates.
+- If absent (older pipelines pre-flag): treated as `False` — use standard Build dispatch.
 - Otherwise: use the standard Build dispatch (single-engineer subagent with worktree, or standard Build Team for multi-slice / multi-domain work).
 
 **Fallback**: on `BEST_OF_N_FAILED` (e.g. insufficient candidates after env-var validation, or all candidates failed their own tests), automatically fall back to the standard Build dispatch and log the fallback in pipeline state under `## Re-routes` (e.g. `re-routed from best-of-n to standard build (reason: insufficient candidates)`). The pipeline never halts on a Best-of-N failure and never asks the user.
 
-This check fires ONLY at Build dispatch. Scaffolding, Polish, Review, Final Gate, Ship, and Deploy are unaffected by criticality.
+This check fires ONLY at Build dispatch. Scaffolding, Polish, Review, Final Gate, Ship, and Deploy are unaffected.
 
 #### Polish Phase (Conditional: Budget >= 7)
 
