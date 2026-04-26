@@ -29,7 +29,15 @@ def _advisory(tool_input, frontmatter_tools):
     return None
 
 
+def _subset_check(tool_input, frontmatter_tools):
+    requested = (tool_input or {}).get("allowed_tools") or []
+    offending = [t for t in requested if t not in frontmatter_tools]
+    if not offending:
+        return _result("ok", "subset-ok")
+    return _result("would_block", "superset-requested", offending)
+
+
 def resolve(tool_name, tool_input, frontmatter_tools):
     return (_preflight(tool_name, tool_input)
             or _advisory(tool_input, frontmatter_tools)
-            or _result("skip", "non-agent"))
+            or _subset_check(tool_input, frontmatter_tools))

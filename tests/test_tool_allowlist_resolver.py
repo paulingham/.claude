@@ -50,3 +50,40 @@ class ResolverAdvisoryWhenAllowedToolsAbsent(unittest.TestCase):
                          frontmatter_tools=["Read", "Write", "Edit"])
         self.assertEqual(result["action"], "advisory")
         self.assertEqual(result["source"], "schema-absent")
+
+
+class ResolverOkWhenSubsetMatches(unittest.TestCase):
+    def test_ok_when_requested_tools_subset_of_frontmatter(self):
+        result = resolve(
+            tool_name="Agent",
+            tool_input={"subagent_type": "software-engineer",
+                        "allowed_tools": ["Read", "Edit"]},
+            frontmatter_tools=["Read", "Write", "Edit", "Bash"])
+        self.assertEqual(result["action"], "ok")
+        self.assertEqual(result["source"], "subset-ok")
+        self.assertEqual(result["offending_tools"], [])
+
+
+class ResolverTreatsToolNamesCaseSensitively(unittest.TestCase):
+    def test_lowercase_read_does_not_match_uppercase_read(self):
+        # Tool names are case-sensitive — "read" must NOT pass when only "Read" allowed
+        result = resolve(
+            tool_name="Agent",
+            tool_input={"subagent_type": "software-engineer",
+                        "allowed_tools": ["read"]},
+            frontmatter_tools=["Read", "Write"])
+        self.assertEqual(result["action"], "would_block")
+        self.assertEqual(result["offending_tools"], ["read"])
+
+
+class ResolverBlocksWhenSupersetRequested(unittest.TestCase):
+    def test_would_block_when_request_exceeds_frontmatter(self):
+        result = resolve(
+            tool_name="Agent",
+            tool_input={"subagent_type": "code-reviewer",
+                        "allowed_tools": ["Read", "Write", "Edit"]},
+            frontmatter_tools=["Read", "Grep", "Glob"])
+        self.assertEqual(result["action"], "would_block")
+        self.assertEqual(result["source"], "superset-requested")
+        # Order preserved, only tools NOT in frontmatter listed
+        self.assertEqual(result["offending_tools"], ["Write", "Edit"])
