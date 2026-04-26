@@ -5,6 +5,7 @@ tools:
   - Read
   - Grep
   - Glob
+  - WebFetch
 model: sonnet
 maxTurns: 30
 disallowedTools:
