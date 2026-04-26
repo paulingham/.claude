@@ -312,6 +312,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/pre-agent-thinking.sh",
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/pre-agent-advisor.sh",
+            "timeout": 5000
           }
         ]
       },

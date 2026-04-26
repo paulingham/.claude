@@ -7,6 +7,22 @@ agent: code-reviewer
 
 # Code Review
 
+## Advisor Mode (Sonnet executor + Opus advisor)
+
+**Pairing**: code-reviewer ships with `executor: claude-sonnet-4-6` and `advisor: claude-opus-4-7` in its frontmatter. Sonnet drives the review (cheap, fast, large-context-friendly), Opus is consulted for design-judgement calls.
+
+**Status**: This is the **intended default** — currently advisory because the Agent input schema does not yet expose `advisor`. Will become the enforced default the moment the schema lands. Until then, the `pre-agent-advisor.sh` PreToolUse hook logs the would-be pairing to `metrics/{session}/advisor-dispatch.jsonl` for observability; no spawn is blocked, no model is downgraded.
+
+**Fallback semantics** (all log-only today, all enforced later):
+- Frontmatter pairing present + `ANTHROPIC_API_KEY` set + `CLAUDE_REVIEW_ADVISOR_DISABLED` unset → executor=sonnet, advisor=opus (`source: frontmatter-pairing`)
+- `CLAUDE_REVIEW_ADVISOR_DISABLED=1` → executor/advisor both null, `source: env-disabled` (operator override; pure `model:` opus solo)
+- `ANTHROPIC_API_KEY` missing → executor/advisor both null, `source: no-api-key`
+- Frontmatter omits executor/advisor (e.g. software-engineer) → not a reviewer; `source: no-pairing-frontmatter`
+
+**Cost** (PROVISIONAL pending advisor-baseline):
+- Naive Opus-solo cost vs. Sonnet+Opus-advisor pairing: roughly ~40% cheaper per review (PROVISIONAL — see `eval/baselines/{latest}-advisor-baseline.md`).
+- Quality-equivalence claim (≥95% verdict-agreement on the regression suite) is also PROVISIONAL until advisor-baseline runs.
+
 ## What This Skill Does
 
 Automates the Review phase code audit. Spawns a read-only code-reviewer agent to assess code quality against engineering standards.
