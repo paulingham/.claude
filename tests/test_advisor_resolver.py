@@ -5,10 +5,23 @@ RED-GREEN cycle, then stdin-script smoke, then bash-wrapper smoke. The
 resolver itself is pure (no I/O) — see `hooks/_lib/advisor_resolver.py`.
 """
 import inspect
+import json
+import subprocess
 import unittest
+from pathlib import Path
 
 import advisor_resolver
 from advisor_resolver import parse_frontmatter, resolve
+
+RESOLVER_SCRIPT = Path(__file__).resolve().parents[1] / "hooks" / "_lib" / "resolve-advisor.py"
+
+
+def _run_resolver(payload, env=None):
+    import os
+    proc_env = {**os.environ, **(env or {})}
+    return subprocess.run(
+        ["python3", str(RESOLVER_SCRIPT)], input=json.dumps(payload),
+        capture_output=True, text=True, timeout=10, env=proc_env)
 
 
 _INLINE_REVIEWER_FRONTMATTER = """---
@@ -123,6 +136,22 @@ class ResolverReturnsFrontmatterPairingWhenBothPresent(unittest.TestCase):
         self.assertEqual(result["advisor"], "claude-opus-4-7")
         self.assertEqual(result["fallback_reason"], "")
         self.assertEqual(result["source"], "frontmatter-pairing")
+
+
+class StdinScriptEmitsDecisionAndResolved(unittest.TestCase):
+    def test_stdin_script_emits_decision_and_resolved(self):
+        payload = {"tool_name": "Agent",
+                   "tool_input": {"subagent_type": "code-reviewer"}}
+        result = _run_resolver(payload, env={"ANTHROPIC_API_KEY": "sk-test"})
+        self.assertEqual(result.returncode, 0)
+        first, second = result.stdout.strip().splitlines()
+        self.assertIn(first, {"LOG", "SKIP"})
+        json.loads(second)  # second line is valid JSON
+
+    def test_non_agent_emits_skip(self):
+        result = _run_resolver({"tool_name": "Bash", "tool_input": {}})
+        first = result.stdout.strip().splitlines()[0]
+        self.assertEqual(first, "SKIP")
 
 
 if __name__ == "__main__":
