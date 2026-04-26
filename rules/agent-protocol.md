@@ -107,6 +107,69 @@ Never leave stale worktrees — they consume disk space and confuse test runners
 
 For the harness-of-harness case (session worktrees of `$HOME/.claude` created by `scripts/new-session.sh`), see `knowledge/session-isolation-patterns.md` for which state is shared via symlinks vs per-branch.
 
+## Main-Branch Invariant
+
+> **IRON LAW: REPO_ROOT HEAD STAYS ON `main` FOR THE ENTIRE DURATION OF EVERY PIPELINE RUN.**
+
+Every git mutation that would move HEAD runs against a *worktree path*, expressed via an explicit delegation prefix in the command string. This is what allows multiple Claude Code sessions to coexist on the same physical clone without branch-state stomping.
+
+### Forbidden bare forms (caught by `hooks/main-branch-guard.sh`)
+
+- `git checkout <branch>` / `git checkout -b <branch>`
+- `git switch <branch>` / `git switch -c <branch>`
+- `git branch -d <name>` / `git branch -D <name>`
+- `git reset --hard ...`
+- `git merge <ref>`
+- `git rebase <upstream>`
+- `git pull` (any args)
+- `git fetch <remote> <src>:<local-dst>` (refspec writing a local ref, e.g. `main:main`, `pull/123/head:pr-123`)
+- `git push <remote> <src>:main` (writing remote main)
+- `gh pr create ...`
+
+### Allowed delegated forms
+
+- `git -C <worktree-path> <cmd>`
+- `git --git-dir=<worktree-path>/.git <cmd>`
+- `cd <worktree-path> && <cmd>`
+- `(cd <worktree-path> && <cmd>)`
+
+`;`-separator does NOT count as delegation. `cd /tmp/x; git checkout foo` is **forbidden** — the `;` separator does not compose semantically with `cd` to guarantee the second clause runs in the new cwd. Only `&&` does. (Mechanically: `split_clauses` splits on `;` too, so a standalone `git checkout foo` clause is evaluated on its own and rejected as a bare form.) Use `&&` or the `git -C` / `git --git-dir=` flags.
+
+### Always allowed (any cwd, any form)
+
+Read-only ops (`git status|log|diff|show|rev-parse|describe|blame`), `git fetch <remote>` without refspec, `git fetch --all`, refspecs that write only `refs/remotes/...`, `git worktree {add,list,remove,prune}`, `git push <remote> <branch>` to non-main destinations, `git add|commit|tag|notes`.
+
+### How agents must operate
+
+- Agents always have a worktree assigned by the orchestrator. The path is in the spawn prompt.
+- Mutate via `git -C "$WORKTREE" <cmd>` or `(cd "$WORKTREE" && <cmd>)`. Never type a bare HEAD-moving command.
+- The `gh pr create` call runs INSIDE a `(cd "$WORKTREE" && ...)` wrapper. If you find yourself typing a bare `gh pr create`, stop — the guard will block it.
+
+### Verification
+
+At any observation point in any session:
+
+```bash
+git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD
+```
+
+must return `main`. The `main-branch-guard.sh` PreToolUse Bash hook prevents violations dynamically; the `worktree-cwd-check.sh` SubagentStop hook diagnoses any violation that slipped through (post-hoc forensics + drift detection).
+
+### Why this matters
+
+The harness-of-harness model lets the user spawn parallel sessions via `scripts/new-session.sh`, each in its own worktree under `$HOME/.claude-sessions/`. Those worktrees share state directories with REPO_ROOT (per `knowledge/session-isolation-patterns.md`). If REPO_ROOT HEAD moves, every concurrent session's git operations start fighting for the same branch — pull/fetch/merge become non-deterministic, eval baselines stamp against the wrong SHA, trajectory writers and observation-capture log against the wrong commit graph, and the human user sees "why is HEAD on `feature/foo`?!".
+
+### Why command-shape inspection (not cwd inspection)
+
+The guard inspects the COMMAND STRING the agent literally typed, not the cwd of the spawned Bash process. The harness reliably exposes `tool_input.command` (every existing Bash hook in the codebase reads it); it does NOT reliably expose `tool_input.cwd` for subagent calls (no existing hook in this codebase reads it). Command-shape is a single source of truth: agents either type a delegated form (allowed) or a bare form (forbidden), with no hidden state to chase. This makes the rule decidable from the command string alone, with no per-process cwd resolution.
+
+Trade-off accepted: bare `git checkout foo` is forbidden universally — even from inside a worktree. Inside a worktree the agent must still write `git -C "$WORKTREE" checkout foo` (or `cd "$WORKTREE" && git checkout foo`). This is tighter than strictly necessary, and it is intentional: it makes the rule trivially auditable from the command string alone.
+
+### Enforcement hooks
+
+- `hooks/main-branch-guard.sh` — PreToolUse Bash hook. Inspects `tool_input.command`, blocks (exit 2) any forbidden bare form, logs to `metrics/$SESSION/main-branch-violations.jsonl` with `source: "prevented"`.
+- `hooks/worktree-cwd-check.sh` — SubagentStop hook. Re-confirms prevented violations and detects drift (`git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD != "main"`), appending `source: "post-confirmed"` and `source: "drift-detected"` records. Diagnostic only — never blocks.
+
 ## Teammate Lifecycle (team phases)
 
 Teammates are spawned just-in-time and shut down after their phase:
