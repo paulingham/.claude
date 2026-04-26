@@ -27,19 +27,22 @@ def _kv(line):
     return key.strip(), value.strip()
 
 
-def _coerce(fields):
+def _coerce(fields, debug_active):
     return {
         "task_id": fields.get("task_id", ""),
         "phase": fields.get("phase", ""),
         "critical": fields.get("critical", "").lower() in _TRUE,
         "budget": int(fields.get("budget", "0") or 0),
-        "debug_active": fields.get("phase", "") == "debugging",
+        "debug_active": debug_active or fields.get("phase", "") == "debugging",
     }
+
+
+def _debug_file_exists(directory, task_id):
+    return bool(task_id) and Path(directory, f"{task_id}-debug.md").exists()
 
 
 def read_active_state(state_dir=None):
     directory = _state_dir(state_dir)
     pipeline_file = _find_pipeline_file(directory)
-    if not pipeline_file:
-        return _coerce({})
-    return _coerce(_parse_frontmatter(Path(pipeline_file).read_text()))
+    fields = _parse_frontmatter(Path(pipeline_file).read_text()) if pipeline_file else {}
+    return _coerce(fields, _debug_file_exists(directory, fields.get("task_id", "")))

@@ -32,9 +32,13 @@ def _role_effort(tool_input, state):
     return None
 
 
+def _state_display(state):
+    return "text" if (state or {}).get("debug_active") else None
+
+
 def resolve(tool_input, env, state):
     explicit = _explicit(tool_input)
     role = _role_effort(tool_input, state)
     effort = _valid_env(env, "CLAUDE_THINKING_EFFORT", _EFFORTS) or explicit.get("effort") or role or "high"
-    display = _valid_env(env, "CLAUDE_THINKING_DISPLAY", _DISPLAYS) or explicit.get("display", "omitted")
+    display = _valid_env(env, "CLAUDE_THINKING_DISPLAY", _DISPLAYS) or explicit.get("display") or _state_display(state) or "omitted"
     return {"effort": effort, "display": display, "source": "default"}

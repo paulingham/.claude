@@ -143,5 +143,31 @@ class BestOfNCandidateXhigh(unittest.TestCase):
         self.assertEqual(result["effort"], "xhigh")
 
 
+class BestOfNCandidateLowBudgetHigh(unittest.TestCase):
+    def test_best_of_n_candidate_low_budget_high(self):
+        tool_input = {"subagent_type": "software-engineer", "name": "boN-opus"}
+        state = {"critical": True, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "high")
+
+
+class DebugStateFileTriggersTextDisplay(unittest.TestCase):
+    def test_debug_state_file_triggers_text_display(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_state(tmp, "fix-me",
+                         "---\ntask_id: fix-me\nphase: build\n---\n")
+            (Path(tmp) / "fix-me-debug.md").write_text("debug notes")
+            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+                state = read_active_state()
+            result = resolve(tool_input={}, env={}, state=state)
+        self.assertEqual(result["display"], "text")
+
+    def test_debug_mention_in_prompt_does_not_trigger_text(self):
+        result = resolve(
+            tool_input={"prompt": "see skills/debug/SKILL.md for context"},
+            env={}, state={"debug_active": False})
+        self.assertEqual(result["display"], "omitted")
+
+
 if __name__ == "__main__":
     unittest.main()
