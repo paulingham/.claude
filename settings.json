@@ -333,6 +333,11 @@
           },
           {
             "type": "command",
+            "command": "bash ~/.claude/hooks/pre-agent-advisor.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
             "command": "bash ~/.claude/hooks/depth-guard.sh",
             "timeout": 5000
           },
@@ -568,7 +573,7 @@
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-daltonized",
   "teammateMode": "auto",
-  "remoteControlAtStartup": false,
+  "remoteControlAtStartup": true,
   "mcpServers": {
     "memory": {
       "command": "python3",

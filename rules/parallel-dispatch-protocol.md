@@ -85,13 +85,15 @@ When `/intake` has tagged the task `bestofn: true` (computed in Step 2d-bis as `
 
 ### Review Team (always)
 
-| Teammate | When |
-|----------|------|
-| code-reviewer | Always |
-| security-engineer | Always |
-| fix-engineer | Spawned into team on CHANGES_REQUESTED, shut down after fix |
+| Teammate | When | Pairing |
+|----------|------|---------|
+| code-reviewer | Always | executor: sonnet, advisor: opus (intended default — currently advisory) |
+| security-engineer | Always | executor: sonnet, advisor: opus (intended default — currently advisory) |
+| fix-engineer | Spawned into team on CHANGES_REQUESTED, shut down after fix | inherits from role |
 
 Key advantage: reviewer **remembers the codebase** on re-review -- no context reconstruction. On CHANGES_REQUESTED, spawn fix-engineer into the same team, then re-assign review task to the raising reviewer (still alive, still has context).
+
+**Advisor-mode cost** (PROVISIONAL pending advisor-baseline run; see `eval/baselines/{latest}-advisor-baseline.md`): Sonnet+Opus-advisor pairing is roughly ~40% cheaper per review than naive Opus-solo, with quality-equivalence (≥95% verdict-agreement) targeted but not yet measured. Hook (`pre-agent-advisor.sh`) is log-only today — see `rules/thinking-defaults.md` for the parallel Path B status.
 
 ### Final Gate Team (always)
 
