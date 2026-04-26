@@ -164,6 +164,33 @@ class StdinScriptEmitsDecisionAndResolved(unittest.TestCase):
         self.assertEqual(first, "SKIP")
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _read_agent_frontmatter(name):
+    import re
+    import yaml
+    text = (REPO_ROOT / "agents" / f"{name}.md").read_text()
+    match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+    return yaml.safe_load(match.group(1)) if match else {}
+
+
+class CodeReviewerHasAdvisorPairing(unittest.TestCase):
+    def test_code_reviewer_has_advisor_pairing(self):
+        fm = _read_agent_frontmatter("code-reviewer")
+        self.assertEqual(fm["executor"], "claude-sonnet-4-6")
+        self.assertEqual(fm["advisor"], "claude-opus-4-7")
+        self.assertEqual(fm["model"], "opus", "model: opus must be UNCHANGED")
+
+
+class SecurityEngineerHasAdvisorPairing(unittest.TestCase):
+    def test_security_engineer_has_advisor_pairing(self):
+        fm = _read_agent_frontmatter("security-engineer")
+        self.assertEqual(fm["executor"], "claude-sonnet-4-6")
+        self.assertEqual(fm["advisor"], "claude-opus-4-7")
+        self.assertEqual(fm["model"], "opus", "model: opus must be UNCHANGED")
+
+
 class HookLogsToJsonlOnReviewerSpawn(unittest.TestCase):
     def test_hook_logs_to_jsonl_on_reviewer_spawn(self):
         session = f"test-{uuid.uuid4()}"
