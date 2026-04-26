@@ -6,21 +6,31 @@ resolver itself is pure (no I/O) — see `hooks/_lib/advisor_resolver.py`.
 """
 import inspect
 import json
+import os
 import subprocess
+import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 import advisor_resolver
 from advisor_resolver import parse_frontmatter, resolve
 
 RESOLVER_SCRIPT = Path(__file__).resolve().parents[1] / "hooks" / "_lib" / "resolve-advisor.py"
+HOOK = Path(__file__).resolve().parents[1] / "hooks" / "pre-agent-advisor.sh"
 
 
 def _run_resolver(payload, env=None):
-    import os
     proc_env = {**os.environ, **(env or {})}
     return subprocess.run(
         ["python3", str(RESOLVER_SCRIPT)], input=json.dumps(payload),
+        capture_output=True, text=True, timeout=10, env=proc_env)
+
+
+def _run_hook(payload, env=None):
+    proc_env = {**os.environ, **(env or {})}
+    return subprocess.run(
+        ["bash", str(HOOK)], input=json.dumps(payload),
         capture_output=True, text=True, timeout=10, env=proc_env)
 
 
@@ -152,6 +162,37 @@ class StdinScriptEmitsDecisionAndResolved(unittest.TestCase):
         result = _run_resolver({"tool_name": "Bash", "tool_input": {}})
         first = result.stdout.strip().splitlines()[0]
         self.assertEqual(first, "SKIP")
+
+
+class HookLogsToJsonlOnReviewerSpawn(unittest.TestCase):
+    def test_hook_logs_to_jsonl_on_reviewer_spawn(self):
+        session = f"test-{uuid.uuid4()}"
+        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
+        try:
+            result = _run_hook(
+                {"tool_name": "Agent", "tool_input": {"subagent_type": "code-reviewer"}},
+                env={"CLAUDE_SESSION_ID": session, "ANTHROPIC_API_KEY": "sk-test"})
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue(log_path.exists(), f"expected log at {log_path}")
+            line = log_path.read_text().strip().splitlines()[-1]
+            entry = json.loads(line)
+            self.assertEqual(entry["agent_role"], "code-reviewer")
+            self.assertIn("source", entry)
+        finally:
+            if log_path.exists():
+                log_path.unlink()
+            if log_path.parent.exists():
+                log_path.parent.rmdir()
+
+    def test_hook_exits_zero_on_non_agent(self):
+        result = _run_hook({"tool_name": "Bash", "tool_input": {}})
+        self.assertEqual(result.returncode, 0)
+
+    def test_hook_never_blocks_even_when_advisor_disabled(self):
+        result = _run_hook(
+            {"tool_name": "Agent", "tool_input": {"subagent_type": "code-reviewer"}},
+            env={"CLAUDE_REVIEW_ADVISOR_DISABLED": "1"})
+        self.assertEqual(result.returncode, 0)
 
 
 if __name__ == "__main__":
