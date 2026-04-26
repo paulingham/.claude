@@ -1,0 +1,36 @@
+"""Advisor-mode reviews resolver tests (incremental TDD).
+
+Mirrors `tests/test_thinking_defaults.py` shape: precedence-by-precedence
+RED-GREEN cycle, then stdin-script smoke, then bash-wrapper smoke. The
+resolver itself is pure (no I/O) — see `hooks/_lib/advisor_resolver.py`.
+"""
+import unittest
+
+from advisor_resolver import parse_frontmatter
+
+
+_INLINE_REVIEWER_FRONTMATTER = """---
+name: code-reviewer
+description: example
+tools:
+  - Read
+model: opus
+executor: claude-sonnet-4-6
+advisor: claude-opus-4-7
+---
+
+# Code Reviewer
+Body here.
+"""
+
+
+class ParsesFrontmatterWithExecutorAndAdvisor(unittest.TestCase):
+    def test_parses_frontmatter_with_executor_and_advisor(self):
+        result = parse_frontmatter(_INLINE_REVIEWER_FRONTMATTER)
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+        self.assertEqual(result["model"], "opus")
+
+
+if __name__ == "__main__":
+    unittest.main()
