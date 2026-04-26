@@ -19,10 +19,17 @@ def _is_xhigh(role, critical, budget):
     return role == "security-engineer" and critical and budget >= 7
 
 
+def _is_best_of_n(name, budget):
+    return name.startswith("boN-") and budget >= 7
+
+
 def _role_effort(tool_input, state):
+    name = (tool_input or {}).get("name", "")
     role = (tool_input or {}).get("subagent_type", "")
     critical, budget = (state or {}).get("critical", False), (state or {}).get("budget", 0)
-    return "xhigh" if _is_xhigh(role, critical, budget) else None
+    if _is_xhigh(role, critical, budget) or _is_best_of_n(name, budget):
+        return "xhigh"
+    return None
 
 
 def resolve(tool_input, env, state):

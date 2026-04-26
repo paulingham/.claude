@@ -111,5 +111,37 @@ class QaEngineerHighDefault(unittest.TestCase):
         self.assertEqual(result["effort"], "high")
 
 
+class CriticalBudget7DoesNotChangeEngineerEffort(unittest.TestCase):
+    def test_critical_budget_7_does_not_change_engineer_effort(self):
+        tool_input = {"subagent_type": "software-engineer"}
+        state = {"critical": True, "budget": 7}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "high")
+
+
+class NonCriticalBudget10StaysDefault(unittest.TestCase):
+    def test_non_critical_budget_10_stays_default(self):
+        tool_input = {"subagent_type": "software-engineer"}
+        state = {"critical": False, "budget": 10}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "high")
+
+
+class ArchitectBelowThresholdHigh(unittest.TestCase):
+    def test_architect_below_threshold_high(self):
+        tool_input = {"subagent_type": "architect"}
+        state = {"critical": False, "budget": 6}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "high")
+
+
+class BestOfNCandidateXhigh(unittest.TestCase):
+    def test_best_of_n_candidate_xhigh(self):
+        tool_input = {"subagent_type": "software-engineer", "name": "boN-opus"}
+        state = {"critical": True, "budget": 8}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+
+
 if __name__ == "__main__":
     unittest.main()
