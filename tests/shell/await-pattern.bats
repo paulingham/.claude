@@ -62,6 +62,24 @@ teardown() {
   [ "$status" -eq 1 ]
 }
 
+@test "empty regex → exit 1" {
+  echo "anything" > "$LOG"
+  run "$AWAIT" "$LOG" "" 5 100
+  [ "$status" -eq 1 ]
+}
+
+@test "TO=0 → exit 1" {
+  echo "ready" > "$LOG"
+  run "$AWAIT" "$LOG" "ready" 0 100
+  [ "$status" -eq 1 ]
+}
+
+@test "max_lines=0 → exit 1" {
+  echo "ready" > "$LOG"
+  run "$AWAIT" "$LOG" "ready" 5 0
+  [ "$status" -eq 1 ]
+}
+
 @test "T9 log_path does not exist → exit 1 within 1s" {
   local missing="$TMP/no-such.log"
   local start end
@@ -70,7 +88,7 @@ teardown() {
   end=$(date +%s)
   [ "$status" -eq 1 ]
   [ $((end - start)) -lt 2 ]
-  echo "$output" | grep -qi "log" || echo "$output" | grep -qi "not found" || echo "$output" | grep -qi "missing"
+  echo "$output" | grep -qiE "log|not found|missing"
 }
 
 # ---- SLICE 2: Streaming + ANSI + max_lines + watchdog hygiene ----
