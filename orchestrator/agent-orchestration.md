@@ -253,6 +253,36 @@ After pipeline completes:
 3. Task list at `~/.claude/tasks/pipeline-{task-id}/` auto-clean
 4. Check for orphaned tmux sessions: `tmux list-sessions`
 
+## Spawn Procedure
+
+Every Agent spawn (subagent or teammate) propagates `CLAUDE_SUBAGENT_DEPTH`
+through the spawn shell so `hooks/depth-guard.sh` can refuse runaway
+recursion. Top-level orchestrator: leave the variable unset (treated as 0).
+For each spawn, set `CLAUDE_SUBAGENT_DEPTH = parent_depth + 1` in the spawn
+shell — the child inherits it via process env, the next-level depth-guard
+reads it, and any spawn that would cross the cap (default 3) is refused at
+PreToolUse with a structured stderr block.
+
+Example (orchestrator-side spawn shell):
+
+```bash
+# parent_depth comes from the orchestrator's own env (unset → 0).
+parent_depth="${CLAUDE_SUBAGENT_DEPTH:-0}"
+child_depth=$((parent_depth + 1))
+CLAUDE_SUBAGENT_DEPTH=$child_depth Agent \
+  --subagent_type=software-engineer \
+  --isolation=worktree \
+  --prompt="..."
+```
+
+The literal `CLAUDE_SUBAGENT_DEPTH=<N>` assignment is the load-bearing piece —
+it must appear in the shell that invokes the Agent tool, not merely in
+surrounding prose. See `rules/parallel-dispatch-protocol.md > Resource
+Bounds` for caps, env overrides, and refusal semantics. The mechanism mirrors
+the Path-B precedent in `pre-agent-thinking.sh`: documentation-first
+discipline today, automatic injection when the Agent tool input schema
+exposes env-var passing.
+
 ## Dynamic Agent Generation
 
 ### When to Create Dynamic Agents

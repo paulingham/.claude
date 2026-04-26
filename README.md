@@ -235,6 +235,11 @@ Invoked only when a forcing function from `rules/module-boundaries-protocol.md` 
 | `intake-reminder.sh` | Nudges `/intake` when implementation keywords detected | Advisory |
 | `pipeline-analytics.sh` | Aggregates phase verdicts into `metrics/pipelines.jsonl` | Passive |
 | `subagent-validation.sh` | Reminds orchestrator to validate worktree changes on agent stop | Advisory |
+| `depth-guard.sh` | Resource Bounds: refuses subagent spawn beyond max recursion depth (3) | Hard block |
+| `runtime-guard.sh` | Resource Bounds: shutdown directive when subagent (1800s) / teammate (3600s) wall-clock exceeded | Hard block |
+
+See `rules/agent-protocol.md > Resource Bounds` for caps, env overrides,
+violation log schemas, and the Path-B disclosure on shutdown semantics.
 
 ## Omnichannel Support
 
