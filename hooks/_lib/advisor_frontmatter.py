@@ -1,18 +1,8 @@
-"""Frontmatter parser for advisor-mode reviewer agent files.
+"""Re-export of pipeline_frontmatter.parse_frontmatter for test API stability.
 
-Mirrors `pipeline_frontmatter.parse_frontmatter` in shape: regex match the
-`---\\n...\\n---` block, return a dict of `key: value` pairs. No I/O.
+The advisor resolver originally shipped a parallel implementation; review
+collapsed it to a single source of truth in pipeline_frontmatter to eliminate
+the duplication. Existing imports `from advisor_frontmatter import
+parse_frontmatter` continue to work unchanged.
 """
-import re
-
-_FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---", re.DOTALL)
-
-
-def _kv(line):
-    key, _, value = line.partition(":")
-    return key.strip(), value.strip()
-
-
-def parse_frontmatter(text):
-    match = _FRONTMATTER_RE.match(text)
-    return dict(_kv(line) for line in match.group(1).splitlines() if ":" in line) if match else {}
+from pipeline_frontmatter import parse_frontmatter  # noqa: F401

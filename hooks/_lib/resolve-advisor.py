@@ -11,13 +11,10 @@ The wrapper logs only when decision == "LOG" and exits 0 in either case.
 import json
 import os
 import sys
-from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
-from advisor_resolver import parse_frontmatter, resolve  # noqa: E402
-
-_AGENTS_DIR = Path(os.environ.get("CLAUDE_AGENTS_DIR") or
-                   Path.home() / ".claude" / "agents")
+from advisor_resolver import resolve  # noqa: E402
+from agent_frontmatter_loader import load_agent_frontmatter  # noqa: E402
 
 
 def _payload():
@@ -27,13 +24,6 @@ def _payload():
         return {}
 
 
-def _agent_frontmatter(subagent_type):
-    if not subagent_type:
-        return {}
-    path = _AGENTS_DIR / f"{subagent_type}.md"
-    return parse_frontmatter(path.read_text()) if path.exists() else {}
-
-
 def _decision(payload):
     return "SKIP" if payload.get("tool_name") != "Agent" else "LOG"
 
@@ -41,7 +31,7 @@ def _decision(payload):
 def main():
     payload = _payload()
     tool_input = payload.get("tool_input") or {}
-    frontmatter = _agent_frontmatter(tool_input.get("subagent_type", ""))
+    frontmatter = load_agent_frontmatter(tool_input.get("subagent_type", ""))
     resolved = resolve(tool_input=tool_input, env=os.environ, frontmatter=frontmatter)
     sys.stdout.write(f"{_decision(payload)}\n{json.dumps(resolved)}\n")
 

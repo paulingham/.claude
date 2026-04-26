@@ -21,12 +21,8 @@ def _no_api_key(env):
     return _solo("no-api-key") if not (env or {}).get("ANTHROPIC_API_KEY") else None
 
 
-def _frontmatter_pairing(frontmatter):
-    executor = (frontmatter or {}).get("executor")
-    advisor = (frontmatter or {}).get("advisor")
-    if not (executor and advisor):
-        return None
-    return {"executor": executor, "advisor": advisor,
+def _pairing(fm):
+    return {"executor": fm["executor"], "advisor": fm["advisor"],
             "fallback_reason": "", "source": "frontmatter-pairing"}
 
 
@@ -39,10 +35,9 @@ def resolve(tool_input, env, frontmatter):
     but cannot be exercised today because the resolver runs PreToolUse,
     before any actual API call. The runtime fallback will live in the
     executor wrapper that dispatches the Sonnet+Opus-advisor pair.
-
     Returns dict with keys: executor, advisor, fallback_reason, source.
     """
-    for layer in (_env_disabled(env), _no_api_key(env), _frontmatter_pairing(frontmatter)):
-        if layer:
-            return layer
-    return _solo("no-pairing-frontmatter")
+    fm = frontmatter or {}
+    if not (fm.get("executor") and fm.get("advisor")):
+        return _solo("no-pairing-frontmatter")
+    return _env_disabled(env) or _no_api_key(env) or _pairing(fm)

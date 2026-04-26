@@ -246,6 +246,126 @@ class HookLogsToJsonlOnReviewerSpawn(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
 
 
+class ResolverRejectsTraversalSubagentType(unittest.TestCase):
+    """HIGH regression — security-engineer review round 1.
+    A traversal subagent_type must NOT load attacker-controlled frontmatter
+    from outside ~/.claude/agents/."""
+
+    def test_traversal_subagent_type_returns_no_pairing_frontmatter(self):
+        evil_dir = Path("/tmp/sec-poc-test-advisor-frontmatter")
+        evil_file = evil_dir / "evil.md"
+        evil_dir.mkdir(parents=True, exist_ok=True)
+        evil_file.write_text(
+            "---\nexecutor: ATTACKER-CONTROLLED-EXECUTOR\n"
+            "advisor: ATTACKER-CONTROLLED-ADVISOR\n---\n")
+        try:
+            payload = {"tool_name": "Agent",
+                       "tool_input": {"subagent_type":
+                                      "../../../../tmp/sec-poc-test-advisor-frontmatter/evil"}}
+            result = _run_resolver(payload, env={"ANTHROPIC_API_KEY": "sk-test"})
+            self.assertEqual(result.returncode, 0)
+            _decision, resolved_json = result.stdout.strip().splitlines()
+            resolved = json.loads(resolved_json)
+            self.assertNotEqual(resolved.get("executor"), "ATTACKER-CONTROLLED-EXECUTOR")
+            self.assertNotEqual(resolved.get("advisor"), "ATTACKER-CONTROLLED-ADVISOR")
+            self.assertEqual(resolved.get("source"), "no-pairing-frontmatter")
+        finally:
+            if evil_file.exists():
+                evil_file.unlink()
+            if evil_dir.exists():
+                evil_dir.rmdir()
+
+
+class NonReviewerWithNoApiKeyReturnsNoPairingFrontmatter(unittest.TestCase):
+    """LOW regression — security-engineer review round 1.
+    Precedence must short-circuit non-reviewer agents to no-pairing-frontmatter
+    BEFORE the env/api-key check fires. Otherwise audit logs misattribute every
+    non-reviewer spawn under a missing API key as 'no-api-key'."""
+
+    def test_non_reviewer_with_no_api_key_returns_no_pairing_frontmatter(self):
+        result = resolve(
+            tool_input={"subagent_type": "software-engineer"},
+            env={},  # ANTHROPIC_API_KEY absent
+            frontmatter={"model": "opus"})  # no executor/advisor
+        self.assertEqual(result["fallback_reason"], "no-pairing-frontmatter")
+        self.assertEqual(result["source"], "no-pairing-frontmatter")
+
+
+class AdvisorFrontmatterReexportsFromPipelineFrontmatter(unittest.TestCase):
+    """MEDIUM regression — code-reviewer review round 1.
+    advisor_frontmatter.parse_frontmatter must be the same function object
+    as pipeline_frontmatter.parse_frontmatter (no parallel implementation)."""
+
+    def test_advisor_frontmatter_reexports_pipeline_parser(self):
+        import advisor_frontmatter
+        import pipeline_frontmatter
+        self.assertIs(advisor_frontmatter.parse_frontmatter,
+                      pipeline_frontmatter.parse_frontmatter)
+
+
+class HookCapsAgentRoleLength(unittest.TestCase):
+    """MEDIUM regression — security-engineer review round 1.
+    A 1MB subagent_type must NOT produce an unbounded log line."""
+
+    def test_million_char_subagent_type_produces_capped_log_line(self):
+        session = f"test-cap-{uuid.uuid4()}"
+        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
+        try:
+            payload = {"tool_name": "Agent",
+                       "tool_input": {"subagent_type": "A" * 1_000_000}}
+            result = _run_hook(
+                payload,
+                env={"CLAUDE_SESSION_ID": session, "ANTHROPIC_API_KEY": "sk-test"})
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue(log_path.exists())
+            line = log_path.read_text().strip().splitlines()[-1]
+            self.assertLessEqual(len(line), 1024,
+                                 f"log line not capped: {len(line)} bytes")
+            self.assertEqual(json.loads(line)["agent_role"], "A" * 64)
+        finally:
+            if log_path.exists():
+                log_path.unlink()
+            if log_path.parent.exists():
+                log_path.parent.rmdir()
+
+
+class HookSanitisesSessionIdAgainstTraversal(unittest.TestCase):
+    """CRITICAL regression — security-engineer review round 1.
+    A traversal CLAUDE_SESSION_ID must NOT escape ~/.claude/metrics/."""
+
+    def test_traversal_session_id_does_not_escape_metrics_dir(self):
+        traversal_target = Path("/tmp/sec-poc-test-advisor/PWNED")
+        # Pre-clean any prior PoC artefacts so the assertion is meaningful.
+        if traversal_target.exists():
+            for child in traversal_target.iterdir():
+                child.unlink()
+            traversal_target.rmdir()
+        if traversal_target.parent.exists():
+            try:
+                traversal_target.parent.rmdir()
+            except OSError:
+                pass
+        try:
+            result = _run_hook(
+                {"tool_name": "Agent",
+                 "tool_input": {"subagent_type": "code-reviewer"}},
+                env={"CLAUDE_SESSION_ID": "../../../../tmp/sec-poc-test-advisor/PWNED",
+                     "ANTHROPIC_API_KEY": "sk-test"})
+            self.assertEqual(result.returncode, 0)
+            self.assertFalse(traversal_target.exists(),
+                             "traversal escaped: file created at /tmp/...")
+        finally:
+            if traversal_target.exists():
+                for child in traversal_target.iterdir():
+                    child.unlink()
+                traversal_target.rmdir()
+            if traversal_target.parent.exists():
+                try:
+                    traversal_target.parent.rmdir()
+                except OSError:
+                    pass
+
+
 _SKILL_FILES = [
     REPO_ROOT / "skills" / "code-review" / "SKILL.md",
     REPO_ROOT / "skills" / "security-review" / "SKILL.md",

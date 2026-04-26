@@ -16,14 +16,9 @@ RESOLVED=$(printf '%s\n' "$OUT" | sed -n '2p')
 
 [[ "$DECISION" == "LOG" ]] || exit 0
 
-SESSION="${CLAUDE_SESSION_ID:-local-$$}"
-DIR="$HOME/.claude/metrics/$SESSION"
-mkdir -p "$DIR" 2>/dev/null || exit 0
-TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-python3 -c "import json,sys
-print(json.dumps({
-  'timestamp': sys.argv[1], 'source': 'logged',
-  'agent_role': json.loads(sys.argv[2]).get('tool_input',{}).get('subagent_type',''),
-  'resolved': json.loads(sys.argv[3])
-}))" "$TS" "$INPUT" "$RESOLVED" >> "$DIR/advisor-dispatch.jsonl" 2>/dev/null
+SESSION_RAW="${CLAUDE_SESSION_ID:-local-$$}"
+SESSION="${SESSION_RAW//[^A-Za-z0-9_-]/_}"
+[[ -z "$SESSION" || "$SESSION" =~ ^_+$ ]] && SESSION="local-$$"
+CLAUDE_SESSION_ID="$SESSION" \
+  bash "${HOOK_DIR}/_lib/log-injection.sh" "$INPUT" "$RESOLVED" "logged" "advisor-dispatch.jsonl" 2>/dev/null
 exit 0
