@@ -25,7 +25,9 @@ def coerce_state(fields, debug_active):
     return {
         "task_id": fields.get("task_id", ""),
         "phase": fields.get("phase", ""),
+        "task_class": fields.get("task_class", ""),
         "critical": fields.get("critical", "").lower() in _TRUE,
+        "bestofn": fields.get("bestofn", "").lower() in _TRUE,
         "budget": _safe_int(fields.get("budget", "0")),
         "debug_active": debug_active or fields.get("phase", "") == "debugging",
     }

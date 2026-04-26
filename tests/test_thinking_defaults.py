@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 from unittest.mock import patch
 
+from pipeline_frontmatter import coerce_state, parse_frontmatter
 from pipeline_state import read_active_state
 from thinking_resolver import resolve
 
@@ -303,6 +304,54 @@ class HookLogsOnlyDoesNotBlock(unittest.TestCase):
             if log_path.exists():
                 log_path.unlink()
             log_path.parent.rmdir() if log_path.parent.exists() else None
+
+
+class CoerceStateTaskClassAndBestofnRoundTrip(unittest.TestCase):
+    def test_explicit_feature_and_bestofn_true(self):
+        body = "---\ntask_id: t\nphase: build\ntask_class: feature\nbestofn: true\n---\n"
+        state = coerce_state(parse_frontmatter(body), False)
+        self.assertEqual(state["task_class"], "feature")
+        self.assertIs(state["bestofn"], True)
+
+    def test_missing_keys_default_to_empty_and_false(self):
+        body = "---\ntask_id: t\nphase: build\n---\n"
+        state = coerce_state(parse_frontmatter(body), False)
+        self.assertEqual(state["task_class"], "")
+        self.assertIs(state["bestofn"], False)
+
+    def test_capital_true_coerces_to_true(self):
+        body = "---\ntask_id: t\nbestofn: True\n---\n"
+        state = coerce_state(parse_frontmatter(body), False)
+        self.assertIs(state["bestofn"], True)
+
+    def test_yes_coerces_to_true(self):
+        body = "---\ntask_id: t\nbestofn: yes\n---\n"
+        state = coerce_state(parse_frontmatter(body), False)
+        self.assertIs(state["bestofn"], True)
+
+    def test_critical_without_bestofn_key_defaults_false(self):
+        body = "---\ntask_id: t\ncritical: true\nbudget: 8\n---\n"
+        state = coerce_state(parse_frontmatter(body), False)
+        self.assertIs(state["bestofn"], False)
+        self.assertIs(state["critical"], True)
+
+
+class ReadActiveStateBestofnRoundTrip(unittest.TestCase):
+    def test_pipeline_with_bestofn_true_round_trips(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_state(tmp, "bon-on",
+                         "---\ntask_id: bon-on\nphase: build\nbestofn: true\n---\n")
+            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+                state = read_active_state()
+            self.assertIs(state["bestofn"], True)
+
+    def test_pipeline_without_bestofn_defaults_false(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_state(tmp, "bon-off",
+                         "---\ntask_id: bon-off\nphase: build\n---\n")
+            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+                state = read_active_state()
+            self.assertIs(state["bestofn"], False)
 
 
 if __name__ == "__main__":

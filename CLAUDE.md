@@ -155,7 +155,7 @@ Set `CLAUDE_ENABLE_TRACE=1` to capture per-spawn prompt traces to `metrics/{sess
 | `/epic-breakdown` | Decomposing epics into stories | STORIES_READY |
 | `/estimation` | Sizing stories with Complexity Budget | ESTIMATED |
 | `/story-writing` | Writing individual user stories | STORY_READY |
-| `/build-implementation` | Build phase: incremental TDD + shape checks (default). For `critical` tasks with Budget >= 7, the pipeline dispatches Build as a Best-of-N Team variant — see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team | BUILD_COMPLETE |
+| `/build-implementation` | Build phase: incremental TDD + shape checks (default). When intake sets `bestofn: true` (critical, OR feature with Budget >= 5), the pipeline dispatches Build as a Best-of-N Team variant — see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team | BUILD_COMPLETE |
 | `/refactor` | Build phase: safe refactoring workflow | REFACTOR_COMPLETE |
 | `/bug-fix` | Build phase: root cause analysis + TDD fix | BUG_FIXED |
 | `/code-review` | Review phase: SOLID/DRY/quality audit | APPROVE / CHANGES_REQUESTED |
