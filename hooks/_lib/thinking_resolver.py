@@ -13,8 +13,17 @@ def _valid_env(env, key, allowed):
     return value if value in allowed else None
 
 
+def _role_effort(tool_input, state):
+    role = (tool_input or {}).get("subagent_type", "")
+    critical, budget = (state or {}).get("critical", False), (state or {}).get("budget", 0)
+    if role == "architect" and (critical or budget >= 7):
+        return "xhigh"
+    return None
+
+
 def resolve(tool_input, env, state):
     explicit = _explicit(tool_input)
-    effort = _valid_env(env, "CLAUDE_THINKING_EFFORT", _EFFORTS) or explicit.get("effort", "high")
+    role = _role_effort(tool_input, state)
+    effort = _valid_env(env, "CLAUDE_THINKING_EFFORT", _EFFORTS) or explicit.get("effort") or role or "high"
     display = _valid_env(env, "CLAUDE_THINKING_DISPLAY", _DISPLAYS) or explicit.get("display", "omitted")
     return {"effort": effort, "display": display, "source": "default"}

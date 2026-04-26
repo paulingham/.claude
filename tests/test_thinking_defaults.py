@@ -64,5 +64,22 @@ class PipelineStateDirEnvRedirect(unittest.TestCase):
             self.assertTrue(state["critical"])
 
 
+class MissingPipelineStateDirIsSafe(unittest.TestCase):
+    def test_missing_pipeline_state_dir_is_safe(self):
+        missing = "/tmp/definitely-does-not-exist-nope-zzz"
+        with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": missing}, clear=True):
+            state = read_active_state()
+        self.assertEqual(state["task_id"], "")
+        self.assertFalse(state["critical"])
+
+
+class ArchitectCriticalOrBudget7YieldsXhigh(unittest.TestCase):
+    def test_architect_critical_or_budget_7_yields_xhigh(self):
+        tool_input = {"subagent_type": "architect"}
+        state = {"critical": True, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+
+
 if __name__ == "__main__":
     unittest.main()
