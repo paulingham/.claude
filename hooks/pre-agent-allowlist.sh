@@ -16,7 +16,8 @@ INPUT=$(cat)
 OUT=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/resolve-tool-allowlist.py" 2>/dev/null) || exit 0
 DECISION=$(printf '%s\n' "$OUT" | sed -n '1p')
 RESOLVED=$(printf '%s\n' "$OUT" | sed -n '2p')
+FRONTMATTER=$(printf '%s\n' "$OUT" | sed -n '3p')
 
 [[ "$DECISION" == "LOG" ]] || exit 0
-bash "${HOOK_DIR}/_lib/log-allowlist.sh" "$INPUT" "$RESOLVED" 2>/dev/null
+bash "${HOOK_DIR}/_lib/log-allowlist.sh" "$INPUT" "$RESOLVED" "$FRONTMATTER" 2>/dev/null
 exit 0

@@ -3,9 +3,10 @@
 
 Reads the full hook payload from stdin, looks up the agent's frontmatter
 tools by `subagent_type`, resolves the would-be allowlist decision, and
-emits two lines on stdout for the bash wrapper to consume:
-  line 1: decision  -- "SKIP" or "LOG"
-  line 2: resolved  -- JSON dict {action, source, offending_tools}
+emits three lines on stdout for the bash wrapper to consume:
+  line 1: decision     -- "SKIP" or "LOG"
+  line 2: resolved     -- JSON dict {action, source, offending_tools}
+  line 3: frontmatter  -- JSON list of frontmatter tools, or "null"
 The wrapper logs only when decision == "LOG" and exits 0 in either case.
 """
 import json
@@ -33,7 +34,9 @@ def main():
     tool_input = payload.get("tool_input") or {}
     tools = load_agent_tools(tool_input.get("subagent_type", ""))
     resolved = resolve(payload.get("tool_name"), tool_input, tools)
-    sys.stdout.write(f"{_decision(resolved)}\n{json.dumps(resolved)}\n")
+    fm_json = json.dumps(tools) if isinstance(tools, list) else "null"
+    sys.stdout.write(
+        f"{_decision(resolved)}\n{json.dumps(resolved)}\n{fm_json}\n")
 
 
 if __name__ == "__main__":

@@ -132,29 +132,6 @@ class HookCapsAgentRoleLength(unittest.TestCase):
             if log_path.parent.exists():
                 log_path.parent.rmdir()
 
-    def test_full_log_line_capped_at_1024_bytes(self):
-        # Use valid software-engineer with a giant requested allowed_tools list
-        # that would otherwise blow past 1024 bytes. The cap should truncate.
-        session = f"test-line-cap-{uuid.uuid4()}"
-        log_path = Path.home() / ".claude" / "metrics" / session / "tool-allowlist.jsonl"
-        try:
-            big_tools = ["X" * 100 for _ in range(50)]
-            _run_hook(
-                {"tool_name": "Agent",
-                 "tool_input": {"subagent_type": "software-engineer",
-                                "allowed_tools": big_tools}},
-                env={"CLAUDE_SESSION_ID": session})
-            self.assertTrue(log_path.exists())
-            line = log_path.read_text().strip().splitlines()[-1]
-            # Allow newline; the cap is on JSON content
-            self.assertLessEqual(len(line.rstrip("\n")), 1024)
-        finally:
-            if log_path.exists():
-                log_path.unlink()
-            if log_path.parent.exists():
-                log_path.parent.rmdir()
-
-
 class HookRespectsHookProfileGating(unittest.TestCase):
     def test_minimal_profile_disables_hook(self):
         session = f"test-prof-{uuid.uuid4()}"
@@ -168,6 +145,79 @@ class HookRespectsHookProfileGating(unittest.TestCase):
             self.assertEqual(result.returncode, 0)
             self.assertFalse(log_path.exists(),
                              "minimal profile should suppress allowlist log")
+        finally:
+            if log_path.exists():
+                log_path.unlink()
+            if log_path.parent.exists():
+                log_path.parent.rmdir()
+
+
+class HookWiresFrontmatterToolsThroughPipeline(unittest.TestCase):
+    """HIGH-2: resolver knows the frontmatter tools but the previous pipeline
+    never forwarded them, so the documented `frontmatter_tools` field never
+    appeared on `would_block` entries. Verify end-to-end flow now writes it."""
+
+    def test_would_block_entry_includes_frontmatter_tools(self):
+        session = f"test-fm-{uuid.uuid4()}"
+        log_path = Path.home() / ".claude" / "metrics" / session / "tool-allowlist.jsonl"
+        try:
+            _run_hook(
+                {"tool_name": "Agent",
+                 "tool_input": {"subagent_type": "code-reviewer",
+                                "allowed_tools": ["Read", "Write", "Edit"]}},
+                env={"CLAUDE_SESSION_ID": session})
+            entry = json.loads(log_path.read_text().strip().splitlines()[-1])
+            self.assertEqual(entry["action"], "would_block")
+            self.assertIn("frontmatter_tools", entry)
+            # code-reviewer's actual frontmatter tool list — bound shape, not exact
+            self.assertIsInstance(entry["frontmatter_tools"], list)
+            self.assertGreater(len(entry["frontmatter_tools"]), 0)
+        finally:
+            if log_path.exists():
+                log_path.unlink()
+            if log_path.parent.exists():
+                log_path.parent.rmdir()
+
+    def test_advisory_entry_omits_frontmatter_tools(self):
+        session = f"test-fm-adv-{uuid.uuid4()}"
+        log_path = Path.home() / ".claude" / "metrics" / session / "tool-allowlist.jsonl"
+        try:
+            _run_hook(
+                {"tool_name": "Agent",
+                 "tool_input": {"subagent_type": "software-engineer"}},
+                env={"CLAUDE_SESSION_ID": session})
+            entry = json.loads(log_path.read_text().strip().splitlines()[-1])
+            self.assertEqual(entry["action"], "advisory")
+            self.assertNotIn("frontmatter_tools", entry)
+        finally:
+            if log_path.exists():
+                log_path.unlink()
+            if log_path.parent.exists():
+                log_path.parent.rmdir()
+
+
+class HookEmitsValidJsonUnderLargePayload(unittest.TestCase):
+    """HIGH-1: previous code truncated json.dumps at 1024 chars producing
+    malformed JSON that crashed json.loads(). Field-level caps now keep
+    the line bounded AND syntactically valid."""
+
+    def test_large_offending_and_requested_tools_remain_valid_json(self):
+        session = f"test-valid-{uuid.uuid4()}"
+        log_path = Path.home() / ".claude" / "metrics" / session / "tool-allowlist.jsonl"
+        try:
+            # 50 long tool strings would have spilled past 1024 in the old code
+            big_tools = ["LongToolName_" + ("x" * 80) for _ in range(50)]
+            _run_hook(
+                {"tool_name": "Agent",
+                 "tool_input": {"subagent_type": "code-reviewer",
+                                "allowed_tools": big_tools}},
+                env={"CLAUDE_SESSION_ID": session})
+            self.assertTrue(log_path.exists())
+            line = log_path.read_text().strip().splitlines()[-1]
+            entry = json.loads(line)  # MUST NOT raise
+            # Field caps enforced at 20 entries
+            self.assertLessEqual(len(entry["requested_tools"]), 20)
+            self.assertLessEqual(len(entry.get("offending_tools", [])), 20)
         finally:
             if log_path.exists():
                 log_path.unlink()
