@@ -127,25 +127,17 @@ This is automatic and mandatory -- the user should never need to mention it.
 
 ### Thinking Injection (Automatic)
 
-Every Agent spawn MUST include a `thinking` field on `tool_input`. The `pre-agent-thinking.sh` PreToolUse hook validates this on every spawn — missing fields cause an exit-2 block (Path B) with the resolved defaults in the stdout reason. The orchestrator computes the field per `rules/thinking-defaults.md`:
+The `pre-agent-thinking.sh` PreToolUse hook is currently **advisory/log-only**: the Agent tool input schema does not yet expose `thinking`, so the hook resolves the defaults and records them but does NOT block any spawn. Behavior:
 
-- Default `effort=high`, `display=omitted` for every role
-- `architect` + (critical OR budget>=7) → `effort=xhigh`
-- `security-engineer` + critical AND budget>=7 → `effort=xhigh`
-- Best-of-N candidates (`name` starts with `boN-`) + budget>=7 → `effort=xhigh`
-- Active debug pipeline state → `display=text`
-- `CLAUDE_THINKING_EFFORT` / `CLAUDE_THINKING_DISPLAY` env vars override everything
+- **Missing `thinking` field on an Agent spawn**: hook exits 0 and logs the resolved `{effort, display}` to `metrics/{session}/hook-injections.jsonl` with `source: "logged"`. No stderr block. No refusal.
+- **Present `thinking` field**: hook exits 0, no validation.
+- **Non-Agent tools**: hook exits 0 immediately.
 
-Spawn template:
-```
-Agent({
-  subagent_type: "architect",
-  thinking: { effort: "xhigh", display: "omitted" },  // computed per rules/thinking-defaults.md
-  ...
-})
-```
+Operators inspect `metrics/{session}/hook-injections.jsonl` to see what defaults the hook would have applied for any given spawn.
 
-If a spawn is blocked, read the hook's stderr — it includes the exact `{effort, display}` values to add.
+**Forward pointer**: When Claude Code lands `modified_tool_input` for hook returns (Path A) or the Agent tool input schema exposes `thinking`, the hook's enforcement layer flips. The resolver, tests, and precedence rules are unchanged.
+
+See `rules/thinking-defaults.md` § Hook Behavior for the full precedence table and field semantics.
 
 ### Instinct Injection (Automatic)
 
