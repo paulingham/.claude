@@ -32,6 +32,22 @@ class ParsesFrontmatterWithExecutorAndAdvisor(unittest.TestCase):
         self.assertEqual(result["model"], "opus")
 
 
+class ResolverRespectsEnvDisabled(unittest.TestCase):
+    def test_resolver_respects_env_disabled(self):
+        tool_input = {"subagent_type": "code-reviewer"}
+        env = {"ANTHROPIC_API_KEY": "sk-test", "CLAUDE_REVIEW_ADVISOR_DISABLED": "1"}
+        frontmatter = {
+            "model": "opus",
+            "executor": "claude-sonnet-4-6",
+            "advisor": "claude-opus-4-7",
+        }
+        result = resolve(tool_input=tool_input, env=env, frontmatter=frontmatter)
+        self.assertIsNone(result["executor"])
+        self.assertIsNone(result["advisor"])
+        self.assertEqual(result["fallback_reason"], "env-disabled")
+        self.assertEqual(result["source"], "env-disabled")
+
+
 class ResolverReturnsSoloWhenNoPairingInFrontmatter(unittest.TestCase):
     def test_resolver_returns_solo_when_no_pairing_in_frontmatter(self):
         tool_input = {"subagent_type": "code-reviewer"}

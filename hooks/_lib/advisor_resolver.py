@@ -13,6 +13,10 @@ def _solo(reason):
     return {"executor": None, "advisor": None, "fallback_reason": reason, "source": reason}
 
 
+def _env_disabled(env):
+    return _solo("env-disabled") if (env or {}).get("CLAUDE_REVIEW_ADVISOR_DISABLED") == "1" else None
+
+
 def _frontmatter_pairing(frontmatter):
     executor = (frontmatter or {}).get("executor")
     advisor = (frontmatter or {}).get("advisor")
@@ -34,5 +38,7 @@ def resolve(tool_input, env, frontmatter):
 
     Returns dict with keys: executor, advisor, fallback_reason, source.
     """
-    pairing = _frontmatter_pairing(frontmatter)
-    return pairing if pairing else _solo("no-pairing-frontmatter")
+    for layer in (_env_disabled(env), _frontmatter_pairing(frontmatter)):
+        if layer:
+            return layer
+    return _solo("no-pairing-frontmatter")
