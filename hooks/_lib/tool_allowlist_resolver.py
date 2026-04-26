@@ -9,14 +9,27 @@ Returns dict with keys: action, source, offending_tools.
 from agent_path_validator import is_valid_subagent_type
 
 
-def _skip(source):
-    return {"action": "skip", "source": source, "offending_tools": []}
+def _result(action, source, offending=()):
+    return {"action": action, "source": source, "offending_tools": list(offending)}
+
+
+def _preflight(tool_name, tool_input):
+    if tool_name != "Agent":
+        return _result("skip", "non-agent")
+    if not is_valid_subagent_type((tool_input or {}).get("subagent_type", "")):
+        return _result("skip", "invalid-subagent-type")
+    return None
+
+
+def _advisory(tool_input, frontmatter_tools):
+    if frontmatter_tools is None:
+        return _result("advisory", "no-tools-declared")
+    if "allowed_tools" not in (tool_input or {}):
+        return _result("advisory", "schema-absent")
+    return None
 
 
 def resolve(tool_name, tool_input, frontmatter_tools):
-    if tool_name != "Agent":
-        return _skip("non-agent")
-    subagent_type = (tool_input or {}).get("subagent_type", "")
-    if not is_valid_subagent_type(subagent_type):
-        return _skip("invalid-subagent-type")
-    return _skip("non-agent")
+    return (_preflight(tool_name, tool_input)
+            or _advisory(tool_input, frontmatter_tools)
+            or _result("skip", "non-agent"))

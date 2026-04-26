@@ -28,3 +28,25 @@ class ResolverSkipsInvalidSubagentType(unittest.TestCase):
                          frontmatter_tools=None)
         self.assertEqual(result["action"], "skip")
         self.assertEqual(result["source"], "invalid-subagent-type")
+
+
+class ResolverAdvisoryWhenRoleUnknown(unittest.TestCase):
+    def test_advisory_when_frontmatter_tools_is_none(self):
+        # frontmatter_tools=None signals: agent file not found OR no tools field
+        result = resolve(tool_name="Agent",
+                         tool_input={"subagent_type": "ghost-role"},
+                         frontmatter_tools=None)
+        self.assertEqual(result["action"], "advisory")
+        self.assertEqual(result["source"], "no-tools-declared")
+
+
+class ResolverAdvisoryWhenAllowedToolsAbsent(unittest.TestCase):
+    """Path B today — Agent input schema does not expose `allowed_tools`.
+    The resolver records what it WOULD check rather than blocking."""
+
+    def test_advisory_when_no_allowed_tools_in_tool_input(self):
+        result = resolve(tool_name="Agent",
+                         tool_input={"subagent_type": "software-engineer"},
+                         frontmatter_tools=["Read", "Write", "Edit"])
+        self.assertEqual(result["action"], "advisory")
+        self.assertEqual(result["source"], "schema-absent")
