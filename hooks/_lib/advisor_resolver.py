@@ -1,34 +1,38 @@
 """Pure precedence engine for resolving advisor-mode dispatch decisions. No I/O.
 
-Returns {"executor", "advisor", "fallback_reason", "source"} where `source` names
-the layer that determined the decision: "env-disabled", "no-api-key",
-"frontmatter-pairing", or "no-pairing-frontmatter".
-
-This is the Path B precedent applied to advisor-mode reviews — see
-`rules/thinking-defaults.md > ## Hook Behavior (Path B — current, log-only)`
-for the canonical pattern. The Agent input schema does not currently expose
-`advisor`; the bash wrapper is therefore log-only until the schema lands.
-
-Future-state precedence layer NOT implemented today, but documented here so it
-survives refactors and is not silently dropped at the schema-flip moment:
-
-  runtime-advisor-unavailable -- when the advisor API call fails (503, rate
-  limit, beta header rejected) the executor wrapper drops to solo-{model}.
-  Cannot be implemented in this resolver because the resolver runs PreToolUse,
-  before any actual API call. The runtime fallback will live in whatever
-  wrapper code dispatches the Sonnet+Opus-advisor pair once the schema
-  exposes `advisor`.
+Path B precedent — see `rules/thinking-defaults.md > ## Hook Behavior`.
+The Agent input schema does not currently expose `advisor`; the bash
+wrapper is therefore log-only until the schema lands.
 """
-import re
+from advisor_frontmatter import parse_frontmatter  # re-export
 
-_FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---", re.DOTALL)
-
-
-def _kv(line):
-    key, _, value = line.partition(":")
-    return key.strip(), value.strip()
+__all__ = ["parse_frontmatter", "resolve"]
 
 
-def parse_frontmatter(text):
-    match = _FRONTMATTER_RE.match(text)
-    return dict(_kv(line) for line in match.group(1).splitlines() if ":" in line) if match else {}
+def _solo(reason):
+    return {"executor": None, "advisor": None, "fallback_reason": reason, "source": reason}
+
+
+def _frontmatter_pairing(frontmatter):
+    executor = (frontmatter or {}).get("executor")
+    advisor = (frontmatter or {}).get("advisor")
+    if not (executor and advisor):
+        return None
+    return {"executor": executor, "advisor": advisor,
+            "fallback_reason": "", "source": "frontmatter-pairing"}
+
+
+def resolve(tool_input, env, frontmatter):
+    """Resolve advisor pairing decision for an Agent spawn.
+
+    Future-state: when the Agent input schema exposes `advisor`, the wrapper
+    will inject this decision at PreToolUse time. Today the hook is log-only.
+    The runtime fallback path `runtime-advisor-unavailable` is documented here
+    but cannot be exercised today because the resolver runs PreToolUse,
+    before any actual API call. The runtime fallback will live in the
+    executor wrapper that dispatches the Sonnet+Opus-advisor pair.
+
+    Returns dict with keys: executor, advisor, fallback_reason, source.
+    """
+    pairing = _frontmatter_pairing(frontmatter)
+    return pairing if pairing else _solo("no-pairing-frontmatter")

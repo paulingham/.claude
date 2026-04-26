@@ -6,7 +6,7 @@ resolver itself is pure (no I/O) — see `hooks/_lib/advisor_resolver.py`.
 """
 import unittest
 
-from advisor_resolver import parse_frontmatter
+from advisor_resolver import parse_frontmatter, resolve
 
 
 _INLINE_REVIEWER_FRONTMATTER = """---
@@ -30,6 +30,22 @@ class ParsesFrontmatterWithExecutorAndAdvisor(unittest.TestCase):
         self.assertEqual(result["executor"], "claude-sonnet-4-6")
         self.assertEqual(result["advisor"], "claude-opus-4-7")
         self.assertEqual(result["model"], "opus")
+
+
+class ResolverReturnsFrontmatterPairingWhenBothPresent(unittest.TestCase):
+    def test_resolver_returns_frontmatter_pairing_when_both_present(self):
+        tool_input = {"subagent_type": "code-reviewer"}
+        env = {"ANTHROPIC_API_KEY": "sk-test"}
+        frontmatter = {
+            "model": "opus",
+            "executor": "claude-sonnet-4-6",
+            "advisor": "claude-opus-4-7",
+        }
+        result = resolve(tool_input=tool_input, env=env, frontmatter=frontmatter)
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+        self.assertEqual(result["fallback_reason"], "")
+        self.assertEqual(result["source"], "frontmatter-pairing")
 
 
 if __name__ == "__main__":
