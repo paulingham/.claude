@@ -526,9 +526,11 @@
     }
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
+  "effortLevel": "xhigh",
   "skipDangerousModePermissionPrompt": true,
+  "theme": "dark-daltonized",
   "teammateMode": "auto",
+  "remoteControlAtStartup": false,
   "mcpServers": {
     "memory": {
       "command": "python3",
