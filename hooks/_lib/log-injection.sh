@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Append a JSON line to ~/.claude/metrics/{session}/hook-injections.jsonl
 # Usage: log-injection.sh <input-json> <resolved-json> <source>
-# Source is "blocked" (Path B refusal) or "injected" (Path A success, future).
+# Source is "logged" (Path B advisory, current), "blocked" (Path B enforcement, future), or "injected" (Path A, future).
 
 INPUT="$1"
 RESOLVED="$2"
