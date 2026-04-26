@@ -1,4 +1,10 @@
-"""Pure precedence engine for resolving thinking defaults. No I/O."""
+"""Pure precedence engine for resolving thinking defaults. No I/O.
+
+Returns {"effort", "display", "source"} where `source` names the layer that
+determined the EFFORT value: "env", "explicit", "role", or "default".
+Display layer may differ but is not separately reported.
+"""
+from thinking_role import role_effort, state_display
 
 _EFFORTS = {"low", "medium", "high", "xhigh"}
 _DISPLAYS = {"omitted", "text"}
@@ -13,32 +19,23 @@ def _valid_env(env, key, allowed):
     return value if value in allowed else None
 
 
-def _is_xhigh(role, critical, budget):
-    if role == "architect" and (critical or budget >= 7):
-        return True
-    return role == "security-engineer" and critical and budget >= 7
-
-
-def _is_best_of_n(name, budget):
-    return name.startswith("boN-") and budget >= 7
-
-
-def _role_effort(tool_input, state):
-    name = (tool_input or {}).get("name", "")
-    role = (tool_input or {}).get("subagent_type", "")
-    critical, budget = (state or {}).get("critical", False), (state or {}).get("budget", 0)
-    if _is_xhigh(role, critical, budget) or _is_best_of_n(name, budget):
-        return "xhigh"
-    return None
-
-
-def _state_display(state):
-    return "text" if (state or {}).get("debug_active") else None
+def _pick(layers, fallback):
+    for source, value in layers:
+        if value:
+            return value, source
+    return fallback, "default"
 
 
 def resolve(tool_input, env, state):
     explicit = _explicit(tool_input)
-    role = _role_effort(tool_input, state)
-    effort = _valid_env(env, "CLAUDE_THINKING_EFFORT", _EFFORTS) or explicit.get("effort") or role or "high"
-    display = _valid_env(env, "CLAUDE_THINKING_DISPLAY", _DISPLAYS) or explicit.get("display") or _state_display(state) or "omitted"
-    return {"effort": effort, "display": display, "source": "default"}
+    effort, source = _pick([
+        ("env", _valid_env(env, "CLAUDE_THINKING_EFFORT", _EFFORTS)),
+        ("explicit", explicit.get("effort")),
+        ("role", role_effort(tool_input, state)),
+    ], "high")
+    display, _ = _pick([
+        ("env", _valid_env(env, "CLAUDE_THINKING_DISPLAY", _DISPLAYS)),
+        ("explicit", explicit.get("display")),
+        ("role", state_display(state)),
+    ], "omitted")
+    return {"effort": effort, "display": display, "source": source}
