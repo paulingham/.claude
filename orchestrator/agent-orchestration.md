@@ -139,6 +139,18 @@ Operators inspect `metrics/{session}/hook-injections.jsonl` to see what defaults
 
 See `rules/thinking-defaults.md` § Hook Behavior for the full precedence table and field semantics.
 
+### Tool Allowlist Auto-Derivation (Automatic)
+
+The orchestrator's spawn template should attempt to populate `tool_input.allowed_tools` from the spawned `subagent_type`'s frontmatter `tools:` array, when feasible. The intent: every spawn carries the narrowest tool surface its role declares — no Bash on read-only reviewers, no Agent on engineers — without the orchestrator hand-listing tools per call.
+
+Today this is **advisory** because the Agent tool input schema does not yet expose `allowed_tools`. The `pre-agent-allowlist.sh` PreToolUse hook reads the spawned `subagent_type`, loads the role's frontmatter `tools:` via `agent_tools_loader`, and computes a subset check against any caller-provided `tool_input.allowed_tools`. Any superset request is logged to `metrics/{session}/tool-allowlist.jsonl` with `source: "path-b-advisory"`. No spawn is refused.
+
+Once the Agent input schema lands `allowed_tools`, this flips to enforcement: requests outside the role's frontmatter allowlist exit 2 at PreToolUse with `action: would_block` and the spawn is refused. The hook is the only file that changes — the loader, the role frontmatter, and the metrics shape stay put.
+
+**Override**: `CLAUDE_DISABLE_TOOL_ALLOWLIST=1` is a per-session escape hatch (hook fast-exits). Useful when a spawn legitimately needs a wider surface than its role declares — record the rationale in the pipeline scratchpad.
+
+**Reference**: `rules/agent-protocol.md` § Per-Agent Tool Scoping for the full contract (frontmatter shape, subset semantics, metrics fields).
+
 ### Instinct Injection (Automatic)
 
 Before spawning any agent (subagent or teammate), the orchestrator loads relevant instincts:
