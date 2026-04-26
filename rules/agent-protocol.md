@@ -140,6 +140,22 @@ Before running build/test commands, agents MUST:
 The project CLAUDE.md's Commands section is the source of truth for how to run tests.
 If commands fail with "command not found", check the project CLAUDE.md first.
 
+## Internal Eval Gate (harness changes)
+
+PRs that modify ANY of the following directories MUST run `/internal-eval run` and produce zero regressions before merge:
+- `rules/`
+- `hooks/`
+- `skills/`
+- `agents/`
+
+The agent opening the PR is responsible for invoking `/internal-eval run`. The verdict must be `EVAL_PASSED` (zero regressions on deterministic cases). `EVAL_FAILED` blocks merge.
+
+`eval/` changes themselves do NOT trigger this gate (would be circular).
+
+Exceptions:
+- Docs-only changes to `.md` files outside of SKILL.md / agent definitions: gate may be skipped with an explicit note in the PR body.
+- Emergency fixes with incident ticket reference: gate may be deferred with explicit post-merge commitment to re-run.
+
 ## Fresh Verification Requirement
 
 > **IRON LAW: NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.**

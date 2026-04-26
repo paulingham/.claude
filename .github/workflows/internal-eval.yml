@@ -1,0 +1,46 @@
+# Internal Eval CI — runs /internal-eval on harness-change PRs.
+#
+# CREDENTIAL TODOS (to be wired before first live run):
+#   - ANTHROPIC_API_KEY: configure as repo or org secret; used by the harness
+#     to exercise deterministic cases. Without it, build-mode cases cannot run.
+#   - (optional) EVAL_GCS_BUCKET / EVAL_ARTIFACT_RETENTION_DAYS: wire when
+#     artifact retention beyond GitHub's default is required.
+#   - (optional) BASELINE_REF: override default baselines/baseline.json path
+#     if multi-baseline tracking is introduced later.
+#
+# Triggers only on PRs labeled `harness-change` — keeps eval cost off noise PRs.
+name: Internal Eval
+on:
+  pull_request:
+    types: [labeled, synchronize]
+jobs:
+  eval:
+    if: contains(github.event.pull_request.labels.*.name, 'harness-change')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Privacy ack
+        run: touch eval/.privacy-acked
+      - name: Run eval suite
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          RUN_ID="ci-${{ github.run_id }}"
+          bash skills/internal-eval/run/run-suite.sh --run-id "$RUN_ID" --model opus
+          bash skills/internal-eval/score/diff-vs-baseline.sh --run-id "$RUN_ID"
+      - name: Check verdict
+        run: |
+          RUN_ID="ci-${{ github.run_id }}"
+          VERDICT=$(jq -r .verdict "eval/runs/$RUN_ID/regression.json")
+          if [ "$VERDICT" != "EVAL_PASSED" ]; then
+            echo "::error::Eval verdict: $VERDICT (see eval/runs/$RUN_ID/regression.md)"
+            exit 1
+          fi
+      - name: Upload eval artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-run-${{ github.run_id }}
+          path: eval/runs/ci-${{ github.run_id }}/

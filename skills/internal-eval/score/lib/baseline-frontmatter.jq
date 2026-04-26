@@ -1,0 +1,17 @@
+# Emits YAML frontmatter from aggregate.json. Arg $d = baseline_date.
+"---",
+"baseline_date: \($d)",
+"model: \(.model)",
+"harness_ref: \(.harness_ref)",
+"timestamp: \(.completed_at)",
+"run_id: \(.run_id)",
+"suite: \(.suite)",
+"total_cases: \(.total_cases)",
+"pass_rate: \(.pass_rate)",
+"passed: \(.passed)",
+"failed_diff: \(.failed_diff)",
+"failed_build: \(.failed_build)",
+"failed_timeout: \(.failed_timeout)",
+"failed_infra: \(.failed_infra)",
+"---",
+""

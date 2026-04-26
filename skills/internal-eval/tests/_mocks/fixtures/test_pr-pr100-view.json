@@ -1,0 +1,8 @@
+{
+  "number": 100,
+  "title": "Fix: guard against empty array!",
+  "body": "## Problem\nEmpty arrays crashed the parser.\n\n## Fix\nAdd a guard clause.\n\nFiles changed: src/foo.ts, tests/foo.test.ts",
+  "labels": [{"name": "bug"}],
+  "mergeCommit": {"oid": "abc123"},
+  "mergedAt": "2026-04-20T12:00:00Z"
+}

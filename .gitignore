@@ -37,6 +37,18 @@
 !tests/**
 !scripts/
 !scripts/**
+!eval/
+!eval/**
+!.github/
+!.github/**
+
+# Internal eval harness — runtime + candidate cases are local-only.
+# Ignore directory contents but persist the directories themselves via tracked .gitkeep.
+# Pattern uses `dir/*` (not `dir/`) so git descends and honours the .gitkeep negation.
+eval/cases/.candidates/*
+!eval/cases/.candidates/.gitkeep
+eval/runs/*
+!eval/runs/.gitkeep
 
 # Python bytecode cache — never tracked
 **/__pycache__/
