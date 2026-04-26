@@ -32,6 +32,19 @@ class ParsesFrontmatterWithExecutorAndAdvisor(unittest.TestCase):
         self.assertEqual(result["model"], "opus")
 
 
+class ResolverIgnoresNonReviewerAgents(unittest.TestCase):
+    def test_resolver_ignores_non_reviewer_agents(self):
+        # software-engineer frontmatter only has model: opus, no executor/advisor
+        tool_input = {"subagent_type": "software-engineer"}
+        env = {"ANTHROPIC_API_KEY": "sk-test"}
+        frontmatter = {"model": "opus"}
+        result = resolve(tool_input=tool_input, env=env, frontmatter=frontmatter)
+        # Falls through to no-pairing-frontmatter (NOT env-disabled, NOT no-api-key)
+        self.assertIsNone(result["executor"])
+        self.assertEqual(result["fallback_reason"], "no-pairing-frontmatter")
+        self.assertEqual(result["source"], "no-pairing-frontmatter")
+
+
 class ResolverRespectsMissingApiKey(unittest.TestCase):
     def test_resolver_respects_missing_api_key(self):
         tool_input = {"subagent_type": "code-reviewer"}
