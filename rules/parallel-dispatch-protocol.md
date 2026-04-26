@@ -32,13 +32,13 @@ Shut down both challengers after plan validation completes.
 | Single slice | Subagent (no team) | N/A |
 | Multi-slice (independent ACs) | N engineers (1 per slice) | Yes |
 | Multi-domain (API + UI + DB) | backend-eng + frontend-eng + db-eng | Yes |
-| Critical-tagged (Budget >= 7) | Best-of-N variant — see below | Yes |
+| Best-of-N tagged (`bestofn:true` from intake) | Best-of-N variant — see below | Yes |
 
 Shut down all engineers after build completes and branches are merged.
 
-### Best-of-N Build Team (conditional — critical + Budget >= 7 only)
+### Best-of-N Build Team (conditional — `bestofn:true` from intake)
 
-When `/intake` has tagged the task `critical: true` AND Complexity Budget >= 7, the Build phase dispatches as a Team variant that runs the same slice across N candidate models in parallel and picks the best output. This is NOT a separate skill — it is a dispatch mode of the Build Team. The winner still faces the normal Review → Final Gate → Ship gates; scoring selects *which* candidate faces those gates, it does not substitute for them.
+When `/intake` has tagged the task `bestofn: true` (computed in Step 2d-bis as `critical OR (task_class=="feature" AND Budget>=5)`), the Build phase dispatches as a Team variant that runs the same slice across N candidate models in parallel and picks the best output. This is NOT a separate skill — it is a dispatch mode of the Build Team. The winner still faces the normal Review → Final Gate → Ship gates; scoring selects *which* candidate faces those gates, it does not substitute for them.
 
 **Procedure:**
 

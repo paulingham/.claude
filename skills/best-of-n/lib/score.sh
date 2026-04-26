@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Pure-bash scoring helpers for /best-of-n. Integer math only.
 # Exports: score_candidate, pick_winner, check_budget_gate.
+#
+# DEPRECATED-IN-PLACE: budget-only threshold sub-check.
+# The authoritative Best-of-N gate is hooks/_lib/bestofn_gate.py.
 
 score_candidate() {
   local test_pass="$1" violations="$2" quality="$3" diff="$4"
@@ -15,7 +18,7 @@ pick_winner() {
 
 check_budget_gate() {
   local budget="$1"
-  [ "$budget" -ge 7 ] && echo "OK" || echo "WRONG_SKILL"
+  [ "$budget" -ge 5 ] && echo "OK" || echo "WRONG_SKILL"
 }
 
 export -f score_candidate pick_winner check_budget_gate
