@@ -81,5 +81,35 @@ class ArchitectCriticalOrBudget7YieldsXhigh(unittest.TestCase):
         self.assertEqual(result["effort"], "xhigh")
 
 
+class SecurityEngineerXhighOnCriticalAndBudget(unittest.TestCase):
+    def test_security_engineer_xhigh_on_critical_and_budget(self):
+        tool_input = {"subagent_type": "security-engineer"}
+        state = {"critical": True, "budget": 7}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+
+
+class SecurityEngineerHighOnNormal(unittest.TestCase):
+    def test_security_engineer_high_on_normal(self):
+        tool_input = {"subagent_type": "security-engineer"}
+        state = {"critical": False, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "high")
+
+
+class CodeReviewerHighDefault(unittest.TestCase):
+    def test_code_reviewer_high_default(self):
+        tool_input = {"subagent_type": "code-reviewer"}
+        result = resolve(tool_input=tool_input, env={}, state={"critical": True, "budget": 12})
+        self.assertEqual(result["effort"], "high")
+
+
+class QaEngineerHighDefault(unittest.TestCase):
+    def test_qa_engineer_high_default(self):
+        tool_input = {"subagent_type": "qa-engineer"}
+        result = resolve(tool_input=tool_input, env={}, state={"critical": True, "budget": 12})
+        self.assertEqual(result["effort"], "high")
+
+
 if __name__ == "__main__":
     unittest.main()

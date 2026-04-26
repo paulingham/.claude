@@ -13,12 +13,16 @@ def _valid_env(env, key, allowed):
     return value if value in allowed else None
 
 
+def _is_xhigh(role, critical, budget):
+    if role == "architect" and (critical or budget >= 7):
+        return True
+    return role == "security-engineer" and critical and budget >= 7
+
+
 def _role_effort(tool_input, state):
     role = (tool_input or {}).get("subagent_type", "")
     critical, budget = (state or {}).get("critical", False), (state or {}).get("budget", 0)
-    if role == "architect" and (critical or budget >= 7):
-        return "xhigh"
-    return None
+    return "xhigh" if _is_xhigh(role, critical, budget) else None
 
 
 def resolve(tool_input, env, state):
