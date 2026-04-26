@@ -122,7 +122,65 @@ All three assess the same final state independently. Shut down after all verdict
 5. `SendMessage({type: "shutdown_request"})` to teammates when phase ends
 6. Delete team after pipeline completes
 
+## Resource Bounds
+
+The harness bounds subagent recursion and per-job wall-clock time at the hook
+layer. Two PreToolUse hooks enforce caps; a SubagentStop hook cleans up
+runtime tracking.
+
+**Caps (defaults; configurable via `settings.json` env block):**
+
+| Bound | Default | Env override |
+|-------|---------|--------------|
+| Subagent recursion depth | 3 | `CLAUDE_SUBAGENT_MAX_DEPTH` |
+| Subagent wall-clock | 1800s | `CLAUDE_SUBAGENT_MAX_RUNTIME` |
+| Teammate wall-clock | 3600s | `CLAUDE_TEAMMATE_MAX_RUNTIME` |
+
+**Hooks:**
+
+- `hooks/depth-guard.sh` (PreToolUse Agent) — refuses spawn when
+  `CLAUDE_SUBAGENT_DEPTH >= max`. Logs to
+  `metrics/$SID/depth-violations.jsonl` with `record_type:"depth_violation"`,
+  `depth`, `max_depth`, `subagent_type`, `task_id`, `action:"prevented"`.
+- `hooks/runtime-guard.sh` (PreToolUse Agent|Bash|Write|Edit; Read
+  intentionally excluded — highest-volume, fast-bounded). Mode A on Agent
+  tool calls writes an idempotent
+  `metrics/$SID/subagent-runtimes/<key>.start` file with
+  `<unix_ts>:<class>:<display>`. Mode B on Bash|Write|Edit performs an
+  orchestrator-level **global scan** of all start files and emits a shutdown
+  directive on stderr (exit 2) for any over-cap entry. Logs to
+  `metrics/$SID/runtime-violations.jsonl`.
+- `hooks/subagent-stop-trajectory.sh` — extended with start-file cleanup on
+  SubagentStop. Shared key derivation via `_lib/runtime-guard-key.sh`
+  ensures the cleanup unambiguously targets the just-stopped agent.
+
+**Shutdown semantics (Path-B disclosure):**
+
+- **Teammate** (`team_name` set on the spawn): stderr block contains the
+  exact `SendMessage({type:"shutdown_request", name:"<display>"})` form.
+  Directly actionable per `rules/agent-protocol.md` § Teammate Lifecycle.
+- **Non-team subagent**: out-of-band kill is not currently exposed by the
+  Agent tool input schema. The stderr block surfaces the violation; the
+  next tool the runaway subagent attempts is refused (PreToolUse exit 2);
+  the orchestrator interprets the log and re-dispatches per
+  `rules/operational-protocol.md` (retry-twice-then-escalate). Mirrors the
+  `pre-agent-thinking.sh` Path-B precedent — a degraded-but-correct
+  enforcement today, single-file flip when the API surface lands.
+
+**Depth propagation:** the orchestrator sets `CLAUDE_SUBAGENT_DEPTH =
+parent_depth + 1` in the shell that invokes Agent before each spawn. The
+child subagent inherits the variable through its process env. See
+`orchestrator/agent-orchestration.md > § Spawn Procedure` and
+`orchestrator/parallel-dispatch-details.md > § Team Dispatch` for the
+literal example bash assignment that orchestrators copy on each spawn.
+
 ## Teammate Prompt Template
+
+> **Set `CLAUDE_SUBAGENT_DEPTH` in the spawn shell** (not as a prompt token —
+> as an actual env var) so `depth-guard.sh` can enforce the recursion cap.
+> See `orchestrator/agent-orchestration.md > § Spawn Procedure` and
+> `orchestrator/parallel-dispatch-details.md > § Team Dispatch` for the
+> exact `CLAUDE_SUBAGENT_DEPTH=<N>` shell assignment example.
 
 ```
 Read the skill file at ~/.claude/skills/[name]/SKILL.md and execute it fully.
@@ -137,6 +195,7 @@ Context:
 - Full diff: [single git diff output] (review phases only)
 - Prior verdict: [previous phase verdict]
 - Tech stack: [from project CLAUDE.md]
+- Subagent depth: {N}
 
 ## Learned Patterns (from system learning)
 [instincts filtered by role — top 5 by confidence]

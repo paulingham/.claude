@@ -15,6 +15,35 @@ TeamCreate({
 
 One team per pipeline. All phase teammates join this team. The shared task list at `~/.claude/tasks/pipeline-{task-id}/` tracks all work.
 
+## Team Dispatch
+
+Every teammate spawn propagates `CLAUDE_SUBAGENT_DEPTH` through the spawn
+shell so `hooks/depth-guard.sh` can refuse runaway recursion. Set
+`CLAUDE_SUBAGENT_DEPTH = parent_depth + 1` in the shell that invokes the
+Agent tool — the teammate inherits it via process env. See
+`rules/agent-protocol.md > Resource Bounds` for caps and override semantics.
+
+Example (orchestrator-side teammate spawn shell):
+
+```bash
+parent_depth="${CLAUDE_SUBAGENT_DEPTH:-0}"
+child_depth=$((parent_depth + 1))
+CLAUDE_SUBAGENT_DEPTH=$child_depth Agent \
+  --subagent_type=code-reviewer \
+  --team_name=pipeline-{task-id} \
+  --name=reviewer-1 \
+  --prompt="..."
+```
+
+The literal `CLAUDE_SUBAGENT_DEPTH=<N>` assignment must appear in the spawn
+shell — not just in surrounding prose. The runtime-guard hook (`hooks/runtime-guard.sh`)
+records the teammate's start time at this same call and emits a precise
+`SendMessage({type:"shutdown_request", name:"<display>"})` directive on
+stderr if the teammate later exceeds `CLAUDE_TEAMMATE_MAX_RUNTIME` (3600s
+default). Subagent-class spawns (`team_name` empty) get a next-tool-call-blocked
+directive — see `rules/parallel-dispatch-protocol.md > Resource Bounds`
+for the Path-B disclosure.
+
 ## Plan Validation Phase Dispatch (Autonomous Mode)
 
 Spawn both challengers in a single message:
