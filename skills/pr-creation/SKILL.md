@@ -28,23 +28,39 @@ Automated pull request creation with validation:
 - All changes ready to commit
 - `gh` CLI installed and authenticated
 
+## Worktree Precondition (HARD GATE)
+
+This skill mutates HEAD-bearing state (creates branches, runs `gh pr create` which pushes the current branch). It MUST run inside a worktree, never against REPO_ROOT directly. Resolve the worktree path at skill entry:
+
+```bash
+WORKTREE="$(cd "$(git rev-parse --show-toplevel)" && pwd -P)"
+COMMON_DIR_ABS="$(cd "$WORKTREE" && cd "$(git rev-parse --git-common-dir)" && pwd -P)"
+GIT_DIR_ABS="$(cd "$WORKTREE" && cd "$(git rev-parse --git-dir)" && pwd -P)"
+if [[ "$COMMON_DIR_ABS" == "$GIT_DIR_ABS" ]]; then
+  echo "ERROR: pr-creation must run from a worktree; cwd resolves to REPO_ROOT" >&2
+  exit 2
+fi
+```
+
+All subsequent commands in this skill use `git -C "$WORKTREE" ...` or `(cd "$WORKTREE" && ...)`. Bare `git checkout|switch|merge|...` and bare `gh pr create` are blocked by `hooks/main-branch-guard.sh` regardless of cwd. See `rules/agent-protocol.md > ## Main-Branch Invariant`.
+
 ## Context
 
 Gather state before starting:
 
 ```bash
 # Current branch and changes
-git status
-git log --oneline -5
-git diff --stat
+git -C "$WORKTREE" status
+git -C "$WORKTREE" log --oneline -5
+git -C "$WORKTREE" diff --stat
 ```
 
 ## Quick Start
 
 ```bash
-# Complete PR workflow
-git push -u origin feature/my-feature && \
-gh pr create --title "..." --body "..."
+# Complete PR workflow (must run from a worktree — see Worktree Precondition)
+(cd "$WORKTREE" && git push -u origin feature/my-feature && \
+ gh pr create --title "..." --body "...")
 ```
 
 ## Step-by-Step Workflow
@@ -53,10 +69,10 @@ gh pr create --title "..." --body "..."
 
 ```bash
 # Check current branch
-git status
+git -C "$WORKTREE" status
 
-# If on main/master, create feature branch first
-git checkout -b feature/add-notification-system
+# If on main/master, create feature branch first (delegated form required)
+git -C "$WORKTREE" checkout -b feature/add-notification-system
 ```
 
 ### 2. Run Pre-Push Validation
@@ -113,8 +129,10 @@ if [ -x "$HOME/.claude/skills/internal-eval/score/stamp-pr-body.sh" ]; then
   STAMP="$(bash "$HOME/.claude/skills/internal-eval/score/stamp-pr-body.sh" 2>/dev/null || true)"
 fi
 
-# Create PR with detailed description + eval baseline stamp
-gh pr create \
+# Create PR with detailed description + eval baseline stamp.
+# The (cd "$WORKTREE" && ...) wrapper is required by the main-branch invariant
+# guard — bare `gh pr create` is blocked by hooks/main-branch-guard.sh.
+(cd "$WORKTREE" && gh pr create \
   --title "type(scope): description (TICKET-123)" \
   --body "$(cat <<EOF
 ## Summary
@@ -135,7 +153,7 @@ Closes [TICKET-XXX or issue number]
 
 ${STAMP}
 EOF
-)"
+)")
 ```
 
 The eval-baseline stamp is appended to every PR body so reviewers see the latest suite pass rate + `harness_ref` SHA without per-PR reruns. See `~/.claude/skills/internal-eval/score/stamp-pr-body.sh`.
@@ -159,7 +177,7 @@ When user says "create PR", execute autonomously:
 2. Verify feature branch or create
 3. Stage and commit all changes
 4. Push to remote with `-u` flag
-5. Create GitHub PR via `gh pr create`
+5. Create GitHub PR via `(cd "$WORKTREE" && gh pr create ...)` — the `cd "$WORKTREE"` prefix is required by the main-branch invariant guard
 6. Return PR URL to user
 
 **Don't ask** -- just do it with reasonable defaults based on commit messages, files changed, and tests added.

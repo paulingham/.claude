@@ -223,10 +223,18 @@ git push -u origin main
 
 ### Step 8: Refactor the Monolith
 
-Back in the monolith repo, on a feature branch:
+Back in the monolith repo, on a feature branch.
+
+**Resolve the monolith worktree path first** (required by the main-branch invariant — see `rules/agent-protocol.md > ## Main-Branch Invariant`):
 
 ```bash
-git checkout -b extract-[service-name]
+# In harness-of-harness mode, MONOLITH_WORKTREE is the agent's worktree under
+# .claude/worktrees/. In sibling-clone mode, it's the monolith clone path.
+MONOLITH_WORKTREE="$(cd "$(git -C ../monolith rev-parse --show-toplevel 2>/dev/null || pwd)" && pwd -P)"
+
+# Create feature branch via delegated form. Bare HEAD-mutating git commands are
+# blocked by hooks/main-branch-guard.sh — see rules/agent-protocol.md.
+git -C "$MONOLITH_WORKTREE" checkout -b extract-[service-name]
 ```
 
 **Replace direct calls with HTTP client calls:**
@@ -297,9 +305,17 @@ npx specmatic test --contract contracts/openapi.yaml --host localhost:3001
 ### Step 10: Open PRs in Both Repos
 
 **New service PR** (if working on a branch):
+
+> **Harness-mode note**: If the monolith repo is `~/.claude` (harness-of-harness mode),
+> replace `cd ../monolith` with `cd "$MONOLITH_WORKTREE"` in the monolith PR block below.
+> The new-service repo at `../new-service` is a sibling clone and is unaffected by the
+> main-branch invariant. In sibling-clone mode (the default for cross-repo extraction),
+> no change is needed.
+
 ```bash
-cd ../new-service
-gh pr create \
+# Bare `gh pr create` is blocked by hooks/main-branch-guard.sh. The (cd <path> && ...)
+# wrapper is the required delegation form.
+(cd ../new-service && gh pr create \
   --title "feat: [service-name] — extracted from monolith" \
   --body "$(cat <<'PREOF'
 ## Summary
@@ -319,13 +335,20 @@ gh pr create \
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 PREOF
-)"
+)")
 ```
 
 **Monolith PR:**
+
+> **Harness-mode note**: If the monolith repo is `~/.claude` (harness-of-harness mode),
+> replace `cd ../monolith` with `cd "$MONOLITH_WORKTREE"` (the worktree path resolved
+> in Step 8). In sibling-clone mode (the default), `cd ../monolith` is correct because
+> the monolith is a sibling directory, not REPO_ROOT.
+
 ```bash
-cd ../monolith
-gh pr create \
+# Bare `gh pr create` is blocked by hooks/main-branch-guard.sh. The (cd <path> && ...)
+# wrapper is the required delegation form.
+(cd ../monolith && gh pr create \
   --title "refactor: extract [module] to [service-name] service" \
   --body "$(cat <<'PREOF'
 ## Summary
@@ -345,7 +368,7 @@ gh pr create \
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 PREOF
-)"
+)")
 ```
 
 ### Step 11: Set Up New Repo CI/CD Secrets
