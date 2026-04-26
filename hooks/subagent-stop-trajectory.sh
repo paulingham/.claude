@@ -7,6 +7,8 @@ set -uo pipefail
 
 INPUT=$(cat)
 AGENT_TYPE=$(echo "$INPUT" | jq -r '.subagent_type // .agent_type // "unknown"' 2>/dev/null || echo "unknown")
+SUBAGENT_ID=$(echo "$INPUT" | jq -r '.subagent_id // empty' 2>/dev/null || echo "")
+[[ -z "$SUBAGENT_ID" ]] && SUBAGENT_ID="${CLAUDE_SESSION_ID:-sess}-${RANDOM}-$$"
 
 # Auto-detect active pipeline from pipeline-state files
 TASK_ID="${CLAUDE_PIPELINE_TASK_ID:-}"
@@ -48,7 +50,8 @@ jq -n \
   --arg ts "$TIMESTAMP" \
   --arg agent "$AGENT_TYPE" \
   --arg task_id "$TASK_ID" \
-  '{"timestamp":$ts,"agent":$agent,"event":"agent_stopped","task_id":$task_id}' \
+  --arg subagent_id "$SUBAGENT_ID" \
+  '{"timestamp":$ts,"agent":$agent,"event":"agent_stopped","task_id":$task_id,"subagent_id":$subagent_id}' \
   >> "$TRAJECTORY_FILE" 2>/dev/null || true
 
 exit 0
