@@ -8,6 +8,9 @@ tools:
   - Bash
   - Grep
   - Glob
+  - NotebookEdit
+  - ToolSearch
+  - Computer
 model: opus
 maxTurns: 150
 disallowedTools:

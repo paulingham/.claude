@@ -317,3 +317,50 @@ literal example bash assignment.
 **Forensics:** `metrics/$SID/depth-violations.jsonl` and
 `metrics/$SID/runtime-violations.jsonl` join on `session_id` + `task_id`
 for retroactive auditing of cap breaches.
+
+## Per-Agent Tool Scoping
+
+Every agent's `tools:` frontmatter is the declared allowlist of tools that
+agent may invoke. The list is a YAML sequence (one tool per line) and is
+the single source of truth — no other file restates per-agent tool grants.
+The current spec for the seven F1-touched roles lives in
+`tests/test_agent_tools_spec.py` as a snapshot; any drift in either
+direction (frontmatter or spec) fails CI.
+
+**Enforcement (Path-B, currently log-only):**
+
+- `hooks/pre-agent-allowlist.sh` (PreToolUse Agent, position 5 — after
+  `pre-agent-thinking.sh` and `pre-agent-advisor.sh`, before
+  `depth-guard.sh`). Reads the spawned `subagent_type`, loads the
+  matching `agents/<role>.md` frontmatter via
+  `hooks/_lib/agent_tools_loader.py`, and computes a subset check against
+  `tool_input.allowed_tools`.
+- Resolver (`hooks/_lib/tool_allowlist_resolver.py`) returns one of:
+  - `skip` — non-Agent tool, or `subagent_type` fails the kebab-case
+    safety regex (`agent_path_validator`).
+  - `advisory` — frontmatter declares no tools, OR `tool_input` does not
+    expose `allowed_tools` (current schema state).
+  - `ok` — every requested tool is present in the frontmatter list.
+  - `would_block` — at least one requested tool is NOT in the frontmatter
+    list. Logged with the offending tool names. **No spawn is refused
+    today** — the field is not yet exposed by the Agent input schema.
+- Logged to `metrics/$SID/tool-allowlist.jsonl` with
+  `source: "path-b-advisory"`. Each line is capped at 1024 bytes;
+  `agent_role` is capped at 64 bytes; `CLAUDE_SESSION_ID` is sanitized
+  against directory traversal before metrics path resolution.
+- Disable per-session with `CLAUDE_DISABLE_TOOL_ALLOWLIST=1`. Suppressed
+  by `CLAUDE_HOOK_PROFILE=minimal` (matches the
+  `check_hook_profile "standard"` gating used by adjacent advisory hooks).
+
+**Promotion to enforcement** is a one-line flip in
+`hooks/pre-agent-allowlist.sh` (exit 2 on `would_block`, mirroring the
+`pre-agent-thinking.sh` precedent) the moment Claude Code exposes
+`allowed_tools` on Agent spawn payloads. The resolver and tests are
+already enforcement-ready.
+
+**For dynamic agents:** the same contract applies. The Dynamic Agent
+Template in `orchestrator/agent-orchestration.md` MUST declare `tools:`
+as a YAML list — comma-separated strings break the loader. If a dynamic
+agent's `tools:` list is missing entirely, the resolver returns
+`advisory` (no enforcement), so frontmatter omissions become silent —
+always declare the list.

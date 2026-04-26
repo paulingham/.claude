@@ -307,7 +307,13 @@ Do NOT create dynamic agents for work that fits a standard agent type. The stand
 ---
 name: {task-id}-{role}
 description: {One line describing the specialist purpose for this specific task}
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Grep
+  - Glob
 model: {sonnet or opus — sonnet for review/analysis, opus for implementation}
 maxTurns: 100
 disallowedTools:

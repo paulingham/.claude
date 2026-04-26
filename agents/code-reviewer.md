@@ -5,6 +5,7 @@ tools:
   - Read
   - Grep
   - Glob
+  - Bash
 model: opus
 executor: claude-sonnet-4-6
 advisor: claude-opus-4-7
