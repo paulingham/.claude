@@ -4,21 +4,16 @@
 # logs to ~/.claude/metrics/{session}/hook-injections.jsonl. Does NOT block: the
 # Agent tool input schema does not currently expose `thinking`, so enforcement is
 # deferred until Claude Code lands modified_tool_input support (Path A).
-# See pipeline-state/opus47-thinking-defaults-scratchpad/build-probe.md.
 
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
-source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)
-TOOL_NAME=$(echo "$INPUT" | python3 -c 'import json,sys
-try: d=json.loads(sys.stdin.read())
-except Exception: d={}
-print(d.get("tool_name",""))')
-[[ "$TOOL_NAME" == "Agent" ]] || exit 0
+OUT=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/resolve-thinking.py" 2>/dev/null) || exit 0
+DECISION=$(printf '%s\n' "$OUT" | sed -n '1p')
+RESOLVED=$(printf '%s\n' "$OUT" | sed -n '2p')
 
-RESOLVED=$(echo "$INPUT" | python3 ~/.claude/hooks/_lib/resolve-thinking.py 2>/dev/null) || exit 0
-MISSING=$(echo "$RESOLVED" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("missing", False))')
-[[ "$MISSING" == "True" ]] || exit 0
-
-bash ~/.claude/hooks/_lib/log-injection.sh "$INPUT" "$RESOLVED" "logged" 2>/dev/null
+[[ "$DECISION" == "LOG" ]] || exit 0
+bash "${HOOK_DIR}/_lib/log-injection.sh" "$INPUT" "$RESOLVED" "logged" 2>/dev/null
 exit 0
