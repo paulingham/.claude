@@ -51,6 +51,18 @@ After completing or modifying ANY file, verify all metrics in `rules/engineering
 
 If any metric is violated, refactor BEFORE moving to the next test case.
 
+### Step 3b: Optional Tool Synthesis Escalation
+
+If the standard toolset (Read, Grep, Glob, Bash one-liners, project-shipped scripts) is insufficient and a one-shot scratch tool would unblock progress, invoke `/tool-synthesis`. Triggers (any one):
+
+- The same lookup/transformation has been performed manually **3+ times** in this task
+- No extant tool covers the operation cleanly (no `rg` pattern, no `ast-grep` rule, no project script)
+- A repo-specific concern (custom DSL, generated file, codebase convention) makes off-the-shelf tools wrong
+
+The synthesised tool lives in `${WORKTREE}/.claude-scratch-tools/`, is invoked via Bash, and is cleaned up before BUILD_COMPLETE. It NEVER reaches `main`. See `skills/tool-synthesis/SKILL.md` for the full procedure.
+
+If a built-in tool covers it, USE IT — do not synthesise.
+
 ### Step 4: Self-Review Checklist Before Done
 
 Before declaring the build complete:
@@ -62,6 +74,7 @@ Before declaring the build complete:
 - [ ] All tests pass
 - [ ] TDD audit trail visible (RED/GREEN/REFACTOR output for each cycle)
 - [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `rules/e2e-protocol.md` trigger matrix)
+- [ ] If `/tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries
 
 ## Worktree Isolation
 

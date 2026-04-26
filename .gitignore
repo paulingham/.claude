@@ -64,6 +64,10 @@ db/*.sqlite-journal
 db/*.sqlite-wal
 db/*.sqlite-shm
 
+# Worktree-scoped scratch tools — see skills/tool-synthesis/. Per-worktree only;
+# never merged. The skill also adds this entry to target repos' .gitignore.
+.claude-scratch-tools/
+
 # Never track secrets or credentials
 credentials.json
 .claude.json
