@@ -89,10 +89,11 @@ Before advancing to any phase, verify the previous gate passed AND invoke the re
   Use `/epic-breakdown`, `/estimation`, `/story-writing`, `/tech-spike` as needed
 - **Build**: `/build-implementation` or `/refactor` or `/bug-fix` -- TDD, shape self-check
 - **Review**: `/code-review` + `/security-review` as team (tmux visible) -- both must APPROVE
-- **Final Gate** (Verify + Test + Accept as team, parallel):
+- **Final Gate** (Verify + Test + Accept + Patch Critique as team, parallel):
   - `/verify` -- check E2E trigger matrix (`rules/e2e-protocol.md`)
   - `/qa-test-strategy` -- all ACs covered, no gaps
   - `/product-acceptance` -- APPROVED required
+  - `/patch-critique` -- PATCH_APPROVED required (rubric: tests cover change, diff minimal vs spec, no obvious regressions, no incidental refactor). PATCH_REJECTED returns to fix-engineer (no user escalation per § In-Cycle Fix Rule).
 - **Ship**: `/pr-creation` -- PR with narrative, quality gate passes
 
 ## Review Protocol

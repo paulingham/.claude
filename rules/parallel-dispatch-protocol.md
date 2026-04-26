@@ -97,15 +97,18 @@ Key advantage: reviewer **remembers the codebase** on re-review -- no context re
 
 ### Final Gate Team (always)
 
-Three phases run simultaneously instead of sequentially:
+Four phases run simultaneously instead of sequentially. All four are read-only against the same final state — no lock contention, no shared write surface.
 
 | Teammate | Skill | Verdict |
 |----------|-------|---------|
 | qa-engineer (verify) | `/verify` | VERIFIED |
 | qa-engineer (test) | `/qa-test-strategy` | COVERED |
 | product-reviewer | `/product-acceptance` | APPROVED |
+| patch-critic | `/patch-critique` | PATCH_APPROVED |
 
-All three assess the same final state independently. Shut down after all verdicts collected.
+`patch-critic` evaluates the candidate patch by **test results + diff** — NOT SOLID/DRY (that is the code-reviewer's job, gated upstream). Inspired by SWE-bench top scaffolds (Agentless, AutoCodeRover, MarsCode-Agent) where a critic step distinguishes high-scoring patches from regressions. Rubric: tests cover the change, diff minimal vs spec, no obvious regressions visible from diff, no incidental refactor. PATCH_REJECTED returns to fix-engineer per `rules/pipeline-protocol.md` § In-Cycle Fix Rule — never escalates to the user.
+
+All four assess the same final state independently. Shut down after all verdicts collected.
 
 ## Subagent Phases (unchanged)
 

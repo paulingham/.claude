@@ -65,6 +65,7 @@ Every Agent spawn carries a `thinking` field — `effort` (`low|medium|high|xhig
 | security-engineer | Review | No | opus | No |
 | qa-engineer | Test | Yes | sonnet | Yes |
 | product-reviewer | Accept | No | sonnet | Yes |
+| patch-critic | Final Gate | No | sonnet | No |
 
 **Model self-tuning**: For tunable agents, the orchestrator checks `learning/instincts/` for model-efficiency instincts. If data shows Sonnet achieves identical outcomes for a phase/task-type, the model is downgraded. Architect and security-engineer are never downgraded (design and security decisions require highest capability). See `orchestrator/agent-orchestration.md` § Instinct Injection.
 
@@ -80,7 +81,7 @@ One team per pipeline (`TeamCreate("pipeline-{task-id}")`). Teammates spawned ju
 | Build (single) | Subagent + worktree | No |
 | Build (multi) | **Team** | Yes -- parallel engineers |
 | Review | **Team** | Yes -- reviewers with persistent context |
-| Final Gate | **Team** | Yes -- verify + test + accept in parallel |
+| Final Gate | **Team** | Yes -- verify + test + accept + patch-critique in parallel |
 | Ship / Deploy | Subagent | No |
 
 **Role selection**: Pick teammates from the Agent Team table above. Every teammate's spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format."
@@ -128,10 +129,11 @@ User → /intake (classify + score) → /pipeline (drive phases)
 3. **Build** → `/build-implementation` (subagent for single-slice, **team for multi-slice**). Gate: tests green, shape met.
 4. **Review** → `/code-review` + `/security-review` (**team** -- tmux visible, persistent context). Gate: both APPROVE.
    - Review is 1-2 rounds max. Re-review uses same reviewer (context preserved). Async when possible.
-5. **Final Gate** → **team** running verify + test + accept in parallel:
+5. **Final Gate** → **team** running verify + test + accept + patch-critique in parallel:
    - `/verify` (contract + smoke + mutation). Gate: VERIFIED.
    - `/qa-test-strategy`. Gate: all ACs covered, no gaps.
    - `/product-acceptance`. Gate: APPROVED.
+   - `/patch-critique` (test results + diff, NOT SOLID). Gate: PATCH_APPROVED.
 6. **Ship** → `/pr-creation` (subagent). Gate: quality gate hook passes.
 7. **Deploy** → `/deploy` + `/deployment-verification` (subagent). Gate: DEPLOYMENT_VERIFIED.
 8. **Reflect** → Review pipeline execution, capture observation, auto-learn if gate met, update session memory, clean up scratchpad. Always runs.
@@ -169,6 +171,7 @@ Set `CLAUDE_ENABLE_TRACE=1` to capture per-spawn prompt traces to `metrics/{sess
 | `/verify` | Verify phase: contract + smoke + mutation | VERIFIED / UNVERIFIED |
 | `/qa-test-strategy` | Test phase: coverage analysis + gap filling | COVERED / GAPS_FOUND |
 | `/product-acceptance` | Accept phase: AC validation + UX | APPROVED / REJECTED |
+| `/patch-critique` | Final Gate: critic step scoring patch by test results + diff (NOT SOLID — that is `/code-review`'s job). Inspired by SWE-bench top scaffolds | PATCH_APPROVED / PATCH_REJECTED |
 | `/pr-creation` | Ship phase: PR creation with narrative | PR_CREATED / PR_BLOCKED |
 | `/tech-spike` | Time-boxed technical research | SPIKE_COMPLETE |
 | `/project-setup` | Scaffolding project-level CLAUDE.md | PROJECT_SETUP_COMPLETE |

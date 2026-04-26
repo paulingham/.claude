@@ -67,6 +67,7 @@ You describe what you want. The system:
 | security-engineer | OWASP Top 10, dependency scanning, auth review | opus | No (read-only) |
 | qa-engineer | Test strategy, coverage gaps, integration/E2E tests | sonnet | Yes |
 | product-reviewer | Acceptance criteria, UX heuristic evaluation | sonnet | No (read-only) |
+| patch-critic | Final-Gate critic: test results + diff (NOT SOLID — code-reviewer owns that). Inspired by SWE-bench top scaffolds | sonnet | No (read-only) |
 
 ## Delivery Pipeline
 
@@ -167,6 +168,7 @@ Invoked only when a forcing function from `rules/module-boundaries-protocol.md` 
 | `/load-test` | PERFORMANCE_VERIFIED / FAILED |
 | `/qa-test-strategy` | COVERED / GAPS_FOUND |
 | `/product-acceptance` | APPROVED / REJECTED |
+| `/patch-critique` | PATCH_APPROVED / PATCH_REJECTED |
 | `/pr-creation` | PR_CREATED / PR_BLOCKED |
 | `/deploy` | DEPLOYED / ROLLED_BACK |
 | `/deployment-verification` | DEPLOYMENT_VERIFIED / AUTO_ROLLBACK |
