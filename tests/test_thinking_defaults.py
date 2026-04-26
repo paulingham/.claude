@@ -1,5 +1,7 @@
 """Thinking-defaults resolver tests (incremental TDD)."""
+import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +9,14 @@ from unittest.mock import patch
 
 from pipeline_state import read_active_state
 from thinking_resolver import resolve
+
+HOOK = Path(__file__).resolve().parents[1] / "hooks" / "pre-agent-thinking.sh"
+
+
+def _run_hook(payload):
+    return subprocess.run(
+        ["bash", str(HOOK)], input=json.dumps(payload),
+        capture_output=True, text=True, timeout=10)
 
 
 def _write_state(dirpath, task_id, body):
@@ -187,6 +197,17 @@ class SoftwareEngineerCriticalBudget10YieldsHighNotXhigh(unittest.TestCase):
         state = {"critical": True, "budget": 10}
         result = resolve(tool_input=tool_input, env={}, state=state)
         self.assertEqual(result["effort"], "high")
+
+
+class HookLogsOnlyDoesNotBlock(unittest.TestCase):
+    def test_missing_thinking_exits_zero_no_block_stderr(self):
+        result = _run_hook({"tool_name": "Agent", "tool_input": {}})
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("BLOCKED:", result.stderr)
+
+    def test_non_agent_tool_exits_zero(self):
+        result = _run_hook({"tool_name": "Bash", "tool_input": {}})
+        self.assertEqual(result.returncode, 0)
 
 
 if __name__ == "__main__":

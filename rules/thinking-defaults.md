@@ -36,17 +36,28 @@ Opus 4.7 introduces a `thinking` field on Agent spawns that controls reasoning e
 
 `display` defaults to `omitted` for all roles unless a debug state file is active.
 
-## Hook Behavior (Path B — current)
+## Hook Behavior (Path B — current, log-only)
 
 The probe in `pipeline-state/opus47-thinking-defaults-scratchpad/build-probe.md`
-selected Path B (validation/block) because the build agent could not empirically
-verify that `modified_tool_input` is honored on Agent spawns.
+selected Path B (validation/block). Empirical reality: the Agent tool input
+schema does not currently expose `thinking`, so a hard block refused every
+orchestrator spawn. The hook is therefore **log-only** until Claude Code lands
+either `modified_tool_input` (Path A) or `thinking` in the Agent schema.
 
-- **Missing `thinking` field on an Agent spawn**: hook exits 2 with stdout reason that includes the resolved `{effort, display}` for the orchestrator. Refusal logged to `metrics/{session}/hook-injections.jsonl` with `source: "blocked"`.
+- **Missing `thinking` field on an Agent spawn**: hook exits 0 and logs the
+  resolved `{effort, display}` to `metrics/{session}/hook-injections.jsonl`
+  with `source: "logged"`. No stderr block message. No spawn refusal.
 - **Present `thinking` field**: hook exits 0, no validation.
 - **Non-Agent tools**: hook exits 0 immediately.
 
-If Path A (silent injection via `modified_tool_input`) is later validated, only `hooks/pre-agent-thinking.sh` flips from exit-2 to JSON emission on stdout — the resolver, tests, and precedence rules are unchanged.
+## Current Status
+
+Path B is currently **log-only** (advisory). The Agent tool input schema does
+not expose `thinking`, so blocking would refuse every orchestrator spawn. The
+hook will be promoted to enforcement (Path A silent injection or hard-block
+Path B) when Claude Code exposes the `thinking` field on Agent inputs. When
+that happens, only `hooks/pre-agent-thinking.sh` flips behavior — the
+resolver, tests, and precedence rules are unchanged.
 
 ## Environment Variables
 
@@ -62,7 +73,7 @@ If Path A (silent injection via `modified_tool_input`) is later validated, only 
 - `hooks/_lib/pipeline_state.py` — discovers active pipeline state file, parses frontmatter, detects debug. `read_active_state(state_dir=None) -> dict`.
 - `hooks/_lib/resolve-thinking.py` — stdin entry script that ties the two together.
 - `hooks/pre-agent-thinking.sh` — bash wrapper registered in `settings.json` under `PreToolUse > Agent`.
-- Tests: `tests/test_thinking_defaults.py` (20 plan tests + 1 negative boundary).
+- Tests: `tests/test_thinking_defaults.py` (resolver suite + hook log-only behavior).
 
 ## xhigh Leakage Boundary
 

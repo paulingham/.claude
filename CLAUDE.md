@@ -44,6 +44,8 @@ Global wins for quality standards; project wins for project-specific conventions
 
 Every Agent spawn carries a `thinking` field — `effort` (`low|medium|high|xhigh`) and `display` (`omitted|text`). Defaults are applied automatically by the `pre-agent-thinking.sh` PreToolUse hook. Default for all roles is `effort=high`, `display=omitted`. xhigh applies only to `architect` (when `critical=true OR budget>=7`), `security-engineer` (when `critical=true AND budget>=7`), and Best-of-N candidates (when `budget>=7`). When the active pipeline is in a debug state (`{task_id}-debug.md` exists OR phase is `debugging`), `display=text` is forced. Override via `CLAUDE_THINKING_EFFORT` / `CLAUDE_THINKING_DISPLAY` env vars. See `rules/thinking-defaults.md` for the full precedence table.
 
+**Note:** the hook is currently **advisory/log-only** — the Agent tool input schema does not yet expose `thinking`, so refusals are logged but no spawn is blocked. Will be promoted to enforcement when the field is exposed.
+
 ### Agent Team
 
 | Agent | Phase | Worktree | Default Model | Tunable |
