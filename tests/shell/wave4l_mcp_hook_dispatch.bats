@@ -31,6 +31,9 @@ class _R:
     def __enter__(self): return self
     def __exit__(self, *a): return False
 def _fake(req, timeout=None):
+    url = req.get_full_url() if hasattr(req, "get_full_url") else ""
+    if url.endswith("/files"):
+        return _R('[{"filename":"a.py"},{"filename":"b.sh"}]')
     return _R('{"number":47,"merged_at":"2026-04-15T12:34:56Z"}')
 urllib.request.urlopen = _fake
 PY

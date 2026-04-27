@@ -41,5 +41,16 @@ class TestReshapeView(unittest.TestCase):
         self.assertEqual(out["labels"], [{"name": "bug"}, {"name": "ci"}])
 
 
+class TestReshapeFiles(unittest.TestCase):
+    def setUp(self):
+        self.shape = _load()
+
+    def test_returns_newline_delimited_filenames(self):
+        rest = json.dumps([{"filename": "tests/a.py", "status": "modified"},
+                           {"filename": "hooks/b.sh", "status": "added"}])
+        self.assertEqual(self.shape.reshape_files(rest),
+                         "tests/a.py\nhooks/b.sh\n")
+
+
 if __name__ == "__main__":
     unittest.main()

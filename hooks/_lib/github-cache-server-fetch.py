@@ -6,18 +6,16 @@ import urllib.request
 from pathlib import Path
 
 _API_BASE = "https://api.github.com"  # SSRF guard: no env override.
+_JSON = "application/vnd.github+json"
+_DIFF = "application/vnd.github.v3.diff"
 
 
-def _load(stem):
-    spec = importlib.util.spec_from_file_location(
-        f"_ghc_{stem}", Path(__file__).parent / f"github-cache-server-{stem}.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-_shape = _load("shape")
-write_cache = _load("store").write_cache
+_spec = importlib.util.spec_from_file_location(
+    "_ghc_loader", Path(__file__).parent / "github-cache-server-loader.py")
+_loader = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_loader)
+_shape = _loader.load_sibling("shape")
+write_cache = _loader.load_sibling("store").write_cache
 
 
 def _open(url, accept, timeout=8):
@@ -40,10 +38,9 @@ def fetch_pr_data(owner, repo, pr):
 def _do_fetch(owner, repo, pr):
     base = f"{_API_BASE}/repos/{owner}/{repo}/pulls/{pr}"
     return {"ok": True,
-            "view": _shape.reshape_view(
-                _open(base, "application/vnd.github+json")),
-            "diff": _open(base, "application/vnd.github.v3.diff"),
-            "files": _open(f"{base}/files", "application/vnd.github+json")}
+            "view": _shape.reshape_view(_open(base, _JSON)),
+            "diff": _open(base, _DIFF),
+            "files": _shape.reshape_files(_open(f"{base}/files", _JSON))}
 
 
 def _classify(exc):

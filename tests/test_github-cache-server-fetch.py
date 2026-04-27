@@ -138,25 +138,25 @@ class TestRestToGhShapeReshape(unittest.TestCase):
         os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"] = "t"
         self.fetch = _load("gh_cache_fetch", FETCH_PATH)
 
-    def _opener(self, payloads_by_accept):
+    def _opener(self):
         def opener(req, timeout=None):
-            accept = req.headers.get("Accept", "")
-            return _Resp(payloads_by_accept.get(accept, "{}"))
+            url = req.get_full_url()
+            if url.endswith("/files"):
+                return _Resp(json.dumps([{"filename": "a.py"}, {"filename": "b.sh"}]))
+            if req.headers.get("Accept", "").endswith("diff"):
+                return _Resp("diff body")
+            return _Resp(_rest_view_body())
         return opener
 
     def test_view_reshaped_mergedAt_camelCase(self):
-        opener = self._opener({"application/vnd.github+json": _rest_view_body(),
-                               "application/vnd.github.v3.diff": "diff body"})
-        with mock.patch("urllib.request.urlopen", side_effect=opener):
+        with mock.patch("urllib.request.urlopen", side_effect=self._opener()):
             result = self.fetch.fetch_pr_data("o", "r", 47)
         view = json.loads(result["view"])
         self.assertEqual(view["mergedAt"], "2026-04-15T12:34:56Z")
         self.assertNotIn("merged_at", view)
 
     def test_view_reshaped_mergeCommit_oid(self):
-        opener = self._opener({"application/vnd.github+json": _rest_view_body(),
-                               "application/vnd.github.v3.diff": "diff body"})
-        with mock.patch("urllib.request.urlopen", side_effect=opener):
+        with mock.patch("urllib.request.urlopen", side_effect=self._opener()):
             result = self.fetch.fetch_pr_data("o", "r", 47)
         view = json.loads(result["view"])
         self.assertEqual(view["mergeCommit"], {"oid": "deadbeef00"})

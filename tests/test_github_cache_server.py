@@ -164,8 +164,9 @@ class TestFetchPrData(unittest.TestCase):
         seen_urls = []
 
         def capturing(req, timeout=None):
-            seen_urls.append(req.get_full_url() if hasattr(req, "get_full_url") else req)
-            return _Resp("{}")
+            url = req.get_full_url() if hasattr(req, "get_full_url") else req
+            seen_urls.append(url)
+            return _Resp("[]" if url.endswith("/files") else "{}")
 
         with mock.patch.object(srv._fetch, "_API_BASE", "http://localhost:8080"), \
              mock.patch("urllib.request.urlopen", side_effect=capturing):
@@ -208,7 +209,11 @@ class TestPrefetchToolWritesCache(unittest.TestCase):
             os.environ["CLAUDE_SESSION_ID"] = "sxx"
             os.environ["CLAUDE_GH_CACHE_DIR"] = tmp
             os.environ["_TEST_GH_OWNER_REPO"] = "o/r"
-            urls = {"default": json.dumps({"number": 47})}
+            urls = {
+                "https://api.github.com/repos/o/r/pulls/47": json.dumps({"number": 47}),
+                "https://api.github.com/repos/o/r/pulls/47/files": json.dumps([{"filename": "a.py"}]),
+                "default": "diff-body",
+            }
             with mock.patch("urllib.request.urlopen", side_effect=_mock_url_open(urls)):
                 req = json.dumps({"jsonrpc": "2.0", "id": 9,
                                   "method": "tools/call",
