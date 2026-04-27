@@ -222,7 +222,7 @@ Context:
 - Subagent depth: {N}
 
 ## Learned Patterns (from system learning)
-[instincts filtered by role — top 5 by confidence]
+[instincts filtered by role — top 5 by confidence; selection contract in `rules/autonomous-intelligence.md` § Instinct Injection]
 
 ## Session Context (engineering notes for this project)
 [session memory content — full or priority sections by role]

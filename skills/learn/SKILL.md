@@ -103,10 +103,12 @@ Project-scoped instincts live in `~/.claude/learning/{project-hash}/instincts/`.
 ---
 id: instinct-{hash}
 confidence: 0.3
+category: {discovery|warning|pattern|fragility|decision}
 domain: {testing|code-style|architecture|workflow|performance|security}
 scope: project
 project: {project-hash}
 roles: [software-engineer, code-reviewer]
+applies_to_roles: [software-engineer, code-reviewer]
 source: {observation|pipeline-analytics|review-feedback}
 created: {ISO 8601}
 evidence_count: 1
@@ -120,10 +122,62 @@ last_seen: {ISO 8601}
 - {date}: {observation/finding that triggered this instinct}
 ```
 
-**Instinct fields**:
-- `roles`: Which agent roles this instinct applies to. Used by the orchestrator to filter instincts when spawning agents (see orchestrator/agent-orchestration.md).
-- `source`: Where this instinct came from. `observation` = tool usage patterns. `pipeline-analytics` = phase-level metrics. `review-feedback` = backward feedback from reviewer findings.
-- `domain`: Category for grouping and reporting.
+**Instinct fields** (load-bearing for the loader at `hooks/_lib/instinct_loader.py`):
+- `id` (REQUIRED, string): stable identifier; used as the dedup key by the resolver — when the same `id` appears in both project and global directories, the higher-confidence entry wins; on tie, project beats global. Also the secondary sort key (ASC) for stable output ordering.
+- `confidence` (REQUIRED, float 0.0-1.0): used both for the floor filter (default `0.4` via `CLAUDE_INSTINCT_MIN_CONFIDENCE`) and the primary sort key (DESC).
+- `roles` (REQUIRED, non-empty YAML list of role-name tokens): which agent roles this instinct applies to. Filtered by set-intersection with the spawning agent's `instinct_categories:` (see `agents/{role}.md` frontmatter). **MUST be a YAML list**, not a comma-separated string — `pipeline_frontmatter.parse_frontmatter` would silently corrupt list values to strings, so the loader uses `yaml.safe_load` and `tests/test_learn_roles_enforcement.py` locks the list-not-string contract. **An instinct emitted with empty `roles: []` is invisible to every spawn** (the role-filter intersection is always empty); `/learn` MUST default empty `roles` to `[software-engineer, code-reviewer]` and emit a `source: "learn-warning"` JSONL record (see Step 9 below).
+- `category` (RECOMMENDED, enum `discovery|warning|pattern|fragility|decision`): mirrors the scratchpad finding categories, allowing scratchpad → instinct promotion (see `rules/autonomous-intelligence.md` § Scratchpad → Instinct Promotion) to preserve provenance. Optional for backward compatibility with the 4 historical instincts that pre-date this field; the loader does not require it.
+- `applies_to_roles` (OPTIONAL, YAML list): forward-looking alias for `roles:`. When present, ignored by the current loader; `roles:` is still the load-bearing field. Future loader versions may merge the two.
+- `domain`: appended to each rendered bullet — `- [{confidence:.2f}] {summary} ({domain})`. Optional; defaults to empty string in the renderer.
+- `scope`: set by the loader (`"project"` or `"global"`) based on the file's directory. Should not be hand-authored; if present, it is overwritten on load.
+- `source`: provenance — `observation` = tool usage patterns; `pipeline-analytics` = phase-level metrics; `review-feedback` = backward feedback from reviewer findings.
+
+**Body extraction contract** (`hooks/_lib/instinct_loader_helpers.py`): the actionable summary rendered into each bullet is the **first non-empty line** of the `## Pattern` body, truncated at 200 chars. The body-extraction regex is `r"^## Pattern[ \t]*\n(.*?)(?=\n##|\Z)"` — note `[ \t]*` (horizontal whitespace only) NOT `\s*` after the heading; `\s` would consume newlines and leak the next section's heading text into the summary when the body is empty. A blank line between `## Pattern` and the body is fine; the extractor strips it. Files missing the `## Pattern` heading or with an all-whitespace body are skipped with a `source: "load-warning"` record.
+
+**Worked example** (canonical emission, single instinct file the loader accepts and the resolver renders correctly):
+
+```markdown
+---
+id: instinct-validate-input-at-boundary
+confidence: 0.85
+category: pattern
+domain: security
+scope: project
+project: a1b2c3d4
+roles: [software-engineer, code-reviewer, frontend-engineer]
+applies_to_roles: [software-engineer, code-reviewer, frontend-engineer]
+source: review-feedback
+created: 2026-04-15T12:00:00Z
+evidence_count: 7
+last_seen: 2026-04-25T09:30:00Z
+---
+
+## Pattern
+Always validate input at the controller boundary, never inside the service layer — the service should assume valid input.
+
+## Evidence
+- 2026-04-15: review caught missing validation in PaymentsController
+- 2026-04-22: same issue in OrdersController#create
+```
+
+This file renders (for a `software-engineer` spawn) as: `- [0.85] Always validate input at the controller boundary, never inside the service layer — the service should assume valid input. (security)`.
+
+#### Roles coverage check (mandatory pre-emission gate)
+
+Before writing the file, validate `roles:`:
+
+1. If the planned `roles:` list is empty → set it to the safe default `[software-engineer, code-reviewer]` AND emit a JSONL warning to `metrics/{session-id}/instinct-injections.jsonl`:
+
+   ```bash
+   bash hooks/_lib/log-injection.sh \
+     '{"tool_input":{"subagent_type":""}}' \
+     '{"file":"<path>","reason":"empty-roles-defaulted","defaulted_to":["software-engineer","code-reviewer"]}' \
+     learn-warning instinct-injections.jsonl
+   ```
+
+2. If the planned `roles:` list contains tokens not present in any agent's `instinct_categories:` (snapshot lives in `tests/test_agent_instinct_categories.py`) → emit a `learn-warning` record naming the unmatched tokens. Do not refuse to write the file — the unmatched token may target a future agent role.
+
+This gate is enforced by `tests/test_learn_roles_enforcement.py` — the test asserts that every agent file declares `instinct_categories:` as a non-empty YAML list, and that the dedicated loader returns a list for every shipped role. Doc-only enforcement is insufficient; the test locks the contract.
 
 ### 6. Prune Stale Instincts
 
