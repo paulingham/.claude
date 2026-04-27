@@ -1,0 +1,1 @@
+{"mergedAt":"2026-04-15T12:34:56Z","number":1234,"title":"Fix flaky test in suite","body":"Flaky test resolved by stabilising fixture order.\n\nFixes #1230.","labels":[{"name":"bug"}],"mergeCommit":{"oid":"deadbeef0000000000000000000000000000abcd"}}

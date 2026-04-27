@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 # Filters: contamination date cutoff + oracle-match wrapper + composed gate.
+# Sources cache-tier helpers; cache hit avoids gh CLI subprocesses entirely.
+
+_HERE_ECF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "$_HERE_ECF/eval-capture-worker-cache.sh"
 
 ECW_CUTOFF="${CLAUDE_EVAL_CAPTURE_CUTOFF:-2026-01-01}"
 
@@ -18,13 +23,19 @@ ecw_oracle_hits() {
 }
 
 ecw_fetch_view() {
+  ecw_cache_view "$1" && return 0
   gh pr view "$1" --json mergedAt,number,title,body,labels,mergeCommit 2>/dev/null || echo '{}'
+}
+
+ecw_fetch_names() {
+  ecw_cache_names "$1" && return 0
+  gh pr diff "$1" --name-only 2>/dev/null || echo ''
 }
 
 ecw_run_filters() {
   local pr="$1" view names
   view="$(ecw_fetch_view "$pr")"
   ecw_date_fresh "$view" || { _ecw_skip "$pr" "merged before cutoff"; return 1; }
-  names="$(gh pr diff "$pr" --name-only 2>/dev/null || echo '')"
+  names="$(ecw_fetch_names "$pr")"
   ecw_oracle_hits "$names" || { _ecw_skip "$pr" "no oracle match"; return 1; }
 }
