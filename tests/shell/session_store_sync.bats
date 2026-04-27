@@ -2,7 +2,10 @@
 # Sync helpers: sync_in / sync_out (Slice 4).
 
 setup() {
-  TEST_HOME="$(mktemp -d)"
+  BATS_FILE_TMPDIR="$(mktemp -d -t sessionstore.XXXXXX)"
+  export BIN_DIR="$BATS_FILE_TMPDIR/bin"
+  export AWS_LOG="$BATS_FILE_TMPDIR/aws.log"
+  TEST_HOME="$BATS_FILE_TMPDIR/home"; mkdir -p "$TEST_HOME"
   export HOME="$TEST_HOME"
   export PROJECT_HASH="abc123"
   STORE_DIR="$HOME/.claude/session-memory/$PROJECT_HASH"
@@ -14,31 +17,31 @@ setup() {
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
 }
 
-teardown() { rm -rf "$TEST_HOME"; }
+teardown() { rm -rf "$BATS_FILE_TMPDIR"; }
 
 @test "AC-4.1: BACKEND=local sync_in is byte-no-op" {
   printf 'pre-state\n' > "$NOTES"
-  cp "$NOTES" "$BATS_TMPDIR/golden"
+  cp "$NOTES" "$BATS_FILE_TMPDIR/golden"
   run session_memory_sync_in "$PROJECT_HASH" "$NOTES"
   [ "$status" -eq 0 ]
-  cmp "$NOTES" "$BATS_TMPDIR/golden"
+  cmp "$NOTES" "$BATS_FILE_TMPDIR/golden"
 }
 
 @test "AC-4.1: BACKEND=local sync_out is byte-no-op" {
   printf 'post-state\n' > "$NOTES"
-  cp "$NOTES" "$BATS_TMPDIR/golden"
+  cp "$NOTES" "$BATS_FILE_TMPDIR/golden"
   run session_memory_sync_out "$PROJECT_HASH" "$NOTES"
   [ "$status" -eq 0 ]
-  cmp "$NOTES" "$BATS_TMPDIR/golden"
+  cmp "$NOTES" "$BATS_FILE_TMPDIR/golden"
 }
 
 @test "AC-4.2: sync_in on missing remote + existing local file → leaves local untouched" {
   setup_s3_shim_404
   printf 'preserved\n' > "$NOTES"
-  cp "$NOTES" "$BATS_TMPDIR/golden"
+  cp "$NOTES" "$BATS_FILE_TMPDIR/golden"
   run session_memory_sync_in "$PROJECT_HASH" "$NOTES"
   [ "$status" -eq 0 ]
-  cmp "$NOTES" "$BATS_TMPDIR/golden"
+  cmp "$NOTES" "$BATS_FILE_TMPDIR/golden"
 }
 
 @test "AC-4.3: sync_in on missing remote + missing local → writes template stamp" {
@@ -104,47 +107,6 @@ teardown() { rm -rf "$TEST_HOME"; }
   [ "$status" -eq 0 ]
   [ -f "$NOTES" ]
   ! grep -q "pre-existing" "$NOTES"
-}
-
-setup_s3_shim_fail() {
-  setup_s3_shim_404
-}
-
-setup_s3_shim_with_blob() {
-  export CLAUDE_SESSION_STORE_BACKEND="s3"
-  export CLAUDE_SESSION_STORE_BUCKET="test-bucket"
-  export AWS_LOG="$BATS_TMPDIR/aws.log"; : > "$AWS_LOG"
-  export AWS_BLOB="$1"
-  unset _SESSION_STORE_RESOLVED_BACKEND
-  mkdir -p "$BATS_TMPDIR/bin"
-  cat > "$BATS_TMPDIR/bin/aws" <<'SHIM'
-#!/usr/bin/env bash
-echo "$@" >> "$AWS_LOG"
-case "$1 $2" in
-  "s3 cp")
-    if [[ "$3" == s3://* ]]; then printf '%b' "$AWS_BLOB"; exit 0; fi
-    cat > /dev/null; exit 0 ;;
-esac
-exit 1
-SHIM
-  chmod +x "$BATS_TMPDIR/bin/aws"
-  export PATH="$BATS_TMPDIR/bin:$PATH"
-}
-
-setup_s3_shim_record() {
-  export CLAUDE_SESSION_STORE_BACKEND="s3"
-  export CLAUDE_SESSION_STORE_BUCKET="test-bucket"
-  export AWS_LOG="$BATS_TMPDIR/aws.log"; : > "$AWS_LOG"
-  unset _SESSION_STORE_RESOLVED_BACKEND
-  mkdir -p "$BATS_TMPDIR/bin"
-  cat > "$BATS_TMPDIR/bin/aws" <<'SHIM'
-#!/usr/bin/env bash
-echo "$@" >> "$AWS_LOG"
-[[ "$1 $2" == "s3 cp" ]] && exit 0
-exit 1
-SHIM
-  chmod +x "$BATS_TMPDIR/bin/aws"
-  export PATH="$BATS_TMPDIR/bin:$PATH"
 }
 
 setup_s3_shim_404() {

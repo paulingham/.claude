@@ -2,7 +2,8 @@
 # Local adapter contract tests (Slice 1).
 
 setup() {
-  TEST_HOME="$(mktemp -d)"
+  BATS_FILE_TMPDIR="$(mktemp -d -t sessionstore.XXXXXX)"
+  TEST_HOME="$BATS_FILE_TMPDIR/home"; mkdir -p "$TEST_HOME"
   export HOME="$TEST_HOME"
   export PROJECT_HASH="abc123"
   export SESSION_ID="notes"
@@ -15,11 +16,11 @@ setup() {
 }
 
 teardown() {
-  rm -rf "$TEST_HOME"
+  rm -rf "$BATS_FILE_TMPDIR"
 }
 
 @test "AC-1.2: put writes blob to backend, cmp returns 0" {
-  local payload="$BATS_TMPDIR/payload.md"
+  local payload="$BATS_FILE_TMPDIR/payload.md"
   printf 'hello world\n' > "$payload"
   run session_store_put "$PROJECT_HASH" "$SESSION_ID" "$payload"
   [ "$status" -eq 0 ]
@@ -89,4 +90,15 @@ Active Work"
   mode=$(stat -f '%Lp' "$HOME/.claude/session-memory/$fresh_hash" 2>/dev/null \
        || stat -c '%a' "$HOME/.claude/session-memory/$fresh_hash" 2>/dev/null)
   [ "$mode" = "700" ]
+}
+
+@test "LOW/A05: _local_put creates blob file with mode 0600" {
+  local fresh_hash="filemode$$"
+  rm -rf "$HOME/.claude/session-memory/$fresh_hash"
+  printf 'secret' | session_store_put "$fresh_hash" "$SESSION_ID" -
+  local blob_path="$HOME/.claude/session-memory/$fresh_hash/$SESSION_ID.md"
+  local mode
+  mode=$(stat -f '%Lp' "$blob_path" 2>/dev/null \
+       || stat -c '%a' "$blob_path" 2>/dev/null)
+  [ "$mode" = "600" ]
 }
