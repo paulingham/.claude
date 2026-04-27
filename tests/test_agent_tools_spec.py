@@ -27,6 +27,7 @@ _SPEC = {
                           "NotebookEdit", "ToolSearch"],
     "infrastructure-engineer": ["Read", "Write", "Edit", "Bash", "Grep",
                                 "Glob", "NotebookEdit", "ToolSearch"],
+    "planning-agent": ["Read", "Grep", "Glob", "Edit"],
 }
 
 
