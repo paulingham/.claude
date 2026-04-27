@@ -11,41 +11,9 @@ setup() {
   unset _SESSION_STORE_RESOLVED_BACKEND
   install_redis_shim
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
   source "$BATS_TEST_DIRNAME/_conformance_cases.bash"
-}
-
-install_redis_shim() {
-  mkdir -p "$BATS_TMPDIR/bin"
-  cat > "$BATS_TMPDIR/bin/redis-cli" <<'REDIS_SHIM'
-#!/usr/bin/env bash
-echo "$@" >> "$REDIS_LOG"
-args=("$@"); cmd=""; key=""
-for ((i=0; i<${#args[@]}; i++)); do
-  case "${args[$i]}" in
-    -u) i=$((i+1)) ;;
-    -x) ;;
-    SET|GET|DEL|KEYS|EXISTS) cmd="${args[$i]}"; key="${args[$((i+1))]}"; break ;;
-  esac
-done
-key_file_for() { printf '%s' "$REDIS_FAKE_STORE/$(echo -n "$1" | md5sum 2>/dev/null | awk '{print $1}' || echo -n "$1" | openssl dgst -md5 | awk '{print $NF}')"; }
-register_key() { grep -qxF "$1" "$REDIS_FAKE_STORE/.keys" 2>/dev/null || echo "$1" >> "$REDIS_FAKE_STORE/.keys"; }
-unregister_key() { local tmp; tmp=$(mktemp); grep -vxF "$1" "$REDIS_FAKE_STORE/.keys" > "$tmp" 2>/dev/null; mv "$tmp" "$REDIS_FAKE_STORE/.keys"; }
-file=$(key_file_for "$key")
-case "$cmd" in
-  SET) cat > "$file"; register_key "$key"; echo OK ;;
-  GET) [[ -f "$file" ]] && cat "$file" || { echo ""; exit 0; } ;;
-  EXISTS) [[ -f "$file" ]] && echo 1 || echo 0 ;;
-  DEL) rm -f "$file"; unregister_key "$key"; echo 1 ;;
-  KEYS)
-    pattern="${key//\*/}"
-    [[ -f "$REDIS_FAKE_STORE/.keys" ]] || exit 0
-    while read -r k; do case "$k" in "$pattern"*) echo "$k" ;; esac; done < "$REDIS_FAKE_STORE/.keys" ;;
-  *) exit 1 ;;
-esac
-REDIS_SHIM
-  chmod +x "$BATS_TMPDIR/bin/redis-cli"
-  export PATH="$BATS_TMPDIR/bin:$PATH"
 }
 
 teardown() { rm -rf "$HOME"; rm -rf "$REDIS_FAKE_STORE"; rm -f "$BATS_TMPDIR/bin/redis-cli"; }
