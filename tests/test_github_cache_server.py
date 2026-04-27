@@ -82,6 +82,28 @@ class TestCacheDirFor(unittest.TestCase):
             path = _lib().cache_dir_for("abc", 9)
             self.assertEqual(path, "/custom/root/abc-9")
 
+    def test_default_root_uses_xdg_cache_home(self):
+        """M1: default cache root is ${XDG_CACHE_HOME}/claude/gh-pr."""
+        env = {"XDG_CACHE_HOME": "/explicit/xdg"}
+        with mock.patch.dict(os.environ, env, clear=False):
+            os.environ.pop("CLAUDE_GH_CACHE_DIR", None)
+            path = _lib().cache_dir_for("s", 1)
+        self.assertEqual(path, "/explicit/xdg/claude/gh-pr/s-1")
+
+    def test_default_root_falls_back_to_home_cache(self):
+        """M1: when XDG_CACHE_HOME unset, default is ~/.cache/claude/gh-pr."""
+        with mock.patch.dict(os.environ, {"HOME": "/tmp/h-test"}, clear=False):
+            os.environ.pop("CLAUDE_GH_CACHE_DIR", None)
+            os.environ.pop("XDG_CACHE_HOME", None)
+            path = _lib().cache_dir_for("s", 2)
+        self.assertEqual(path, "/tmp/h-test/.cache/claude/gh-pr/s-2")
+
+    def test_default_root_is_not_world_readable_tmp(self):
+        """M1: insecure /tmp default is removed."""
+        os.environ.pop("CLAUDE_GH_CACHE_DIR", None)
+        path = _lib().cache_dir_for("s", 3)
+        self.assertNotIn("/tmp/gh-pr-cache", path)
+
 
 def _mock_url_open(payload_map):
     """Returns a urlopen replacement that responds per-URL."""
