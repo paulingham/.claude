@@ -385,5 +385,39 @@ class FreshDebugFileWithinTtlYieldsTextDisplay(unittest.TestCase):
         self.assertEqual(result["display"], "text")
 
 
+class StaleDebugFileBeyondTtlYieldsOmittedDisplay(unittest.TestCase):
+    def test_old_debug_file_beyond_ttl_yields_omitted(self):
+        now = 1_500_000_000.0
+        state = {"debug_active": True, "debug_mtime": now - 2400}  # 40 minutes ago
+        result = resolve(tool_input={}, env={}, state=state, now=now)
+        self.assertEqual(result["display"], "omitted")
+
+
+class EnvDisplayWinsOverStaleDebugTtl(unittest.TestCase):
+    def test_env_display_text_overrides_old_debug_omitted(self):
+        now = 1_500_000_000.0
+        state = {"debug_active": True, "debug_mtime": now - 2400}  # past TTL
+        env = {"CLAUDE_THINKING_DISPLAY": "text"}
+        result = resolve(tool_input={}, env=env, state=state, now=now)
+        self.assertEqual(result["display"], "text")
+
+
+class NoDebugFileYieldsOmittedDisplay(unittest.TestCase):
+    def test_no_debug_active_yields_omitted(self):
+        now = 1_500_000_000.0
+        state = {"debug_active": False, "debug_mtime": None}
+        result = resolve(tool_input={}, env={}, state=state, now=now)
+        self.assertEqual(result["display"], "omitted")
+
+
+class CustomTtlEnvOverridesDefault(unittest.TestCase):
+    def test_custom_short_ttl_truncates_window(self):
+        now = 1_500_000_000.0
+        state = {"debug_active": True, "debug_mtime": now - 120}  # 2 min ago
+        env = {"CLAUDE_DEBUG_DISPLAY_TTL": "60"}  # 60 s window
+        result = resolve(tool_input={}, env=env, state=state, now=now)
+        self.assertEqual(result["display"], "omitted")
+
+
 if __name__ == "__main__":
     unittest.main()
