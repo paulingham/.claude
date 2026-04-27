@@ -32,16 +32,18 @@ def _resolved(rendered, cats, kept):
             "rendered_chars": len(rendered)}
 
 
-def main():
-    payload = read_payload()
-    sub = _agent_input(payload)
-    if not sub:
-        return
+def _handle_agent_spawn(payload, sub):
     cats = load_agent_instinct_categories(sub) or []
     rendered = resolve_for_agent(sub, cats, load_instincts(project_hash()))
     kept = count_kept(rendered)
-    source = "orchestrator-injected" if kept > 0 else "logged"
-    write_log(payload, source, _resolved(rendered, cats, kept))
+    write_log(payload, "logged", _resolved(rendered, cats, kept))
+
+
+def main():
+    payload = read_payload()
+    sub = _agent_input(payload)
+    if sub:
+        _handle_agent_spawn(payload, sub)
 
 
 if __name__ == "__main__":
