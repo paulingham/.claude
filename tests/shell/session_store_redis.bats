@@ -29,7 +29,7 @@ for ((i=0; i<${#args[@]}; i++)); do
   case "${args[$i]}" in
     -u) i=$((i+1)) ;;
     -x) ;;
-    SET|GET|DEL|KEYS) cmd="${args[$i]}"; key="${args[$((i+1))]}"; break ;;
+    SET|GET|DEL|KEYS|EXISTS) cmd="${args[$i]}"; key="${args[$((i+1))]}"; break ;;
   esac
 done
 key_file_for() { printf '%s' "$REDIS_FAKE_STORE/$(echo -n "$1" | md5sum 2>/dev/null | awk '{print $1}' || echo -n "$1" | openssl dgst -md5 | awk '{print $NF}')"; }
@@ -39,6 +39,7 @@ file=$(key_file_for "$key")
 case "$cmd" in
   SET) cat > "$file"; register_key "$key"; echo OK ;;
   GET) [[ -f "$file" ]] && cat "$file" || { echo ""; exit 0; } ;;
+  EXISTS) [[ -f "$file" ]] && echo 1 || echo 0 ;;
   DEL) rm -f "$file"; unregister_key "$key"; echo 1 ;;
   KEYS)
     pattern="${key//\*/}"
@@ -115,6 +116,13 @@ teardown() { rm -rf "$TEST_HOME"; rm -f "$BATS_TMPDIR/bin/redis-cli"; }
   expected="Section A
 Section B"
   [ "$output" = "$expected" ]
+}
+
+@test "redis empty-blob round-trip: put empty then get returns exit 0 with empty stdout" {
+  printf '' | session_store_put "$PROJECT_HASH" "$SESSION_ID" -
+  run session_store_get "$PROJECT_HASH" "$SESSION_ID"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
 }
 
 @test "redis fallback resolution is cached per process" {

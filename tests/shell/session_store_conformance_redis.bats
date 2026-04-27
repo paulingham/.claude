@@ -25,7 +25,7 @@ for ((i=0; i<${#args[@]}; i++)); do
   case "${args[$i]}" in
     -u) i=$((i+1)) ;;
     -x) ;;
-    SET|GET|DEL|KEYS) cmd="${args[$i]}"; key="${args[$((i+1))]}"; break ;;
+    SET|GET|DEL|KEYS|EXISTS) cmd="${args[$i]}"; key="${args[$((i+1))]}"; break ;;
   esac
 done
 key_file_for() { printf '%s' "$REDIS_FAKE_STORE/$(echo -n "$1" | md5sum 2>/dev/null | awk '{print $1}' || echo -n "$1" | openssl dgst -md5 | awk '{print $NF}')"; }
@@ -35,6 +35,7 @@ file=$(key_file_for "$key")
 case "$cmd" in
   SET) cat > "$file"; register_key "$key"; echo OK ;;
   GET) [[ -f "$file" ]] && cat "$file" || { echo ""; exit 0; } ;;
+  EXISTS) [[ -f "$file" ]] && echo 1 || echo 0 ;;
   DEL) rm -f "$file"; unregister_key "$key"; echo 1 ;;
   KEYS)
     pattern="${key//\*/}"
@@ -56,3 +57,4 @@ teardown() { rm -rf "$HOME"; rm -rf "$REDIS_FAKE_STORE"; rm -f "$BATS_TMPDIR/bin
 @test "conformance/redis: list_subkeys emits headers" { assert_list_subkeys_emits_headers; }
 @test "conformance/redis: put dash reads stdin" { assert_put_dash_reads_stdin; }
 @test "conformance/redis: section headers survive round-trip" { assert_section_headers_survive_round_trip; }
+@test "conformance/redis: empty blob round-trip" { assert_empty_blob_round_trip; }

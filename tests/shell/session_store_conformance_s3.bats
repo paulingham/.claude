@@ -53,3 +53,4 @@ teardown() { rm -rf "$HOME"; rm -rf "$AWS_FAKE_STORE"; rm -f "$BATS_TMPDIR/bin/a
 @test "conformance/s3: list_subkeys emits headers" { assert_list_subkeys_emits_headers; }
 @test "conformance/s3: put dash reads stdin" { assert_put_dash_reads_stdin; }
 @test "conformance/s3: section headers survive round-trip" { assert_section_headers_survive_round_trip; }
+@test "conformance/s3: empty blob round-trip" { assert_empty_blob_round_trip; }

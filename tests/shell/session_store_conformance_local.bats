@@ -19,3 +19,4 @@ teardown() { rm -rf "$HOME"; }
 @test "conformance/local: list_subkeys emits headers" { assert_list_subkeys_emits_headers; }
 @test "conformance/local: put dash reads stdin" { assert_put_dash_reads_stdin; }
 @test "conformance/local: section headers survive round-trip" { assert_section_headers_survive_round_trip; }
+@test "conformance/local: empty blob round-trip" { assert_empty_blob_round_trip; }

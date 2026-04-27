@@ -13,10 +13,11 @@ _redis_put() {
 }
 
 _redis_get() {
-  local key val
+  local key exists
   key=$(_redis_key "$1" "$2")
-  val=$(redis-cli -u "$CLAUDE_SESSION_STORE_REDIS_URL" GET "$key" 2>/dev/null) || return 1
-  [[ -n "$val" ]] && { printf '%s' "$val"; return 0; } || return 1
+  exists=$(redis-cli -u "$CLAUDE_SESSION_STORE_REDIS_URL" EXISTS "$key" 2>/dev/null) || return 1
+  [[ "$exists" = "1" ]] || return 1
+  redis-cli -u "$CLAUDE_SESSION_STORE_REDIS_URL" GET "$key" 2>/dev/null
 }
 
 _redis_delete() {

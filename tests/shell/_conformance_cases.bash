@@ -42,6 +42,13 @@ assert_put_dash_reads_stdin() {
   [ "$got" = "piped" ]
 }
 
+assert_empty_blob_round_trip() {
+  printf '' | session_store_put "empty-hash" "notes" -
+  run session_store_get "empty-hash" "notes"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 assert_section_headers_survive_round_trip() {
   local blob="# Session: Untitled
 # Active Work
