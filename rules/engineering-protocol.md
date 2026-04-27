@@ -4,7 +4,7 @@ Consolidates: engineering standards, testing standards, security baseline, incre
 
 ## Code Shape
 
-- Methods/functions: 5 lines max (configurable per project via `CLAUDE_FUNCTION_LINE_LIMIT`), CC <= 5, nesting <= 2
+- Methods/functions: 8 lines max (configurable per project via `CLAUDE_FUNCTION_LINE_LIMIT`), CC <= 5, nesting <= 2
 - Classes/files: 50 lines max (configurable per project via `CLAUDE_FILE_LINE_LIMIT`)
 - Project overrides: place a `shape-overrides.json` in the project's `.claude/` directory with per-glob limits (e.g., `{"*.rb": 80, "*.go": 100}`)
 - Classes: single public entry point (`.call`/`.run`/`.execute`)
@@ -73,7 +73,7 @@ This is a step-by-step protocol, not a philosophy. Follow it literally.
 1. **RED**: Write ONE failing test. Run it. Verify it fails for the RIGHT reason (not a syntax error, not a missing import -- the actual behavior is absent).
 2. **GREEN**: Write the MINIMUM code to make that one test pass. Run ALL tests. Verify ALL green.
 3. **REFACTOR**: Check shape constraints on every touched file:
-   - Every function body <= 5 lines? If not, extract now.
+   - Every function body <= 8 lines? If not, extract now.
    - File <= 50 lines? If not, decompose now.
    - CC <= 5? Nesting <= 2? Fix now.
    - Run ALL tests again. Confirm GREEN.

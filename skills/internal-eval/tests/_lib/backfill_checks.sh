@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Story 4 grouped checks. Each function body ≤ 5 lines. PASS/FAIL from caller.
+# Story 4 grouped checks. Each function body ≤ 8 lines. PASS/FAIL from caller.
 source "$(dirname "${BASH_SOURCE[0]}")/backfill_fixtures.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/oracle_match_checks.sh"
 

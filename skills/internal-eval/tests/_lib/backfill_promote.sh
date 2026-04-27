@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Promote scenarios. Functions ≤ 5 lines.
+# Promote scenarios. Functions ≤ 8 lines.
 
 _promote_rc() {
   local cap="$1" tmp="$2" cid="$3" rc=0

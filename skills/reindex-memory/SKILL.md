@@ -49,5 +49,5 @@ python3 ~/.claude/skills/reindex-memory/reindex.py \
 ## Shape Notes
 
 Each helper module in `_lib/` is intentionally small (<=50 lines). Function
-bodies are <=5 lines per project shape rules. Tests live at the repo root
+bodies are <=8 lines per project shape rules. Tests live at the repo root
 in `tests/`.

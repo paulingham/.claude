@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gh-pr-to-case artifact assertions. Functions ≤ 5 lines.
+# gh-pr-to-case artifact assertions. Functions ≤ 8 lines.
 
 run_pr_to_case_artifacts() {
   local cap="$1" tests="$2" tmp="$3" helper="$cap/lib/gh-pr-to-case.sh"

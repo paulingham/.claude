@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Per-case status enum + result.json writer for /internal-eval run-case.
-# Keep functions <= 5 lines, files <= 50 lines (manual shell shape).
+# Keep functions <= 8 lines, files <= 50 lines (manual shell shape).
 
 # Allowed per-case statuses. See skills/internal-eval/run/SKILL.md § status enum.
 RUN_CASE_STATUSES="passed failed_diff failed_build failed_timeout failed_infra dry_run_ok"

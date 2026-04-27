@@ -84,6 +84,6 @@ This satisfies **AC3.9** for Slice 3 of the cloud-portability-setup plan.
 
 ## Shape constraints
 
-All scripts follow the global shape budget: functions ≤ 5 lines, files
+All scripts follow the global shape budget: functions ≤ 8 lines, files
 ≤ 50 lines, cyclomatic complexity ≤ 5, nesting ≤ 2. `shellcheck` and
 `bash -n` pass cleanly on every file under `scripts/`.

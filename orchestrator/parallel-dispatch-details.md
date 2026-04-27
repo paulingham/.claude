@@ -387,7 +387,7 @@ SendMessage({ to: "fix-engineer", message: { type: "shutdown_request" } })
 // 3. Merge fix branch, then re-assign to raising reviewer (STILL ALIVE)
 SendMessage({
   to: "code-reviewer",
-  message: "Re-review: Finding F1 (method body > 5 lines) was addressed.
+  message: "Re-review: Finding F1 (method body > 8 lines) was addressed.
     Fix diff: [diff]. Check the fix addresses the finding.
     Re-review ONLY the addressed findings, not the full codebase."
 })
