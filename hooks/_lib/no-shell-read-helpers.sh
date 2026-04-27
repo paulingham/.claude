@@ -30,8 +30,7 @@ nsr_is_target_cmd() {
 
 nsr_clause_offender() {
   local stripped cmd
-  stripped=$(nsr_strip_prefix "$1")
-  cmd=$(nsr_first_word "$stripped")
+  stripped=$(nsr_strip_prefix "$1"); cmd=$(nsr_first_word "$stripped")
   nsr_is_target_cmd "$cmd" || return
   [[ "$cmd" == "tail" ]] && nsr_is_streaming_tail "$stripped" && return
   nsr_emit_if_in_repo "$cmd" "$(nsr_first_path_arg "$stripped")" "$2"

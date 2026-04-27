@@ -69,3 +69,20 @@ _run_hook_capture() {
   run _run_hook 'tail -f log/development.log'
   [ "$status" -eq 0 ]
 }
+
+@test "AC3 cat /tmp/scratch.txt allowed (outside repo)" {
+  run _run_hook 'cat /tmp/scratch.txt'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC7 test -f foo || cat REPO/CLAUDE.md blocks the cat clause" {
+  run _run_hook_capture "test -f foo || cat $REPO_ROOT/CLAUDE.md"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -qE 'Use the Read tool instead of cat'
+}
+
+@test "non-Bash tool exits 0 immediately" {
+  printf '{"tool_name":"Read","tool_input":{"file_path":"/tmp/x"}}' \
+    | bash "$REPO_ROOT/hooks/no-shell-read.sh"
+  [ "$?" -eq 0 ]
+}
