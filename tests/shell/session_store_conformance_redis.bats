@@ -1,0 +1,36 @@
+#!/usr/bin/env bats
+# Conformance suite — Redis backend driver. Uses on-disk redis-cli shim.
+
+setup() {
+  BATS_FILE_TMPDIR="$(mktemp -d -t sessionstore.XXXXXX)"
+  export BIN_DIR="$BATS_FILE_TMPDIR/bin"
+  export HOME="$BATS_FILE_TMPDIR/home"; mkdir -p "$HOME"
+  export CLAUDE_SESSION_STORE_BACKEND="redis"
+  export CLAUDE_SESSION_STORE_REDIS_URL="redis://x"
+  export CLAUDE_SESSION_STORE_PREFIX="sessions/"
+  export REDIS_LOG="$BATS_FILE_TMPDIR/redis-cnf.log"; : > "$REDIS_LOG"
+  export REDIS_FAKE_STORE="$BATS_FILE_TMPDIR/redis-cnf-store"; mkdir -p "$REDIS_FAKE_STORE"
+  unset _SESSION_STORE_RESOLVED_BACKEND
+  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
+  install_redis_shim
+  REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+  source "$REPO_ROOT/hooks/_lib/session-store.sh"
+  source "$BATS_TEST_DIRNAME/_conformance_cases.bash"
+}
+
+teardown() { rm -rf "$BATS_FILE_TMPDIR"; }
+
+@test "conformance/redis: round-trip" { assert_round_trip; }
+@test "conformance/redis: get miss → exit 1" { assert_get_miss_exit_1; }
+@test "conformance/redis: delete then get → miss" { assert_delete_then_get_miss; }
+@test "conformance/redis: list includes hash" { assert_list_includes_hash; }
+@test "conformance/redis: list_subkeys emits headers" { assert_list_subkeys_emits_headers; }
+@test "conformance/redis: put dash reads stdin" { assert_put_dash_reads_stdin; }
+@test "conformance/redis: section headers survive round-trip" { assert_section_headers_survive_round_trip; }
+@test "conformance/redis: empty blob round-trip" { assert_empty_blob_round_trip; }
+
+@test "conformance/redis: traversal in hash rejected" { assert_traversal_in_hash_rejected; }
+@test "conformance/redis: traversal in subkey rejected" { assert_traversal_in_subkey_rejected; }
+@test "conformance/redis: slash in hash rejected" { assert_slash_in_hash_rejected; }
+@test "conformance/redis: leading dot in hash rejected" { assert_leading_dot_in_hash_rejected; }
+@test "conformance/redis: empty hash rejected" { assert_empty_hash_rejected; }

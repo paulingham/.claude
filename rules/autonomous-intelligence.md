@@ -128,6 +128,29 @@ When injecting session memory into agent prompts, prioritize sections by agent r
 
 If the full notes file is under 2000 chars, inject it all. If larger, inject only priority sections for the role.
 
+### Adapters
+
+Session memory storage is pluggable behind a five-function adapter contract (`session_store_put|get|delete|list|list_subkeys`) plus two sync helpers (`session_memory_sync_in|out`) sourced from `hooks/_lib/session-store.sh`. The contract surface is documented in full at `session-memory/adapters/README.md`. Three backends ship today:
+
+- `local` (default) — on-disk markdown file under `~/.claude/session-memory/{project_hash}/{session_id}.md`. Zero observable behaviour change vs. pre-adapter harness.
+- `s3` — shells out to `aws s3 cp/ls/rm`. Whole-blob writes (no append).
+- `redis` — shells out to `redis-cli SET/GET/DEL/KEYS`. Whole-blob writes.
+
+Selection env vars:
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `CLAUDE_SESSION_STORE_BACKEND` | no | `local` | One of `local`, `s3`, `redis` |
+| `CLAUDE_SESSION_STORE_BUCKET` | when `BACKEND=s3` | — | S3 bucket |
+| `CLAUDE_SESSION_STORE_REDIS_URL` | when `BACKEND=redis` | — | e.g. `redis://host:6379/0` |
+| `CLAUDE_SESSION_STORE_PREFIX` | no | `sessions/` | **IGNORED by local adapter**; applies only to s3/redis |
+
+Fallback policy: env-var check FIRST, then required-env validation, then `command -v` for the CLI. On any failure of validation or tool-availability, the resolver emits a one-line stderr warning AND a JSONL forensic line via `log-injection.sh`, then falls back to `local`. Resolution is cached per-process in the exported shell var `_SESSION_STORE_RESOLVED_BACKEND` (NOT a file sentinel — file sentinel would stomp across parallel pipelines with different BACKEND values).
+
+`sessionId` is currently always `notes`; per-pipeline or per-agent notes would change call sites only — the contract already supports them.
+
+Caller wiring: `session-memory-updater` stays Edit-only (no Bash grant). The orchestrator wraps its spawn with `session_memory_sync_in` BEFORE and `session_memory_sync_out` AFTER, per `orchestrator/agent-orchestration.md` § Session Memory Update. For `BACKEND=local`, both helpers are byte-no-ops — default-local behaviour is byte-identical to pre-adapter.
+
 ## 3. Continuous Learning Loop
 
 The system gets better at building YOUR project with every pipeline. Not manual — automatic.
