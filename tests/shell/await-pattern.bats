@@ -197,6 +197,14 @@ _jsonl_path() {
   [ "$(jq -r '.task_id' "$f")" = "" ]
 }
 
+@test "session_id: CLAUDE_SESSION_ID=foo → session_id field is 'foo'" {
+  export CLAUDE_SESSION_ID="foo"
+  echo "ready" > "$LOG"
+  "$AWAIT" "$LOG" "ready" 5 100
+  local f; f="$(_jsonl_path)"
+  [ "$(jq -r '.session_id' "$f")" = "foo" ]
+}
+
 @test "jq safety: regex with quote and backslash → fields correct" {
   echo 'value="abc\\def"' > "$LOG"
   "$AWAIT" "$LOG" 'value="abc' 5 100
