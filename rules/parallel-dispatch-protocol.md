@@ -213,6 +213,8 @@ Context:
 
 Before completing, write any noteworthy discoveries to:
 pipeline-state/{task-id}-scratchpad/{your-role}-{phase}.md
+
+Emit `[CHECKPOINT] <marker>` lines on stdout at key milestones so the orchestrator can wait on them with `scripts/await-pattern.sh`. See the Checkpoint Vocabulary below for standard markers.
 ```
 
 ## What This Protocol Is NOT
@@ -256,3 +258,32 @@ The full `/pipeline` (Plan → Plan Validation → Build → Review → Final Ga
 | State tracking | Same | Same (one state file per batch) |
 | Scratchpad | Same | Shared across all batch agents |
 | Observations | Same | One observation per batch |
+
+## Checkpoint Vocabulary
+
+Standard checkpoint markers for `[CHECKPOINT] <marker>` lines emitted on stdout. The orchestrator uses `scripts/await-pattern.sh` to block until these appear.
+
+| Marker | Meaning |
+|--------|---------|
+| `[CHECKPOINT] build-started` | Teammate has begun implementation |
+| `[CHECKPOINT] tests-green` | All tests passing; build complete |
+| `[CHECKPOINT] tests-failed` | Tests failing; will not proceed |
+| `[CHECKPOINT] review-started` | Reviewer has begun reviewing |
+| `[CHECKPOINT] review-complete` | Review finished (check verdict separately) |
+| `[CHECKPOINT] branch-pushed` | Feature branch pushed to remote |
+| `[CHECKPOINT] pr-ready` | PR created and ready for review |
+| `[CHECKPOINT] deploy-healthy` | Deployment passed health checks |
+| `[CHECKPOINT] deploy-failed` | Deployment failed or rolled back |
+| `[CHECKPOINT] task-complete` | All assigned work complete |
+
+**Usage by orchestrator:**
+
+```bash
+scripts/await-pattern.sh "$teammate_log" '\[CHECKPOINT\] tests-green' 1800 100000
+```
+
+**Usage by teammate** (emit from build scripts or echo at phase boundaries):
+
+```bash
+echo "[CHECKPOINT] tests-green"
+```

@@ -437,6 +437,47 @@ hcom hooks should only be active during team phases (check `CLAUDE_PIPELINE_TASK
 ### Transcript Sharing
 hcom enables transcript sharing for context handoffs — e.g., the architect's design reasoning is available to the software-engineer without the orchestrator reconstructing it in a prompt.
 
+## Waiting for Checkpoints
+
+Use `scripts/await-pattern.sh` instead of sleep-poll loops when waiting for a background process or teammate to reach a known-ready state.
+
+**Usage:**
+
+```bash
+# Start background process, redirect stdout to a log file
+nohup some-command >"$log" 2>&1 &
+BG_PID=$!
+
+# Block until checkpoint marker appears or timeout fires
+scripts/await-pattern.sh "$log" '\[CHECKPOINT\] tests-green' 600 50000
+case $? in
+  0)   echo "Checkpoint reached" ;;
+  124) echo "Timed out after 600s"; kill "$BG_PID" ;;
+  1)   echo "Error (bad args, missing log, or max_lines exceeded)" ;;
+esac
+```
+
+**Exit codes:** 0=matched, 124=timeout (matches GNU `timeout` convention), 1=bad-args/missing-file/max_lines-exceeded
+
+**Logging:** every call appends one JSONL record to `metrics/${CLAUDE_SESSION_ID}/await-events.jsonl` with `record_type: await_match | await_timeout`.
+
+**Checkpoint vocabulary:** See `rules/parallel-dispatch-protocol.md § Checkpoint Vocabulary` for standard marker strings.
+
+### Deprecation: Sleep-Poll Loops
+
+Sleep-poll loops are deprecated in orchestrator code:
+
+```bash
+# DEPRECATED — do not write new code like this
+while ! grep -q '\[CHECKPOINT\] tests-green' "$log"; do
+  sleep 2
+done
+```
+
+Problems with sleep-poll: wastes CPU on idle wakeups, racy against line-buffered output, no structured audit trail, no timeout enforcement, no max_lines protection.
+
+Use `await-pattern.sh` instead.
+
 ## Audit Trail
 
 For each team phase, the orchestrator records:
