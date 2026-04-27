@@ -13,9 +13,12 @@ session_store_put           <project_hash> <session_id> <blob_path_or_dash>
 
 session_store_get           <project_hash> <session_id>
 # Echoes blob to stdout.
-# Exit 0 on hit, 1 on miss (missing file OR missing project dir; both
-# indistinguishable by intent, both produce empty stdout / no stderr),
-# 2 reserved for actual backend errors (network, permission denied, 5xx).
+# Exit 0 on hit, 1 on miss-or-error (missing file, missing project dir,
+# network error, permission denied, 5xx — all collapse to exit 1 because
+# remote CLIs (aws, redis-cli) cannot reliably distinguish miss from
+# error without a probe-then-fetch sequence on every call). The contract
+# guarantees only the exit code; CLI stderr from real errors may surface
+# at the call site if not redirected.
 
 session_store_delete        <project_hash> <session_id>
 # Removes blob. Exit 0 on success or absent, 1 on backend error.
@@ -37,8 +40,10 @@ session_memory_sync_in      <project_hash> <notes_path>
 # Materialises backend → file at notes_path.
 # Local: byte-no-op, exit 0.
 # Remote GET hit: write blob to notes_path (umask 077), exit 0.
-# Remote GET 404 + local exists: leave untouched, exit 0, no warning.
-# Remote GET 404 + local missing: write template stamp, exit 0, no warning.
+# Remote GET miss-or-error + local exists: leave untouched, exit 0.
+# Remote GET miss-or-error + local missing: write template stamp, exit 0.
+# (Per the walked-back GET contract — adapters cannot distinguish miss
+# from backend error without a probe-then-fetch sequence on every call.)
 
 session_memory_sync_out     <project_hash> <notes_path>
 # Mirrors file → backend.
@@ -51,15 +56,17 @@ session_memory_sync_out     <project_hash> <notes_path>
 
 ## Return-code summary
 
-| Function | exit 0 | exit 1 | exit 2 |
-|---|---|---|---|
-| `session_store_put` | wrote blob | backend error | — |
-| `session_store_get` | hit (blob on stdout) | miss (file or dir absent) | reserved: actual backend failure (network, 5xx) |
-| `session_store_delete` | removed or absent | backend error | — |
-| `session_store_list` | always | — | — |
-| `session_store_list_subkeys` | hit (headers on stdout) | miss | — |
-| `session_memory_sync_in` | always | — | — |
-| `session_memory_sync_out` | always (PUT failure logged + warned, never blocks) | — | — |
+| Function | exit 0 | exit 1 |
+|---|---|---|
+| `session_store_put` | wrote blob | backend error |
+| `session_store_get` | hit (blob on stdout) | miss-or-error (collapsed) |
+| `session_store_delete` | removed or absent | backend error |
+| `session_store_list` | always | — |
+| `session_store_list_subkeys` | hit (headers on stdout) | miss-or-error |
+| `session_memory_sync_in` | always | — |
+| `session_memory_sync_out` | always (PUT failure logged + warned, never blocks) | — |
+
+> **Note on exit 1 collapse**: The `get` contract previously reserved exit 2 for backend errors, but `aws s3 cp` and `redis-cli GET` both return exit 1 for "key not found", auth failure, 5xx, and network errors alike. Distinguishing miss from error would require an EXISTS / HEAD probe before every GET, doubling round-trip cost. The walked-back contract collapses miss-or-error to exit 1. The contract guarantees only the exit code; the underlying CLI's stderr from real errors may surface at the call site if it is not explicitly redirected.
 
 ## Environment variables
 
