@@ -63,5 +63,4 @@ Rationale:
 
 Verdict on shutdown:
 - **PLAN_REFINED**: one or more plan updates written to `pipeline-state/{task-id}-plan.md`
-- **PLAN_STABLE**: no contradictions found; plan untouched
-- **PLAN_AGENT_ERROR**: agent errored or hit turn limit; advisory verdict only — Build continues
+- **PLAN_UNCHANGED**: no contradictions found; plan untouched

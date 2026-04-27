@@ -19,7 +19,9 @@ from scratchpad_diff import (
     _load_cursor,
     _parse_finding,
     _save_cursor,
+    commit_findings,
     diff_new_findings,
+    peek_new_findings,
 )
 
 
@@ -160,6 +162,77 @@ class DiffNewFindingsNonExistentParentScratchpadStillReturnsEmpty(unittest.TestC
             # Pass strings, not Paths
             results = diff_new_findings(str(scratch), str(cursor))
         self.assertEqual(len(results), 1)
+
+
+class PeekDoesNotAdvanceCursor(unittest.TestCase):
+    """peek must NOT mutate the cursor — caller may crash before commit."""
+
+    def test_peek_repeatedly_returns_same_findings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            scratch = Path(tmp) / "scratch"
+            scratch.mkdir()
+            (scratch / "a.md").write_text(
+                "---\ncategory: warning\n---\nbe careful\n"
+            )
+            cursor = Path(tmp) / "cursor.json"
+            first = peek_new_findings(scratch, cursor)
+            second = peek_new_findings(scratch, cursor)
+        self.assertEqual(len(first), 1)
+        self.assertEqual(len(second), 1)
+        self.assertEqual(first[0]["content_hash"], second[0]["content_hash"])
+
+
+class PeekReturnsEmptyWhenScratchpadMissing(unittest.TestCase):
+    def test_missing_dir_returns_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(
+                peek_new_findings(Path(tmp) / "nope", Path(tmp) / "cursor.json"),
+                [],
+            )
+
+
+class CommitMarksFindingsSeen(unittest.TestCase):
+    def test_after_commit_peek_returns_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            scratch = Path(tmp) / "scratch"
+            scratch.mkdir()
+            (scratch / "a.md").write_text(
+                "---\ncategory: discovery\n---\nfound something\n"
+            )
+            cursor = Path(tmp) / "cursor.json"
+            findings = peek_new_findings(scratch, cursor)
+            commit_findings(findings, cursor)
+            self.assertEqual(peek_new_findings(scratch, cursor), [])
+
+    def test_commit_empty_list_is_noop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cursor = Path(tmp) / "cursor.json"
+            commit_findings([], cursor)
+            # Cursor file must not have been created from a no-op commit.
+            self.assertFalse(cursor.exists())
+
+
+class PeekThenCommitMatchesDiffWrapper(unittest.TestCase):
+    """peek + commit must produce the same final state as diff_new_findings."""
+
+    def test_split_api_equivalent_to_wrapper(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            scratch = Path(tmp) / "scratch"
+            scratch.mkdir()
+            (scratch / "a.md").write_text(
+                "---\ncategory: pattern\n---\nworks well\n"
+            )
+            cursor_split = Path(tmp) / "split.json"
+            cursor_wrap = Path(tmp) / "wrap.json"
+
+            split_first = peek_new_findings(scratch, cursor_split)
+            commit_findings(split_first, cursor_split)
+            wrap_first = diff_new_findings(scratch, cursor_wrap)
+
+        self.assertEqual(len(split_first), len(wrap_first))
+        self.assertEqual(
+            split_first[0]["content_hash"], wrap_first[0]["content_hash"]
+        )
 
 
 if __name__ == "__main__":

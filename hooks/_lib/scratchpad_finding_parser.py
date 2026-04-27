@@ -5,6 +5,11 @@ from typing import TypedDict
 
 from scratchpad_frontmatter import extract_category, split_frontmatter
 
+# Cap reads at 1MB. Scratchpad findings are short prose; a multi-MB file is
+# either malformed or hostile. Without this cap, a 1GB scratchpad file OOMs
+# the planning-agent's poll loop.
+MAX_BYTES = 1_048_576
+
 
 class Finding(TypedDict):
     path: str
@@ -16,7 +21,8 @@ class Finding(TypedDict):
 
 def parse_finding(path: Path) -> Finding | None:
     """Parse a scratchpad .md file. Returns None if unparseable."""
-    raw = path.read_bytes()
+    with path.open("rb") as fh:
+        raw = fh.read(MAX_BYTES)
     parts = split_frontmatter(raw.decode("utf-8", errors="replace"))
     if parts is None:
         return None

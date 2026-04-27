@@ -33,8 +33,16 @@ Opus 4.7 introduces a `thinking` field on Agent spawns that controls reasoning e
 | `product-reviewer` | high | never |
 | `database-engineer` | high | never |
 | `infrastructure-engineer` | high | never |
+| `planning-agent` | low | never |
 
 `display` defaults to `omitted` for all roles unless a debug state file is active.
+
+`planning-agent` is the lone exception to the `effort=high` default. It runs a
+long-lived poll loop (read scratchpad → diff against plan → Edit when
+contradicted) — pattern-matching work, not architectural reasoning. Original
+design decisions belong to the architect at Plan phase. Per-poll high-effort
+reasoning would burn token budget on a role that does not need it; `low` keeps
+iteration fast and the role advisory.
 
 ## Hook Behavior (Path B — current, log-only)
 
@@ -83,6 +91,7 @@ xhigh is reserved for design-quality decisions (architect) and security audits (
 
 - `software-engineer` / `frontend-engineer` / `database-engineer` / `infrastructure-engineer` (regardless of budget)
 - `code-reviewer` / `qa-engineer` / `product-reviewer` (these roles operate on completed work, not design)
+- `planning-agent` (long-lived poll loop; defaults to `effort=low`, never escalated)
 - `architect` below the critical-or-budget>=7 threshold
 - `security-engineer` below the critical-AND-budget>=7 threshold
 

@@ -73,16 +73,19 @@ A general observation is not a contradiction.
    (a JSON list of `{filename, content_hash}`). The cursor persists across
    poll cycles and survives context compaction.
 3. Loop until `shutdown_request` SendMessage received:
-   1. Call `hooks/_lib/scratchpad_diff.py::diff_new_findings(scratchpad_dir, cursor_path)`
+   1. Call `hooks/_lib/scratchpad_diff.py::peek_new_findings(scratchpad_dir, cursor_path)`
       to get findings whose `(filename, content_hash)` pair is not yet in the
-      cursor.
+      cursor. **`peek` does NOT advance the cursor** — if this poll cycle
+      crashes before the plan Edit completes, the findings are re-surfaced on
+      the next poll.
    2. For each new finding, apply the Contradiction Rubric.
    3. On contradiction: append a `## Plan Update — {ISO 8601 timestamp}`
       section to `pipeline-state/{task-id}-plan.md` (Edit tool only — the
       `planning-agent-edit-scope.sh` PreToolUse hook enforces this scope).
    4. Broadcast a `plan_update` SendMessage to every teammate in TeamRoster.
-   5. The cursor is updated automatically by `diff_new_findings` so that
-      processed findings are not seen twice.
+   5. **Only after** the Edit and broadcast succeed, call
+      `commit_findings(findings, cursor_path)` to mark them seen. This
+      ordering guarantees no finding is silently lost.
    6. Wait `PollSeconds` seconds, OR act immediately if a `plan_update_request`
       SendMessage is received from a teammate.
 4. On `shutdown_request`: complete the current poll cycle (do not abandon a
