@@ -13,6 +13,10 @@ tools:
 model: opus
 memory: project
 maxTurns: 150
+instinct_categories:
+  - software-engineer
+  - frontend-engineer
+  - database-engineer
 disallowedTools:
   - Agent
   - Skill

@@ -11,6 +11,9 @@ executor: claude-sonnet-4-6
 advisor: claude-opus-4-7
 memory: project
 maxTurns: 30
+instinct_categories:
+  - patch-critic
+  - code-reviewer
 disallowedTools:
   - Agent
   - Skill
