@@ -153,16 +153,23 @@ class TestFetchPrData(unittest.TestCase):
             result = _server()._fetch_pr_data("o", "r", 9)
         self.assertFalse(result["ok"])
 
-    def test_test_api_base_read_at_request_time(self):
-        os.environ["_TEST_GH_API_BASE"] = "http://localhost:8080"
+    def test_api_base_via_module_constant_patch(self):
+        """Tests can patch _API_BASE constant on the fetch module to redirect URLs.
+
+        SSRF guard: this is the ONLY supported test seam. The previous
+        _TEST_GH_API_BASE env override has been removed because it allowed
+        attacker-controlled env to exfiltrate the GitHub token.
+        """
+        srv = _server()
         seen_urls = []
 
         def capturing(req, timeout=None):
             seen_urls.append(req.get_full_url() if hasattr(req, "get_full_url") else req)
             return _Resp("{}")
 
-        with mock.patch("urllib.request.urlopen", side_effect=capturing):
-            _server()._fetch_pr_data("o", "r", 1)
+        with mock.patch.object(srv._fetch, "_API_BASE", "http://localhost:8080"), \
+             mock.patch("urllib.request.urlopen", side_effect=capturing):
+            srv._fetch_pr_data("o", "r", 1)
         self.assertTrue(any(u.startswith("http://localhost:8080") for u in seen_urls))
 
 

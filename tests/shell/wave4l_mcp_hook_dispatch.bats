@@ -31,7 +31,7 @@ class _R:
     def __enter__(self): return self
     def __exit__(self, *a): return False
 def _fake(req, timeout=None):
-    return _R("CANNED")
+    return _R('{"number":47,"merged_at":"2026-04-15T12:34:56Z"}')
 urllib.request.urlopen = _fake
 PY
   export PYTHONPATH="$SHIM${PYTHONPATH:+:$PYTHONPATH}"

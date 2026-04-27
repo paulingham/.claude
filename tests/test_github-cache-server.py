@@ -64,7 +64,7 @@ class TestServeRoundtrip(unittest.TestCase):
             os.environ["CLAUDE_GH_CACHE_DIR"] = tmp
             os.environ["_TEST_GH_OWNER_REPO"] = "o/r"
             with mock.patch("urllib.request.urlopen",
-                            side_effect=lambda req, timeout=None: _Resp("body")):
+                            side_effect=lambda req, timeout=None: _Resp("{}")):
                 req = json.dumps({"jsonrpc": "2.0", "id": 9,
                                   "method": "tools/call",
                                   "params": {"name": "prefetch_pr",
