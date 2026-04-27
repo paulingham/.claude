@@ -32,7 +32,7 @@ Before starting ANY work in a repo, verify:
 
 | Layer | Controls | Example |
 |-------|----------|---------|
-| Global rules | How: engineering discipline | 5-line methods, TDD, SOLID |
+| Global rules | How: engineering discipline | 8-line methods, TDD, SOLID |
 | Global CLAUDE.md | Why: philosophy + pipeline | Lean agile, collaboration protocol |
 | Project CLAUDE.md | What: project context | Rails 7, PostgreSQL, deploy via Heroku |
 

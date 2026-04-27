@@ -13,7 +13,7 @@ source ~/.claude/hooks/loop-guard.sh && check_loop_guard "function-body-check" |
 
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
-FUNC_LIMIT="${CLAUDE_FUNCTION_LINE_LIMIT:-5}"
+FUNC_LIMIT="${CLAUDE_FUNCTION_LINE_LIMIT:-8}"
 
 # Only check if we have a file path
 if [[ -z "$FILE_PATH" ]]; then

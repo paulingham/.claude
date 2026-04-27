@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Core gate evaluation for auto-learn-gate. Shape: <=5 lines/func.
+# Core gate evaluation for auto-learn-gate. Shape: <=8 lines/func.
 
 _alg_hours_since() {
   local ts="$1"

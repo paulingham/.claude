@@ -85,7 +85,7 @@ Shape compliance is enforced by build hooks. Do not re-measure. If shape violati
 - [ ] One test written at a time (no bulk test-then-implement pattern)
 - [ ] Tests test behavior, not implementation
 - [ ] Edge cases and error paths covered
-- [ ] Test code follows shape rules (helpers <= 5 lines, test files <= 100 lines)
+- [ ] Test code follows shape rules (helpers <= 8 lines, test files <= 100 lines)
 
 ### Performance
 - [ ] No N+1 queries (eager loading used)

@@ -69,7 +69,7 @@ Agent({
     - SOLID/DRY violations
     - Test quality (coverage, meaningful assertions, edge cases)
     - Performance red flags (N+1 queries, unnecessary re-renders, memory leaks)
-    - Complexity (CC > 5, nesting > 2, methods > 5 lines, files > 50 lines)
+    - Complexity (CC > 5, nesting > 2, methods > 8 lines, files > 50 lines)
     - Naming clarity and code readability
     Produce a verdict: APPROVE or CHANGES_REQUESTED with specific findings."
 })

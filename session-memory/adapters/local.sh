@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local-disk adapter. Operates on ~/.claude/session-memory/{hash}/{session_id}.md.
-# Functions: session_store_put|get|delete|list|list_subkeys (≤ 5 lines each).
+# Functions: session_store_put|get|delete|list|list_subkeys (≤ 8 lines each).
 
 _local_path() { printf '%s\n' "$HOME/.claude/session-memory/$1/$2.md"; }
 _local_dir()  { printf '%s\n' "$HOME/.claude/session-memory/$1"; }
