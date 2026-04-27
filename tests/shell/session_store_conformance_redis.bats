@@ -9,9 +9,9 @@ setup() {
   export REDIS_LOG="$BATS_TMPDIR/redis-cnf.log"; : > "$REDIS_LOG"
   export REDIS_FAKE_STORE="$BATS_TMPDIR/redis-cnf-store"; rm -rf "$REDIS_FAKE_STORE"; mkdir -p "$REDIS_FAKE_STORE"
   unset _SESSION_STORE_RESOLVED_BACKEND
+  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   install_redis_shim
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
   source "$BATS_TEST_DIRNAME/_conformance_cases.bash"
 }
@@ -26,3 +26,9 @@ teardown() { rm -rf "$HOME"; rm -rf "$REDIS_FAKE_STORE"; rm -f "$BATS_TMPDIR/bin
 @test "conformance/redis: put dash reads stdin" { assert_put_dash_reads_stdin; }
 @test "conformance/redis: section headers survive round-trip" { assert_section_headers_survive_round_trip; }
 @test "conformance/redis: empty blob round-trip" { assert_empty_blob_round_trip; }
+
+@test "conformance/redis: traversal in hash rejected" { assert_traversal_in_hash_rejected; }
+@test "conformance/redis: traversal in subkey rejected" { assert_traversal_in_subkey_rejected; }
+@test "conformance/redis: slash in hash rejected" { assert_slash_in_hash_rejected; }
+@test "conformance/redis: leading dot in hash rejected" { assert_leading_dot_in_hash_rejected; }
+@test "conformance/redis: empty hash rejected" { assert_empty_hash_rejected; }

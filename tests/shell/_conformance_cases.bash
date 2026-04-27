@@ -59,3 +59,28 @@ assert_section_headers_survive_round_trip() {
   [[ "$got" == *"Active Work"* ]]
   [[ "$got" == *"Codebase Map"* ]]
 }
+
+assert_traversal_in_hash_rejected() {
+  run session_store_put "../escape" "notes" -
+  [ "$status" -ne 0 ]
+}
+
+assert_traversal_in_subkey_rejected() {
+  run session_store_put "valid-hash" "../escape" -
+  [ "$status" -ne 0 ]
+}
+
+assert_slash_in_hash_rejected() {
+  run session_store_put "ab/cd" "notes" -
+  [ "$status" -ne 0 ]
+}
+
+assert_leading_dot_in_hash_rejected() {
+  run session_store_put ".hidden" "notes" -
+  [ "$status" -ne 0 ]
+}
+
+assert_empty_hash_rejected() {
+  run session_store_put "" "notes" -
+  [ "$status" -ne 0 ]
+}

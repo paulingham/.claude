@@ -20,3 +20,9 @@ teardown() { rm -rf "$HOME"; }
 @test "conformance/local: put dash reads stdin" { assert_put_dash_reads_stdin; }
 @test "conformance/local: section headers survive round-trip" { assert_section_headers_survive_round_trip; }
 @test "conformance/local: empty blob round-trip" { assert_empty_blob_round_trip; }
+
+@test "conformance/local: traversal in hash rejected" { assert_traversal_in_hash_rejected; }
+@test "conformance/local: traversal in subkey rejected" { assert_traversal_in_subkey_rejected; }
+@test "conformance/local: slash in hash rejected" { assert_slash_in_hash_rejected; }
+@test "conformance/local: leading dot in hash rejected" { assert_leading_dot_in_hash_rejected; }
+@test "conformance/local: empty hash rejected" { assert_empty_hash_rejected; }

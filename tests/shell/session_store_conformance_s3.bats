@@ -9,9 +9,9 @@ setup() {
   export AWS_LOG="$BATS_TMPDIR/aws-cnf.log"; : > "$AWS_LOG"
   export AWS_FAKE_STORE="$BATS_TMPDIR/aws-cnf-store"; mkdir -p "$AWS_FAKE_STORE"
   unset _SESSION_STORE_RESOLVED_BACKEND
+  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   install_aws_shim
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
   source "$BATS_TEST_DIRNAME/_conformance_cases.bash"
 }
@@ -26,3 +26,9 @@ teardown() { rm -rf "$HOME"; rm -rf "$AWS_FAKE_STORE"; rm -f "$BATS_TMPDIR/bin/a
 @test "conformance/s3: put dash reads stdin" { assert_put_dash_reads_stdin; }
 @test "conformance/s3: section headers survive round-trip" { assert_section_headers_survive_round_trip; }
 @test "conformance/s3: empty blob round-trip" { assert_empty_blob_round_trip; }
+
+@test "conformance/s3: traversal in hash rejected" { assert_traversal_in_hash_rejected; }
+@test "conformance/s3: traversal in subkey rejected" { assert_traversal_in_subkey_rejected; }
+@test "conformance/s3: slash in hash rejected" { assert_slash_in_hash_rejected; }
+@test "conformance/s3: leading dot in hash rejected" { assert_leading_dot_in_hash_rejected; }
+@test "conformance/s3: empty hash rejected" { assert_empty_hash_rejected; }
