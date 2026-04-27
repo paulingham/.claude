@@ -8,6 +8,9 @@ tools:
   - Edit
 model: sonnet
 maxTurns: 200
+instinct_categories:
+  - planning-agent
+  - architect
 disallowedTools:
   - Agent
   - Skill

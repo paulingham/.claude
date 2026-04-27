@@ -6,6 +6,8 @@ tools:
   - Edit
 model: haiku
 maxTurns: 10
+instinct_categories:
+  - session-memory-updater
 disallowedTools:
   - Agent
   - Skill

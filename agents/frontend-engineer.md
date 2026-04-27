@@ -13,6 +13,9 @@ tools:
   - Computer
 model: opus
 maxTurns: 150
+instinct_categories:
+  - frontend-engineer
+  - software-engineer
 disallowedTools:
   - Agent
   - Skill
