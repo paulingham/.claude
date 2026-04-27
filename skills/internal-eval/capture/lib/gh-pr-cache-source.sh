@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 # Cache-tier source helpers for gh-pr-to-case.sh. Read-only against the
-# directory written by the gh-cache MCP server. Layout per Slice 1:
-#   ${CLAUDE_GH_CACHE_DIR}/${session_id}-${pr}/{view.json,diff.patch,files.txt,.complete}
-# Default CLAUDE_GH_CACHE_DIR=/tmp/gh-pr-cache. All helpers fail closed
-# (return 1, empty stdout) when cache is absent or incomplete — callers
-# fall through to gh CLI. Bodies ≤ 5 lines, file ≤ 50 lines.
+# directory written by the gh-cache MCP server. Layout sourced from
+# hooks/_lib/gh-cache-layout.sh — single source of truth.
+# All helpers fail closed (return 1, empty stdout) when cache is absent
+# or incomplete — callers fall through to gh CLI.
+# Bodies ≤ 5 lines, file ≤ 50 lines.
+
+_HERE_GHPC="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../hooks/_lib" && pwd)"
+# shellcheck source=/dev/null
+source "$_HERE_GHPC/gh-cache-layout.sh"
 
 _pr_cache_dir() {
-  local root="${CLAUDE_GH_CACHE_DIR:-/tmp/gh-pr-cache}"
-  local sid="${CLAUDE_SESSION_ID:-x}"
-  printf '%s/%s-%s' "$root" "$sid" "$1"
+  gh_cache_dir_for "$1"
 }
 
 _pr_cache_ready() {
-  local cd; cd="$(_pr_cache_dir "$1")"
-  [ -f "$cd/.complete" ]
+  gh_cache_ready "$1"
 }
 
 pr_view_from_cache() {
