@@ -250,6 +250,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/runtime-guard.sh",
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/no-shell-read.sh",
+            "timeout": 5000
           }
         ]
       },
