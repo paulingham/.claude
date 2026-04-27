@@ -36,6 +36,25 @@ Shut down both challengers after plan validation completes.
 
 Shut down all engineers after build completes and branches are merged.
 
+### Planning Agent (advisory — multi-slice Build only)
+
+A long-lived Sonnet 4.6 `planning-agent` teammate is spawned **alongside** Build engineers when `slice_count >= 2`. It polls the pipeline scratchpad for findings that contradict the active plan, appends `## Plan Update` sections to `pipeline-state/{task-id}-plan.md`, and broadcasts `plan_update` messages to active build teammates.
+
+**Single-slice Build path is UNCHANGED.** When `slice_count < 2`, no planning-agent is spawned and existing single-slice dispatch logic is unmodified.
+
+| Direction | Message Type | Semantics |
+|-----------|-------------|-----------|
+| orchestrator → planning-agent | `plan_update_request` | optional nudge: re-scan now |
+| orchestrator → planning-agent | `shutdown_request` | terminate after current cycle |
+| planning-agent → each build teammate | `plan_update` | advisory broadcast; teammate may ignore mid-cycle |
+
+**Verdicts**: `PLAN_REFINED` (≥1 plan update appended) or `PLAN_UNCHANGED` (no contradictions found). Both are acceptable — planning is advisory and never gates Build completion.
+
+**Cost**: Sonnet 4.6 only. Never tunable up. ~$0.05/build typical.
+
+See `skills/continuous-planning/SKILL.md` for the full procedure and contradiction rubric.
+See `hooks/_lib/should_spawn_planning_agent.py` for the spawn-gate predicate.
+
 ### Best-of-N Build Team (conditional — `bestofn:true` from intake)
 
 When `/intake` has tagged the task `bestofn: true` (computed in Step 2d-bis as `critical OR (task_class=="feature" AND Budget>=5)`), the Build phase dispatches as a Team variant that runs the same slice across N candidate models in parallel and picks the best output. This is NOT a separate skill — it is a dispatch mode of the Build Team. The winner still faces the normal Review → Final Gate → Ship gates; scoring selects *which* candidate faces those gates, it does not substitute for them.
@@ -213,6 +232,8 @@ Context:
 
 Before completing, write any noteworthy discoveries to:
 pipeline-state/{task-id}-scratchpad/{your-role}-{phase}.md
+
+**Continuous Planning:** A `planning-agent` teammate may append `## Plan Update — <ISO>` sections to `pipeline-state/{task-id}-plan.md` while you work. Before starting each new behavior in your TDD cycle, re-read the plan file and check for `## Plan Update —` sections with timestamps newer than your spawn time. If you receive a `SendMessage` of type `plan_update`, finish your current RED-GREEN-REFACTOR cycle first, then re-read before starting the next behavior. Do not abandon a cycle in flight.
 
 Emit `[CHECKPOINT] <marker>` lines on stdout at key milestones so the orchestrator can wait on them with `scripts/await-pattern.sh`. See the Checkpoint Vocabulary below for standard markers.
 ```

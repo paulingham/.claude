@@ -138,6 +138,8 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `/tool-synthesis` | Author a one-shot scratch tool inside the worktree mid-task (custom search/AST/lint). Tool lives in `.claude-scratch-tools/`, cleaned up before merge |
 | `/tech-spike` | Time-boxed technical research |
 
+**Continuous Planning**: On multi-slice Build runs (≥2 engineer slices), a `planning-agent` teammate (Sonnet 4.6) monitors the pipeline scratchpad and refines the active plan when findings contradict it. The planning-agent appends `## Plan Update` sections to the plan file and broadcasts updates to active build teammates. It is advisory only — Build engineers never block on it. Controlled by `should_spawn_planning_agent(slice_count, dispatch_mode, phase)` in `hooks/_lib/should_spawn_planning_agent.py`.
+
 ### Scaffolding (Auto-Detected)
 | Skill | Trigger |
 |-------|---------|
