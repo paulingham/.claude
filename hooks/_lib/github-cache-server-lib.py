@@ -27,5 +27,10 @@ def _match_ssh(url):
 
 
 def cache_dir_for(session_id, pr):
-    root = os.environ.get("CLAUDE_GH_CACHE_DIR", "/tmp/gh-pr-cache")
+    root = os.environ.get("CLAUDE_GH_CACHE_DIR") or _default_root()
     return f"{root}/{session_id}-{pr}"
+
+
+def _default_root():
+    xdg = os.environ.get("XDG_CACHE_HOME") or f"{os.environ['HOME']}/.cache"
+    return f"{xdg}/claude/gh-pr"

@@ -91,11 +91,10 @@ _source() {
   printf 'NOT JSON {' > "$cd/view.json"
   : > "$cd/.complete"
   source "$REPO_ROOT/hooks/_lib/eval-capture-worker-filters.sh"
-  # Cache hit gives raw bytes; later jq parse decides validity. The helper itself
-  # must not crash on malformed content — it just returns the bytes.
+  # H3: ecw_cache_view validates JSON; malformed content fails closed
+  # (returns non-zero). ecw_fetch_view's `cache && return 0 || gh` fallback
+  # therefore fires the gh path, returning the mocked gh-shape view.
   run ecw_fetch_view 42
   [ "$status" -eq 0 ]
-  # Output is *some* string. Cache returns malformed; gh returns canned. Either is acceptable
-  # as long as we got a non-empty exit 0.
-  [ -n "$output" ]
+  [[ "$output" == *'"mergedAt":"2026-04-26T10:00:00Z"'* ]]
 }

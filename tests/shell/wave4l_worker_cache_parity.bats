@@ -24,6 +24,7 @@ setup() {
   export CLAUDE_GH_CACHE_DIR="$WORK/cache-root"
   export CLAUDE_SESSION_ID="bats-par"
   PR=1234
+  source "$REPO_ROOT/tests/shell/_wave4l_helpers.bash"
 }
 
 teardown() {
@@ -31,45 +32,9 @@ teardown() {
   unset PATH_BACKUP_RESET 2>/dev/null || true
 }
 
-_install_fail_gh() {
-  BIN="$WORK/bin"; mkdir -p "$BIN"
-  cat > "$BIN/gh" <<'SH'
-#!/usr/bin/env bash
-echo "MOCK GH SHOULD NOT BE INVOKED ON CACHE HIT" >&2
-exit 99
-SH
-  chmod +x "$BIN/gh"
-  export PATH="$BIN:$PATH"
-}
-
-_install_mock_gh_with_fixture() {
-  BIN="$WORK/bin"; mkdir -p "$BIN"
-  cat > "$BIN/gh" <<SH
-#!/usr/bin/env bash
-sub="\$2"
-case "\$sub" in
-  view) cat "$FIXTURE/view.json" ;;
-  diff)
-    for a in "\$@"; do [ "\$a" = "--name-only" ] && { cat "$FIXTURE/files.txt"; exit 0; }; done
-    cat "$FIXTURE/diff.patch" ;;
-esac
-SH
-  chmod +x "$BIN/gh"
-  export PATH="$BIN:$PATH"
-}
-
-_seed_cache() {
-  local cd="$CLAUDE_GH_CACHE_DIR/$CLAUDE_SESSION_ID-$PR"
-  mkdir -p "$cd"
-  cp "$FIXTURE/view.json"  "$cd/view.json"
-  cp "$FIXTURE/diff.patch" "$cd/diff.patch"
-  cp "$FIXTURE/files.txt"  "$cd/files.txt"
-  : > "$cd/.complete"
-}
-
 @test "AC3: cache hit means zero gh subprocesses (gh stub fails loudly, run still succeeds)" {
-  _install_fail_gh
-  _seed_cache
+  w4l_install_fail_gh
+  w4l_seed_cache
   source "$REPO_ROOT/hooks/_lib/eval-capture-worker-filters.sh"
   view="$(ecw_fetch_view "$PR")"
   names="$(ecw_fetch_names "$PR")"
@@ -83,8 +48,8 @@ _seed_cache() {
 
 @test "AC4: cache-only output byte-identical to gh-only output (filter pipeline)" {
   # Mode A: cache-only
-  _install_fail_gh
-  _seed_cache
+  w4l_install_fail_gh
+  w4l_seed_cache
   source "$REPO_ROOT/hooks/_lib/eval-capture-worker-filters.sh"
   view_cache="$(ecw_fetch_view "$PR")"
   names_cache="$(ecw_fetch_names "$PR")"
@@ -92,7 +57,7 @@ _seed_cache() {
   # Mode B: gh-only — same fixture, no cache
   rm -rf "$CLAUDE_GH_CACHE_DIR"
   unset PATH; export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
-  _install_mock_gh_with_fixture
+  w4l_install_mock_gh_with_fixture
   view_gh="$(ecw_fetch_view "$PR")"
   names_gh="$(ecw_fetch_names "$PR")"
 
@@ -106,8 +71,8 @@ _seed_cache() {
   source "$REPO_ROOT/skills/internal-eval/capture/lib/oracle-match.sh"
 
   # Mode A: cache-only with failing gh (proves gate succeeds without gh)
-  _install_fail_gh
-  _seed_cache
+  w4l_install_fail_gh
+  w4l_seed_cache
   cd "$REPO_ROOT"  # so oracle-paths.json is found at relative path
   view_a="$(ecw_fetch_view "$PR")"
   names_a="$(ecw_fetch_names "$PR")"
@@ -117,7 +82,7 @@ _seed_cache() {
   # Mode B: gh-only
   rm -rf "$CLAUDE_GH_CACHE_DIR"
   unset PATH; export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
-  _install_mock_gh_with_fixture
+  w4l_install_mock_gh_with_fixture
   cd "$REPO_ROOT"
   view_b="$(ecw_fetch_view "$PR")"
   names_b="$(ecw_fetch_names "$PR")"

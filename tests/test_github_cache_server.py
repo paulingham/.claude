@@ -82,6 +82,28 @@ class TestCacheDirFor(unittest.TestCase):
             path = _lib().cache_dir_for("abc", 9)
             self.assertEqual(path, "/custom/root/abc-9")
 
+    def test_default_root_uses_xdg_cache_home(self):
+        """M1: default cache root is ${XDG_CACHE_HOME}/claude/gh-pr."""
+        env = {"XDG_CACHE_HOME": "/explicit/xdg"}
+        with mock.patch.dict(os.environ, env, clear=False):
+            os.environ.pop("CLAUDE_GH_CACHE_DIR", None)
+            path = _lib().cache_dir_for("s", 1)
+        self.assertEqual(path, "/explicit/xdg/claude/gh-pr/s-1")
+
+    def test_default_root_falls_back_to_home_cache(self):
+        """M1: when XDG_CACHE_HOME unset, default is ~/.cache/claude/gh-pr."""
+        with mock.patch.dict(os.environ, {"HOME": "/tmp/h-test"}, clear=False):
+            os.environ.pop("CLAUDE_GH_CACHE_DIR", None)
+            os.environ.pop("XDG_CACHE_HOME", None)
+            path = _lib().cache_dir_for("s", 2)
+        self.assertEqual(path, "/tmp/h-test/.cache/claude/gh-pr/s-2")
+
+    def test_default_root_is_not_world_readable_tmp(self):
+        """M1: insecure /tmp default is removed."""
+        os.environ.pop("CLAUDE_GH_CACHE_DIR", None)
+        path = _lib().cache_dir_for("s", 3)
+        self.assertNotIn("/tmp/gh-pr-cache", path)
+
 
 def _mock_url_open(payload_map):
     """Returns a urlopen replacement that responds per-URL."""
@@ -153,16 +175,24 @@ class TestFetchPrData(unittest.TestCase):
             result = _server()._fetch_pr_data("o", "r", 9)
         self.assertFalse(result["ok"])
 
-    def test_test_api_base_read_at_request_time(self):
-        os.environ["_TEST_GH_API_BASE"] = "http://localhost:8080"
+    def test_api_base_via_module_constant_patch(self):
+        """Tests can patch _API_BASE constant on the fetch module to redirect URLs.
+
+        SSRF guard: this is the ONLY supported test seam. The previous
+        _TEST_GH_API_BASE env override has been removed because it allowed
+        attacker-controlled env to exfiltrate the GitHub token.
+        """
+        srv = _server()
         seen_urls = []
 
         def capturing(req, timeout=None):
-            seen_urls.append(req.get_full_url() if hasattr(req, "get_full_url") else req)
-            return _Resp("{}")
+            url = req.get_full_url() if hasattr(req, "get_full_url") else req
+            seen_urls.append(url)
+            return _Resp("[]" if url.endswith("/files") else "{}")
 
-        with mock.patch("urllib.request.urlopen", side_effect=capturing):
-            _server()._fetch_pr_data("o", "r", 1)
+        with mock.patch.object(srv._fetch, "_API_BASE", "http://localhost:8080"), \
+             mock.patch("urllib.request.urlopen", side_effect=capturing):
+            srv._fetch_pr_data("o", "r", 1)
         self.assertTrue(any(u.startswith("http://localhost:8080") for u in seen_urls))
 
 
@@ -201,7 +231,11 @@ class TestPrefetchToolWritesCache(unittest.TestCase):
             os.environ["CLAUDE_SESSION_ID"] = "sxx"
             os.environ["CLAUDE_GH_CACHE_DIR"] = tmp
             os.environ["_TEST_GH_OWNER_REPO"] = "o/r"
-            urls = {"default": json.dumps({"number": 47})}
+            urls = {
+                "https://api.github.com/repos/o/r/pulls/47": json.dumps({"number": 47}),
+                "https://api.github.com/repos/o/r/pulls/47/files": json.dumps([{"filename": "a.py"}]),
+                "default": "diff-body",
+            }
             with mock.patch("urllib.request.urlopen", side_effect=_mock_url_open(urls)):
                 req = json.dumps({"jsonrpc": "2.0", "id": 9,
                                   "method": "tools/call",

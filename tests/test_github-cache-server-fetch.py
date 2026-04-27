@@ -58,10 +58,14 @@ class TestFetchHttpPaths(unittest.TestCase):
 
     def test_success(self):
         with mock.patch("urllib.request.urlopen",
-                        side_effect=lambda req, timeout=None: _Resp("body")):
+                        side_effect=lambda req, timeout=None: _Resp("{}")):
             result = self.fetch.fetch_pr_data("o", "r", 1)
         self.assertTrue(result["ok"])
-        self.assertEqual(result["view"], "body")
+        # view goes through JSON reshape; result is canonical gh-CLI shape JSON.
+        self.assertEqual(json.loads(result["view"]),
+                         {"mergedAt": None,
+                          "mergeCommit": {"oid": ""},
+                          "labels": []})
 
     def test_timeout(self):
         with mock.patch("urllib.request.urlopen", side_effect=TimeoutError()):
@@ -74,8 +78,21 @@ class TestFetchHttpPaths(unittest.TestCase):
             result = self.fetch.fetch_pr_data("o", "r", 1)
         self.assertEqual(result["reason"], "http error")
 
-    def test_api_base_read_at_request_time(self):
-        os.environ["_TEST_GH_API_BASE"] = "http://localhost:9999"
+    def test_api_base_via_module_constant_patch(self):
+        seen = []
+
+        def capture(req, timeout=None):
+            seen.append(req.get_full_url())
+            return _Resp("{}")
+
+        with mock.patch.object(self.fetch, "_API_BASE", "http://localhost:9999"), \
+             mock.patch("urllib.request.urlopen", side_effect=capture):
+            self.fetch.fetch_pr_data("o", "r", 5)
+        self.assertTrue(seen and all(u.startswith("http://localhost:9999") for u in seen))
+
+    def test_test_env_var_does_not_redirect_url(self):
+        """SSRF guard: _TEST_GH_API_BASE env override is removed."""
+        os.environ["_TEST_GH_API_BASE"] = "http://attacker.example"
         seen = []
 
         def capture(req, timeout=None):
@@ -84,7 +101,11 @@ class TestFetchHttpPaths(unittest.TestCase):
 
         with mock.patch("urllib.request.urlopen", side_effect=capture):
             self.fetch.fetch_pr_data("o", "r", 5)
-        self.assertTrue(all(u.startswith("http://localhost:9999") for u in seen))
+        for url in seen:
+            self.assertFalse(url.startswith("http://attacker.example"),
+                             f"env var redirected to attacker host: {url}")
+            self.assertTrue(url.startswith("https://api.github.com"),
+                            f"expected api.github.com, got {url}")
 
 
 class TestWriteCache(unittest.TestCase):
@@ -97,6 +118,49 @@ class TestWriteCache(unittest.TestCase):
             self.assertEqual((target / "diff.patch").read_text(), "d")
             self.assertEqual((target / "files.txt").read_text(), "f")
             self.assertTrue((target / ".complete").exists())
+
+
+def _rest_view_body():
+    return json.dumps({
+        "number": 47,
+        "title": "T",
+        "body": "B",
+        "merged_at": "2026-04-15T12:34:56Z",
+        "merge_commit_sha": "deadbeef00",
+        "labels": [{"name": "bug", "color": "f00", "description": "bug"}],
+    })
+
+
+class TestRestToGhShapeReshape(unittest.TestCase):
+    """C1: Server reshapes REST API responses into gh-CLI shape."""
+
+    def setUp(self):
+        os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"] = "t"
+        self.fetch = _load("gh_cache_fetch", FETCH_PATH)
+
+    def _opener(self):
+        def opener(req, timeout=None):
+            url = req.get_full_url()
+            if url.endswith("/files"):
+                return _Resp(json.dumps([{"filename": "a.py"}, {"filename": "b.sh"}]))
+            if req.headers.get("Accept", "").endswith("diff"):
+                return _Resp("diff body")
+            return _Resp(_rest_view_body())
+        return opener
+
+    def test_view_reshaped_mergedAt_camelCase(self):
+        with mock.patch("urllib.request.urlopen", side_effect=self._opener()):
+            result = self.fetch.fetch_pr_data("o", "r", 47)
+        view = json.loads(result["view"])
+        self.assertEqual(view["mergedAt"], "2026-04-15T12:34:56Z")
+        self.assertNotIn("merged_at", view)
+
+    def test_view_reshaped_mergeCommit_oid(self):
+        with mock.patch("urllib.request.urlopen", side_effect=self._opener()):
+            result = self.fetch.fetch_pr_data("o", "r", 47)
+        view = json.loads(result["view"])
+        self.assertEqual(view["mergeCommit"], {"oid": "deadbeef00"})
+        self.assertNotIn("merge_commit_sha", view)
 
 
 if __name__ == "__main__":
