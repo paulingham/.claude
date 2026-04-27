@@ -222,7 +222,7 @@ Invoked only when a forcing function from `rules/module-boundaries-protocol.md` 
 | `quality-gate.sh` | Tests, lint, audit, shape check before PR creation | Hard block |
 | `sast-check.sh` | Semgrep/Bearer static analysis before PR | Hard block |
 | `cc-check.sh` | Cyclomatic complexity (eslint/rubocop/radon/gocyclo) | Advisory |
-| `function-body-check.sh` | Function length limit (configurable, default 5 lines) | Advisory |
+| `function-body-check.sh` | Function length limit (configurable, default 8 lines) | Advisory |
 | `hook-profile.sh` | Runtime profile gating (minimal/standard/strict) | Library |
 | `loop-guard.sh` | Re-entrancy prevention (>10 calls in 60s = skip) | Library |
 | `config-protection.sh` | Blocks linter/formatter config modifications | Hard block |
@@ -402,7 +402,7 @@ Set `CLAUDE_HOOK_PROFILE` in settings.json:
 ### Shape Limits
 Override per project in settings.json env or project `.claude/shape-overrides.json`:
 - `CLAUDE_FILE_LINE_LIMIT` — file length (default: 50)
-- `CLAUDE_FUNCTION_LINE_LIMIT` — function body length (default: 5)
+- `CLAUDE_FUNCTION_LINE_LIMIT` — function body length (default: 8)
 
 ### Auto-Extraction
 Set `CLAUDE_AUTO_EXTRACT=true` in settings.json env to automatically extract modules when 3+ extraction signals are detected during code review.

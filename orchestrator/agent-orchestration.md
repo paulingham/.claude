@@ -34,7 +34,7 @@ The orchestrator (Claude) coordinates agents. It does NOT write, edit, or create
 ### Enforcement Note
 - The `orchestrator-discipline.sh` PreToolUse hook blocks Write/Edit on non-`.md` source files (exit 2)
 - The PostToolUse `code-shape-check.sh` hook blocks files exceeding 50 lines (exit 2)
-- The PostToolUse `function-body-check.sh` hook warns on functions exceeding 5 lines (exit 0, advisory only)
+- The PostToolUse `function-body-check.sh` hook warns on functions exceeding 8 lines (exit 0, advisory only)
 - All hooks are registered in settings.json and actively enforced
 
 ### Orchestrator CANNOT do:

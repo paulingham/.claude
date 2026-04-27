@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 # Cycle 3 — wave4-K-line-cap. Sweep test: no function-shape "5 lines" prose
-# remains in rules/, skills/, agents/, hooks/_lib/, session-memory/.
+# remains in rules/, skills/, agents/, hooks/_lib/, session-memory/, plus
+# top-level CLAUDE.md, README.md, orchestrator/, hooks/ (root), scripts/.
 # Allowlist captures known non-function-shape uses of "5" (CC, complexity
 # budget, file counts, BM25 rank, "5"-in-"50", etc.). Each entry is a
 # deliberate non-function-shape reference, audited and approved.
@@ -41,13 +42,17 @@ ALLOWLIST=(
   "skills/build-implementation/SKILL.md:50"
   "skills/react-native-patterns/SKILL.md:69"
   "skills/refactor/SKILL.md:73"
+  # CC (cyclomatic complexity ≤ 5) — restated alongside the function-body cap.
+  "scripts/README.md:88"
 )
 
 @test "no function-shape '5 lines' assertions remain (non-allowlisted)" {
   cd "$REPO_ROOT"
-  # Capture all current matches.
+  # Capture all current matches across the full prose+orchestrator surface.
   matches=$(git grep -nE '(5[ -]?lines?|≤ 5|<= 5)' \
-    rules/ skills/ agents/ hooks/_lib/ session-memory/ 2>/dev/null || true)
+    CLAUDE.md README.md \
+    rules/ skills/ agents/ hooks/_lib/ session-memory/ \
+    orchestrator/ hooks/ scripts/ 2>/dev/null || true)
   # Filter out allowlisted (path:line) prefixes.
   filtered="$matches"
   for entry in "${ALLOWLIST[@]}"; do

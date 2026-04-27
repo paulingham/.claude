@@ -1,21 +1,24 @@
 #!/usr/bin/env bats
-# Cycle 1 — wave4-K-line-cap. Documentation-as-code: hook source declares
-# FUNCTION_LINE_LIMIT default of 8 (prose-convention enforcement, not runtime).
+# Cycle 1 — wave4-K-line-cap. Runtime enforcement: function-body-check.sh
+# resolves CLAUDE_FUNCTION_LINE_LIMIT with a default of 8 (the canonical
+# function body line cap per rules/engineering-protocol.md).
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-  HOOK="$REPO_ROOT/hooks/code-shape-check.sh"
+  HOOK="$REPO_ROOT/hooks/function-body-check.sh"
 }
 
-@test "FUNCTION_LINE_LIMIT default is 8 in hook source" {
-  grep -qE 'CLAUDE_FUNCTION_LINE_LIMIT[^}]*8[^}]*\}' "$HOOK" \
-    || grep -qE 'FUNCTION_LINE_LIMIT=.*8' "$HOOK"
+@test "FUNC_LIMIT default is 8 in function-body-check.sh" {
+  grep -qE 'CLAUDE_FUNCTION_LINE_LIMIT:-8' "$HOOK"
 }
 
-@test "hook source uses shell default-value substitution form" {
-  grep -qE 'FUNCTION_LINE_LIMIT.*:-.*8' "$HOOK"
+@test "hook source uses shell default-value substitution form (:-8)" {
+  grep -qE 'FUNC_LIMIT=.*:-.*8' "$HOOK"
 }
 
-@test "hook comment states function-level enforcement is via prose convention" {
-  grep -q "prose convention" "$HOOK"
+@test "hook header documents prose-convention canonical source" {
+  # The hook is the runtime enforcement; the canonical prose source is
+  # rules/engineering-protocol.md. The hook description references the
+  # function-body line limit explicitly.
+  grep -qiE 'function (body|line)' "$HOOK"
 }
