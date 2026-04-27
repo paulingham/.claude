@@ -104,6 +104,13 @@ Where `{reason}` is one of:
 `'aws' CLI not found`, `'redis-cli' not found`,
 `CLAUDE_SESSION_STORE_BUCKET not set`, `CLAUDE_SESSION_STORE_REDIS_URL not set`.
 
+## Security
+
+- **Key validation**: `_session_store_validate_key` rejects `project_hash` or `session_id` containing `/`, `..`, leading dot, or empty string. Enforced at the dispatcher boundary before backend dispatch — applies to all backends. Path traversal POCs are covered by 5 cases in the conformance suite per backend.
+- **Redis URL credentials**: when `CLAUDE_SESSION_STORE_REDIS_URL` embeds credentials (`redis://user:password@host:6379/0`), the adapter parses them once into `REDISCLI_AUTH` (env var, supported on redis 5.x+) and passes a credential-stripped URL to `redis-cli -u`. The password is no longer visible in the local process table (`ps auxe`, `/proc/$pid/cmdline`) for any put/get/list/delete invocation. Operators on shared hosts should still use OS-level access control, network ACLs, and IAM as the access boundary — REDISCLI_AUTH closes the argv-leakage surface but the env var itself is still readable to a process running as the same user.
+- **File permissions**: local adapter creates blobs with mode 0600 and parent directories with mode 0700 (`umask 077` subshell wraps both `cat`/`cp` writes and `mkdir -p` calls).
+- **Failure-open fallback**: when an opt-in backend (s3/redis) is misconfigured (env var missing, CLI absent), the dispatcher falls back to `local` and emits both a stderr warning and a JSONL forensic record via `log-injection.sh`. Data is not silently lost.
+
 ## Atomicity and race semantics
 
 - **Local**: existing Edit semantics. Whole-file replace via `cat > "$dest"`.

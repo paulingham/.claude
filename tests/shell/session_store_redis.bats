@@ -14,9 +14,9 @@ setup() {
   mkdir -p "$REDIS_FAKE_STORE"
   : > "$REDIS_LOG"
   unset _SESSION_STORE_RESOLVED_BACKEND
+  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   install_redis_shim
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
 }
 
@@ -99,4 +99,18 @@ Section B"
   out=$(bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend >/dev/null; _resolve_backend 2>&1 1>/dev/null")
   count=$(echo "$out" | grep -c "session-store" || true)
   [ "$count" -le 1 ]
+}
+
+@test "MEDIUM-6: REDIS_URL with embedded password → password not visible in redis-cli argv" {
+  export CLAUDE_SESSION_STORE_REDIS_URL="redis://user:s3cret-password@host:6379/0"
+  unset _SESSION_STORE_RESOLVED_BACKEND
+  printf 'creds-blob' | session_store_put "$PROJECT_HASH" "$SESSION_ID" -
+  ! grep -q 's3cret-password' "$REDIS_LOG"
+}
+
+@test "MEDIUM-6: REDIS_URL without creds → URL passed through unchanged" {
+  export CLAUDE_SESSION_STORE_REDIS_URL="redis://host:6379/0"
+  unset _SESSION_STORE_RESOLVED_BACKEND
+  printf 'plain-blob' | session_store_put "$PROJECT_HASH" "$SESSION_ID" -
+  grep -q 'redis://host:6379/0' "$REDIS_LOG"
 }
