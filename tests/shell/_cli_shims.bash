@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # Shared CLI shims for session-store bats tests. Source from setup().
-# Each installer prepends $BATS_TMPDIR/bin to PATH.
+# Each installer writes shim binaries to $BIN_DIR (default: $BATS_TMPDIR/bin)
+# and prepends that directory to PATH. To isolate test files from each other,
+# setup() should set BIN_DIR to a per-file tmpdir (see session_store_*.bats).
 
 install_aws_shim() {
-  mkdir -p "$BATS_TMPDIR/bin"
-  cat > "$BATS_TMPDIR/bin/aws" <<'AWS_SHIM'
+  : "${BIN_DIR:=$BATS_TMPDIR/bin}"
+  mkdir -p "$BIN_DIR"
+  rm -f "$BIN_DIR/aws"
+  cat > "$BIN_DIR/aws" <<'AWS_SHIM'
 #!/usr/bin/env bash
 echo "$@" >> "$AWS_LOG"
 key_path() { local uri="$1"; echo "$AWS_FAKE_STORE/${uri#s3://}"; }
@@ -27,13 +31,15 @@ case "$1 $2" in
   *) exit 1 ;;
 esac
 AWS_SHIM
-  chmod +x "$BATS_TMPDIR/bin/aws"
-  export PATH="$BATS_TMPDIR/bin:$PATH"
+  chmod +x "$BIN_DIR/aws"
+  export PATH="$BIN_DIR:$PATH"
 }
 
 install_redis_shim() {
-  mkdir -p "$BATS_TMPDIR/bin"
-  cat > "$BATS_TMPDIR/bin/redis-cli" <<'REDIS_SHIM'
+  : "${BIN_DIR:=$BATS_TMPDIR/bin}"
+  mkdir -p "$BIN_DIR"
+  rm -f "$BIN_DIR/redis-cli"
+  cat > "$BIN_DIR/redis-cli" <<'REDIS_SHIM'
 #!/usr/bin/env bash
 echo "$@" >> "$REDIS_LOG"
 args=("$@"); cmd=""; key=""
@@ -60,26 +66,30 @@ case "$cmd" in
   *) exit 1 ;;
 esac
 REDIS_SHIM
-  chmod +x "$BATS_TMPDIR/bin/redis-cli"
-  export PATH="$BATS_TMPDIR/bin:$PATH"
+  chmod +x "$BIN_DIR/redis-cli"
+  export PATH="$BIN_DIR:$PATH"
 }
 
 install_aws_shim_404() {
-  export AWS_LOG="$BATS_TMPDIR/aws.log"; : > "$AWS_LOG"
-  mkdir -p "$BATS_TMPDIR/bin"
-  cat > "$BATS_TMPDIR/bin/aws" <<'SHIM'
+  : "${BIN_DIR:=$BATS_TMPDIR/bin}"
+  : "${AWS_LOG:=$BATS_TMPDIR/aws.log}"
+  export AWS_LOG; : > "$AWS_LOG"
+  mkdir -p "$BIN_DIR"; rm -f "$BIN_DIR/aws"
+  cat > "$BIN_DIR/aws" <<'SHIM'
 #!/usr/bin/env bash
 echo "$@" >> "$AWS_LOG"
 exit 1
 SHIM
-  chmod +x "$BATS_TMPDIR/bin/aws"
-  export PATH="$BATS_TMPDIR/bin:$PATH"
+  chmod +x "$BIN_DIR/aws"
+  export PATH="$BIN_DIR:$PATH"
 }
 
 install_aws_shim_with_blob() {
-  export AWS_LOG="$BATS_TMPDIR/aws.log"; : > "$AWS_LOG"; export AWS_BLOB="$1"
-  mkdir -p "$BATS_TMPDIR/bin"
-  cat > "$BATS_TMPDIR/bin/aws" <<'SHIM'
+  : "${BIN_DIR:=$BATS_TMPDIR/bin}"
+  : "${AWS_LOG:=$BATS_TMPDIR/aws.log}"
+  export AWS_LOG; : > "$AWS_LOG"; export AWS_BLOB="$1"
+  mkdir -p "$BIN_DIR"; rm -f "$BIN_DIR/aws"
+  cat > "$BIN_DIR/aws" <<'SHIM'
 #!/usr/bin/env bash
 echo "$@" >> "$AWS_LOG"
 case "$1 $2" in
@@ -89,19 +99,21 @@ case "$1 $2" in
 esac
 exit 1
 SHIM
-  chmod +x "$BATS_TMPDIR/bin/aws"
-  export PATH="$BATS_TMPDIR/bin:$PATH"
+  chmod +x "$BIN_DIR/aws"
+  export PATH="$BIN_DIR:$PATH"
 }
 
 install_aws_shim_record() {
-  export AWS_LOG="$BATS_TMPDIR/aws.log"; : > "$AWS_LOG"
-  mkdir -p "$BATS_TMPDIR/bin"
-  cat > "$BATS_TMPDIR/bin/aws" <<'SHIM'
+  : "${BIN_DIR:=$BATS_TMPDIR/bin}"
+  : "${AWS_LOG:=$BATS_TMPDIR/aws.log}"
+  export AWS_LOG; : > "$AWS_LOG"
+  mkdir -p "$BIN_DIR"; rm -f "$BIN_DIR/aws"
+  cat > "$BIN_DIR/aws" <<'SHIM'
 #!/usr/bin/env bash
 echo "$@" >> "$AWS_LOG"
 [[ "$1 $2" == "s3 cp" ]] && exit 0
 exit 1
 SHIM
-  chmod +x "$BATS_TMPDIR/bin/aws"
-  export PATH="$BATS_TMPDIR/bin:$PATH"
+  chmod +x "$BIN_DIR/aws"
+  export PATH="$BIN_DIR:$PATH"
 }

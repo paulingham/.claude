@@ -2,15 +2,17 @@
 # Redis adapter contract + fallback tests (Slice 3).
 
 setup() {
-  TEST_HOME="$(mktemp -d)"
+  BATS_FILE_TMPDIR="$(mktemp -d -t sessionstore.XXXXXX)"
+  export BIN_DIR="$BATS_FILE_TMPDIR/bin"
+  TEST_HOME="$BATS_FILE_TMPDIR/home"; mkdir -p "$TEST_HOME"
   export HOME="$TEST_HOME"
   export PROJECT_HASH="abc123"
   export SESSION_ID="notes"
   export CLAUDE_SESSION_STORE_BACKEND="redis"
   export CLAUDE_SESSION_STORE_REDIS_URL="redis://x"
   export CLAUDE_SESSION_STORE_PREFIX="sessions/"
-  export REDIS_LOG="$BATS_TMPDIR/redis.log"
-  export REDIS_FAKE_STORE="$BATS_TMPDIR/redis-store"
+  export REDIS_LOG="$BATS_FILE_TMPDIR/redis.log"
+  export REDIS_FAKE_STORE="$BATS_FILE_TMPDIR/redis-store"
   mkdir -p "$REDIS_FAKE_STORE"
   : > "$REDIS_LOG"
   unset _SESSION_STORE_RESOLVED_BACKEND
@@ -20,7 +22,7 @@ setup() {
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
 }
 
-teardown() { rm -rf "$TEST_HOME"; rm -f "$BATS_TMPDIR/bin/redis-cli"; }
+teardown() { rm -rf "$BATS_FILE_TMPDIR"; }
 
 @test "AC-3.2: BACKEND=redis + working redis-cli → put calls redis-cli SET" {
   printf 'redis-data' | session_store_put "$PROJECT_HASH" "$SESSION_ID" -
@@ -35,7 +37,7 @@ teardown() { rm -rf "$TEST_HOME"; rm -f "$BATS_TMPDIR/bin/redis-cli"; }
 }
 
 @test "AC-3.3: BACKEND=redis + missing redis-cli → fall back" {
-  rm -f "$BATS_TMPDIR/bin/redis-cli"
+  rm -f "$BIN_DIR/redis-cli"
   unset _SESSION_STORE_RESOLVED_BACKEND
   run bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend 2>/dev/null"
   [ "$status" -eq 0 ]
@@ -43,7 +45,7 @@ teardown() { rm -rf "$TEST_HOME"; rm -f "$BATS_TMPDIR/bin/redis-cli"; }
 }
 
 @test "AC-3.3 stderr exact: missing redis-cli warning matches contract" {
-  rm -f "$BATS_TMPDIR/bin/redis-cli"
+  rm -f "$BIN_DIR/redis-cli"
   unset _SESSION_STORE_RESOLVED_BACKEND
   run bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend 2>&1 1>/dev/null"
   [[ "$output" == *"[session-store] redis backend selected but 'redis-cli' not found — falling back to local"* ]]
@@ -94,7 +96,7 @@ Section B"
 }
 
 @test "redis fallback resolution is cached per process" {
-  rm -f "$BATS_TMPDIR/bin/redis-cli"
+  rm -f "$BIN_DIR/redis-cli"
   unset _SESSION_STORE_RESOLVED_BACKEND
   out=$(bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend >/dev/null; _resolve_backend 2>&1 1>/dev/null")
   count=$(echo "$out" | grep -c "session-store" || true)

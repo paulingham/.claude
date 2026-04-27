@@ -2,12 +2,14 @@
 # Conformance suite — Redis backend driver. Uses on-disk redis-cli shim.
 
 setup() {
-  export HOME="$(mktemp -d)"
+  BATS_FILE_TMPDIR="$(mktemp -d -t sessionstore.XXXXXX)"
+  export BIN_DIR="$BATS_FILE_TMPDIR/bin"
+  export HOME="$BATS_FILE_TMPDIR/home"; mkdir -p "$HOME"
   export CLAUDE_SESSION_STORE_BACKEND="redis"
   export CLAUDE_SESSION_STORE_REDIS_URL="redis://x"
   export CLAUDE_SESSION_STORE_PREFIX="sessions/"
-  export REDIS_LOG="$BATS_TMPDIR/redis-cnf.log"; : > "$REDIS_LOG"
-  export REDIS_FAKE_STORE="$BATS_TMPDIR/redis-cnf-store"; rm -rf "$REDIS_FAKE_STORE"; mkdir -p "$REDIS_FAKE_STORE"
+  export REDIS_LOG="$BATS_FILE_TMPDIR/redis-cnf.log"; : > "$REDIS_LOG"
+  export REDIS_FAKE_STORE="$BATS_FILE_TMPDIR/redis-cnf-store"; mkdir -p "$REDIS_FAKE_STORE"
   unset _SESSION_STORE_RESOLVED_BACKEND
   source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   install_redis_shim
@@ -16,7 +18,7 @@ setup() {
   source "$BATS_TEST_DIRNAME/_conformance_cases.bash"
 }
 
-teardown() { rm -rf "$HOME"; rm -rf "$REDIS_FAKE_STORE"; rm -f "$BATS_TMPDIR/bin/redis-cli"; }
+teardown() { rm -rf "$BATS_FILE_TMPDIR"; }
 
 @test "conformance/redis: round-trip" { assert_round_trip; }
 @test "conformance/redis: get miss → exit 1" { assert_get_miss_exit_1; }

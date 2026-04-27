@@ -2,15 +2,17 @@
 # S3 adapter contract + fallback tests (Slice 2).
 
 setup() {
-  TEST_HOME="$(mktemp -d)"
+  BATS_FILE_TMPDIR="$(mktemp -d -t sessionstore.XXXXXX)"
+  export BIN_DIR="$BATS_FILE_TMPDIR/bin"
+  TEST_HOME="$BATS_FILE_TMPDIR/home"; mkdir -p "$TEST_HOME"
   export HOME="$TEST_HOME"
   export PROJECT_HASH="abc123"
   export SESSION_ID="notes"
   export CLAUDE_SESSION_STORE_BACKEND="s3"
   export CLAUDE_SESSION_STORE_BUCKET="test-bucket"
   export CLAUDE_SESSION_STORE_PREFIX="sessions/"
-  export AWS_LOG="$BATS_TMPDIR/aws.log"
-  export AWS_FAKE_STORE="$BATS_TMPDIR/aws-store"
+  export AWS_LOG="$BATS_FILE_TMPDIR/aws.log"
+  export AWS_FAKE_STORE="$BATS_FILE_TMPDIR/aws-store"
   mkdir -p "$AWS_FAKE_STORE"
   : > "$AWS_LOG"
   unset _SESSION_STORE_RESOLVED_BACKEND
@@ -20,10 +22,10 @@ setup() {
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
 }
 
-teardown() { rm -rf "$TEST_HOME"; rm -f "$BATS_TMPDIR/bin/aws"; }
+teardown() { rm -rf "$BATS_FILE_TMPDIR"; }
 
 @test "AC-2.2: BACKEND=s3 + working aws → put calls aws s3 cp" {
-  local payload="$BATS_TMPDIR/p.md"; printf 'aws-data\n' > "$payload"
+  local payload="$BATS_FILE_TMPDIR/p.md"; printf 'aws-data\n' > "$payload"
   run session_store_put "$PROJECT_HASH" "$SESSION_ID" "$payload"
   [ "$status" -eq 0 ]
   grep -q "s3 cp $payload s3://test-bucket/sessions/$PROJECT_HASH/$SESSION_ID" "$AWS_LOG"
@@ -37,7 +39,7 @@ teardown() { rm -rf "$TEST_HOME"; rm -f "$BATS_TMPDIR/bin/aws"; }
 }
 
 @test "AC-2.3: BACKEND=s3 + missing aws → fall back to local + warn" {
-  rm -f "$BATS_TMPDIR/bin/aws"
+  rm -f "$BIN_DIR/aws"
   unset _SESSION_STORE_RESOLVED_BACKEND
   run bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend 2>/dev/null"
   [ "$status" -eq 0 ]
@@ -45,7 +47,7 @@ teardown() { rm -rf "$TEST_HOME"; rm -f "$BATS_TMPDIR/bin/aws"; }
 }
 
 @test "AC-2.3 stderr exact: missing aws warning matches contract" {
-  rm -f "$BATS_TMPDIR/bin/aws"
+  rm -f "$BIN_DIR/aws"
   unset _SESSION_STORE_RESOLVED_BACKEND
   run bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend 2>&1 1>/dev/null"
   [[ "$output" == *"[session-store] s3 backend selected but 'aws' CLI not found — falling back to local"* ]]
@@ -89,7 +91,7 @@ Section B"
 }
 
 @test "s3 fallback resolution is cached per process — second call no warn" {
-  rm -f "$BATS_TMPDIR/bin/aws"
+  rm -f "$BIN_DIR/aws"
   unset _SESSION_STORE_RESOLVED_BACKEND
   out=$(bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend >/dev/null; _resolve_backend 2>&1 1>/dev/null")
   count=$(echo "$out" | grep -c "session-store" || true)

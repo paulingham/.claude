@@ -2,7 +2,8 @@
 # Conformance suite — local backend driver.
 
 setup() {
-  export HOME="$(mktemp -d)"
+  BATS_FILE_TMPDIR="$(mktemp -d -t sessionstore.XXXXXX)"
+  export HOME="$BATS_FILE_TMPDIR/home"; mkdir -p "$HOME"
   unset CLAUDE_SESSION_STORE_BACKEND
   unset _SESSION_STORE_RESOLVED_BACKEND
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
@@ -10,7 +11,7 @@ setup() {
   source "$BATS_TEST_DIRNAME/_conformance_cases.bash"
 }
 
-teardown() { rm -rf "$HOME"; }
+teardown() { rm -rf "$BATS_FILE_TMPDIR"; }
 
 @test "conformance/local: round-trip" { assert_round_trip; }
 @test "conformance/local: get miss → exit 1" { assert_get_miss_exit_1; }
