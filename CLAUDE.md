@@ -65,6 +65,7 @@ Every agent's `tools:` frontmatter declares the tools that agent may invoke (YAM
 | frontend-engineer | Build | Yes | opus | Yes |
 | database-engineer | Build | Yes | sonnet | Yes |
 | infrastructure-engineer | Build | Yes | opus | Yes |
+| planning-agent | Build (advisory) | No | sonnet | No |
 | code-reviewer | Review | No | opus | Yes |
 | security-engineer | Review | No | opus | No |
 | qa-engineer | Test | Yes | sonnet | Yes |

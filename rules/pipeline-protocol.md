@@ -33,7 +33,7 @@ Phase results are persisted as files in `~/.claude/pipeline-state/` to survive c
 ```markdown
 ---
 task_id: {task-id}
-phase: {build|review|verify|test|accept|ship}
+phase: {plan|build|review|verify|test|accept|ship}
 verdict: {BUILD_COMPLETE|APPROVE|VERIFIED|COVERED|APPROVED|PR_CREATED|etc}
 timestamp: {ISO 8601}
 ---
