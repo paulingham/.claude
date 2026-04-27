@@ -218,6 +218,47 @@ Scratchpad findings that recur across 3+ pipelines should be promoted to instinc
 - Same fragility appearing in 3+ pipelines → create instinct with confidence 0.5 (fragilities are high-value)
 - Same pattern validated across 3+ pipelines → create instinct with confidence 0.4
 
+### Instinct Injection (Path-B advisory)
+
+The PreAgent hook `hooks/instinct-injector.sh` (registered on the `Agent` matcher at PreToolUse position 6, between `pre-agent-allowlist.sh` and `depth-guard.sh`) computes which instincts apply to each spawn target and records the resolution to `metrics/{session-id}/instinct-injections.jsonl` for forensic visibility. The hook is **advisory/log-only today**: the Agent tool input schema does not yet expose `modified_tool_input`, so the hook cannot patch the spawn prompt. Actual `## Learned Patterns` injection into the prompt body is performed by the orchestrator at spawn time (see `orchestrator/agent-orchestration.md` § Spawn Procedure / § Instinct Injection). When `modified_tool_input` lands, only `hooks/instinct-injector.sh` flips behaviour — resolver, loader, agent frontmatter, and the orchestrator-caller contract are unchanged.
+
+#### Selection algorithm
+
+1. **Load instincts** from `learning/{project-hash}/instincts/*.md` (project-scoped) and `learning/instincts/*.md` (global), via `hooks/_lib/instinct_loader.py`. Per-file failures are skipped with a `source: "load-warning"` JSONL record — the loader never raises.
+2. **Filter by role**: keep instincts whose `roles:` set intersects the spawning agent's `instinct_categories:` set (per-agent frontmatter, loaded by `hooks/_lib/agent_instinct_categories_loader.py`).
+3. **Filter by confidence floor**: drop any instinct with `confidence < CLAUDE_INSTINCT_MIN_CONFIDENCE` (default `0.4`).
+4. **Dedup by `id`**: when the same `id` appears in both project and global directories, the project entry wins (project beats global).
+5. **Sort and cap**: sort by `confidence` DESC, secondary sort by `id` ASC for stability, then keep the top `CLAUDE_INSTINCT_TOP_N` (default `5`; `0` produces an empty block).
+
+The actionable summary in each rendered bullet comes from the `## Pattern` body of the instinct file (first non-empty line, truncated at 200 chars), NOT from a frontmatter field.
+
+#### Per-agent `instinct_categories:` contract
+
+Every file in `agents/*.md` declares an `instinct_categories:` YAML list of role-name tokens. An instinct matches an agent IFF `set(instinct.roles) ∩ set(agent.instinct_categories) != ∅`. The full per-role mapping lives in `tests/test_agent_instinct_categories.py` as a snapshot — any frontmatter drift fails CI. The list MUST be a YAML list (not a comma-separated string); regression test `tests/test_learn_roles_enforcement.py` locks the contract in both directions.
+
+#### JSONL forensic format
+
+Path: `metrics/{session-id}/instinct-injections.jsonl`. Three distinct `source` values:
+
+| `source` | Emitter | When |
+|---|---|---|
+| `logged` | `hooks/instinct-injector.sh` | Every Agent spawn — records `count_kept`, `count_rejected_by_floor`, `count_rejected_by_role`, `top_ids`, `min_confidence`, `top_n`, `instinct_categories` |
+| `load-warning` | `hooks/_lib/instinct_loader.py` | Per-file load failure — records `file:` and `reason:` (one of: `malformed-yaml`, `missing-confidence-field`, `missing-roles-field`, `missing-or-empty-pattern-body`) |
+| `orchestrator-injected` | Orchestrator after splice | After the orchestrator inserts the rendered block into the spawn prompt — records `hook_record_ts`, `count_injected`, `subagent_type`, `task_id`. Pairs with the matching `logged` record |
+
+Mismatch (a `logged` record without a paired `orchestrator-injected` record for the same `subagent_type` + `task_id` in the same session) is the Path-B disclosure surface — surfaced post-hoc by `/forensics`.
+
+#### Environment variables
+
+| Variable | Default | Effect |
+|---|---|---|
+| `CLAUDE_INSTINCT_MIN_CONFIDENCE` | `0.4` | Confidence floor; instincts below are rejected. Invalid values fall back to default with a stderr warning. |
+| `CLAUDE_INSTINCT_TOP_N` | `5` | Maximum bullets in the rendered block. `0` → empty block; negative or invalid → default. |
+| `CLAUDE_INSTINCTS_DIR` | unset | Test-only override of the learning base directory. |
+| `CLAUDE_AGENTS_DIR` | unset | Test-only override of the agents directory used by `agent_instinct_categories_loader`. |
+| `CLAUDE_DISABLE_INSTINCT_INJECTION` | unset | Set to `1` to fast-exit the hook (per-session escape hatch). |
+| `CLAUDE_HOOK_PROFILE` | `standard` | When set to `minimal`, the hook fast-exits — matches the suppression pattern of the four sibling Path-B hooks. |
+
 ## 4. Prompt Tracing (Optional)
 
 Debugging aid for agent failures: capture the exact rendered prompt the orchestrator sent to a spawn — skills, instincts, session memory, scratchpad, agent memory, all already composed into `tool_input.prompt` by the orchestrator.

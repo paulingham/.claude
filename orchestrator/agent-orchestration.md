@@ -151,16 +151,49 @@ Once the Agent input schema lands `allowed_tools`, this flips to enforcement: re
 
 **Reference**: `rules/agent-protocol.md` § Per-Agent Tool Scoping for the full contract (frontmatter shape, subset semantics, metrics fields).
 
-### Instinct Injection (Automatic)
+### Instinct Injection (every Agent spawn)
 
-Before spawning any agent (subagent or teammate), the orchestrator loads relevant instincts:
+Before invoking `Agent(...)`, the orchestrator MUST resolve and splice the `## Learned Patterns` block into the spawn prompt body. The hook (`hooks/instinct-injector.sh`) is **advisory/log-only** today — it cannot mutate the prompt because the Agent input schema does not yet expose `modified_tool_input`. The orchestrator-side splice IS the actual delivery mechanism. See `rules/autonomous-intelligence.md` § Instinct Injection for the selection algorithm, JSONL forensic format, and Path-B disclosure surface.
 
-1. **Determine project hash**: source `hooks/_lib/project-hash.sh` and call `_project_hash`. The helper picks `md5sum` on Linux / `openssl dgst -md5` on macOS (portable) and echoes the default fallback `"local"` when no git remote is set.
-2. **Read instinct files**: `ls ~/.claude/learning/instincts/instinct-*.md ~/.claude/learning/instincts/global/instinct-*.md 2>/dev/null`
-3. **Filter by role**: Only include instincts where the `roles` frontmatter field contains the agent's role
-4. **Filter by project**: Include project-scoped instincts matching the current project hash, plus all global instincts
-5. **Sort by confidence**: Highest confidence first
-6. **Inject top 5** into the agent's spawn prompt under a `## Learned Patterns` section:
+#### Caller contract
+
+1. **Resolve the project hash**:
+
+   ```bash
+   source ~/.claude/hooks/_lib/project-hash.sh
+   PROJECT_HASH=$(_project_hash --fallback "local")
+   ```
+
+2. **Load instincts and resolve for the spawn target** — the canonical implementation lives in three modules under `hooks/_lib/`:
+
+   ```python
+   import sys
+   sys.path.insert(0, "hooks/_lib")
+   from instinct_loader import load_instincts
+   from instinct_injector import resolve_for_agent
+   from agent_instinct_categories_loader import load_agent_instinct_categories
+
+   instincts = load_instincts(PROJECT_HASH)
+   cats = load_agent_instinct_categories(subagent_type) or []
+   block = resolve_for_agent(subagent_type, cats, instincts)
+   ```
+
+   Or invoke the entry script `hooks/_lib/resolve-instincts.py` directly (the same script the hook uses) and read its `RESOLVED {json}` line for the rendered block plus telemetry.
+
+3. **Splice when non-empty**: if `block != ""`, insert it into the spawn prompt at the `## Learned Patterns (from system learning)` insertion point documented in `rules/parallel-dispatch-protocol.md` § Teammate Prompt Template. If `block == ""`, omit the section silently — do not inject an empty header.
+
+4. **Write the orchestrator-injected JSONL record** (Path-B disclosure surface). After the spawn-prompt write succeeds, append to `metrics/{session-id}/instinct-injections.jsonl`:
+
+   ```json
+   {"timestamp":"...","source":"orchestrator-injected",
+    "agent_role":"<subagent_type>",
+    "resolved":{"hook_record_ts":"...","count_injected":N,
+                "subagent_type":"...","task_id":"..."}}
+   ```
+
+   The hook writes a paired `source: "logged"` record on every spawn for forensic visibility — these are NOT a substitute for orchestrator-side injection. A `logged` record without a paired `orchestrator-injected` record (same session, same `subagent_type` + `task_id`) is a Path-B failure surfaced by `/forensics`.
+
+#### Output format
 
 ```
 ## Learned Patterns (from system learning — apply these proactively)
@@ -169,7 +202,7 @@ Before spawning any agent (subagent or teammate), the orchestrator loads relevan
 - [0.60] Check for N+1 queries in ActiveRecord scopes (performance)
 ```
 
-If no instincts exist (empty learning/instincts/), skip this section silently. Do not inject an empty section.
+Bullet template: `- [{confidence:.2f}] {pattern_summary} ({domain})`. The `pattern_summary` is the first non-empty line of the instinct's `## Pattern` body, truncated at 200 chars. Empty result after filtering → returns `""` (orchestrator skips the section silently).
 
 Instincts are guidance, not mandates. Agents apply them using judgment — if a pattern doesn't apply to the current task, they skip it.
 

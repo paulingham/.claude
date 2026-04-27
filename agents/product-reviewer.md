@@ -8,6 +8,9 @@ tools:
   - WebFetch
 model: sonnet
 maxTurns: 30
+instinct_categories:
+  - product-reviewer
+  - architect
 disallowedTools:
   - Agent
   - Skill

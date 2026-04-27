@@ -12,6 +12,9 @@ tools:
   - ToolSearch
 model: sonnet
 maxTurns: 120
+instinct_categories:
+  - database-engineer
+  - software-engineer
 disallowedTools:
   - Agent
   - Skill
