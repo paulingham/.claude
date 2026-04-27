@@ -80,3 +80,13 @@ Active Work"
   [ "$status" -eq 0 ]
   [ "$(cat "$STORE_DIR/$SESSION_ID.md")" = "piped data" ]
 }
+
+@test "LOW/A05: _local_put creates parent dir with mode 0700" {
+  local fresh_hash="freshdir$$"
+  rm -rf "$HOME/.claude/session-memory/$fresh_hash"
+  printf 'data' | session_store_put "$fresh_hash" "$SESSION_ID" -
+  local mode
+  mode=$(stat -f '%Lp' "$HOME/.claude/session-memory/$fresh_hash" 2>/dev/null \
+       || stat -c '%a' "$HOME/.claude/session-memory/$fresh_hash" 2>/dev/null)
+  [ "$mode" = "700" ]
+}

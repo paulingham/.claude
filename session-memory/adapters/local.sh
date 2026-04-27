@@ -7,7 +7,7 @@ _local_dir()  { printf '%s\n' "$HOME/.claude/session-memory/$1"; }
 
 _local_put() {
   local dest; dest=$(_local_path "$1" "$2")
-  mkdir -p "$(dirname "$dest")" 2>/dev/null || return 1
+  (umask 077 && mkdir -p "$(dirname "$dest")") 2>/dev/null || return 1
   [[ "$3" = "-" ]] && { (umask 077 && cat > "$dest"); return; }
   (umask 077 && cp "$3" "$dest")
 }

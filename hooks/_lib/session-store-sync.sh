@@ -7,7 +7,7 @@ _sync_template_path() {
 
 _sync_stamp_template() {
   local target="$1"; local tmpl; tmpl=$(_sync_template_path)
-  mkdir -p "$(dirname "$target")" 2>/dev/null
+  (umask 077 && mkdir -p "$(dirname "$target")") 2>/dev/null
   (umask 077 && cp "$tmpl" "$target")
 }
 
