@@ -280,6 +280,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/runtime-guard.sh",
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/planning-agent-edit-scope.sh",
+            "timeout": 5000
           }
         ]
       },
@@ -309,6 +314,21 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/runtime-guard.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/planning-agent-edit-scope.sh",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": "MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/planning-agent-edit-scope.sh",
             "timeout": 5000
           }
         ]
