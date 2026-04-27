@@ -125,8 +125,14 @@ class HookLogsLoggedWhenNoInstinctsDir(unittest.TestCase):
                 _cleanup(log_path)
 
 
-class HookLogsOrchestratorInjectedWhenMatchesPresent(unittest.TestCase):
-    def test_hook_logs_orchestrator_injected_when_matches_present(self):
+class HookLogsLoggedWhenMatchesPresent(unittest.TestCase):
+    """Path-B contract: hook ALWAYS writes source='logged' on the success
+    path. The 'orchestrator-injected' source is reserved exclusively for
+    the orchestrator caller after a real prompt splice. Mismatch (logged
+    without paired orchestrator-injected) is the Path-B failure surface
+    detected by /forensics."""
+
+    def test_hook_logs_logged_when_matches_present(self):
         session, log_path = _session_paths()
         with tempfile.TemporaryDirectory() as tmp:
             base, agents = Path(tmp) / "learning", Path(tmp) / "agents"
@@ -142,8 +148,8 @@ class HookLogsOrchestratorInjectedWhenMatchesPresent(unittest.TestCase):
                          "CLAUDE_AGENTS_DIR": str(agents)})
                 self.assertEqual(result.returncode, 0)
                 record = json.loads(log_path.read_text().strip().splitlines()[-1])
-                self.assertEqual(record["source"], "orchestrator-injected")
-                self.assertEqual(record["resolved"]["count_kept"], 1)
+                self.assertEqual(record["source"], "logged")
+                self.assertGreaterEqual(record["resolved"]["count_kept"], 1)
                 self.assertGreater(record["resolved"]["rendered_chars"], 0)
             finally:
                 _cleanup(log_path)

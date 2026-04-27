@@ -1,6 +1,7 @@
 """Helpers for instinct_loader: parse, validate, normalize, log."""
-import os
+import json
 import re
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -40,7 +41,8 @@ def normalize(fm, body, scope):
 
 
 def log_warning(path, reason):
-    script = Path(__file__).parent / "log-injection.sh"
-    os.system(f'bash "{script}" \'{{"tool_input":{{"subagent_type":""}}}}\' '
-              f'\'{{"file":"{path}","reason":"{reason}"}}\' '
-              f'load-warning instinct-injections.jsonl >/dev/null 2>&1')
+    script = str(Path(__file__).parent / "log-injection.sh")
+    resolved = json.dumps({"file": str(path), "reason": reason})
+    cmd = ["bash", script, '{"tool_input":{"subagent_type":""}}',
+           resolved, "load-warning", "instinct-injections.jsonl"]
+    subprocess.run(cmd, stderr=subprocess.DEVNULL, check=False)
