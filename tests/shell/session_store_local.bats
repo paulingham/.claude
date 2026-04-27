@@ -91,3 +91,14 @@ Active Work"
        || stat -c '%a' "$HOME/.claude/session-memory/$fresh_hash" 2>/dev/null)
   [ "$mode" = "700" ]
 }
+
+@test "LOW/A05: _local_put creates blob file with mode 0600" {
+  local fresh_hash="filemode$$"
+  rm -rf "$HOME/.claude/session-memory/$fresh_hash"
+  printf 'secret' | session_store_put "$fresh_hash" "$SESSION_ID" -
+  local blob_path="$HOME/.claude/session-memory/$fresh_hash/$SESSION_ID.md"
+  local mode
+  mode=$(stat -f '%Lp' "$blob_path" 2>/dev/null \
+       || stat -c '%a' "$blob_path" 2>/dev/null)
+  [ "$mode" = "600" ]
+}
