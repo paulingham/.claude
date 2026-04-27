@@ -222,6 +222,48 @@ Agent({
 
 After both complete: merge branches, shut down teammates.
 
+### Planning Agent Dispatch (advisory, multi-slice Build only)
+
+**Spawn condition**: `should_spawn_planning_agent(slice_count, dispatch_mode, phase)` returns True.
+Evaluated at Build phase start, before build engineers are spawned.
+
+**When spawned** (all must be true):
+- `slice_count >= 2` (multi-slice Build)
+- `dispatch_mode != "best-of-n"` (planning-agent is incoherent in Best-of-N races)
+- `phase != "fix"` (fix-engineer scope is narrower than the plan)
+
+**Spawn** (simultaneously with build engineers in a single message):
+```python
+Agent({
+  subagent_type: "planning-agent",
+  team_name: "pipeline-{task-id}",
+  name: "planning-agent",
+  model: "sonnet",
+  prompt: """
+TaskId: {task-id}
+PlanPath: pipeline-state/{task-id}-plan.md
+ScratchpadDir: pipeline-state/{task-id}-scratchpad/
+TeamRoster: {comma-separated names of build engineer teammates}
+PollSeconds: 60
+
+Read ~/.claude/skills/continuous-planning/SKILL.md and execute it fully.
+Read ~/.claude/agents/planning-agent.md for your role definition and edit-scope guard.
+"""
+})
+```
+
+**Single-slice path is UNCHANGED.** When `slice_count < 2`, the planning-agent is not spawned and all existing single-slice Build dispatch logic is unmodified.
+
+**Shutdown**: Send `SendMessage({type: "shutdown_request", name: "planning-agent"})` AFTER sending shutdown to build engineers (let plan have its final cycle).
+
+**Verdict** (emitted by planning-agent before exit):
+- `PLAN_REFINED` — at least one Plan Update was appended
+- `PLAN_UNCHANGED` — no contradictions found
+
+Both verdicts are acceptable. The orchestrator logs the verdict in pipeline state but does not gate Build completion on it. Planning is advisory.
+
+**Cost**: ~$0.05/build typical (Sonnet 4.6, ~20 poll cycles × ~700 tokens). Worst-case $0.60 at 200-turn budget exhaustion (planning silently stops, Build continues).
+
 ## Review Phase Dispatch
 
 Always uses the team. Spawn both reviewers in a single message:
