@@ -41,6 +41,8 @@
 !eval/**
 !.github/
 !.github/**
+!session-memory/
+!session-memory/**
 
 # Internal eval harness — runtime + candidate cases are local-only.
 # Ignore directory contents but persist the directories themselves via tracked .gitkeep.

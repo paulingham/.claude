@@ -206,6 +206,21 @@ Before spawning any agent, the orchestrator reads the session memory file:
 
 Session memory is engineering context — build commands, fragile files, patterns, discoveries. It survives context compaction and gives agents immediate orientation.
 
+### Session Memory Update (Backend Sync Wrap)
+
+When dispatching a `session-memory-updater` agent (per `rules/autonomous-intelligence.md` § Update Mechanism), the orchestrator wraps the spawn with backend round-trip helpers from `hooks/_lib/session-store.sh`. This keeps the agent Edit-only (no `Bash` tool grant), preserving the Path B per-agent tool-allowlist invariant.
+
+Canonical wrap template (orchestrator-side bash):
+
+```bash
+source "$HOME/.claude/hooks/_lib/session-store.sh"
+session_memory_sync_in "$PROJECT_HASH" "$NOTES_PATH"   # backend → file (no-op for local)
+# ... spawn session-memory-updater agent here, agent edits $NOTES_PATH ...
+session_memory_sync_out "$PROJECT_HASH" "$NOTES_PATH"  # file → backend (no-op for local)
+```
+
+`sync_in` materialises the remote blob (or template stamp on first-run miss) into `$NOTES_PATH`. `sync_out` mirrors the file back. For `BACKEND=local` (default), both helpers are byte-no-ops — zero behaviour change. For `BACKEND=s3` / `BACKEND=redis`, the helpers do the round-trip; PUT failures emit a JSONL forensic line via `log-injection.sh` and exit 0 so the workflow never blocks on durability. See `rules/autonomous-intelligence.md` § Adapters and `session-memory/adapters/README.md` for the full contract.
+
 ### Pipeline Scratchpad Injection (Automatic)
 
 Before spawning any agent during a pipeline, the orchestrator reads the scratchpad:

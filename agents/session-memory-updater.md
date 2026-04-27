@@ -66,3 +66,7 @@ If turn budget is tight: **Active Work** and **Discoveries** first — these are
 ## Output
 
 Make your Edits, then output a single line: `SESSION_MEMORY_UPDATED: {path}`. Nothing else.
+
+## Backend Sync (Operator-side)
+
+You are Edit-only by design. When session memory is backed by a non-local backend (S3 / Redis), the orchestrator wraps your spawn with `session_memory_sync_in` BEFORE and `session_memory_sync_out` AFTER — see `orchestrator/agent-orchestration.md` § Session Memory Update. You never invoke these helpers yourself; the file at `notesPath` is materialised before you start and mirrored back after you stop. Operational invariant: you are the sole writer per project. Do not assume any other agent edits this file concurrently.
