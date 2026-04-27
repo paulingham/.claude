@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Session-store contract dispatcher. Sources resolve + sync helpers + per-backend adapters.
-# Each contract fn is ≤ 5 lines; file ≤ 50 lines.
+# Each contract fn is ≤ 8 lines; file ≤ 50 lines.
 
 _SESSION_STORE_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _SESSION_STORE_ROOT="$(cd "$_SESSION_STORE_LIB/../.." && pwd)"

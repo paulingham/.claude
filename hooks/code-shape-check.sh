@@ -11,6 +11,12 @@ source ~/.claude/hooks/loop-guard.sh && check_loop_guard "code-shape-check" || e
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 LINE_LIMIT="${CLAUDE_FILE_LINE_LIMIT:-50}"
+# Function-body line cap — intentionally documentation-as-code, not runtime enforcement.
+# Function-level enforcement is via prose convention and reviewer/test discipline, not
+# runtime enforcement by this hook. Canonical source: rules/engineering-protocol.md.
+# Project .claude/shape-overrides.json per-glob limits take precedence when present.
+# shellcheck disable=SC2034  # documentation-as-code, intentionally unused
+FUNCTION_LINE_LIMIT="${CLAUDE_FUNCTION_LINE_LIMIT:-8}"
 
 # Only check if we have a file path
 if [[ -z "$FILE_PATH" ]]; then

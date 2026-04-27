@@ -69,7 +69,7 @@ Search for indicators:
 grep -rn "TODO\|FIXME\|HACK" --include="*.{ts,tsx,js,jsx,rb,py,go}" .
 
 # Files exceeding shape limits
-# (use code-shape-check logic: >50 lines per file, >5 lines per function)
+# (use code-shape-check logic: >50 lines per file, >8 lines per function)
 
 # High cyclomatic complexity functions
 # (use cc-check logic)

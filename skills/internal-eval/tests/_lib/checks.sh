@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Grouped assertions for Story 1 schema test. Each function body <= 5 lines.
+# Grouped assertions for Story 1 schema test. Each function body <= 8 lines.
 
 REQUIRED_META_KEYS=(case_id classification source_pr min_harness_ref max_harness_ref
                     flakiness_tier scoring_mode timeout_minutes cost_ceiling_usd synthetic)
