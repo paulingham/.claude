@@ -41,6 +41,7 @@ PY
   export PYTHONPATH="$SHIM${PYTHONPATH:+:$PYTHONPATH}"
   PR=1234
   CACHE_DIR="$CLAUDE_GH_CACHE_DIR/bats-h2-$PR"
+  source "$REPO_ROOT/tests/shell/_wave4l_helpers.bash"
 }
 
 teardown() {
@@ -99,14 +100,7 @@ _prefetch() {
 
 @test "H2: consumer ecw_fetch_view reads cache and gets gh-shape (no gh call)" {
   _prefetch
-  BIN="$WORK/bin"; mkdir -p "$BIN"
-  cat > "$BIN/gh" <<'SH'
-#!/usr/bin/env bash
-echo "GH MUST NOT BE CALLED ON REST E2E" >&2
-exit 99
-SH
-  chmod +x "$BIN/gh"
-  export PATH="$BIN:$PATH"
+  w4l_install_fail_gh
   source "$REPO_ROOT/hooks/_lib/eval-capture-worker-filters.sh"
   view="$(ecw_fetch_view "$PR")"
   [ -n "$view" ]
@@ -116,13 +110,7 @@ SH
 
 @test "H2: consumer ecw_fetch_names reads files.txt produced from REST array" {
   _prefetch
-  BIN="$WORK/bin"; mkdir -p "$BIN"
-  cat > "$BIN/gh" <<'SH'
-#!/usr/bin/env bash
-echo "GH MUST NOT BE CALLED" >&2; exit 99
-SH
-  chmod +x "$BIN/gh"
-  export PATH="$BIN:$PATH"
+  w4l_install_fail_gh
   source "$REPO_ROOT/hooks/_lib/eval-capture-worker-filters.sh"
   names="$(ecw_fetch_names "$PR")"
   [[ "$names" == *"tests/test_flaky_thing.py"* ]]
