@@ -56,6 +56,48 @@ All agents (subagents in worktrees AND teammates on branches) MUST commit before
 4. The orchestrator merges branches via `git merge` or `git cherry-pick`
 5. Never leave uncommitted changes -- uncommitted work cannot be merged reliably
 
+## Hooks Calling MCP
+
+A `PostToolUse` matcher block may contain multiple hook entries. Two hook types
+coexist there: `command` (shell) and `mcp_tool` (JSON-RPC into a registered
+MCP server in `mcpServers`). They run **in parallel**, not in sequence — the
+hook runner does not chain `mcp_tool` output to a subsequent `command`.
+
+Pattern: when a `command` hook needs data that an `mcp_tool` would expose, do
+NOT try to wire one to the other. Instead, have the MCP server **write a
+cache file** (or other side-effect on the local filesystem) that the sibling
+`command` hook reads after a brief poll. The two hooks observe each other
+through the filesystem, not through the hook runner.
+
+Worked example (Wave 4-L `gh-cache`):
+
+- `command` hook spawns the eval-capture worker (`nohup ... & disown`).
+- `mcp_tool` hook calls `prefetch_pr` on the `gh-cache` server with the
+  bash command string as input. The server extracts the PR number, fetches
+  view/diff/files via `urllib.request`, and writes
+  `${CLAUDE_GH_CACHE_DIR}/<session>-<pr>/{view.json,diff.patch,files.txt,.complete}`
+  with the `.complete` sentinel **last**.
+- The detached worker polls for `.complete` (≤ 2 s) and reads the cache if
+  present; otherwise it falls through to its existing `gh` CLI path.
+
+Constraints the pattern obeys:
+
+- **Server reads context from inherited env, not from the JSON-RPC input.**
+  `${tool_input.command}` is the only template field the harness substitutes
+  reliably; everything else (`CLAUDE_SESSION_ID`, `GITHUB_PERSONAL_ACCESS_TOKEN`)
+  is read server-side from `os.environ` at request time.
+- **Sentinel-last write order** lets readers detect a complete cache without
+  locking: the consumer waits on `.complete` and only reads the other files
+  once it appears.
+- **Graceful fallthrough** — when the MCP path fails for any reason
+  (no token, network timeout, unsupported remote, MCP not connected), the
+  server returns `{ok:false, reason:...}` and the consumer falls back to
+  whatever it would have done absent the MCP. The MCP path is an
+  optimization, never a dependency.
+- **No subprocess to the legacy CLI from inside the MCP server.** The server
+  uses `urllib.request` exclusively. Any `gh` invocation from the server
+  would re-introduce the very subprocess overhead the cache exists to avoid.
+
 ## Pipeline Scratchpad Protocol
 
 Agents share findings within a pipeline run via the scratchpad. See `rules/autonomous-intelligence.md` for full details.
