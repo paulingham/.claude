@@ -14,41 +14,10 @@ setup() {
   mkdir -p "$REDIS_FAKE_STORE"
   : > "$REDIS_LOG"
   unset _SESSION_STORE_RESOLVED_BACKEND
+  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   install_redis_shim
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
-}
-
-install_redis_shim() {
-  mkdir -p "$BATS_TMPDIR/bin"
-  cat > "$BATS_TMPDIR/bin/redis-cli" <<'REDIS_SHIM'
-#!/usr/bin/env bash
-echo "$@" >> "$REDIS_LOG"
-args=("$@"); cmd=""; key=""
-for ((i=0; i<${#args[@]}; i++)); do
-  case "${args[$i]}" in
-    -u) i=$((i+1)) ;;
-    -x) ;;
-    SET|GET|DEL|KEYS) cmd="${args[$i]}"; key="${args[$((i+1))]}"; break ;;
-  esac
-done
-key_file_for() { printf '%s' "$REDIS_FAKE_STORE/$(echo -n "$1" | md5sum 2>/dev/null | awk '{print $1}' || echo -n "$1" | openssl dgst -md5 | awk '{print $NF}')"; }
-register_key() { grep -qxF "$1" "$REDIS_FAKE_STORE/.keys" 2>/dev/null || echo "$1" >> "$REDIS_FAKE_STORE/.keys"; }
-unregister_key() { local tmp; tmp=$(mktemp); grep -vxF "$1" "$REDIS_FAKE_STORE/.keys" > "$tmp" 2>/dev/null; mv "$tmp" "$REDIS_FAKE_STORE/.keys"; }
-file=$(key_file_for "$key")
-case "$cmd" in
-  SET) cat > "$file"; register_key "$key"; echo OK ;;
-  GET) [[ -f "$file" ]] && cat "$file" || { echo ""; exit 0; } ;;
-  DEL) rm -f "$file"; unregister_key "$key"; echo 1 ;;
-  KEYS)
-    pattern="${key//\*/}"
-    [[ -f "$REDIS_FAKE_STORE/.keys" ]] || exit 0
-    while read -r k; do case "$k" in "$pattern"*) echo "$k" ;; esac; done < "$REDIS_FAKE_STORE/.keys" ;;
-  *) exit 1 ;;
-esac
-REDIS_SHIM
-  chmod +x "$BATS_TMPDIR/bin/redis-cli"
-  export PATH="$BATS_TMPDIR/bin:$PATH"
 }
 
 teardown() { rm -rf "$TEST_HOME"; rm -f "$BATS_TMPDIR/bin/redis-cli"; }
@@ -117,10 +86,31 @@ Section B"
   [ "$output" = "$expected" ]
 }
 
+@test "redis empty-blob round-trip: put empty then get returns exit 0 with empty stdout" {
+  printf '' | session_store_put "$PROJECT_HASH" "$SESSION_ID" -
+  run session_store_get "$PROJECT_HASH" "$SESSION_ID"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 @test "redis fallback resolution is cached per process" {
   rm -f "$BATS_TMPDIR/bin/redis-cli"
   unset _SESSION_STORE_RESOLVED_BACKEND
   out=$(bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend >/dev/null; _resolve_backend 2>&1 1>/dev/null")
   count=$(echo "$out" | grep -c "session-store" || true)
   [ "$count" -le 1 ]
+}
+
+@test "MEDIUM-6: REDIS_URL with embedded password → password not visible in redis-cli argv" {
+  export CLAUDE_SESSION_STORE_REDIS_URL="redis://user:s3cret-password@host:6379/0"
+  unset _SESSION_STORE_RESOLVED_BACKEND
+  printf 'creds-blob' | session_store_put "$PROJECT_HASH" "$SESSION_ID" -
+  ! grep -q 's3cret-password' "$REDIS_LOG"
+}
+
+@test "MEDIUM-6: REDIS_URL without creds → URL passed through unchanged" {
+  export CLAUDE_SESSION_STORE_REDIS_URL="redis://host:6379/0"
+  unset _SESSION_STORE_RESOLVED_BACKEND
+  printf 'plain-blob' | session_store_put "$PROJECT_HASH" "$SESSION_ID" -
+  grep -q 'redis://host:6379/0' "$REDIS_LOG"
 }

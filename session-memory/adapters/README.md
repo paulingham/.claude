@@ -13,9 +13,12 @@ session_store_put           <project_hash> <session_id> <blob_path_or_dash>
 
 session_store_get           <project_hash> <session_id>
 # Echoes blob to stdout.
-# Exit 0 on hit, 1 on miss (missing file OR missing project dir; both
-# indistinguishable by intent, both produce empty stdout / no stderr),
-# 2 reserved for actual backend errors (network, permission denied, 5xx).
+# Exit 0 on hit, 1 on miss-or-error (missing file, missing project dir,
+# network error, permission denied, 5xx — all collapse to exit 1 because
+# remote CLIs (aws, redis-cli) cannot reliably distinguish miss from
+# error without a probe-then-fetch sequence on every call). The contract
+# guarantees only the exit code; CLI stderr from real errors may surface
+# at the call site if not redirected.
 
 session_store_delete        <project_hash> <session_id>
 # Removes blob. Exit 0 on success or absent, 1 on backend error.
@@ -37,8 +40,10 @@ session_memory_sync_in      <project_hash> <notes_path>
 # Materialises backend → file at notes_path.
 # Local: byte-no-op, exit 0.
 # Remote GET hit: write blob to notes_path (umask 077), exit 0.
-# Remote GET 404 + local exists: leave untouched, exit 0, no warning.
-# Remote GET 404 + local missing: write template stamp, exit 0, no warning.
+# Remote GET miss-or-error + local exists: leave untouched, exit 0.
+# Remote GET miss-or-error + local missing: write template stamp, exit 0.
+# (Per the walked-back GET contract — adapters cannot distinguish miss
+# from backend error without a probe-then-fetch sequence on every call.)
 
 session_memory_sync_out     <project_hash> <notes_path>
 # Mirrors file → backend.
@@ -51,15 +56,17 @@ session_memory_sync_out     <project_hash> <notes_path>
 
 ## Return-code summary
 
-| Function | exit 0 | exit 1 | exit 2 |
-|---|---|---|---|
-| `session_store_put` | wrote blob | backend error | — |
-| `session_store_get` | hit (blob on stdout) | miss (file or dir absent) | reserved: actual backend failure (network, 5xx) |
-| `session_store_delete` | removed or absent | backend error | — |
-| `session_store_list` | always | — | — |
-| `session_store_list_subkeys` | hit (headers on stdout) | miss | — |
-| `session_memory_sync_in` | always | — | — |
-| `session_memory_sync_out` | always (PUT failure logged + warned, never blocks) | — | — |
+| Function | exit 0 | exit 1 |
+|---|---|---|
+| `session_store_put` | wrote blob | backend error |
+| `session_store_get` | hit (blob on stdout) | miss-or-error (collapsed) |
+| `session_store_delete` | removed or absent | backend error |
+| `session_store_list` | always | — |
+| `session_store_list_subkeys` | hit (headers on stdout) | miss-or-error |
+| `session_memory_sync_in` | always | — |
+| `session_memory_sync_out` | always (PUT failure logged + warned, never blocks) | — |
+
+> **Note on exit 1 collapse**: The `get` contract previously reserved exit 2 for backend errors, but `aws s3 cp` and `redis-cli GET` both return exit 1 for "key not found", auth failure, 5xx, and network errors alike. Distinguishing miss from error would require an EXISTS / HEAD probe before every GET, doubling round-trip cost. The walked-back contract collapses miss-or-error to exit 1. The contract guarantees only the exit code; the underlying CLI's stderr from real errors may surface at the call site if it is not explicitly redirected.
 
 ## Environment variables
 
@@ -96,6 +103,13 @@ Warning format (byte-identical across operators for log parsing):
 Where `{reason}` is one of:
 `'aws' CLI not found`, `'redis-cli' not found`,
 `CLAUDE_SESSION_STORE_BUCKET not set`, `CLAUDE_SESSION_STORE_REDIS_URL not set`.
+
+## Security
+
+- **Key validation**: `_session_store_validate_key` rejects `project_hash` or `session_id` containing `/`, `..`, leading dot, or empty string. Enforced at the dispatcher boundary before backend dispatch — applies to all backends. Path traversal POCs are covered by 5 cases in the conformance suite per backend.
+- **Redis URL credentials**: when `CLAUDE_SESSION_STORE_REDIS_URL` embeds credentials (`redis://user:password@host:6379/0`), the adapter parses them once into `REDISCLI_AUTH` (env var, supported on redis 5.x+) and passes a credential-stripped URL to `redis-cli -u`. The password is no longer visible in the local process table (`ps auxe`, `/proc/$pid/cmdline`) for any put/get/list/delete invocation. Operators on shared hosts should still use OS-level access control, network ACLs, and IAM as the access boundary — REDISCLI_AUTH closes the argv-leakage surface but the env var itself is still readable to a process running as the same user.
+- **File permissions**: local adapter creates blobs with mode 0600 and parent directories with mode 0700 (`umask 077` subshell wraps both `cat`/`cp` writes and `mkdir -p` calls).
+- **Failure-open fallback**: when an opt-in backend (s3/redis) is misconfigured (env var missing, CLI absent), the dispatcher falls back to `local` and emits both a stderr warning and a JSONL forensic record via `log-injection.sh`. Data is not silently lost.
 
 ## Atomicity and race semantics
 

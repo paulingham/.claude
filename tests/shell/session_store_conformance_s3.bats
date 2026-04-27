@@ -9,39 +9,11 @@ setup() {
   export AWS_LOG="$BATS_TMPDIR/aws-cnf.log"; : > "$AWS_LOG"
   export AWS_FAKE_STORE="$BATS_TMPDIR/aws-cnf-store"; mkdir -p "$AWS_FAKE_STORE"
   unset _SESSION_STORE_RESOLVED_BACKEND
+  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   install_aws_shim
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
   source "$BATS_TEST_DIRNAME/_conformance_cases.bash"
-}
-
-install_aws_shim() {
-  mkdir -p "$BATS_TMPDIR/bin"
-  cat > "$BATS_TMPDIR/bin/aws" <<'AWS_SHIM'
-#!/usr/bin/env bash
-echo "$@" >> "$AWS_LOG"
-key_path() { local uri="$1"; echo "$AWS_FAKE_STORE/${uri#s3://}"; }
-case "$1 $2" in
-  "s3 cp")
-    src="$3"; dst="$4"
-    if [[ "$src" == s3://* ]]; then
-      f=$(key_path "$src"); [[ -f "$f" ]] || exit 1
-      [[ "$dst" = "-" ]] && cat "$f" || cp "$f" "$dst"
-    else
-      f=$(key_path "$dst"); mkdir -p "$(dirname "$f")"
-      [[ "$src" = "-" ]] && cat > "$f" || cp "$src" "$f"
-    fi ;;
-  "s3 ls")
-    uri="$3"; root=$(key_path "$uri")
-    [[ -d "$root" ]] || exit 0
-    ( cd "$root" && find . -maxdepth 1 -mindepth 1 -type d | sed 's|^\./||; s|$|/|; s|^|PRE |' ) ;;
-  "s3 rm")
-    f=$(key_path "$3"); rm -f "$f" ;;
-  *) exit 1 ;;
-esac
-AWS_SHIM
-  chmod +x "$BATS_TMPDIR/bin/aws"
-  export PATH="$BATS_TMPDIR/bin:$PATH"
 }
 
 teardown() { rm -rf "$HOME"; rm -rf "$AWS_FAKE_STORE"; rm -f "$BATS_TMPDIR/bin/aws"; }
@@ -53,3 +25,10 @@ teardown() { rm -rf "$HOME"; rm -rf "$AWS_FAKE_STORE"; rm -f "$BATS_TMPDIR/bin/a
 @test "conformance/s3: list_subkeys emits headers" { assert_list_subkeys_emits_headers; }
 @test "conformance/s3: put dash reads stdin" { assert_put_dash_reads_stdin; }
 @test "conformance/s3: section headers survive round-trip" { assert_section_headers_survive_round_trip; }
+@test "conformance/s3: empty blob round-trip" { assert_empty_blob_round_trip; }
+
+@test "conformance/s3: traversal in hash rejected" { assert_traversal_in_hash_rejected; }
+@test "conformance/s3: traversal in subkey rejected" { assert_traversal_in_subkey_rejected; }
+@test "conformance/s3: slash in hash rejected" { assert_slash_in_hash_rejected; }
+@test "conformance/s3: leading dot in hash rejected" { assert_leading_dot_in_hash_rejected; }
+@test "conformance/s3: empty hash rejected" { assert_empty_hash_rejected; }

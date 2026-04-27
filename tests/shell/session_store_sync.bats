@@ -10,6 +10,7 @@ setup() {
   mkdir -p "$STORE_DIR"
   unset _SESSION_STORE_RESOLVED_BACKEND
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
 }
 
@@ -86,19 +87,23 @@ teardown() { rm -rf "$TEST_HOME"; }
   [ "$status" -eq 0 ]
 }
 
-setup_s3_shim_404() {
-  export CLAUDE_SESSION_STORE_BACKEND="s3"
-  export CLAUDE_SESSION_STORE_BUCKET="test-bucket"
-  export AWS_LOG="$BATS_TMPDIR/aws.log"; : > "$AWS_LOG"
-  unset _SESSION_STORE_RESOLVED_BACKEND
-  mkdir -p "$BATS_TMPDIR/bin"
-  cat > "$BATS_TMPDIR/bin/aws" <<'SHIM'
-#!/usr/bin/env bash
-echo "$@" >> "$AWS_LOG"
-exit 1
-SHIM
-  chmod +x "$BATS_TMPDIR/bin/aws"
-  export PATH="$BATS_TMPDIR/bin:$PATH"
+@test "MEDIUM-3: sync_in empty-blob remote hit + missing local → writes empty file (no template stamp)" {
+  setup_s3_shim_with_blob ""
+  rm -f "$NOTES"
+  run session_memory_sync_in "$PROJECT_HASH" "$NOTES"
+  [ "$status" -eq 0 ]
+  [ -f "$NOTES" ]
+  ! grep -q "# Session: Untitled" "$NOTES"
+}
+
+@test "MEDIUM-3: sync_in empty-blob remote hit + existing local → overwrites with empty (hit wins)" {
+  setup_s3_shim_with_blob ""
+  printf 'pre-existing
+' > "$NOTES"
+  run session_memory_sync_in "$PROJECT_HASH" "$NOTES"
+  [ "$status" -eq 0 ]
+  [ -f "$NOTES" ]
+  ! grep -q "pre-existing" "$NOTES"
 }
 
 setup_s3_shim_fail() {
@@ -140,4 +145,27 @@ exit 1
 SHIM
   chmod +x "$BATS_TMPDIR/bin/aws"
   export PATH="$BATS_TMPDIR/bin:$PATH"
+}
+
+setup_s3_shim_404() {
+  export CLAUDE_SESSION_STORE_BACKEND="s3"
+  export CLAUDE_SESSION_STORE_BUCKET="test-bucket"
+  unset _SESSION_STORE_RESOLVED_BACKEND
+  install_aws_shim_404
+}
+
+setup_s3_shim_fail() { setup_s3_shim_404; }
+
+setup_s3_shim_with_blob() {
+  export CLAUDE_SESSION_STORE_BACKEND="s3"
+  export CLAUDE_SESSION_STORE_BUCKET="test-bucket"
+  unset _SESSION_STORE_RESOLVED_BACKEND
+  install_aws_shim_with_blob "$1"
+}
+
+setup_s3_shim_record() {
+  export CLAUDE_SESSION_STORE_BACKEND="s3"
+  export CLAUDE_SESSION_STORE_BUCKET="test-bucket"
+  unset _SESSION_STORE_RESOLVED_BACKEND
+  install_aws_shim_record
 }

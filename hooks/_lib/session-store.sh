@@ -16,14 +16,26 @@ source "$_SESSION_STORE_ROOT/session-memory/adapters/redis.sh"
 # shellcheck source=/dev/null
 source "$_SESSION_STORE_LIB/session-store-sync.sh"
 
-_session_store_dispatch() {
-  local op="$1"; shift; local backend; backend=$(_resolve_backend)
+_session_store_validate_key() {
+  local k
+  for k in "$@"; do
+    [[ -z "$k" || "$k" == */* || "$k" == *..* || "$k" == .* ]] && return 1
+  done
+  return 0
+}
+
+_session_store_call() {
+  local backend op="$1"; shift; backend=$(_resolve_backend)
   case "$backend" in
-    local) "_local_$op" "$@" ;;
-    s3)    "_s3_$op"    "$@" ;;
-    redis) "_redis_$op" "$@" ;;
-    *)     "_local_$op" "$@" ;;
+    s3|redis) "_${backend}_$op" "$@" ;;
+    *) "_local_$op" "$@" ;;
   esac
+}
+
+_session_store_dispatch() {
+  local op="$1"; shift
+  [[ "$op" != "list" ]] && { _session_store_validate_key "$1" "$2" || return 1; }
+  _session_store_call "$op" "$@"
 }
 
 session_store_put()          { _session_store_dispatch put          "$@"; }

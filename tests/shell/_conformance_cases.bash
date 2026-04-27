@@ -42,6 +42,13 @@ assert_put_dash_reads_stdin() {
   [ "$got" = "piped" ]
 }
 
+assert_empty_blob_round_trip() {
+  printf '' | session_store_put "empty-hash" "notes" -
+  run session_store_get "empty-hash" "notes"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 assert_section_headers_survive_round_trip() {
   local blob="# Session: Untitled
 # Active Work
@@ -51,4 +58,29 @@ assert_section_headers_survive_round_trip() {
   [[ "$got" == *"Session: Untitled"* ]]
   [[ "$got" == *"Active Work"* ]]
   [[ "$got" == *"Codebase Map"* ]]
+}
+
+assert_traversal_in_hash_rejected() {
+  run session_store_put "../escape" "notes" -
+  [ "$status" -ne 0 ]
+}
+
+assert_traversal_in_subkey_rejected() {
+  run session_store_put "valid-hash" "../escape" -
+  [ "$status" -ne 0 ]
+}
+
+assert_slash_in_hash_rejected() {
+  run session_store_put "ab/cd" "notes" -
+  [ "$status" -ne 0 ]
+}
+
+assert_leading_dot_in_hash_rejected() {
+  run session_store_put ".hidden" "notes" -
+  [ "$status" -ne 0 ]
+}
+
+assert_empty_hash_rejected() {
+  run session_store_put "" "notes" -
+  [ "$status" -ne 0 ]
 }
