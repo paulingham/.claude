@@ -5,7 +5,8 @@ tools:
   - Read
   - Grep
   - Glob
-  - Bash
+  - WebFetch
+  - WebSearch
 model: opus
 maxTurns: 60
 disallowedTools:

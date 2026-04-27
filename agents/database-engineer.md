@@ -8,6 +8,8 @@ tools:
   - Bash
   - Grep
   - Glob
+  - NotebookEdit
+  - ToolSearch
 model: sonnet
 maxTurns: 120
 disallowedTools:

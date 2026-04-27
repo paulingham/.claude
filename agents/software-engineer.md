@@ -8,6 +8,8 @@ tools:
   - Bash
   - Grep
   - Glob
+  - NotebookEdit
+  - ToolSearch
 model: opus
 memory: project
 maxTurns: 150
