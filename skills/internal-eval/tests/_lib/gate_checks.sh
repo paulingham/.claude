@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate-integration check helpers. Each check ≤ 5 lines.
+# Gate-integration check helpers. Each check ≤ 8 lines.
 RULES_DOC="rules/agent-protocol.md"
 WORKFLOW="/.github/workflows/internal-eval.yml"
 _rules() { echo "$1/$RULES_DOC"; }

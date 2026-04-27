@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Per-artifact writers for a captured case. Each function body ≤ 5 lines.
+# Per-artifact writers for a captured case. Each function body ≤ 8 lines.
 
 _esc_re() { printf '%s' "$1" | sed 's/[][\/.*^$]/\\&/g'; }
 

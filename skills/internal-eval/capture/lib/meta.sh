@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Metadata JSON assembly for captured cases. Functions ≤ 5 lines.
+# Metadata JSON assembly for captured cases. Functions ≤ 8 lines.
 
 _infer_classification() {
   local labels="$1" title="$2"

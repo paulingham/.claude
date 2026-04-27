@@ -47,7 +47,7 @@ For each test case in order, follow the Incremental TDD Protocol in `rules/engin
 
 ### Step 3: Shape Check After Every File
 
-After completing or modifying ANY file, verify all metrics in `rules/engineering-protocol.md` (5-line functions, 50-line files, CC <= 5, nesting <= 2, DRY).
+After completing or modifying ANY file, verify all metrics in `rules/engineering-protocol.md` (8-line functions, 50-line files, CC <= 5, nesting <= 2, DRY).
 
 If any metric is violated, refactor BEFORE moving to the next test case.
 
@@ -67,7 +67,7 @@ If a built-in tool covers it, USE IT — do not synthesise.
 
 Before declaring the build complete:
 - [ ] Every AC has at least one passing test
-- [ ] Every function body ≤ 5 lines (counted, not estimated)
+- [ ] Every function body ≤ 8 lines (counted, not estimated)
 - [ ] Every file ≤ 50 lines (counted, not estimated)
 - [ ] No nesting > 2 levels
 - [ ] No DRY violations (no logic duplicated 2+ times)

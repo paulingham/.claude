@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Auto-learn gate state helpers. Shape: <=5 lines/func, <=50 lines/file.
+# Auto-learn gate state helpers. Shape: <=8 lines/func, <=50 lines/file.
 # State file schema:
 #   last_learn_run, pipelines_since_learn, observations_since_learn,
 #   last_fired_pipeline_id, last_observation_offset

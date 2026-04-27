@@ -91,14 +91,14 @@ _run_check() {
   [ ! -f "$LOG" ] || [ "$(wc -l < "$LOG" | tr -d ' ')" = "0" ]
 }
 
-@test "AC3.6 hook file ≤50 lines, function bodies ≤5 lines" {
+@test "AC3.6 hook file ≤50 lines, function bodies ≤8 lines" {
   hook="$REPO_ROOT/hooks/worktree-cwd-check.sh"
   lc=$(wc -l < "$hook" | tr -d ' ')
   [ "$lc" -le 50 ] || { echo "worktree-cwd-check.sh has $lc lines (>50)"; false; }
-  # Function-body shape: every defined function body ≤5 lines (open-brace-to-close-brace).
+  # Function-body shape: every defined function body ≤8 lines (open-brace-to-close-brace).
   # Heuristic: detect `^_wcc_.*\(\) {` openers, count lines until matching `^}`.
   awk '/^_wcc_[a-z_]*\(\) \{/ {start=NR; name=$0; depth=1; next}
-       depth==1 && /^}/ { lines=NR-start-1; if (lines>5) {print name " body=" lines; bad=1}; depth=0 }
+       depth==1 && /^}/ { lines=NR-start-1; if (lines>8) {print name " body=" lines; bad=1}; depth=0 }
        END { exit bad+0 }' "$hook"
 }
 

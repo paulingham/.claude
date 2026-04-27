@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Grouped assertions for Story 3 real case. Functions ≤ 5 lines.
+# Grouped assertions for Story 3 real case. Functions ≤ 8 lines.
 
 has_patch()     { ls "$1"/golden-diff/*.patch >/dev/null 2>&1; }
 nonempty_dir()  { [ -d "$1" ] && [ -n "$(ls -A "$1" 2>/dev/null)" ]; }
