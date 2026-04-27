@@ -103,7 +103,7 @@ Project-scoped instincts live in `~/.claude/learning/{project-hash}/instincts/`.
 ---
 id: instinct-{hash}
 confidence: 0.3
-category: {discovery|warning|pattern|fragility|decision}
+category: {discovery|warning|pattern|fragility|decision}  # provenance enum on this instinct file. Distinct from `instinct_categories:` on agent files (which holds role-name tokens for filtering).
 domain: {testing|code-style|architecture|workflow|performance|security}
 scope: project
 project: {project-hash}
