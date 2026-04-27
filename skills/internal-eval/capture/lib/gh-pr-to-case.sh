@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # PR → case artifacts. Delegates artifact writers to case-writers.sh.
+# Cache-tier source helpers in gh-pr-cache-source.sh; fall through to gh on miss.
 HERE_GPC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE_GPC/slug_fn.sh"
 source "$HERE_GPC/meta.sh"
 source "$HERE_GPC/case-writers.sh"
+source "$HERE_GPC/gh-pr-cache-source.sh"
 
-pr_view_json()  { gh pr view "$1" --json number,title,body,labels,mergeCommit 2>/dev/null; }
-pr_diff_patch() { gh pr diff "$1" 2>/dev/null; }
-pr_diff_names() { gh pr diff "$1" --name-only 2>/dev/null; }
+pr_view_json()  { pr_view_from_cache "$1" && return 0; gh pr view "$1" --json number,title,body,labels,mergeCommit 2>/dev/null; }
+pr_diff_patch() { pr_diff_from_cache "$1" && return 0; gh pr diff "$1" 2>/dev/null; }
+pr_diff_names() { pr_names_from_cache "$1" && return 0; gh pr diff "$1" --name-only 2>/dev/null; }
 
 case_id_for() {
   local pr="$1" slug
