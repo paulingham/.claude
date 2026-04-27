@@ -12,6 +12,8 @@ tools:
   - ToolSearch
 model: opus
 maxTurns: 120
+instinct_categories:
+  - infrastructure-engineer
 disallowedTools:
   - Agent
   - Skill

@@ -10,6 +10,9 @@ tools:
   - Glob
 model: sonnet
 maxTurns: 100
+instinct_categories:
+  - qa-engineer
+  - software-engineer
 disallowedTools:
   - Agent
   - Skill

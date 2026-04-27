@@ -9,6 +9,10 @@ tools:
   - WebSearch
 model: opus
 maxTurns: 60
+instinct_categories:
+  - architect
+  - software-engineer
+  - security-engineer
 disallowedTools:
   - Agent
   - Skill
