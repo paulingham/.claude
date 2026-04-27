@@ -1,0 +1,19 @@
+diff --git a/tests/test_flaky_thing.py b/tests/test_flaky_thing.py
+index abc1..def1 100644
+--- a/tests/test_flaky_thing.py
++++ b/tests/test_flaky_thing.py
+@@ -1,4 +1,6 @@
+ def test_thing():
+-    assert flaky() == 1
++    # stabilise fixture ordering
++    setup_fixtures(sort=True)
++    assert flaky() == 1
+diff --git a/hooks/_lib/something.sh b/hooks/_lib/something.sh
+index abc2..def2 100644
+--- a/hooks/_lib/something.sh
++++ b/hooks/_lib/something.sh
+@@ -1,2 +1,4 @@
+ #!/usr/bin/env bash
++# fix flaky behaviour
++set -e
+ echo hi
