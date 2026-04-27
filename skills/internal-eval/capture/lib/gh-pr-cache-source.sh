@@ -18,9 +18,15 @@ _pr_cache_ready() {
   gh_cache_ready "$1"
 }
 
+_pr_validated_json_cat() {
+  local body; body="$(cat "$1" 2>/dev/null)"
+  printf '%s' "$body" | jq -e . >/dev/null 2>&1 || return 1
+  printf '%s' "$body"
+}
+
 pr_view_from_cache() {
   _pr_cache_ready "$1" || return 1
-  cat "$(_pr_cache_dir "$1")/view.json" 2>/dev/null
+  _pr_validated_json_cat "$(_pr_cache_dir "$1")/view.json"
 }
 
 pr_diff_from_cache() {

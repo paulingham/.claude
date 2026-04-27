@@ -18,9 +18,15 @@ ecw_cache_ready() {
   gh_cache_ready "$1"
 }
 
+_ecw_validated_json_cat() {
+  local body; body="$(cat "$1" 2>/dev/null)"
+  printf '%s' "$body" | jq -e . >/dev/null 2>&1 || return 1
+  printf '%s' "$body"
+}
+
 ecw_cache_view() {
   ecw_cache_ready "$1" || return 1
-  cat "$(ecw_cache_dir "$1")/view.json" 2>/dev/null
+  _ecw_validated_json_cat "$(ecw_cache_dir "$1")/view.json"
 }
 
 ecw_cache_diff() {
