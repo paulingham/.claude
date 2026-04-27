@@ -86,6 +86,25 @@ teardown() { rm -rf "$TEST_HOME"; }
   [ "$status" -eq 0 ]
 }
 
+@test "MEDIUM-3: sync_in empty-blob remote hit + missing local → writes empty file (no template stamp)" {
+  setup_s3_shim_with_blob ""
+  rm -f "$NOTES"
+  run session_memory_sync_in "$PROJECT_HASH" "$NOTES"
+  [ "$status" -eq 0 ]
+  [ -f "$NOTES" ]
+  ! grep -q "# Session: Untitled" "$NOTES"
+}
+
+@test "MEDIUM-3: sync_in empty-blob remote hit + existing local → overwrites with empty (hit wins)" {
+  setup_s3_shim_with_blob ""
+  printf 'pre-existing
+' > "$NOTES"
+  run session_memory_sync_in "$PROJECT_HASH" "$NOTES"
+  [ "$status" -eq 0 ]
+  [ -f "$NOTES" ]
+  ! grep -q "pre-existing" "$NOTES"
+}
+
 setup_s3_shim_404() {
   export CLAUDE_SESSION_STORE_BACKEND="s3"
   export CLAUDE_SESSION_STORE_BUCKET="test-bucket"

@@ -12,10 +12,11 @@ _sync_stamp_template() {
 }
 
 session_memory_sync_in() {
-  local hash="$1" notes="$2" backend; backend=$(_resolve_backend)
+  local hash="$1" notes="$2" backend blob; backend=$(_resolve_backend)
   [[ "$backend" = "local" ]] && return 0
-  local blob; blob=$(session_store_get "$hash" notes 2>/dev/null) || blob=""
-  [[ -n "$blob" ]] && { (umask 077 && printf '%s\n' "$blob" > "$notes"); return 0; }
+  if blob=$(session_store_get "$hash" notes 2>/dev/null); then
+    (umask 077 && printf '%s' "$blob" > "$notes"); return 0
+  fi
   [[ -f "$notes" ]] && return 0
   _sync_stamp_template "$notes"
 }
