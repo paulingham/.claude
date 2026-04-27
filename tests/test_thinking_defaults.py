@@ -354,5 +354,36 @@ class ReadActiveStateBestofnRoundTrip(unittest.TestCase):
             self.assertIs(state["bestofn"], False)
 
 
+class DebugMtimeFieldNoneWhenNoDebugFile(unittest.TestCase):
+    def test_debug_mtime_is_none_when_no_debug_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_state(tmp, "no-debug",
+                         "---\ntask_id: no-debug\nphase: build\n---\n")
+            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+                state = read_active_state()
+            self.assertIsNone(state["debug_mtime"])
+
+
+class DebugMtimeFieldFloatWhenDebugFileExists(unittest.TestCase):
+    def test_debug_mtime_is_float_epoch_when_debug_file_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_state(tmp, "with-debug",
+                         "---\ntask_id: with-debug\nphase: build\n---\n")
+            debug_file = Path(tmp) / "with-debug-debug.md"
+            debug_file.write_text("notes")
+            os.utime(debug_file, (1_500_000_000.0, 1_500_000_000.0))
+            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+                state = read_active_state()
+            self.assertEqual(state["debug_mtime"], 1_500_000_000.0)
+
+
+class FreshDebugFileWithinTtlYieldsTextDisplay(unittest.TestCase):
+    def test_fresh_debug_file_within_ttl_yields_text(self):
+        now = 1_500_000_000.0
+        state = {"debug_active": True, "debug_mtime": now - 120}  # 2 minutes ago
+        result = resolve(tool_input={}, env={}, state=state, now=now)
+        self.assertEqual(result["display"], "text")
+
+
 if __name__ == "__main__":
     unittest.main()

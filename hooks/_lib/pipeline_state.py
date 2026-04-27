@@ -17,12 +17,17 @@ def _find_pipeline_file(directory):
     return files[0] if files else None
 
 
-def _debug_file_exists(directory, task_id):
-    return bool(task_id) and Path(directory, f"{task_id}-debug.md").exists()
+def _debug_path(directory, task_id):
+    return Path(directory, f"{task_id}-debug.md") if task_id else None
+
+
+def _debug_mtime(path):
+    return os.path.getmtime(path) if path and path.exists() else None
 
 
 def read_active_state(state_dir=None):
     directory = _state_dir(state_dir)
     pipeline_file = _find_pipeline_file(directory)
     fields = parse_frontmatter(Path(pipeline_file).read_text()) if pipeline_file else {}
-    return coerce_state(fields, _debug_file_exists(directory, fields.get("task_id", "")))
+    mtime = _debug_mtime(_debug_path(directory, fields.get("task_id", "")))
+    return coerce_state(fields, mtime is not None, mtime)
