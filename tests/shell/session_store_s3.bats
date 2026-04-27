@@ -14,9 +14,9 @@ setup() {
   mkdir -p "$AWS_FAKE_STORE"
   : > "$AWS_LOG"
   unset _SESSION_STORE_RESOLVED_BACKEND
+  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   install_aws_shim
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-  source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
 }
 
