@@ -1080,6 +1080,20 @@ rm -f /tmp/alg-test-out-$$.log
 
 echo ""
 
+# -- bash-write-guard + settings-path-lint (delegated harness) ---------------
+echo "-- bash-write-guard.sh + settings-path-lint.sh (delegated) --"
+if bash "$HOOKS_DIR/tests/test-bash-write-guard.sh" > /tmp/bwg-test-out-$$.log 2>&1; then
+  BWG_PASSES=$(grep -c "^  PASS: " /tmp/bwg-test-out-$$.log)
+  pass "bash-write-guard + settings-path-lint: delegated harness ($BWG_PASSES sub-tests passed)"
+else
+  BWG_FAILS=$(grep -c "^  FAIL: " /tmp/bwg-test-out-$$.log)
+  fail "bash-write-guard + settings-path-lint: delegated harness" "0 failures" "$BWG_FAILS failure(s) — see /tmp/bwg-test-out-$$.log"
+  cat /tmp/bwg-test-out-$$.log
+fi
+rm -f /tmp/bwg-test-out-$$.log
+
+echo ""
+
 # -- Summary -----------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
 echo ""
