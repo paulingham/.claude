@@ -235,6 +235,16 @@
           },
           {
             "type": "command",
+            "command": "bash ~/.claude/hooks/bash-write-guard.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/settings-path-lint.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
             "command": "bash ~/.claude/hooks/quality-gate.sh",
             "timeout": 10000
           },
