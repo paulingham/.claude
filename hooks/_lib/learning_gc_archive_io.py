@@ -16,16 +16,19 @@ def _classify(line: str, cutoff: datetime):
     return (ts < cutoff), ts.strftime("%Y-%m")
 
 
+def _route_line(line: str, cutoff, keep, by_month):
+    is_old, month = _classify(line, cutoff)
+    if is_old:
+        by_month.setdefault(month, []).append(line)
+    else:
+        keep.append(line)
+
+
 def split_lines_by_age(obs_path, cutoff: datetime):
     keep, by_month = [], {}
     for raw in Path(obs_path).read_text().splitlines():
-        if not raw:
-            continue
-        is_old, month = _classify(raw, cutoff)
-        if is_old:
-            by_month.setdefault(month, []).append(raw)
-        else:
-            keep.append(raw)
+        if raw:
+            _route_line(raw, cutoff, keep, by_month)
     return keep, by_month
 
 

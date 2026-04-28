@@ -9,13 +9,7 @@ import subprocess
 from pathlib import Path
 
 
-def vacuum_db(db_path) -> bool:
-    db_path = Path(db_path)
-    if not db_path.exists():
-        return False
-    cli = shutil.which("sqlite3")
-    if cli is None:
-        return False
+def _invoke_vacuum(cli: str, db_path: Path) -> bool:
     try:
         result = subprocess.run(
             [cli, str(db_path), "VACUUM;"],
@@ -23,3 +17,11 @@ def vacuum_db(db_path) -> bool:
     except subprocess.TimeoutExpired:
         return False
     return result.returncode == 0
+
+
+def vacuum_db(db_path) -> bool:
+    db_path = Path(db_path)
+    cli = shutil.which("sqlite3")
+    if not db_path.exists() or cli is None:
+        return False
+    return _invoke_vacuum(cli, db_path)
