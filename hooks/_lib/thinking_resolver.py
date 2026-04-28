@@ -4,7 +4,10 @@ Returns {"effort", "display", "source"} where `source` names the layer that
 determined the EFFORT value: "env", "explicit", "role", or "default".
 Display layer may differ but is not separately reported.
 """
-from thinking_role import role_effort, state_display
+import time
+
+from thinking_debug_display import debug_display
+from thinking_role import role_effort
 
 _EFFORTS = {"low", "medium", "high", "xhigh"}
 _DISPLAYS = {"omitted", "text"}
@@ -26,7 +29,7 @@ def _pick(layers, fallback):
     return fallback, "default"
 
 
-def resolve(tool_input, env, state):
+def resolve(tool_input, env, state, now=None):
     explicit = _explicit(tool_input)
     effort, source = _pick([
         ("env", _valid_env(env, "CLAUDE_THINKING_EFFORT", _EFFORTS)),
@@ -36,6 +39,6 @@ def resolve(tool_input, env, state):
     display, _ = _pick([
         ("env", _valid_env(env, "CLAUDE_THINKING_DISPLAY", _DISPLAYS)),
         ("explicit", explicit.get("display")),
-        ("role", state_display(state)),
+        ("role", debug_display(state, env, now if now is not None else time.time())),
     ], "omitted")
     return {"effort": effort, "display": display, "source": source}

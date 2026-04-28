@@ -21,7 +21,7 @@ def _safe_int(raw):
         return 0
 
 
-def coerce_state(fields, debug_active):
+def coerce_state(fields, debug_active, debug_mtime=None):
     return {
         "task_id": fields.get("task_id", ""),
         "phase": fields.get("phase", ""),
@@ -30,4 +30,5 @@ def coerce_state(fields, debug_active):
         "bestofn": fields.get("bestofn", "").lower() in _TRUE,
         "budget": _safe_int(fields.get("budget", "0")),
         "debug_active": debug_active or fields.get("phase", "") == "debugging",
+        "debug_mtime": debug_mtime,
     }
