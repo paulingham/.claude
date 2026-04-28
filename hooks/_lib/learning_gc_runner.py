@@ -12,11 +12,10 @@ from learning_gc_vacuum import vacuum_db
 
 
 def _do_gc(project_dir: Path, retention_days: int, db_path: Path) -> None:
+    """Stamp state before VACUUM so a 60s timeout never triggers a retry loop."""
     archived = archive_observations(
         project_dir / "observations.jsonl",
         project_dir / "archive", retention_days)
-    # Update state BEFORE vacuum so a 60s VACUUM timeout doesn't cause
-    # the next SessionStart to retry the full GC cycle (best-effort).
     update_state(project_dir / ".gc-state.json")
     vacuumed = vacuum_db(db_path)
     print(f"[learning-gc] archived={archived} vacuumed={vacuumed}",
