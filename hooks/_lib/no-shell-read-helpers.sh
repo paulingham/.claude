@@ -21,7 +21,7 @@ nsr_is_streaming_tail() {
 }
 
 nsr_first_path_arg() {
-  printf '%s' "$1" | awk '{ for(i=2;i<=NF;i++) if ($i !~ /^-/) { print $i; exit } }'
+  printf '%s' "$1" | awk '{ for(i=2;i<=NF;i++) if ($i !~ /^[-<]/) { print $i; exit } }'
 }
 
 nsr_is_target_cmd() {

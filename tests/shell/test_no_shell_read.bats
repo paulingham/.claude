@@ -86,3 +86,21 @@ _run_hook_capture() {
     | bash "$REPO_ROOT/hooks/no-shell-read.sh"
   [ "$?" -eq 0 ]
 }
+
+@test "heredoc cat <<EOF is allowed (no path arg)" {
+  cd "$REPO_ROOT"
+  run _run_hook $'cat <<EOF\nhi\nEOF'
+  [ "$status" -eq 0 ]
+}
+
+@test "heredoc with stripped tab cat <<-EOF is allowed" {
+  cd "$REPO_ROOT"
+  run _run_hook $'cat <<-EOF\nhi\nEOF'
+  [ "$status" -eq 0 ]
+}
+
+@test "here-string cat <<<word is allowed" {
+  cd "$REPO_ROOT"
+  run _run_hook 'cat <<<hello'
+  [ "$status" -eq 0 ]
+}
