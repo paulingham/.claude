@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 
+# Returns (is_old, month) — both None on parse failure → line is kept
 def _classify(line: str, cutoff: datetime):
     try:
         ts_raw = json.loads(line)["timestamp"]

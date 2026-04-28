@@ -15,8 +15,10 @@ def _read_last_run(state_path) -> Optional[datetime]:
     try:
         raw = Path(state_path).read_text()
         ts = json.loads(raw).get("last_run")
+        if not ts:
+            return None
         return datetime.fromisoformat(ts.replace("Z", "+00:00"))
-    except (OSError, ValueError, AttributeError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError, ValueError):
         return None
 
 

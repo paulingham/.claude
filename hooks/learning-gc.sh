@@ -11,7 +11,13 @@ LIB_DIR="$(dirname "${BASH_SOURCE[0]}")/_lib"
 # shellcheck disable=SC1091
 source "${LIB_DIR}/project-hash.sh"
 
-HASH=$(_project_hash --fallback "local")
+# Honour CLAUDE_PROJECT_HASH if set (nested-pipeline isolation contract)
+# See skills/internal-eval/run/ISOLATION.md
+if [[ -n "${CLAUDE_PROJECT_HASH:-}" ]]; then
+    HASH="$CLAUDE_PROJECT_HASH"
+else
+    HASH=$(_project_hash --fallback "local")
+fi
 PROJECT_DIR="$HOME/.claude/learning/$HASH"
 DB_PATH="$HOME/.claude/db/memory.sqlite"
 RETENTION="${CLAUDE_LEARNING_RETENTION_DAYS:-90}"

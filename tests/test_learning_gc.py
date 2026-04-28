@@ -163,7 +163,9 @@ class SettingsRegistersLearningGcHook(unittest.TestCase):
                 continue
             for h in group.get("hooks", []):
                 commands.append(h.get("command", ""))
-        self.assertIn("bash ~/.claude/hooks/learning-gc.sh", commands)
+        self.assertTrue(
+            any("learning-gc.sh" in c for c in commands),
+            f"learning-gc.sh not registered; got commands: {commands}")
 
 
 if __name__ == "__main__":

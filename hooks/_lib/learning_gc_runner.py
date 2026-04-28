@@ -15,8 +15,10 @@ def _do_gc(project_dir: Path, retention_days: int, db_path: Path) -> None:
     archived = archive_observations(
         project_dir / "observations.jsonl",
         project_dir / "archive", retention_days)
-    vacuumed = vacuum_db(db_path)
+    # Update state BEFORE vacuum so a 60s VACUUM timeout doesn't cause
+    # the next SessionStart to retry the full GC cycle (best-effort).
     update_state(project_dir / ".gc-state.json")
+    vacuumed = vacuum_db(db_path)
     print(f"[learning-gc] archived={archived} vacuumed={vacuumed}",
           file=sys.stderr)
 
@@ -29,10 +31,11 @@ def _run(project_dir: Path, retention_days: int, db_path: Path) -> None:
 def main(argv) -> int:
     try:
         project, retention, db = argv[1], int(argv[2]), argv[3]
-        if Path(project).is_dir():
-            _run(Path(project), retention, Path(db))
-    except Exception as exc:  # noqa: BLE001
-        print(f"[learning-gc] error: {exc}", file=sys.stderr)
+    except (IndexError, ValueError) as exc:
+        print(f"[learning-gc] bad args: {exc}", file=sys.stderr)
+        return 0
+    if Path(project).is_dir():
+        _run(Path(project), retention, Path(db))
     return 0
 
 

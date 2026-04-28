@@ -307,6 +307,12 @@ older than this threshold are moved out of `observations.jsonl` and into
 calendar month, gzip-appended). The JSONL files remain the canonical source of
 truth; archived entries are preserved, not deleted.
 
+**Legacy format note**: observations.jsonl files written before the compact-JSONL
+writer (`observation-capture.sh` via `jq -c`) may use pretty-printed multi-line JSON.
+The GC parser reads line-by-line; multi-line records are treated as unparseable and
+kept in place (not archived). This is intentional — no data loss. To archive
+legacy files, convert first with `jq -c . observations.jsonl > compact.jsonl && mv compact.jsonl observations.jsonl`.
+
 ### VACUUM
 After archiving, `memory.sqlite` is VACUUMed via the `sqlite3` CLI to reclaim
 freed pages. Skipped silently if `sqlite3` is not installed or the DB doesn't exist.
