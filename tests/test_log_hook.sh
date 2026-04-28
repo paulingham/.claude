@@ -158,6 +158,35 @@ print(max(durs))")
 [[ "$MAX_DURATION" -lt 50 ]]
 assert "Max log overhead per hook < 50ms (got: ${MAX_DURATION}ms over $HOOK_LINES runs)" "$?"
 
+# --- Test 11: every instrumented hook has the 3 logging lines ---
+echo "--- Hook instrumentation coverage ---"
+HOOKS_DIR="$REPO_ROOT/hooks"
+SKIP_LIST="hook-profile.sh loop-guard.sh test-session-start-bootstrap.sh"
+MISSING=0
+MISSING_LIST=""
+for hook in "$HOOKS_DIR"/*.sh; do
+    name=$(basename "$hook")
+    skip=0
+    for s in $SKIP_LIST; do [[ "$name" == "$s" ]] && skip=1; done
+    [[ "$skip" == "1" ]] && continue
+    if ! grep -q "source ~/.claude/hooks/_lib/log.sh" "$hook"; then
+        MISSING=$((MISSING + 1))
+        MISSING_LIST="$MISSING_LIST $name"
+        continue
+    fi
+    if ! grep -q "_log_hook_start" "$hook"; then
+        MISSING=$((MISSING + 1))
+        MISSING_LIST="$MISSING_LIST $name(no-start)"
+        continue
+    fi
+    if ! grep -qE "trap.*log_hook_event" "$hook"; then
+        MISSING=$((MISSING + 1))
+        MISSING_LIST="$MISSING_LIST $name(no-trap)"
+    fi
+done
+[[ "$MISSING" == "0" ]]
+assert "All non-library hooks instrumented (missing: $MISSING) [$MISSING_LIST]" "$?"
+
 echo ""
 echo "=== Results: $PASS/$TOTAL passed, $FAIL failed ==="
 exit $FAIL

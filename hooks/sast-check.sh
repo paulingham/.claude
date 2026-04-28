@@ -4,6 +4,11 @@
 # Hard blocks (exit 2) if HIGH/ERROR severity issues found.
 # Falls back to bearer if semgrep unavailable. Advisory skip if neither present.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
+trap 'log_hook_event $?' EXIT
+
 set -uo pipefail
 
 # Hook profile (standard — runs alongside quality-gate)

@@ -12,6 +12,11 @@
 # to extract subagent_type, prompt, and isolation for classification.
 
 # Hook profile
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:Agent"
+trap 'log_hook_event $?' EXIT
+
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)

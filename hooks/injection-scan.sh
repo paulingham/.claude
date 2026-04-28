@@ -4,6 +4,11 @@
 # Advisory only (exit 0 + stderr warning). Never blocks legitimate writes.
 
 # Hook profile and loop guard
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PostToolUse:${TOOL_NAME:-Write}"
+trap 'log_hook_event $?' EXIT
+
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 source ~/.claude/hooks/loop-guard.sh && check_loop_guard "injection-scan" || exit 0
 

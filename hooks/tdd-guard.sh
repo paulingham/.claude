@@ -3,6 +3,11 @@
 # Blocks implementation edits on existing source files when no test file exists.
 # Enforces RED-first TDD at the infrastructure level.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:${TOOL_NAME:-Write}"
+trap 'log_hook_event $?' EXIT
+
 set -euo pipefail
 
 # jq needed only for stdin JSON fallback

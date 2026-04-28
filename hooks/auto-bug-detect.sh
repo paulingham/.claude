@@ -4,6 +4,11 @@
 # Logs to ~/.claude/metrics/bugs-detected.jsonl
 # Passive (exit 0).
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PostToolUse:${TOOL_NAME:-Edit}"
+trap 'log_hook_event $?' EXIT
+
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 source ~/.claude/hooks/loop-guard.sh && check_loop_guard "auto-bug-detect" || exit 0
 # shellcheck source=_lib/project-hash.sh

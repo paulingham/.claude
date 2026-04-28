@@ -15,6 +15,11 @@
 # Profile=minimal so it ALWAYS runs (matches orchestrator-discipline,
 # main-branch-guard, quality-gate).
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
+trap 'log_hook_event $?' EXIT
+
 set -uo pipefail
 
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "minimal" || exit 0

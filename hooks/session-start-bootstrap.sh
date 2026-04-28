@@ -7,6 +7,11 @@
 # ---------------------------------------------------------------------------
 
 # Auto-start automation supervisor if repos are registered and it's not running
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "SessionStart"
+trap 'log_hook_event $?' EXIT
+
 SUPERVISOR="$HOME/.claude/automation/supervisor.sh"
 SUPERVISOR_PID="$HOME/.claude/automation/supervisor.pid"
 REPOS_CONF="$HOME/.claude/automation/repos.conf"

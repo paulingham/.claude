@@ -9,6 +9,11 @@
 # CLAUDE_TOOL_INPUT_FILE_PATH for this hook category — env-var sourcing is a
 # silent no-op. See hooks/pre-agent-allowlist.sh and hooks/depth-guard.sh for
 # the canonical stdin pattern.
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:${TOOL_NAME:-Write}"
+trap 'log_hook_event $?' EXIT
+
 set -uo pipefail
 
 INPUT=$(cat)

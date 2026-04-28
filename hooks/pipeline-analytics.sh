@@ -3,6 +3,11 @@
 # Aggregates phase state files + trajectory into a single metrics record
 # Usage: bash pipeline-analytics.sh <task-id>
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "standalone"
+trap 'log_hook_event $?' EXIT
+
 set -uo pipefail
 
 TASK_ID="${1:?Usage: pipeline-analytics.sh <task-id>}"

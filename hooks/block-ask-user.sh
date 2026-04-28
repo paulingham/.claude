@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # PreToolUse hook: block AskUserQuestion in autonomous mode.
 # Reads JSON from stdin, checks tool_name, exits 2 to block when matched.
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:AskUserQuestion"
+trap 'log_hook_event $?' EXIT
+
 set -euo pipefail
 
 payload="$(cat)"

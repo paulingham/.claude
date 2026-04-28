@@ -4,6 +4,11 @@
 # Run once (registered temporarily in settings.json), inspect /tmp/probe-*.log
 # AND the agent's rendered trace, then REMOVE registration before commit.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "standalone"
+trap 'log_hook_event $?' EXIT
+
 INPUT=$(cat)
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 LOG="/tmp/probe-modified-tool-input-${TS}.log"
