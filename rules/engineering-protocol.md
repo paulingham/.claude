@@ -83,7 +83,7 @@ The audit trail for the slice is exactly four artifacts: the batched RED output,
 The batched-RED default does NOT apply to these cases. They keep per-behaviour RED-GREEN-REFACTOR with one test per cycle:
 
 - **Bug fixes (always)** — the repro test IS the contract. One bug, one repro test, written and seen failing BEFORE any fix code. See `skills/bug-fix/SKILL.md`.
-- **Complex algorithmic logic** — parsers, state machines, financial calculations, anything where edge cases dominate the design. The cost of finding one wrong case during batched implementation outweighs the savings of batching.
+- **Complex algorithmic logic** — parsers, state machines, financial calculations. The cost of finding one wrong case during batched implementation outweighs the savings of batching.
 - **Security-sensitive code** — auth, crypto, ACL checks. Each rule belongs to its own RED step so the failure mode is unambiguous.
 
 For these exceptions, the cycle is the prior per-behaviour RED -> GREEN -> REFACTOR (one test, one minimum implementation, one shape pass), repeated.
@@ -117,12 +117,12 @@ The code-reviewer validates all four artifacts exist and the diff contains both 
 
 ## Testing Standards
 
-### TDD: Red-Green-Refactor (MANDATORY)
+### TDD: Red-Green-Refactor (Exception cases only — see § When per-behaviour TDD Still Applies)
 1. **RED**: Failing test first. Verify it fails for the right reason.
 2. **GREEN**: Minimum code to pass.
 3. **REFACTOR**: Clean up while green.
 
-Never skip RED -- if you didn't see it fail, you don't know the test works.
+Never skip RED — if you didn't see it fail, you don't know the test works. This three-step cycle applies to bug fixes, complex algorithmic logic, and security-sensitive code. All other slices use the batched ATDD cycle above.
 
 ### Pyramid
 - **70% Unit** -- isolated, mocked deps, milliseconds
