@@ -43,6 +43,7 @@ Three data sources feed pattern detection:
 ```bash
 cat ~/.claude/learning/{project-hash}/observations.jsonl
 ```
+Note: the `archive/` subdirectory is excluded — `/learn` scans current data only.
 Parse the last 500 entries or 7 days. Each record contains:
 `{timestamp, session_id, tool, file, project, project_hash, phase, agent_role, outcome}`
 

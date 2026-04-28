@@ -290,6 +290,39 @@ Debugging aid for agent failures: capture the exact rendered prompt the orchestr
 
 Traces are local-only and may contain sensitive prompt content. Never commit the `metrics/` directory — `.gitignore` already excludes it via the allowlist default.
 
+## 5. Learning DB Hygiene
+
+Old observations accumulate without bound. The GC hook keeps the learning DB lean
+by archiving past-retention entries and periodically VACUUMing the SQLite index.
+
+### Trigger
+`hooks/learning-gc.sh` runs on every SessionStart. It is **idempotent** — state
+is tracked in `learning/{project-hash}/.gc-state.json`; GC only fires when at
+least 30 days have elapsed since the last run.
+
+### Retention
+Controlled by `CLAUDE_LEARNING_RETENTION_DAYS` (default **90 days**). Observations
+older than this threshold are moved out of `observations.jsonl` and into
+`learning/{project-hash}/archive/observations-YYYY-MM.jsonl.gz` (one file per
+calendar month, gzip-appended). The JSONL files remain the canonical source of
+truth; archived entries are preserved, not deleted.
+
+### VACUUM
+After archiving, `memory.sqlite` is VACUUMed via the `sqlite3` CLI to reclaim
+freed pages. Skipped silently if `sqlite3` is not installed or the DB doesn't exist.
+
+### Escape hatch
+Set `CLAUDE_DISABLE_LEARNING_GC=1` to suppress the hook entirely (useful for
+debugging or bulk-import sessions). The hook never blocks session start — all
+errors are logged to stderr and the hook exits 0.
+
+### Archive exclusion
+- `/learn` (Step 2a) reads `observations.jsonl` only — not `archive/`.
+- `/reindex-memory` ingest globs `learning/*/observations.jsonl` — not `archive/`.
+- FTS5 index rebuilds therefore reflect current data; archived entries fall out of
+  the search index when they are moved. This is intentional: recall is optimised for
+  recent context, not historical breadth.
+
 ## Integration Points
 
 ### Pipeline Pre-flight (additions to existing protocol)
