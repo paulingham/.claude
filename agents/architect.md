@@ -72,6 +72,7 @@ Design documents include:
 - Data models (entities, relationships, indexes)
 - Sequence diagrams for key flows
 - Vertical slices with dependencies mapped
+- **Failing test stubs (per AC)**: for every acceptance criterion, list test file path, test name, and one-sentence assertion intent in dependency order. The build agent halts if any AC has no stub — implementation cannot begin without a complete stub list. See `skills/story-writing/SKILL.md` § Failing Test Stubs for the table format.
 
 ## Knowledge References
 

@@ -273,17 +273,17 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/no-shell-read.sh",
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/tdd-guard.sh",
+            "timeout": 10000
           }
         ]
       },
       {
         "matcher": "Write",
         "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/tdd-guard.sh",
-            "timeout": 10000
-          },
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/orchestrator-discipline.sh",
@@ -314,11 +314,6 @@
       {
         "matcher": "Edit",
         "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/tdd-guard.sh",
-            "timeout": 10000
-          },
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/orchestrator-discipline.sh",

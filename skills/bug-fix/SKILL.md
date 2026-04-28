@@ -8,11 +8,15 @@ argument-hint: "Bug description and reproduction steps"
 
 # Bug Fix Workflow
 
-Follow root cause analysis methodology with incremental TDD.
+Follow root cause analysis methodology with per-behaviour RED-GREEN-REFACTOR (the bug-fix exception to ATDD's batched cycle — see `rules/engineering-protocol.md` § When per-behaviour TDD Still Applies).
+
+> **IRON LAW: WRITE THE FAILING REPRO TEST AND SEE IT FAIL BEFORE WRITING ANY FIX CODE. NO EXCEPTIONS.**
+>
+> The repro test IS the contract. One bug, one repro test, observed RED for the right reason, BEFORE the fix is written. Bug fixes do NOT use the batched-RED ATDD cycle — they use per-behaviour TDD.
 
 ## Process
 
-1. **Reproduce**: Write a single failing test that demonstrates the bug
+1. **Reproduce (MANDATORY RED)**: Write a single failing test that demonstrates the bug. Run the suite ONCE. Capture the RED output. Verify it fails for the actual bug — not a syntax error, not a missing import. The RED output is the audit artifact that proves the bug existed; without it, you have not reproduced anything.
 2. **Root Cause Analysis**: Trace the issue to the exact source
 3. **Regression Test**: Ensure the failing test covers the exact bug scenario
 4. **Fix**: Write minimum code to make the test pass

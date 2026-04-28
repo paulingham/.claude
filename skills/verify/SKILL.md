@@ -54,22 +54,24 @@ Read the project's tech stack pattern file if one exists at `~/.claude/skills/[s
 - Verify side effects: database state changes, log entries, events emitted
 - For UI: capture screenshots of key states
 
-### 4. Run Tier 3: Mutation Testing (where applicable)
+### 4. Run Tier 3: Mutation Testing (HARD GATE — >= 70% kill rate)
+
+> **Tier 3 is a HARD GATE.** Kill rate >= 70% on changed lines is required for VERIFIED. Below threshold means UNVERIFIED — the slice returns to Build with the surviving-mutation list as targeted test gaps. Patch-critic also reads this report; a failing mutation gate is a deal-breaker for PATCH_APPROVED.
 
 **Check tool availability first:**
 - JavaScript/TypeScript: `which npx && npx stryker --version` (Stryker)
 - Ruby: `bundle show mutant` (Mutant)
 - Python: `which mutmut` (mutmut)
 
-**If mutation testing tool is available:** run it on changed files, verify existing tests catch mutations. Focus on business logic, skip trivial mutations.
+**If mutation testing tool is available:** run it on changed lines only (not the full file). Compute kill rate = killed / (killed + survived). Report the surviving-mutation list verbatim. Score < 70% → Tier 3 FAIL → UNVERIFIED.
 
-**If mutation testing tool is NOT installed (graceful fallback):** perform a manual mutation spot-check:
-1. For each function with conditional logic in the changed files, mentally (or via temporary edit) swap the condition (e.g., `>` → `<=`, `&&` → `||`)
-2. Verify that an existing test would catch the mutation
-3. If no test catches it: flag as a gap, report in verification output
-4. Report Tier 3 as PASS (manual spot-check, N mutations checked) or FAIL (gaps found)
+**If mutation testing tool is NOT installed (manual fallback, still gated):**
+1. For every conditional in the changed lines, mentally swap the condition (`>` → `<=`, `&&` → `||`, boundary off-by-one).
+2. For each mutation, identify the test that catches it. If none, the mutation survives.
+3. Compute kill rate = caught / total mutations checked. Score < 70% → Tier 3 FAIL → UNVERIFIED.
+4. Report manual-fallback methodology, total mutations checked, and surviving-mutation list.
 
-This fallback is explicitly approved — do not fail the pipeline just because mutation tooling is not installed.
+The manual fallback is approved as a gate-passing methodology — but the >= 70% threshold still applies. "Tooling unavailable" is not an exemption from the gate.
 
 ### 4.5. Run Tier 4: E2E Tests (Conditional)
 
