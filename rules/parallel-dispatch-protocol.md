@@ -25,6 +25,20 @@ The pipeline uses two dispatch mechanisms:
 Key advantage: challengers **remember the plan context** on re-review — no prompt reconstruction needed.
 Shut down both challengers after plan validation completes.
 
+**HARD SEQUENCING REQUIREMENT** (hooks and prompt quality both matter):
+
+1. Write the pipeline state file (`pipeline-state/{task-id}-pipeline.md`) **before** spawning any challenger.
+   `pipeline-state-guard.sh` blocks write-capable agents when no state file exists — spawning challengers before creating the state file causes them to be blocked and report 0 tool uses.
+2. The `software-engineer` plan challenger **must** be spawned with `isolation: "worktree"`.
+   `agent-skill-reminder.sh` blocks write-capable agents without worktree — the challenger will be blocked and silently finish with 0 tool uses otherwise. `product-reviewer` is read-only and does not require worktree.
+3. **Every challenger prompt must include the plan file path** (e.g., `pipeline-state/{task-id}-plan.md`) and an explicit instruction to read it.
+   Without a file path, agents infer their verdict from prompt text alone and finish with 0 tool uses — this applies to **all** agent types, not just software-engineer. A product-reviewer or any other read-only agent will also skip tool use if the prompt gives them nothing to read.
+
+**Diagnosing 0-tool-use challengers**:
+- Both challengers show 0 tool uses → most likely a prompt quality issue (missing file path). Hook blocks would only affect software-engineer, not product-reviewer.
+- Only software-engineer shows 0 tool uses → likely blocked by `agent-skill-reminder.sh` (no worktree) or `pipeline-state-guard.sh` (no state file).
+- Do NOT respawn with changed isolation without first verifying the state file exists and the prompt references the plan file path.
+
 ### Build Team (conditional -- multi-slice or multi-domain only)
 
 | Scenario | Teammates | Parallel? |
