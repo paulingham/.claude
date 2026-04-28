@@ -69,6 +69,23 @@ No `isolation: "worktree"` — product-reviewer is read-only.
 
 **In-cycle enforcement:** Conditions and rejections MUST be resolved in the current pipeline. The orchestrator is not permitted to ship APPROVED_WITH_CONDITIONS as a "follow-up ticket" compromise, and must not ask the user whether to defer. If product-reviewer surfaces a defect that makes the fix-being-shipped incomplete, broken, or misleading (e.g. docs point users at a command that still fails), that is CHANGES_REQUESTED territory — dispatch a fix-engineer, roll the fix in, re-run acceptance. See `rules/pipeline-protocol.md` § In-Cycle Fix Rule.
 
+Then proceed to Step 4 to write the approval token.
+
+### 4. Write Approval Token (MANDATORY)
+
+After determining the verdict, write the approval token so the Ship phase can verify authorization:
+
+```bash
+bash "$HOME/.claude/hooks/_lib/write-approval-token.sh" \
+  --task-id "$TASK_ID" \
+  --verdict "$VERDICT"
+```
+
+- `$TASK_ID`: the current pipeline task ID (from `CLAUDE_PIPELINE_TASK_ID` env or branch name last segment)
+- `$VERDICT`: one of `APPROVED`, `APPROVED_WITH_CONDITIONS`, `REJECTED`
+- Token is written for ALL verdicts — readers distinguish "phase ran and approved" from "phase ran and rejected" from "phase never ran (missing)"
+- Token is deleted at Reflect step 6d alongside other `pipeline-state/{task-id}-*` files
+
 ## Acceptance Checklist
 
 - [ ] Every AC has evidence of completion (passing test, screenshot, or demo)

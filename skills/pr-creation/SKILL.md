@@ -28,6 +28,31 @@ Automated pull request creation with validation:
 - All changes ready to commit
 - `gh` CLI installed and authenticated
 
+## Step 0 — Approval Token Gate (HARD GATE)
+
+Before any branch operations, verify that `/product-acceptance` has authorized this PR:
+
+```bash
+source "$HOME/.claude/hooks/_lib/approval-token.sh"
+bash "$(dirname "$0")/lib/check-approval-token.sh"
+GATE_EXIT=$?
+if [ "$GATE_EXIT" -ne 0 ]; then
+  echo "PR_BLOCKED — see output above for remediation."
+  exit 2
+fi
+```
+
+Or invoke via the skill wrapper directly:
+```bash
+bash "$WORKTREE/skills/pr-creation/lib/check-approval-token.sh"
+```
+
+- **APPROVED** or **APPROVED_WITH_CONDITIONS**: proceed to Step 1.
+- **Missing token** or **REJECTED**: exits with `PR_BLOCKED` message including remediation hint.
+- **No active pipeline** (no `pipeline-state/{task-id}-pipeline.md`): manual PR path — gate skips, proceed.
+
+Cross-references: `hooks/auto-pr.sh` performs an advisory read of the same token and suppresses its PR suggestion when the gate is closed.
+
 ## Worktree Precondition (HARD GATE)
 
 This skill mutates HEAD-bearing state (creates branches, runs `gh pr create` which pushes the current branch). It MUST run inside a worktree, never against REPO_ROOT directly. Resolve the worktree path at skill entry:
@@ -242,6 +267,7 @@ The orchestrator handles merge ordering — this skill only creates PRs. It adds
 
 - Accept phase complete: `/product-acceptance` returned APPROVED
 - All prior phase verdicts: BUILD_COMPLETE, APPROVE (both reviews), VERIFIED, COVERED, APPROVED
+- Approval token written by /product-acceptance (verified at Step 0 above).
 
 ## Verdict
 
