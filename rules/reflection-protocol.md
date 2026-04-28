@@ -95,6 +95,20 @@ Spawn a `session-memory-updater` agent (Agent tool, `subagent_type: session-memo
 
 Delete `pipeline-state/{task-id}-scratchpad/` alongside the pipeline state files.
 
+### 6e. Commit Persistent Harness State
+
+After the pipeline's PR is merged and scratchpad is cleaned up, commit any changes to `agent-memory/` and `session-memory/` directly to `main`:
+
+```bash
+git add agent-memory/ session-memory/
+git diff --cached --quiet || git commit -m "chore(harness): update agent-memory + session-memory [reflect: {task-id}]"
+git push origin main
+```
+
+These are harness state files — not source code, not feature work. Committing directly to `main` post-merge is correct. They capture accumulated project knowledge and must survive machine changes and fresh clones.
+
+If a harness PR is already open and not yet merged, include the changes in that PR's branch instead of a standalone commit.
+
 ## Anti-Patterns
 
 - **Skipping reflection because the pipeline was clean** — Clean pipelines still produce learnings (validated patterns, confirmed approaches)
