@@ -193,6 +193,13 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/eval-capture-on-merge.sh",
             "timeout": 5000
+          },
+          {
+            "type": "mcp_tool",
+            "server": "gh-cache",
+            "tool": "prefetch_pr",
+            "input": { "command": "${tool_input.command}" },
+            "timeout": 10
           }
         ]
       },
@@ -610,6 +617,15 @@
       "args": [
         "$HOME/.claude/skills/mcp_memory/server.py"
       ]
+    },
+    "gh-cache": {
+      "command": "python3",
+      "args": [
+        "$HOME/.claude/hooks/_lib/github-cache-server.py"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
     }
   }
 }
