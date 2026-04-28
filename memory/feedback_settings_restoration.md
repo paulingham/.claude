@@ -33,3 +33,15 @@ The model alias migration `"opus"` → `"default"` shifts subagent model selecti
 - `CLAUDE_PIPELINE_MODE="autonomous"` — orthogonal.
 - `CLAUDE_ENABLE_TRACE="1"` — orthogonal.
 - All resource bounds (depth, runtime caps) — orthogonal.
+
+## In-Cycle Correction (AC1.1 deviation)
+
+The plan specified changing `CLAUDE_CODE_SUBAGENT_MODEL` from `"opus"` to `"default"`, with the intent of enabling per-agent frontmatter routing via `/eval-model-effectiveness` recommendations.
+
+**What happened**: `"default"` is not a valid model alias in the current Claude Code version. Every subsequent agent spawn failed with "There's an issue with the selected model (default). It may not exist or you may not have access to it." Explicit `model: "opus"` on the Agent tool call does NOT override the env var — the env var takes precedence. The pipeline deadlocked.
+
+**Correction**: Reverted `CLAUDE_CODE_SUBAGENT_MODEL` back to `"opus"`. The two suppression flag deletions (AC1.1's other changes) remain in place.
+
+**Rule: Never use `"default"` as the `CLAUDE_CODE_SUBAGENT_MODEL` value.** The alias is not recognized. Use an explicit model name (`"opus"`, `"sonnet"`, `"haiku"`) or remove the key entirely.
+
+**Why:** `"default"` may be recognized in future Claude Code versions. If the intent is per-frontmatter routing, remove the env key entirely rather than setting it to `"default"` — an absent env key defers to per-agent frontmatter; a `"default"` string value breaks spawning today.
