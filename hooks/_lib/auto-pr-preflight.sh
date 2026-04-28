@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Auto-PR preflight helpers — Wave 4-N extraction from hooks/auto-pr.sh
+# Auto-PR preflight helpers — extracted from auto-pr.sh for 50-line shape compliance
+# (auto-pr.sh was 54 lines pre-wave4-N; token-gate addition would have pushed it to ~60 lines)
 # Source this file; call _apf_* functions.
 
 _apf_resolve_branch() {
