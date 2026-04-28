@@ -174,6 +174,23 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
     fi
 fi
 
+# ---------------------------------------------------------------------------
+# Hook anomaly detection (per-hook latency + failure surface)
+# ---------------------------------------------------------------------------
+HOOK_SUMMARY="$HOME/.claude/scripts/hook-summary.sh"
+HOOK_METRICS_DIR="$HOME/.claude/metrics"
+if [[ -x "$HOOK_SUMMARY" && -d "$HOOK_METRICS_DIR" ]]; then
+    # Run anomaly check silently; only surface if exit_code != 0 (anomaly found)
+    HOOK_ANOMALY_OUT=$("$HOOK_SUMMARY" --anomaly-check --hours 24 2>/dev/null)
+    HOOK_ANOMALY_RC=$?
+    if [[ "$HOOK_ANOMALY_RC" != "0" ]]; then
+        echo ""
+        echo "Hook anomaly detected (last 24h, threshold 100ms):"
+        echo "$HOOK_ANOMALY_OUT" | grep -E "^  " | head -5
+        echo "Run: scripts/hook-summary.sh --anomaly-check  for full report"
+    fi
+fi
+
 echo ""
 echo "IRON LAWS:"
 echo "- NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST"
