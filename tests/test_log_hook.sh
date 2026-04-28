@@ -132,7 +132,7 @@ CLAUDE_HOOK_LOG_DIR="$HOOK_DIR9/metrics" CLAUDE_SESSION_ID="testsess9" \
 grep -q '"trigger":"TestEvent"' "$HOOK_DIR9/metrics/testsess9/hooks.jsonl"
 assert "_log_hook_trigger sets trigger field to TestEvent" "$?"
 
-# --- Test 10: benchmark — 10 hook invocations under 50ms total ---
+# --- Test 10: benchmark — log overhead per hook ---
 echo "--- Benchmark ---"
 HOOK_DIR10="$TMP_ROOT/test10"
 mkdir -p "$HOOK_DIR10"
@@ -144,9 +144,8 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
 done
 END_NS=$(python3 -c "import time; print(int(time.time()*1000))")
 ELAPSED_MS=$(( END_NS - START_NS ))
-# Note: 10 hook invocations include bash startup overhead (~5ms each on macOS).
-# The 50ms TARGET is for the LOG OVERHEAD only — bash startup dominates the total.
-# Real-world hook overhead measured separately by reading duration_ms from logs.
+# Spec target: <5ms log overhead per hook. We use 25ms to allow CI variance —
+# real measurement comes from the per-record duration_ms field, not the loop wall-clock.
 HOOK_LINES=$(wc -l < "$HOOK_DIR10/metrics/testsess10/hooks.jsonl")
 MAX_DURATION=$(python3 -c "
 import json
@@ -155,8 +154,59 @@ with open('$HOOK_DIR10/metrics/testsess10/hooks.jsonl') as f:
     for line in f:
         durs.append(json.loads(line)['duration_ms'])
 print(max(durs))")
-[[ "$MAX_DURATION" -lt 50 ]]
-assert "Max log overhead per hook < 50ms (got: ${MAX_DURATION}ms over $HOOK_LINES runs)" "$?"
+[[ "$MAX_DURATION" -lt 25 ]]
+assert "Max log overhead per hook < 25ms (spec: <5ms; 25ms allows CI overhead) (got: ${MAX_DURATION}ms over $HOOK_LINES runs)" "$?"
+
+# --- Test 10b: JSON injection regression — adversarial trigger value ---
+echo "--- JSON injection regression ---"
+TMP_INJECT="$(mktemp -d)"
+(
+  source "$REPO_ROOT/hooks/_lib/log.sh"
+  _log_hook_start
+  # adversarial trigger: contains quotes that would break JSON if unescaped
+  _LOG_HOOK_TRIGGER='PreToolUse","exit_code":99,"x":"'
+  CLAUDE_HOOK_LOG_DIR="$TMP_INJECT" CLAUDE_SESSION_ID="injectsess" log_hook_event 0
+)
+INJECT_FILE=$(find "$TMP_INJECT" -name "hooks.jsonl" 2>/dev/null | head -1)
+if [[ -n "$INJECT_FILE" ]]; then
+  python3 -c "import json,sys
+ok = True
+for line in open('$INJECT_FILE'):
+    line = line.strip()
+    if not line: continue
+    try:
+        rec = json.loads(line)
+        # Verify exit_code is the one WE supplied (0), not the injected 99
+        if rec.get('exit_code') != 0:
+            ok = False
+    except Exception:
+        ok = False
+sys.exit(0 if ok else 1)"
+  assert "Adversarial trigger produces valid JSON with correct exit_code" "$?"
+else
+  assert "Adversarial trigger produced no log file (unexpected)" "1"
+fi
+rm -rf "$TMP_INJECT"
+
+# --- Test 10c: path traversal regression — '..' session ID must not escape metrics dir ---
+echo "--- Path traversal regression ---"
+TMP_PT="$(mktemp -d)"
+(
+  CLAUDE_SESSION_ID=".." CLAUDE_HOOK_LOG_DIR="$TMP_PT" bash -c "
+    source '$REPO_ROOT/hooks/_lib/log.sh'
+    _log_hook_start
+    _log_hook_trigger 'TestTrigger'
+    log_hook_event 0
+  "
+)
+# The file must NOT land at $TMP_PT/../hooks.jsonl
+OUTSIDE="$TMP_PT/../hooks.jsonl"
+[ ! -f "$OUTSIDE" ]
+assert ".. session ID does not write outside metrics dir" "$?"
+# Some file SHOULD be written inside TMP_PT (under a sanitized session dir)
+find "$TMP_PT" -name "hooks.jsonl" | grep -q .
+assert ".. session ID still writes a log inside metrics dir" "$?"
+rm -rf "$TMP_PT"
 
 # --- Test 11: every instrumented hook has the 3 logging lines ---
 echo "--- Hook instrumentation coverage ---"

@@ -74,20 +74,22 @@ echo "--- Failure counts ---"
 echo "$OUT3" | grep -q "failing-hook"
 assert "Default output mentions failing-hook" "$?"
 
-# --- Test 5: --anomaly-check with default threshold flags slow-hook ---
-echo "--- Anomaly check ---"
+# --- Test 5: --anomaly-check with default threshold (0.10) flags failing-hook ---
+# failing-hook has 2/2 invocations exit_code=2 → 100% error rate, exceeds 10% default.
+# slow-hook has 1/1 invocations exit_code=0 → 0% error rate, not flagged.
+echo "--- Anomaly check (error-rate semantics) ---"
 OUT5=$(CLAUDE_HOOK_LOG_DIR="$TMP_ROOT/metrics" bash "$HS" --anomaly-check 2>&1)
 RC5=$?
-# Must mention ANOMALY (case-insensitive) AND slow-hook AND exit non-zero on detection
-{ [[ "$RC5" != "0" ]] && echo "$OUT5" | grep -qi "anomaly" && echo "$OUT5" | grep -q "slow-hook"; }
-assert "--anomaly-check flags slow-hook (rc=$RC5)" "$?"
+# Must mention ANOMALY (case-insensitive) AND failing-hook AND exit non-zero on detection
+{ [[ "$RC5" != "0" ]] && echo "$OUT5" | grep -qi "anomaly" && echo "$OUT5" | grep -q "failing-hook"; }
+assert "--anomaly-check flags failing-hook at default threshold 0.10 (rc=$RC5)" "$?"
 
-# --- Test 6: --threshold 500 makes slow-hook (200ms) NOT an anomaly ---
+# --- Test 6: --threshold 1.1 (110% — impossible) makes nothing an anomaly ---
 echo "--- Custom threshold ---"
-OUT6=$(CLAUDE_HOOK_LOG_DIR="$TMP_ROOT/metrics" bash "$HS" --anomaly-check --threshold 500 2>&1)
+OUT6=$(CLAUDE_HOOK_LOG_DIR="$TMP_ROOT/metrics" bash "$HS" --anomaly-check --threshold 1.1 2>&1)
 RC6=$?
 [[ "$RC6" == "0" ]]
-assert "--threshold 500 produces clean run (rc=$RC6)" "$?"
+assert "--threshold 1.1 produces clean run (rc=$RC6)" "$?"
 
 # --- Test 7: --last-n 2 limits slowest table output ---
 echo "--- last-n flag ---"
@@ -97,6 +99,13 @@ RC7=$?
 SLOW_COUNT=$(echo "$OUT7" | awk '/Slowest/,/^$/' | grep -E "[a-z]+-(hook|[a-e])" | wc -l | tr -d ' ')
 { [[ "$RC7" == "0" ]] && echo "$OUT7" | grep -q "slow-hook" && [[ "$SLOW_COUNT" -ge "1" && "$SLOW_COUNT" -le "2" ]]; }
 assert "--last-n 2 limits slowest output to <= 2 rows (got: $SLOW_COUNT, rc=$RC7)" "$?"
+
+# --- Test 7b: CLAUDE_HOOK_ANOMALY_THRESHOLD env var overrides default ---
+echo "--- Env threshold override ---"
+OUT7b=$(CLAUDE_HOOK_LOG_DIR="$TMP_ROOT/metrics" CLAUDE_HOOK_ANOMALY_THRESHOLD=1.1 bash "$HS" --anomaly-check 2>&1)
+RC7b=$?
+[[ "$RC7b" == "0" ]]
+assert "CLAUDE_HOOK_ANOMALY_THRESHOLD=1.1 produces clean run (rc=$RC7b)" "$?"
 
 # --- Test 8: session-start-bootstrap.sh integrates anomaly hint section ---
 echo "--- Bootstrap integration ---"
