@@ -6,6 +6,11 @@
 # checks relevant to that project. Uses per-check result tracking so
 # each check independently reports PASSED/FAILED.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
+trap 'log_hook_event $?' EXIT
+
 set -e
 
 # Hook profile (minimal — always runs as a blocking hook)

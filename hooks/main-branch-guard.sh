@@ -5,6 +5,11 @@
 # Recursion safety: hook executes only jq, mkdir, printf, date, cat, awk —
 # none match the forbidden regex, so the hook cannot block its own subshells.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
+trap 'log_hook_event $?' EXIT
+
 set -uo pipefail
 
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "minimal" || exit 0

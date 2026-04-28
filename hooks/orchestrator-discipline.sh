@@ -12,6 +12,11 @@
 #   hooks run with the main session's CWD, not the subagent's CWD.
 # BLOCK: everything else (this is the orchestrator writing from the main tree).
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:${TOOL_NAME:-Write}"
+trap 'log_hook_event $?' EXIT
+
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "minimal" || exit 0
 
 INPUT=$(cat)

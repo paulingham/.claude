@@ -3,6 +3,11 @@
 # to invoke /learn when thresholds are met. Never invokes /learn directly.
 # Test override: CLAUDE_LEARN_TEST_HASH sets the learning/<hash> dir explicitly.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "Stop"
+trap 'log_hook_event $?' EXIT    # set BEFORE any early exits so they get logged
+
 [[ "${CLAUDE_DISABLE_AUTO_LEARN:-0}" == "1" ]] && exit 0
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 
@@ -28,7 +33,8 @@ if [[ ! -d "$LD/instincts" ]]; then
 fi
 
 _all_acquire "$LOCK" 25 || exit 0
-trap '_all_release "$LOCK"' EXIT
+# replace earlier trap to also release the lock now that we hold it
+trap '_all_release "$LOCK"; log_hook_event $?' EXIT
 
 S=$(_als_read_state "$STATE")
 OFF=$(echo "$S" | jq -r '.last_observation_offset // 0')

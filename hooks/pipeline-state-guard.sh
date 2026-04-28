@@ -11,6 +11,11 @@
 # - code-reviewer, security-engineer, product-reviewer (read-only review)
 # - agents spawned with CLAUDE_PIPELINE_BYPASS=1 env var
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:Agent"
+trap 'log_hook_event $?' EXIT
+
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)

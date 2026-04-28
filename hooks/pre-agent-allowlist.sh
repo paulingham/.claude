@@ -6,6 +6,11 @@
 # `allowed_tools`, so enforcement is deferred until the schema lands. Mirrors
 # pre-agent-thinking.sh / pre-agent-advisor.sh shape.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:Agent"
+trap 'log_hook_event $?' EXIT
+
 [[ "${CLAUDE_DISABLE_TOOL_ALLOWLIST:-0}" == "1" ]] && exit 0
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

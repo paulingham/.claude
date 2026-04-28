@@ -5,6 +5,11 @@
 # No-op when metrics dir does not exist (common — tracing is opt-in).
 # Never blocks session start.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "SessionStart"
+trap 'log_hook_event $?' EXIT
+
 set -uo pipefail
 
 METRICS_DIR="${HOME}/.claude/metrics"

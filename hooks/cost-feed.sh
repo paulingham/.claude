@@ -5,6 +5,11 @@
 # POSIX O_APPEND is atomic for records <4096B (~250B per record here).
 # Field path verified from subagent-stop-trajectory.sh: top-level .subagent_type.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "SubagentStop"
+trap 'log_hook_event $?' EXIT
+
 set -uo pipefail
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

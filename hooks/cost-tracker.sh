@@ -3,6 +3,11 @@
 # Appends session metrics to ~/.claude/metrics/costs.jsonl
 # Passive logging only (exit 0).
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "SubagentStop"
+trap 'log_hook_event $?' EXIT
+
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)
