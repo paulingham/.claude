@@ -66,8 +66,8 @@ _assert_allowed() {
 @test "T10 forbidden: git reset --hard HEAD"                         { _assert_forbidden 'git reset --hard HEAD'; }
 @test "T11 forbidden: git merge feature/x"                           { _assert_forbidden 'git merge feature/x'; }
 @test "T12 forbidden: git rebase main"                               { _assert_forbidden 'git rebase main'; }
-@test "T13 forbidden: git pull"                                      { _assert_forbidden 'git pull'; }
-@test "T14 forbidden: git pull origin main"                          { _assert_forbidden 'git pull origin main'; }
+@test "T13 allowed: git pull"                                        { _assert_allowed 'git pull'; }
+@test "T14 allowed: git pull origin main"                            { _assert_allowed 'git pull origin main'; }
 @test "T15 forbidden: git fetch origin main:main"                    { _assert_forbidden 'git fetch origin main:main'; }
 @test "T16 forbidden: git fetch origin pull/123/head:pr-123"         { _assert_forbidden 'git fetch origin pull/123/head:pr-123'; }
 @test "T17 forbidden: git push origin HEAD:main"                     { _assert_forbidden 'git push origin HEAD:main'; }
@@ -170,3 +170,9 @@ _assert_allowed() {
 @test "T73 forbidden: git -c core.editor=vi -c color.ui=auto checkout main" { _assert_forbidden 'git -c core.editor=vi -c color.ui=auto checkout main'; }
 @test "T74 forbidden: git -c merge.tool=vimdiff merge feat"              { _assert_forbidden 'git -c merge.tool=vimdiff merge feat'; }
 @test "T75 allowed: git -c color.ui=auto status"                         { _assert_allowed 'git -c color.ui=auto status'; }
+
+# Pull carve-out — `git pull` to update main is safe; only non-main branch arg blocks.
+@test "T76 allowed: git pull --rebase"                                   { _assert_allowed 'git pull --rebase'; }
+@test "T77 allowed: git pull --rebase origin main"                       { _assert_allowed 'git pull --rebase origin main'; }
+@test "T78 allowed: git pull origin"                                     { _assert_allowed 'git pull origin'; }
+@test "T79 forbidden: git pull origin feature-branch"                    { _assert_forbidden 'git pull origin feature-branch'; }
