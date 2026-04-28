@@ -1,0 +1,5 @@
+- 2026-04-27: Subprocess-based hook tests must use real ~/.claude/metrics paths with uuid sessions, NOT patched HOME — yaml lives in user-site (path resolved via HOME at startup), so patching HOME breaks subprocess imports. Pattern: tests/test_pre_agent_allowlist.py, tests/test_instinct_hook.py.
+- 2026-04-27: For hook tests needing fixture data, inject via env vars (CLAUDE_INSTINCTS_DIR, CLAUDE_AGENTS_DIR) — they keep subprocess HOME intact.
+- 2026-04-27: textwrap.dedent does NOT dedent f-strings whose first line lacks indentation — first line `---` kills common-prefix calculation. Use raw string concatenation for YAML fixtures.
+- 2026-04-27: Hook entry scripts (e.g. resolve-instincts.py) keep file ≤50 lines by extracting helpers into sibling _helpers.py file. Pattern used in instinct_loader_helpers.py and resolve_instincts_helpers.py.
+- 2026-04-27: TDD guard requires test file matching the python script basename. Scripts tested via subprocess (e.g. resolve-instincts.py tested by test_instinct_hook.py) cannot be edited without same-name test — work around by structuring source to avoid post-creation edits.
