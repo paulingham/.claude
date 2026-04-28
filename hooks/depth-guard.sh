@@ -3,6 +3,11 @@
 # Refuses subagent spawn when CLAUDE_SUBAGENT_DEPTH >= max (default 3).
 # See rules/agent-protocol.md > Resource Bounds.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:Agent"
+trap 'log_hook_event $?' EXIT
+
 set -uo pipefail
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

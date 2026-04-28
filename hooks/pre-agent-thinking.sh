@@ -5,6 +5,11 @@
 # Agent tool input schema does not currently expose `thinking`, so enforcement is
 # deferred until Claude Code lands modified_tool_input support (Path A).
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:Agent"
+trap 'log_hook_event $?' EXIT
+
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "standard" || exit 0

@@ -3,6 +3,11 @@
 # Detects secrets and policy violations, logs to ~/.claude/metrics/governance.jsonl
 # Advisory only (exit 0).
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
+trap 'log_hook_event $?' EXIT
+
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 source ~/.claude/hooks/loop-guard.sh && check_loop_guard "governance-capture" || exit 0
 

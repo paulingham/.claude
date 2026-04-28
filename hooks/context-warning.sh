@@ -5,6 +5,11 @@
 # Advisory only (exit 0). Debounced to avoid spam.
 
 # Hook profile
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PostToolUse"
+trap 'log_hook_event $?' EXIT
+
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 # shellcheck source=_lib/state-dir.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"

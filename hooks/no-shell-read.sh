@@ -4,6 +4,11 @@
 # forcing callers to use the Read tool. Allows streaming tail (-f/-F),
 # outside-repo paths, and clauses with no path argument (pipe-only).
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:Bash"
+trap 'log_hook_event $?' EXIT
+
 set -uo pipefail
 
 [[ "${CLAUDE_DISABLE_NO_SHELL_READ:-}" == "1" ]] && exit 0

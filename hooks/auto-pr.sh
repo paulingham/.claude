@@ -3,6 +3,11 @@
 # Detects when a feature branch has commits ahead of main and suggests /pr-creation.
 # Advisory only — never blocks.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "Stop"
+trap 'log_hook_event $?' EXIT
+
 set -uo pipefail
 # Deliberately omitting -e: this is advisory-only, individual command failures should not abort
 

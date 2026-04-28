@@ -6,6 +6,11 @@
 # prompt content from a hook, so the orchestrator-side caller is responsible
 # for the actual prompt-string splice. Mirrors pre-agent-thinking.sh shape.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "PreToolUse:Agent"
+trap 'log_hook_event $?' EXIT
+
 [[ "${CLAUDE_DISABLE_INSTINCT_INJECTION:-0}" == "1" ]] && exit 0
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

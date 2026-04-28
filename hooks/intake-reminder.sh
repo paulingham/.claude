@@ -5,6 +5,11 @@
 #   1. HARD BLOCK (exit 2): Batch/wave keywords WITHOUT an active pipeline state.
 #   2. ADVISORY (exit 0): Single-task implementation keywords.
 
+source ~/.claude/hooks/_lib/log.sh
+_log_hook_start
+_log_hook_trigger "UserPromptSubmit"
+trap 'log_hook_event $?' EXIT
+
 source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)
