@@ -13,4 +13,15 @@ if [ -z "$TASK_ID" ] || ! _at_pipeline_active "$TASK_ID"; then
   exit 0
 fi
 
-exit 0
+if ! _at_token_exists "$TASK_ID"; then
+  echo "PR_BLOCKED: approval token missing for task '$TASK_ID' (path=$(_at_token_path "$TASK_ID")). Remediation: Run /product-acceptance for this pipeline before /pr-creation."
+  exit 2
+fi
+
+VERDICT="$(_at_token_verdict "$TASK_ID")"
+case "$VERDICT" in
+  APPROVED|APPROVED_WITH_CONDITIONS) exit 0 ;;
+  REJECTED) echo "PR_BLOCKED: approval token verdict is REJECTED for task '$TASK_ID'. Remediation: Re-run /product-acceptance after fixes are applied." ;;
+  *) echo "PR_BLOCKED: approval token malformed for task '$TASK_ID' (verdict='$VERDICT'). Remediation: Re-run /product-acceptance to write a fresh token." ;;
+esac
+exit 2

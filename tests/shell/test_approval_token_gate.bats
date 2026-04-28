@@ -6,9 +6,11 @@ setup() {
   BATS_FILE_TMPDIR="$(mktemp -d -t approvaltoken.XXXXXX)"
   export HOME="$BATS_FILE_TMPDIR"
   export CLAUDE_SESSION_ID="test-$$"
+  export CLAUDE_HOOK_PROFILE="standard"
   mkdir -p "$HOME/.claude/pipeline-state"
   mkdir -p "$HOME/.claude/metrics/$CLAUDE_SESSION_ID"
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+  ln -sfn "$REPO_ROOT/hooks" "$HOME/.claude/hooks"
   source "$REPO_ROOT/hooks/_lib/approval-token.sh"
 }
 
@@ -155,4 +157,112 @@ EOF
   run bash "$REPO_ROOT/skills/pr-creation/lib/check-approval-token.sh"
   [ "$status" -eq 0 ]
   [[ "$output" == *"manual PR path"* ]]
+}
+
+@test "check-approval-token.sh: pipeline active, no token → exit 2, PR_BLOCKED with remediation" {
+  _stub_branch "feature/wave4-N"
+  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  run bash "$REPO_ROOT/skills/pr-creation/lib/check-approval-token.sh"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"PR_BLOCKED"* ]]
+  [[ "$output" == *"approval token missing"* ]]
+  [[ "$output" == *"/product-acceptance"* ]]
+}
+
+@test "check-approval-token.sh: pipeline active, REJECTED token → exit 2, PR_BLOCKED" {
+  _stub_branch "feature/wave4-N"
+  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _at_write_token "wave4-N" "REJECTED"
+  run bash "$REPO_ROOT/skills/pr-creation/lib/check-approval-token.sh"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"PR_BLOCKED"* ]]
+}
+
+@test "check-approval-token.sh: pipeline active, APPROVED token → exit 0" {
+  _stub_branch "feature/wave4-N"
+  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _at_write_token "wave4-N" "APPROVED"
+  run bash "$REPO_ROOT/skills/pr-creation/lib/check-approval-token.sh"
+  [ "$status" -eq 0 ]
+}
+
+@test "check-approval-token.sh: pipeline active, APPROVED_WITH_CONDITIONS → exit 0" {
+  _stub_branch "feature/wave4-N"
+  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _at_write_token "wave4-N" "APPROVED_WITH_CONDITIONS"
+  run bash "$REPO_ROOT/skills/pr-creation/lib/check-approval-token.sh"
+  [ "$status" -eq 0 ]
+}
+
+@test "check-approval-token.sh: stale token (pipeline file deleted) → exit 0, manual PR path" {
+  _stub_branch "feature/wave4-N"
+  _at_write_token "wave4-N" "APPROVED"
+  # NOTE: pipeline file deliberately not created — token is stale
+  run bash "$REPO_ROOT/skills/pr-creation/lib/check-approval-token.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"manual PR path"* ]]
+}
+
+# --- auto-pr preflight helpers ---
+
+@test "_apf_resolve_branch: returns sanitized branch name; main→empty" {
+  _stub_branch "feature/foo"
+  source "$REPO_ROOT/hooks/_lib/auto-pr-preflight.sh"
+  run _apf_resolve_branch
+  [ "$status" -eq 0 ]
+  [ "$output" = "feature/foo" ]
+  _stub_branch "main"
+  run _apf_resolve_branch
+  [ -z "$output" ]
+}
+
+# --- auto-pr.sh end-to-end via real mini git repo ---
+_setup_mini_repo() {
+  REPO="$BATS_FILE_TMPDIR/repo"
+  mkdir -p "$REPO"
+  ( cd "$REPO" && git init -q -b main \
+    && git config user.email t@t && git config user.name t \
+    && touch README && git add README && git commit -q -m init \
+    && git checkout -q -b "$1" \
+    && echo x > file && git add file && git commit -q -m feat ) >/dev/null
+  cd "$REPO"
+}
+
+@test "auto-pr.sh: feature branch ahead, no pipeline file → suggestion emitted (manual PR path)" {
+  _setup_mini_repo "feature/no-pipeline-x"
+  run bash "$REPO_ROOT/hooks/auto-pr.sh" <<< '{}'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"AUTO-PR"* ]]
+}
+
+@test "auto-pr.sh: pipeline active + APPROVED token → suggestion emitted" {
+  _setup_mini_repo "feature/wave4-N"
+  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _at_write_token "wave4-N" "APPROVED"
+  run bash "$REPO_ROOT/hooks/auto-pr.sh" <<< '{}'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"AUTO-PR"* ]]
+}
+
+@test "auto-pr.sh: pipeline active + REJECTED → suppressed + blocker logged" {
+  _setup_mini_repo "feature/wave4-N"
+  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _at_write_token "wave4-N" "REJECTED"
+  run bash "$REPO_ROOT/hooks/auto-pr.sh" <<< '{}'
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"AUTO-PR"* ]]
+  [ -f "$HOME/.claude/metrics/$CLAUDE_SESSION_ID/pr-blocked.jsonl" ]
+  run jq -r '.reason' "$HOME/.claude/metrics/$CLAUDE_SESSION_ID/pr-blocked.jsonl"
+  [ "$output" = "REJECTED" ]
+}
+
+@test "auto-pr.sh: pipeline active + missing token → suppressed + blocker logged" {
+  _setup_mini_repo "feature/wave4-N"
+  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  run bash "$REPO_ROOT/hooks/auto-pr.sh" <<< '{}'
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"AUTO-PR"* ]]
+  [ -f "$HOME/.claude/metrics/$CLAUDE_SESSION_ID/pr-blocked.jsonl" ]
+  run jq -r '.reason' "$HOME/.claude/metrics/$CLAUDE_SESSION_ID/pr-blocked.jsonl"
+  [ "$output" = "MISSING" ]
 }
