@@ -626,13 +626,13 @@
     "memory": {
       "command": "python3",
       "args": [
-        "$HOME/.claude/skills/mcp_memory/server.py"
+        "/Users/Paul.Ingham/.claude/skills/mcp_memory/server.py"
       ]
     },
     "gh-cache": {
       "command": "python3",
       "args": [
-        "$HOME/.claude/hooks/_lib/github-cache-server.py"
+        "/Users/Paul.Ingham/.claude/hooks/_lib/github-cache-server.py"
       ]
     }
   },
