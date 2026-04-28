@@ -6,9 +6,11 @@ if [[ "${CLAUDE_HOOK_LOG_ENABLED:-1}" == "0" ]]; then
 fi
 
 _log_hook_start() {
-  _LOG_HOOK_NAME="$(basename "${BASH_SOURCE[1]}" .sh)"
+  _LOG_HOOK_START="${EPOCHREALTIME:-0}"   # capture FIRST, before any work
+  local src="${BASH_SOURCE[1]:-unknown}"
+  src="${src##*/}"                        # pure bash basename
+  _LOG_HOOK_NAME="${src%.sh}"             # strip .sh suffix
   _LOG_HOOK_TRIGGER="unknown"
-  _LOG_HOOK_START="${EPOCHREALTIME:-0}"
 }
 
 _log_hook_trigger() { _LOG_HOOK_TRIGGER="$1"; }
@@ -27,18 +29,27 @@ _log_duration_ms() {
 }
 
 _log_session_id() {
-  local raw="${CLAUDE_SESSION_ID:-local-$$}"
-  raw="${raw//[^A-Za-z0-9_.-]/}"
+  local raw="${CLAUDE_SESSION_ID:-}"
+  raw="${raw//[^A-Za-z0-9_-]/}"           # alphanumeric, underscore, hyphen — NO dots (path-traversal guard)
   [[ -z "$raw" ]] && raw="local-$$"
   echo "$raw"
 }
 
 _log_timestamp() { printf '%(%Y-%m-%dT%H:%M:%SZ)T' -1 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ; }
 
+_log_sanitize() {
+  local v="${1//\\/}"   # strip backslashes first (so we don't reintroduce escapes)
+  v="${v//\"/}"         # strip double-quotes (JSON-injection guard)
+  echo "$v"
+}
+
 log_hook_event() {
-  local ec="${1:-0}" sid dur ts dir
+  local ec="${1:-0}" sid dur ts dir hn trig s
   sid="$(_log_session_id)"; dur="$(_log_duration_ms)"; ts="$(_log_timestamp)"
+  hn="$(_log_sanitize "$_LOG_HOOK_NAME")"
+  trig="$(_log_sanitize "$_LOG_HOOK_TRIGGER")"
+  s="$(_log_sanitize "$sid")"
   dir="${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}/$sid"; mkdir -p "$dir" 2>/dev/null || return 0
   printf '{"timestamp":"%s","hook_name":"%s","trigger":"%s","duration_ms":%d,"exit_code":%d,"session_id":"%s"}\n' \
-    "$ts" "$_LOG_HOOK_NAME" "$_LOG_HOOK_TRIGGER" "$dur" "$ec" "$sid" >> "$dir/hooks.jsonl" 2>/dev/null
+    "$ts" "$hn" "$trig" "$dur" "$ec" "$s" >> "$dir/hooks.jsonl" 2>/dev/null
 }
