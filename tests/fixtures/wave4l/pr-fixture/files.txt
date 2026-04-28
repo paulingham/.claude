@@ -1,0 +1,2 @@
+tests/test_flaky_thing.py
+hooks/_lib/flaky_thing.sh
