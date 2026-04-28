@@ -268,3 +268,5 @@ All detailed protocols are in `rules/` (auto-loaded each session):
 - `orchestrator/agent-orchestration.md` — Agent selection, team management, orchestrator discipline
 - `orchestrator/operational-details.md` — Escalation procedures, error recovery details
 - `orchestrator/parallel-dispatch-details.md` — Team dispatch procedure, review loop with persistent reviewers, audit trail
+
+@RTK.md
