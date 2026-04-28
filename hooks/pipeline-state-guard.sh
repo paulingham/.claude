@@ -65,14 +65,16 @@ if [[ "${CLAUDE_PIPELINE_BYPASS:-}" == "1" ]]; then
     exit 0
 fi
 
-# Check for active pipeline state file
-PIPELINE_DIR="$HOME/.claude/pipeline-state"
-if [[ -d "$PIPELINE_DIR" ]]; then
-    ACTIVE_FILES=$(find "$PIPELINE_DIR" -name "*-pipeline.md" -type f 2>/dev/null | head -1)
-    if [[ -n "$ACTIVE_FILES" ]]; then
-        exit 0
+# Check for active pipeline state file — project-local first, then global fallback
+GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+for PIPELINE_DIR in "$GIT_ROOT/pipeline-state" "$HOME/.claude/pipeline-state"; do
+    if [[ -d "$PIPELINE_DIR" ]]; then
+        ACTIVE_FILES=$(find "$PIPELINE_DIR" -name "*-pipeline.md" -type f 2>/dev/null | head -1)
+        if [[ -n "$ACTIVE_FILES" ]]; then
+            exit 0
+        fi
     fi
-fi
+done
 
 echo "BLOCKED: No active pipeline state file found in pipeline-state/. Before spawning write-capable agents:" >&2
 echo "  1. Create a pipeline state file: pipeline-state/{task-id}-pipeline.md" >&2

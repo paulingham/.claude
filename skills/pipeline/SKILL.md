@@ -36,7 +36,21 @@ The autonomous conductor for the delivery pipeline. Takes a task, determines whi
 
 All tiers include Plan + Plan Validation. The `/learn` system may create instincts to adjust this per project/pattern.
 
-### Step 2: Create Pipeline State
+### Step 2: Pre-flight Checks (MANDATORY before pipeline state is created)
+
+**Run these checks in order. Each is a hard gate — do not proceed until it passes.**
+
+#### 2-A: CLAUDE.md check
+Check for `.claude/CLAUDE.md` or `CLAUDE.md` at the project root.
+- **Missing** → invoke `/project-setup` as a blocking subagent (worktree). Wait for `PROJECT_SETUP_COMPLETE` before continuing. Do not ask the user — just run it.
+- **Present** → read it and confirm no conflicts with global rules.
+
+#### 2-B: Greenfield check (runs BEFORE architect, BEFORE pipeline state)
+Check whether the working directory has no recognizable project file (`package.json`, `Gemfile`, `go.mod`, `pyproject.toml`, `Cargo.toml`, `pom.xml`) AND no `src/`, `app/`, or `lib/` directory.
+- **Greenfield detected** → invoke `/greenfield-scaffold` via the Skill tool. **This is a BLOCKING gate.** The pipeline cannot proceed to the architect or any other phase until `/greenfield-scaffold` returns `GREENFIELD_SCAFFOLD_COMPLETE`. The orchestrator must NOT attempt any manual project bootstrap (no `npm init`, no `git init`, no writing `.gitignore` — delegate everything to the greenfield scaffold agent).
+- **Not greenfield** → continue.
+
+### Step 2c: Create Pipeline State
 
 **MANDATORY**: Create a structured pipeline state file at pipeline start. This is the single source of truth for pipeline state — it survives context compaction.
 
