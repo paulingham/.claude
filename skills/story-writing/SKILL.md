@@ -35,7 +35,17 @@ For each criterion, use Given/When/Then:
 
 See the Complexity Budget table in `rules/operational-protocol.md`. Score each dimension 1-3.
 
-### 5. Check Anti-Patterns
+### 5. Failing Test Stubs (per AC)
+
+For every AC, write a one-line test stub the build agent will use as the contract for the batched-RED step. Each stub names: test file path, test name, assertion intent. The build agent halts if any AC has no stub — no implementation begins without a complete stub list.
+
+| AC | Test File | Test Name | Assertion Intent |
+|----|-----------|-----------|------------------|
+| AC1 | `tests/test_<feature>.py` | `test_<behavior>` | <one sentence: what the test asserts> |
+
+Stubs are dependency-ordered: foundational ACs first, composed ACs last. The build agent implements in this order.
+
+### 6. Check Anti-Patterns
 
 Reject if:
 - Horizontal slice (all DB, then all API, then all UI)
@@ -69,6 +79,12 @@ Reject if:
 
 ### Notes
 [Implementation hints, dependencies, risks]
+
+### Failing Test Stubs (per AC)
+
+| AC | Test File | Test Name | Assertion Intent |
+|----|-----------|-----------|------------------|
+| AC1 | tests/test_<feature>.py | test_<behavior> | <assertion intent> |
 ```
 
 ## Phase Output
