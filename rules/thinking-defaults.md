@@ -12,7 +12,7 @@ Opus 4.7 introduces a `thinking` field on Agent spawns that controls reasoning e
 1. **Environment override**: `CLAUDE_THINKING_EFFORT` / `CLAUDE_THINKING_DISPLAY` (must be a valid enum value; invalid values are ignored, not raised)
 2. **Explicit `thinking` field** on the Agent spawn's `tool_input`
 3. **Pipeline-state-derived rules**:
-   - **Debug active** (state file `{task_id}-debug.md` exists OR pipeline phase is `debugging`) → `display=text`
+   - **Debug active AND debug file age < TTL** (state file `{task_id}-debug.md` exists, mtime within `CLAUDE_DEBUG_DISPLAY_TTL` seconds — default 1800) → `display=text`. **Continuation cycles** (mtime ≥ TTL) → `display=omitted`. Touching the debug file (e.g. recording a new hypothesis) resets the window. Phase=`debugging` without a debug file also forces `display=text`.
    - **Critical task and budget gate**:
      - `architect` + (`critical=true` OR `budget>=7`) → `effort=xhigh`
      - `security-engineer` + `critical=true` AND `budget>=7` → `effort=xhigh`
@@ -74,11 +74,13 @@ resolver, tests, and precedence rules are unchanged.
 | `CLAUDE_THINKING_EFFORT` | Force effort to `low\|medium\|high\|xhigh`. Invalid values ignored. |
 | `CLAUDE_THINKING_DISPLAY` | Force display to `omitted\|text`. Invalid values ignored. |
 | `CLAUDE_PIPELINE_STATE_DIR` | Override the directory the resolver scans for `*-pipeline.md` and `{task_id}-debug.md` files. Defaults to `~/.claude/pipeline-state`. |
+| `CLAUDE_DEBUG_DISPLAY_TTL` | Override TTL in seconds for time-bounded debug display (default: 1800). Read from env dict in `resolve()`. Non-numeric values fall back to default. |
 
 ## Implementation
 
-- `hooks/_lib/thinking_resolver.py` — pure precedence engine, no I/O. `resolve(tool_input, env, state) -> {effort, display, source}`.
-- `hooks/_lib/pipeline_state.py` — discovers active pipeline state file, parses frontmatter, detects debug. `read_active_state(state_dir=None) -> dict`.
+- `hooks/_lib/thinking_resolver.py` — pure precedence engine, no I/O. `resolve(tool_input, env, state, now=None) -> {effort, display, source}`. `now` defaults to `time.time()`; tests inject explicit values.
+- `hooks/_lib/thinking_debug_display.py` — TTL-bounded debug display helper. `debug_display(state, env, now) -> "text"|None`.
+- `hooks/_lib/pipeline_state.py` — discovers active pipeline state file, parses frontmatter, detects debug, reports `debug_mtime`. `read_active_state(state_dir=None) -> dict`.
 - `hooks/_lib/resolve-thinking.py` — stdin entry script that ties the two together.
 - `hooks/pre-agent-thinking.sh` — bash wrapper registered in `settings.json` under `PreToolUse > Agent`.
 - Tests: `tests/test_thinking_defaults.py` (resolver suite + hook log-only behavior).

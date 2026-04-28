@@ -18,7 +18,3 @@ def role_effort(tool_input, state):
     if _is_xhigh(role, critical, budget) or _is_best_of_n(name, budget):
         return "xhigh"
     return None
-
-
-def state_display(state):
-    return "text" if (state or {}).get("debug_active") else None
