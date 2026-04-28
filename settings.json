@@ -6,6 +6,7 @@
     "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
     "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1",
     "CLAUDE_CODE_SUBAGENT_MODEL": "opus",
+    "CLAUDE_PIPELINE_MODE": "autonomous",
     "CLAUDE_ENABLE_TRACE": "1",
     "CLAUDE_SUBAGENT_MAX_DEPTH": "3",
     "CLAUDE_SUBAGENT_MAX_RUNTIME": "1800",
@@ -201,7 +202,7 @@
             "input": {
               "command": "${tool_input.command}"
             },
-            "timeout": 10
+            "timeout": 3000
           }
         ]
       },
