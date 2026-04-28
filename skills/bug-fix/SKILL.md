@@ -12,7 +12,7 @@ Follow root cause analysis methodology with per-behaviour RED-GREEN-REFACTOR (th
 
 > **IRON LAW: WRITE THE FAILING REPRO TEST AND SEE IT FAIL BEFORE WRITING ANY FIX CODE. NO EXCEPTIONS.**
 >
-> The repro test IS the contract. One bug, one repro test, observed RED for the right reason, BEFORE the fix is written. Bug fixes do NOT use the batched-RED ATDD cycle — they use per-behaviour TDD.
+> The repro test IS the contract. One bug, one repro test, observed RED for the right reason, BEFORE the fix is written. Bug fixes do NOT use the batched-RED ATDD cycle — per-behaviour RED-first TDD is mandatory here.
 
 ## Process
 

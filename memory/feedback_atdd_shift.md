@@ -18,7 +18,7 @@ The harness shifted from **incremental per-behaviour TDD** (one test, one impl, 
 - `agents/qa-engineer.md` preamble rewritten to a three-phase model: Plan-phase stub authoring, Verify-phase tier execution with mutation gate, Test-phase gap-fill.
 - `skills/bug-fix/SKILL.md` retains per-behaviour RED-GREEN-REFACTOR (the documented exception to ATDD's batched cycle), with an explicit RED-first iron law added.
 
-## Why
+## Trade-off Accepted
 
 ATDD is closer to Kent Beck's original TDD intent: test the *acceptance criterion*, not synthetic micro-behaviours. Batched RED reduces three test invocations per AC down to three per slice — material wall-clock saving on multi-AC slices, and the audit trail still proves both the absence of behaviour (batched RED) and the presence of behaviour (post-refactor GREEN).
 
@@ -35,7 +35,7 @@ The batched cycle does NOT apply to:
 
 For these, the old per-behaviour RED-GREEN-REFACTOR remains the contract.
 
-## Revisit Conditions
+## Conditions to Revisit
 
 - Mutation tooling becomes prohibitively expensive on a project's scale → consider raising the gate to `verify-only` rather than `build-only` so the cost falls on the verify phase budget, not every build.
 - Code-reviewer reports indicate engineers are gaming the batched RED (writing tests that all pass trivially) → tighten the architect stub contract: require the assertion intent to be specific enough that the build agent cannot satisfy it via a stub.
