@@ -60,6 +60,7 @@ timestamp: {ISO 8601}
 - `pipeline-state/` is the single source of truth — do NOT dual-write to `memory/`
 - Pass the previous phase's state file path to the next phase agent
 - Delete all state files for a task after pipeline completion or abandonment
+- Also delete `pipeline-state/{task-id}-approval.token` at Reflect step 6d alongside `{task-id}-*.md` state files. Stale APPROVED tokens from crashed pipelines would silently pre-authorize future pipelines that reuse the same task-id.
 - Never leave stale state files — they confuse future pipeline runs
 
 ## Pre-flight Protocol (MANDATORY before any work begins)
@@ -94,7 +95,11 @@ Before advancing to any phase, verify the previous gate passed AND invoke the re
   - `/qa-test-strategy` -- all ACs covered, no gaps
   - `/product-acceptance` -- APPROVED required
   - `/patch-critique` -- PATCH_APPROVED required (rubric: tests cover change, diff minimal vs spec, no obvious regressions, no incidental refactor). PATCH_REJECTED returns to fix-engineer (no user escalation per § In-Cycle Fix Rule).
-- **Ship**: `/pr-creation` -- PR with narrative, quality gate passes
+- **Ship**: `/pr-creation` -- PR with narrative, quality gate passes. Requires `pipeline-state/{task-id}-approval.token` with verdict `APPROVED` or `APPROVED_WITH_CONDITIONS` (written by `/product-acceptance`). Gate checked at `/pr-creation` Step 0 via `hooks/_lib/approval-token.sh`. Missing or REJECTED token → `PR_BLOCKED`.
+
+#### `gh pr create` Bypass (Residual Risk, Out of Scope)
+
+Direct `gh pr create` invocations via Bash bypass the `/pr-creation` skill and therefore bypass the approval token gate. The existing `main-branch-guard.sh` PreToolUse hook already enforces the worktree pattern for `gh pr create`, but does not check the approval token. A future `hooks/pr-approval-guard.sh` hook could extend coverage to direct Bash invocations — tracked as a follow-up, not in this wave.
 
 ## Review Protocol
 
