@@ -611,6 +611,7 @@
   "theme": "dark-daltonized",
   "teammateMode": "auto",
   "remoteControlAtStartup": true,
+  "agentPushNotifEnabled": true,
   "mcpServers": {
     "memory": {
       "command": "python3",
@@ -622,10 +623,8 @@
       "command": "python3",
       "args": [
         "$HOME/.claude/hooks/_lib/github-cache-server.py"
-      ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
-      }
+      ]
     }
-  }
+  },
+  "model": "sonnet"
 }
