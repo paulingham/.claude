@@ -624,15 +624,17 @@
   "agentPushNotifEnabled": true,
   "mcpServers": {
     "memory": {
-      "command": "python3",
+      "command": "bash",
       "args": [
-        "/Users/Paul.Ingham/.claude/skills/mcp_memory/server.py"
+        "-c",
+        "exec python3 \"$HOME/.claude/skills/mcp_memory/server.py\""
       ]
     },
     "gh-cache": {
-      "command": "python3",
+      "command": "bash",
       "args": [
-        "/Users/Paul.Ingham/.claude/hooks/_lib/github-cache-server.py"
+        "-c",
+        "exec python3 \"$HOME/.claude/hooks/_lib/github-cache-server.py\""
       ]
     }
   },
