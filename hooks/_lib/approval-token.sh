@@ -26,8 +26,19 @@ _at_token_verdict() {
   jq -r '.verdict // ""' "$path" 2>/dev/null || echo ""
 }
 
+_at_valid_verdict() {
+  case "$1" in APPROVED|APPROVED_WITH_CONDITIONS|REJECTED) return 0 ;; *) return 1 ;; esac
+}
+
 _at_write_token() {
-  local task_id="$1" verdict="$2" path; path="$(_at_token_path "$task_id")"
+  _at_valid_verdict "$2" || return 1
   printf '{"verdict":"%s","timestamp":"%s","signer":"product-acceptance"}\n' \
-    "$verdict" "$(date -u +%FT%TZ)" > "$path"
+    "$2" "$(date -u +%FT%TZ)" > "$(_at_token_path "$1")"
+}
+
+_at_log_blocked() {
+  local task_id="$1" reason="$2"
+  local dir="$HOME/.claude/metrics/${CLAUDE_SESSION_ID:-no-session}"
+  mkdir -p "$dir"
+  printf '{"ts":"%s","task_id":"%s","reason":"%s"}\n' "$(date -u +%FT%TZ)" "$task_id" "$reason" >> "$dir/pr-blocked.jsonl"
 }
