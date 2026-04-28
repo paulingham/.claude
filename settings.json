@@ -198,7 +198,9 @@
             "type": "mcp_tool",
             "server": "gh-cache",
             "tool": "prefetch_pr",
-            "input": { "command": "${tool_input.command}" },
+            "input": {
+              "command": "${tool_input.command}"
+            },
             "timeout": 10
           }
         ]
@@ -427,6 +429,15 @@
             "type": "command",
             "command": "$HOME/.local/bin/hcom pre",
             "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
           }
         ]
       }
