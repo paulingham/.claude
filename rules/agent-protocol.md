@@ -163,7 +163,7 @@ Every git mutation that would move HEAD runs against a *worktree path*, expresse
 - `git reset --hard ...`
 - `git merge <ref>`
 - `git rebase <upstream>`
-- `git pull` (any args)
+- `git pull <remote> <non-main-branch>` (explicit non-main branch)
 - `git fetch <remote> <src>:<local-dst>` (refspec writing a local ref, e.g. `main:main`, `pull/123/head:pr-123`)
 - `git push <remote> <src>:main` (writing remote main)
 - `gh pr create ...`
@@ -179,7 +179,7 @@ Every git mutation that would move HEAD runs against a *worktree path*, expresse
 
 ### Always allowed (any cwd, any form)
 
-Read-only ops (`git status|log|diff|show|rev-parse|describe|blame`), `git fetch <remote>` without refspec, `git fetch --all`, refspecs that write only `refs/remotes/...`, `git worktree {add,list,remove,prune}`, `git push <remote> <branch>` to non-main destinations, `git add|commit|tag|notes`.
+Read-only ops (`git status|log|diff|show|rev-parse|describe|blame`), `git fetch <remote>` without refspec, `git fetch --all`, refspecs that write only `refs/remotes/...`, `git worktree {add,list,remove,prune}`, `git push <remote> <branch>` to non-main destinations, `git add|commit|tag|notes`, `git pull`, `git pull origin`, `git pull origin main`, `git pull [flags] origin main` (updating main is safe — fast-forward only, never moves HEAD to a different branch).
 
 ### How agents must operate
 

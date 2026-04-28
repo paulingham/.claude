@@ -189,3 +189,24 @@ _run_guard_capture() {
   # The redaction marker MUST appear.
   grep -q 'REDACTED' "$log"
 }
+
+# Pull carve-out — `git pull` to update main is safe; only non-main branch arg blocks.
+@test "AC2.25 git pull allowed (bare)" {
+  run _run_guard Bash 'git pull'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.26 git pull origin main allowed" {
+  run _run_guard Bash 'git pull origin main'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.27 git pull --rebase origin main allowed" {
+  run _run_guard Bash 'git pull --rebase origin main'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.28 git pull origin feature-branch blocked" {
+  run _run_guard Bash 'git pull origin feature-branch'
+  [ "$status" -eq 2 ]
+}
