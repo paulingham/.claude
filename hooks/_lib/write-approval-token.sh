@@ -15,4 +15,11 @@ while [ $# -gt 0 ]; do
 done
 
 [ -n "$TASK_ID" ] && [ -n "$VERDICT" ] || { echo "missing --task-id or --verdict" >&2; exit 2; }
+
+# Validate task_id — reject anything that could escape pipeline-state/
+if [[ ! "$TASK_ID" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+  echo "write-approval-token: invalid task_id '$TASK_ID'" >&2
+  exit 1
+fi
+
 _at_write_token "$TASK_ID" "$VERDICT"

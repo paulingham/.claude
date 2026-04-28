@@ -127,6 +127,42 @@ teardown() {
   [ "$output" = "missing-token" ]
 }
 
+# Path traversal prevention
+@test "_at_write_token rejects traversal task_id" {
+  run _at_write_token "../../etc/passwd" "APPROVED"
+  [ "$status" -ne 0 ]
+  [ ! -f "$HOME/.claude/pipeline-state/../../etc/passwd-approval.token" ]
+}
+
+@test "write-approval-token.sh rejects traversal task_id" {
+  run bash "$REPO_ROOT/hooks/_lib/write-approval-token.sh" --task-id "../../etc/passwd" --verdict APPROVED
+  [ "$status" -ne 0 ]
+}
+
+# JSONL injection prevention
+@test "_at_log_blocked handles task_id with quotes safely" {
+  export CLAUDE_SESSION_ID="test-session"
+  run _at_log_blocked 'task"inject' 'reason"inject'
+  [ "$status" -eq 0 ]
+  # Log file must exist and be valid JSON
+  local log="$HOME/.claude/metrics/test-session/pr-blocked.jsonl"
+  [ -f "$log" ]
+  # Verify it's valid JSON (python3 can parse it)
+  run python3 -c "import json; [json.loads(l) for l in open('$log') if l.strip()]"
+  [ "$status" -eq 0 ]
+}
+
+# Session ID sanitization
+@test "_at_log_blocked sanitizes CLAUDE_SESSION_ID path" {
+  export CLAUDE_SESSION_ID="../../tmp/attacker"
+  run _at_log_blocked "test-task" "MISSING"
+  [ "$status" -eq 0 ]
+  # File must be under metrics/, not escape it. Each non-[A-Za-z0-9_-] char (.,/) maps to _
+  # so "../../tmp/attacker" → "______tmp_attacker"
+  [ -f "$HOME/.claude/metrics/______tmp_attacker/pr-blocked.jsonl" ]
+  [ ! -f "/tmp/attacker/pr-blocked.jsonl" ]
+}
+
 @test "write-approval-token.sh: writes token file with given verdict" {
   run bash "$REPO_ROOT/hooks/_lib/write-approval-token.sh" --task-id "task-W" --verdict "APPROVED"
   [ "$status" -eq 0 ]
