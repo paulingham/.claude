@@ -33,6 +33,7 @@ python3 ~/.claude/skills/reindex-memory/reindex.py \
 
 - **Inputs**: `--db` (default `~/.claude/db/memory.sqlite`), `--learning`
   (default `~/.claude/learning`).
+- **Archive exclusion**: ingest globs `learning/*/observations.jsonl` — the `archive/` subdirectory is never scanned.
 - **Dedup key**: `sha256(session_id|timestamp|tool|file)`.
 - **Output line**: `REINDEXED db=... inserted=N skipped=N bad=N`.
 - **Exit code**: `0` even when malformed rows are present (they are logged

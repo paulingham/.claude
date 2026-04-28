@@ -354,6 +354,41 @@ rm -rf "$OUTER2_HOME"
 echo ""
 
 # ---------------------------------------------------------------------------
+# Test 8: learning-gc — CLAUDE_PROJECT_HASH redirects archive path
+# ---------------------------------------------------------------------------
+echo "-- learning-gc.sh --"
+
+GC_HOME=$(mk_tmp_home)
+GC_OVERRIDE_HASH="gc-iso-hash-xyz"
+GC_LEARN_DIR="$GC_HOME/.claude/learning/$GC_OVERRIDE_HASH"
+mkdir -p "$GC_LEARN_DIR"
+# Seed an old observation (>90 days) under the OVERRIDE hash dir.
+OLD_TS=$(/opt/homebrew/bin/python3 -c "from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(days=120)).isoformat())")
+printf '{"timestamp":"%s","kind":"old"}\n' "$OLD_TS" > "$GC_LEARN_DIR/observations.jsonl"
+
+# Run learning-gc with CLAUDE_PROJECT_HASH set → archive should land under override.
+HOME="$GC_HOME" CLAUDE_PROJECT_HASH="$GC_OVERRIDE_HASH" \
+  bash "$HOOKS_DIR/learning-gc.sh" >/dev/null 2>&1
+run_test "learning-gc: CLAUDE_PROJECT_HASH set -> exit 0" 0 $?
+
+if [[ -d "$GC_LEARN_DIR/archive" ]]; then
+  pass "learning-gc: archive created under overridden hash dir"
+else
+  fail "learning-gc: archive created under overridden hash dir" "directory exists" "not found at $GC_LEARN_DIR/archive"
+fi
+
+# Confirm NO archive was created under any computed-hash dir (only override should be touched).
+OTHER_DIRS=$(find "$GC_HOME/.claude/learning" -maxdepth 1 -mindepth 1 -type d ! -name "$GC_OVERRIDE_HASH" 2>/dev/null)
+if [[ -z "$OTHER_DIRS" ]]; then
+  pass "learning-gc: no archive under git-remote-based hash (override honoured)"
+else
+  fail "learning-gc: only override hash dir touched" "no other dirs" "$OTHER_DIRS"
+fi
+
+rm -rf "$GC_HOME"
+echo ""
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
