@@ -16,10 +16,9 @@ setup() {
 ALLOWLIST=(
   # CC (cyclomatic complexity) cap, not function body length.
   "rules/engineering-protocol.md:7"
-  "rules/engineering-protocol.md:78"
+  # ATDD shape-constraint restatement (wave4-R) - CC <=5 + nesting <=2.
+  "rules/engineering-protocol.md:75"
   # "≤ 50 lines" — file-level cap (incidental "5"-in-"50" grep hit).
-  "rules/engineering-protocol.md:77"
-  "skills/build-implementation/SKILL.md:71"
   "skills/react-native-patterns/SKILL.md:84"
   "skills/react-native-patterns/SKILL.md:85"
   "skills/react-native-patterns/SKILL.md:86"
@@ -39,7 +38,9 @@ ALLOWLIST=(
   "session-memory/adapters/README.md:126"
   "skills/internal-eval/run/lib/status.sh:3"
   # Incidental "<= 5" match on CC threshold — function-shape phrase already says "8".
-  "skills/build-implementation/SKILL.md:50"
+  "skills/build-implementation/SKILL.md:44"
+  "skills/build-implementation/SKILL.md:53"
+  "skills/build-implementation/SKILL.md:74"
   "skills/react-native-patterns/SKILL.md:69"
   "skills/refactor/SKILL.md:73"
   # CC (cyclomatic complexity ≤ 5) — restated alongside the function-body cap.

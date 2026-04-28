@@ -3,8 +3,6 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_HOOK_PROFILE": "standard",
     "CLAUDE_PIPELINE_TASK_ID": "",
-    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
-    "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1",
     "CLAUDE_CODE_SUBAGENT_MODEL": "opus",
     "CLAUDE_PIPELINE_MODE": "autonomous",
     "CLAUDE_ENABLE_TRACE": "1",
@@ -275,17 +273,17 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/no-shell-read.sh",
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/tdd-guard.sh",
+            "timeout": 10000
           }
         ]
       },
       {
         "matcher": "Write",
         "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/tdd-guard.sh",
-            "timeout": 10000
-          },
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/orchestrator-discipline.sh",
@@ -316,11 +314,6 @@
       {
         "matcher": "Edit",
         "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/tdd-guard.sh",
-            "timeout": 10000
-          },
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/orchestrator-discipline.sh",

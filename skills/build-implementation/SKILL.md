@@ -1,6 +1,6 @@
 ---
 name: "build-implementation"
-description: "Use when user wants to Structured build phase: decompose ACs into test cases, implement via incremental TDD protocol, enforce shape constraints. Use at the start of any Build phase."
+description: "Use when user wants to Structured build phase: read per-AC failing-test stubs from the architect, implement via the ATDD protocol (batched RED, implement, refactor, mutation gate), enforce shape constraints. Use at the start of any Build phase."
 context: fork
 agent: software-engineer
 argument-hint: "Acceptance criteria or story to implement"
@@ -10,7 +10,7 @@ argument-hint: "Acceptance criteria or story to implement"
 
 ## What This Skill Does
 
-Prescribes the exact procedure for the Build phase of the delivery pipeline. Ensures engineers implement one acceptance criterion at a time using incremental TDD, with shape checks after every file.
+Prescribes the exact procedure for the Build phase of the delivery pipeline. Engineers consume the architect's per-AC failing-test stub list, implement each slice via the ATDD cycle (three test invocations per slice plus a mutation gate), and enforce shape constraints continuously.
 
 ## Dispatch Mode
 
@@ -18,14 +18,13 @@ This skill is dispatched via the Agent tool with `isolation: "worktree"`. The or
 
 ## Procedure
 
-### Step 1: Decompose ACs into Ordered Test Cases
+### Step 1: Read AC Test Stubs from the Plan
 
 Before writing any code:
-1. List every acceptance criterion.
-2. For each AC, identify the individual behaviors to test (happy path, error path, edge cases).
-3. **Each test case should be a micro-task: ~1 TDD cycle (2-5 minutes of work).** If a test case feels larger, decompose further.
-4. Order them by dependency: foundational behaviors first, composed behaviors last.
-5. This ordered list IS your implementation plan. Each item = one RED-GREEN-REFACTOR cycle.
+1. Open `pipeline-state/{task-id}-plan.md` and locate the **Failing Test Stubs (per AC)** section the architect produced.
+2. For each AC in this slice, the stub list names: test file path, test name, assertion intent.
+3. **If any AC has no stub, halt immediately** — surface the gap to the architect and request a stub. Implementation cannot begin without a complete stub list.
+4. The stub list IS your implementation plan. Three test invocations per slice — not three per AC, three per slice. See `rules/engineering-protocol.md` § ATDD Protocol for the full cycle.
 
 ### Step 1b: Install Required Dependencies
 
@@ -33,17 +32,21 @@ If the implementation requires new packages not yet in `package.json`:
 1. Install the package: `npm install <package>` (or equivalent)
 2. Verify the installation: `npm ls <package>` (or equivalent)
 3. Commit `package.json` and lock file separately: "chore: add <package> for <reason>"
-4. Proceed with TDD — the first failing test validates the dependency works
+4. Proceed with the batched-RED step — the first failing batch validates the dependency works.
 
-If the orchestrator's prompt specifies dependencies, install them here. If you discover a needed dependency during TDD, install it at that point.
+If the orchestrator's prompt specifies dependencies, install them here. If you discover a needed dependency during implementation, install it at that point.
 
-### Step 2: Implement One Test Case at a Time
+### Step 2: Implement Slice via ATDD (Three test invocations per slice)
 
-For each test case in order, follow the Incremental TDD Protocol in `rules/engineering-protocol.md`:
-1. **RED**: Write ONE failing test. Run it. Verify RED for the right reason.
-2. **GREEN**: Write MINIMUM code to pass. Run ALL tests. Verify GREEN.
-3. **REFACTOR**: Shape check every touched file (see constraints below). Fix violations NOW. Run tests. Confirm GREEN.
-4. Move to next test case.
+Follow the ATDD Protocol in `rules/engineering-protocol.md`:
+
+1. **BATCHED RED**: Write every AC test as one batch (the architect's stubs verbatim). Run the suite ONCE. Capture the RED output. Verify each test fails for the right reason — the named behavior is absent.
+2. **IMPLEMENT FREELY**: Write production code until every batched test passes. Shape constraints apply continuously: 8-line method cap, CC <= 5, nesting <= 2, 50-line file cap. Fix as you go, not at the end. Run the suite ONCE. Capture the GREEN output.
+3. **REFACTOR WHILE GREEN**: Tighten names, extract duplication (DRY on 2nd occurrence), confirm shape on every touched file. Run the suite ONCE more. Capture the post-refactor GREEN output.
+4. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% required. If <70%, add tests targeting the surviving mutations and return to step 2 — the slice is NOT complete.
+5. **COMMIT** with the four audit artifacts: batched RED output, post-implementation GREEN output, post-refactor GREEN output, mutation report.
+
+**Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN-REFACTOR. See `rules/engineering-protocol.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
 
 ### Step 3: Shape Check After Every File
 
@@ -72,7 +75,7 @@ Before declaring the build complete:
 - [ ] No nesting > 2 levels
 - [ ] No DRY violations (no logic duplicated 2+ times)
 - [ ] All tests pass
-- [ ] TDD audit trail visible (RED/GREEN/REFACTOR output for each cycle)
+- [ ] ATDD audit trail visible (batched RED + post-implementation GREEN + post-refactor GREEN + mutation report >= 70%)
 - [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `rules/e2e-protocol.md` trigger matrix)
 - [ ] If `/tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries
 
@@ -98,10 +101,11 @@ Agent({
 
 ## Anti-Patterns
 
-- Writing all tests first, then all implementation → BLOCKED
+- Skipping the mutation gate → BLOCKED (a green suite is not the deliverable; the mutation report is)
+- Implementing before the batched-RED output is captured → BLOCKED (RED is the audit artifact)
+- Starting work when one or more ACs has no architect-produced test stub → BLOCKED (halt, surface to architect)
 - Deferring shape violations to "clean up later" → BLOCKED
 - Skipping the self-review checklist → BLOCKED
-- Implementing without running tests between changes → BLOCKED
 
 ## Prerequisite
 
