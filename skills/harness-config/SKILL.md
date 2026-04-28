@@ -75,6 +75,8 @@ If a new hook was created, the orchestrator describes the settings.json change a
 - **Orchestrator directly writing .sh files**: Violates orchestrator discipline. The `.md` exception does NOT cover shell scripts.
 - **Orchestrator directly editing settings.json**: Violates orchestrator discipline. JSON is not markdown.
 - **"It's just a small config change"**: Still delegate. The cost of spawning an agent is low. The cost of breaking discipline is high.
+- **The Bash bypass**: Running `python3 -c "open(...'w')"`, `sed -i`, `jq > file.json`, or any other shell command that writes a protected file is the **same violation** as using the Write/Edit tools directly — it just routes around the tool-level guard. The `orchestrator-discipline.sh` hook catches Write/Edit; the intent covers ALL write paths. If the Edit tool is blocked, the correct response is to invoke `/harness-config`, not to find a Bash equivalent.
+- **Hardcoded absolute paths in config**: Never write `/Users/<name>/` or `/home/<name>/` into `settings.json` args or hook commands. Use `$HOME` (shell-expanded at runtime via `bash -c`) or `~/.claude/` (in hook `command` strings, which are shell-executed). The MCP `args` array is NOT shell-expanded — use `bash -c` wrapper for those entries.
 
 ## Phase Output
 

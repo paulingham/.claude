@@ -15,11 +15,14 @@ The orchestrator coordinates agents. It does NOT write, edit, or create source f
 The orchestrator has violated source-file discipline under time pressure in multiple sessions:
 - Debugging cycles where "just this one quick edit" felt faster than spawning an agent
 - Interactive loops where the user was waiting for a fix
+- **The Bash bypass**: Edit tool blocked → pivot to `Bash(python3 -c "open(...'w')")` or `sed -i` to write the same file. This is the same violation via a different tool. The hook catches Write/Edit; the rule covers ALL write paths.
 
 **These are exactly the moments discipline matters most.** The 30 seconds saved by a direct edit:
 - Sets a precedent that erodes the entire agent model
 - Produces unreviewed code on the critical path
 - Has been called out by the user multiple times
+
+If a tool-level block fires (Edit blocked by orchestrator-discipline.sh), that is the system working correctly. The response is to invoke `/harness-config` — not to find a Bash equivalent.
 
 If agent overhead is genuinely blocking iteration, **propose a process change to the user** — do not silently bypass.
 
