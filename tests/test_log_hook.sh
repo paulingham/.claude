@@ -219,7 +219,10 @@ for hook in "$HOOKS_DIR"/*.sh; do
     skip=0
     for s in $SKIP_LIST; do [[ "$name" == "$s" ]] && skip=1; done
     [[ "$skip" == "1" ]] && continue
-    if ! grep -q "source ~/.claude/hooks/_lib/log.sh" "$hook"; then
+    # Accept either the legacy `~/.claude/...` literal or the BASH_SOURCE-relative
+    # `${HOOK_DIR}/_lib/log.sh` form (introduced for hooks that need the new
+    # `subagent_type` arg testable from a worktree).
+    if ! grep -qE 'source [~"$]' "$hook" || ! grep -qE '_lib/log\.sh' "$hook"; then
         MISSING=$((MISSING + 1))
         MISSING_LIST="$MISSING_LIST $name"
         continue

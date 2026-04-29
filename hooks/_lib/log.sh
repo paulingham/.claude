@@ -43,13 +43,20 @@ _log_sanitize() {
   echo "$v"
 }
 
+_log_subagent_field() {
+  local raw="$1"
+  [ -z "$raw" ] && return 0
+  printf ',"subagent_type":"%s"' "$(_log_sanitize "$raw")"
+}
+
 log_hook_event() {
-  local ec="${1:-0}" sid dur ts dir hn trig s
+  local ec="${1:-0}" stype="${2:-}" sid dur ts dir hn trig s extra
   sid="$(_log_session_id)"; dur="$(_log_duration_ms)"; ts="$(_log_timestamp)"
   hn="$(_log_sanitize "$_LOG_HOOK_NAME")"
   trig="$(_log_sanitize "$_LOG_HOOK_TRIGGER")"
   s="$(_log_sanitize "$sid")"
+  extra="$(_log_subagent_field "$stype")"
   dir="${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}/$sid"; mkdir -p "$dir" 2>/dev/null || return 0
-  printf '{"timestamp":"%s","hook_name":"%s","trigger":"%s","duration_ms":%d,"exit_code":%d,"session_id":"%s"}\n' \
-    "$ts" "$hn" "$trig" "$dur" "$ec" "$s" >> "$dir/hooks.jsonl" 2>/dev/null
+  printf '{"timestamp":"%s","hook_name":"%s","trigger":"%s","duration_ms":%d,"exit_code":%d,"session_id":"%s"%s}\n' \
+    "$ts" "$hn" "$trig" "$dur" "$ec" "$s" "$extra" >> "$dir/hooks.jsonl" 2>/dev/null
 }
