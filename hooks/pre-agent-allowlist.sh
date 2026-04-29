@@ -6,18 +6,21 @@
 # `allowed_tools`, so enforcement is deferred until the schema lands. Mirrors
 # pre-agent-thinking.sh / pre-agent-advisor.sh shape.
 
-source ~/.claude/hooks/_lib/log.sh
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Agent"
-trap 'log_hook_event $?' EXIT
+SUBAGENT_TYPE=""
+trap 'log_hook_event $? "$SUBAGENT_TYPE"' EXIT
 
 [[ "${CLAUDE_DISABLE_TOOL_ALLOWLIST:-0}" == "1" ]] && exit 0
 
-HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)
+SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // empty' 2>/dev/null)
 OUT=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/resolve-tool-allowlist.py" 2>/dev/null) || exit 0
 DECISION=$(printf '%s\n' "$OUT" | sed -n '1p')
 RESOLVED=$(printf '%s\n' "$OUT" | sed -n '2p')

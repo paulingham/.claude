@@ -66,7 +66,18 @@ matches_protected_redirect() {
     [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]/]+\.sh([[:space:]]|$|\&) ]]
 }
 
+is_open_read_only() {
+    # open(f), open(f, 'r'), open(f, 'rb') — explicit read shapes that must not
+    # block. Returns 0 when command is a read-only open shape; 1 otherwise.
+    # Mirrors matches_python_open_write's mode literal set so the two stay in
+    # lockstep — any mode in the write set forfeits the read-only guard.
+    [[ "$1" =~ open[[:space:]]*\( ]] || return 1
+    [[ "$1" =~ [\'\"](w|a|wb|ab)[\'\"] ]] && return 1
+    return 0
+}
+
 is_write_to_protected() {
+    is_open_read_only "$1" && return 1
     matches_python_open_write "$1" && return 0
     matches_json_dump "$1" && return 0
     matches_sed_in_place "$1" && return 0
