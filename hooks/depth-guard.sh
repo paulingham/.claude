@@ -3,14 +3,16 @@
 # Refuses subagent spawn when CLAUDE_SUBAGENT_DEPTH >= max (default 3).
 # See rules/agent-protocol.md > Resource Bounds.
 
-source ~/.claude/hooks/_lib/log.sh
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Agent"
-trap 'log_hook_event $?' EXIT
+SUBAGENT_TYPE=""
+trap 'log_hook_event $? "$SUBAGENT_TYPE"' EXIT
 
 set -uo pipefail
 
-HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "standard" || exit 0
 # shellcheck source=/dev/null
@@ -20,6 +22,7 @@ source "${HOOK_DIR}/_lib/depth-guard-log.sh"
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // empty' 2>/dev/null)
 [[ "$TOOL_NAME" != "Agent" ]] && exit 0
 
 _dg_resolve_depth() {
@@ -37,7 +40,7 @@ _dg_block() {
 
 DEPTH=$(_dg_resolve_depth)
 MAX=$(_max_depth)
-STYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // "unknown"')
+STYPE="${SUBAGENT_TYPE:-unknown}"
 
 [[ "$DEPTH" -lt "$MAX" ]] && exit 0
 _dg_block "$DEPTH" "$MAX" "$STYPE"

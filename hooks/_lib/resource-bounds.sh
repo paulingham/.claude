@@ -22,3 +22,7 @@ _max_runtime_subagent() {
 _max_runtime_teammate() {
   _resolve_int "${CLAUDE_TEAMMATE_MAX_RUNTIME:-}" 3600
 }
+
+_max_respawn_count() {
+  _resolve_int "${CLAUDE_SUBAGENT_MAX_RESPAWN:-}" 3
+}
