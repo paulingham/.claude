@@ -679,6 +679,5 @@
         "exec python3 \"$HOME/.claude/hooks/_lib/github-cache-server.py\""
       ]
     }
-  },
-  "model": "sonnet"
+  }
 }
