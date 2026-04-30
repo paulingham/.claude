@@ -25,7 +25,14 @@ SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.subagent_type // empty')
 
 is_path_allow_listed() {
     [[ -z "$1" || "$1" =~ \.md$ ]] && return 0
-    [[ "$1" =~ \.claude/automation/ || "$1" =~ \.claude/hooks/ ]]
+    [[ "$1" =~ \.claude/automation/ || "$1" =~ \.claude/hooks/ ]] && return 0
+    # Subagent worktrees: only spawned agents write here. The harness does not
+    # reliably populate subagent_type on PreToolUse stdin in every flow, and
+    # the CWD fallback below fires from the main session CWD — so without this
+    # path-based allowance every agent Write/Edit inside its worktree gets
+    # misclassified as an orchestrator write. Treat ".claude/worktrees/" the
+    # same way ".claude/hooks/" is treated: ownership is implied by the path.
+    [[ "$1" =~ /\.claude/worktrees/ ]]
 }
 
 is_caller_a_subagent() {
