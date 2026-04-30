@@ -1,6 +1,7 @@
 """Thinking-defaults resolver tests (incremental TDD)."""
 import json
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -13,6 +14,7 @@ from pipeline_state import read_active_state
 from thinking_resolver import resolve
 
 HOOK = Path(__file__).resolve().parents[1] / "hooks" / "pre-agent-thinking.sh"
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _run_hook(payload, env=None):
@@ -28,27 +30,194 @@ def _write_state(dirpath, task_id, body):
     return path
 
 
-class DefaultEffortIsHigh(unittest.TestCase):
-    def test_default_effort_is_high(self):
+# ---------------- AC1 / AC1b: hardcoded fallback flips to xhigh ----------------
+
+
+class DefaultEffortIsXhigh(unittest.TestCase):
+    def test_default_effort_is_xhigh(self):
         with patch.dict("os.environ", {}, clear=True):
             result = resolve(tool_input={}, env={}, state={})
-        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["effort"], "xhigh")
         self.assertEqual(result["display"], "omitted")
+        self.assertEqual(result["source"], "default")
 
 
-class ExplicitInputWinsOverDefault(unittest.TestCase):
-    def test_explicit_input_wins_over_default(self):
-        explicit = {"thinking": {"effort": "low"}}
-        result = resolve(tool_input=explicit, env={}, state={})
+class InvalidEnvValueFallsBack(unittest.TestCase):
+    def test_invalid_env_value_falls_back(self):
+        env = {"CLAUDE_THINKING_EFFORT": "banana"}
+        result = resolve(tool_input={}, env=env, state={})
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "default")
+
+
+# ---------------- AC2a–AC2f: explicit role downgrades ----------------
+
+
+class CodeReviewerHighDefault(unittest.TestCase):
+    def test_code_reviewer_high_default(self):
+        tool_input = {"subagent_type": "code-reviewer"}
+        result = resolve(tool_input=tool_input, env={},
+                         state={"critical": True, "budget": 12})
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "role")
+
+
+class QaEngineerHighDefault(unittest.TestCase):
+    def test_qa_engineer_high_default(self):
+        tool_input = {"subagent_type": "qa-engineer"}
+        result = resolve(tool_input=tool_input, env={},
+                         state={"critical": True, "budget": 12})
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "role")
+
+
+class ProductReviewerHighDefault(unittest.TestCase):
+    def test_product_reviewer_high_default(self):
+        tool_input = {"subagent_type": "product-reviewer"}
+        result = resolve(tool_input=tool_input, env={}, state={})
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "role")
+
+
+class DatabaseEngineerHighDefault(unittest.TestCase):
+    def test_database_engineer_high_default(self):
+        tool_input = {"subagent_type": "database-engineer"}
+        result = resolve(tool_input=tool_input, env={}, state={})
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "role")
+
+
+class PatchCriticHighDefault(unittest.TestCase):
+    def test_patch_critic_high_default(self):
+        tool_input = {"subagent_type": "patch-critic"}
+        result = resolve(tool_input=tool_input, env={}, state={})
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "role")
+
+
+class PlanningAgentLowDefault(unittest.TestCase):
+    def test_planning_agent_low_default(self):
+        tool_input = {"subagent_type": "planning-agent"}
+        result = resolve(tool_input=tool_input, env={}, state={})
         self.assertEqual(result["effort"], "low")
+        self.assertEqual(result["source"], "role")
 
 
-class EnvDisplayOverridesAll(unittest.TestCase):
-    def test_env_display_overrides_all(self):
-        explicit = {"thinking": {"display": "omitted"}}
-        env = {"CLAUDE_THINKING_DISPLAY": "text"}
-        result = resolve(tool_input=explicit, env=env, state={})
-        self.assertEqual(result["display"], "text")
+# ---------------- AC2g–AC2i: implementation roles inherit xhigh default ----------------
+
+
+class SoftwareEngineerInheritsXhigh(unittest.TestCase):
+    def test_software_engineer_inherits_xhigh_default(self):
+        tool_input = {"subagent_type": "software-engineer"}
+        # Neutral state: inherits default fallback.
+        neutral = resolve(tool_input=tool_input, env={}, state={})
+        self.assertEqual(neutral["effort"], "xhigh")
+        self.assertEqual(neutral["source"], "default")
+        # Even with critical+budget=10, software-engineer is NOT in any
+        # promotion or downgrade set, so resolves via the default fallback.
+        elevated = resolve(tool_input=tool_input, env={},
+                           state={"critical": True, "budget": 10})
+        self.assertEqual(elevated["effort"], "xhigh")
+        self.assertEqual(elevated["source"], "default")
+
+
+class FrontendEngineerInheritsXhigh(unittest.TestCase):
+    def test_frontend_engineer_inherits_xhigh_default(self):
+        tool_input = {"subagent_type": "frontend-engineer"}
+        result = resolve(tool_input=tool_input, env={}, state={})
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "default")
+
+
+class InfrastructureEngineerInheritsXhigh(unittest.TestCase):
+    def test_infrastructure_engineer_inherits_xhigh_default(self):
+        tool_input = {"subagent_type": "infrastructure-engineer"}
+        result = resolve(tool_input=tool_input, env={}, state={})
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "default")
+
+
+# ---------------- AC3a / AC3a-bis / AC3b: architect promotion + below-threshold ----------------
+
+
+class ArchitectCriticalOrBudget7YieldsXhigh(unittest.TestCase):
+    def test_architect_critical_or_budget_7_yields_xhigh(self):
+        tool_input = {"subagent_type": "architect"}
+        state = {"critical": True, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "role")
+
+
+class ArchitectNonCriticalBudget7YieldsXhigh(unittest.TestCase):
+    """Locks OR semantics in `_is_xhigh`'s architect branch.
+
+    Defends against a mutation flipping `or` to `and`. Under the mutated form,
+    architect with critical=False, budget=7 falls through to default xhigh,
+    yielding the same `effort` value but `source="default"` — only the source
+    assertion catches the mutation.
+    """
+
+    def test_architect_non_critical_budget_7_yields_xhigh(self):
+        tool_input = {"subagent_type": "architect"}
+        state = {"critical": False, "budget": 7}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "role")
+
+
+class ArchitectBelowThresholdInheritsXhigh(unittest.TestCase):
+    def test_architect_below_threshold_inherits_xhigh(self):
+        tool_input = {"subagent_type": "architect"}
+        state = {"critical": False, "budget": 6}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "default")
+
+
+# ---------------- AC3c–AC3d: security-engineer promotion + downgrade ----------------
+
+
+class SecurityEngineerXhighOnCriticalAndBudget(unittest.TestCase):
+    def test_security_engineer_xhigh_on_critical_and_budget(self):
+        tool_input = {"subagent_type": "security-engineer"}
+        state = {"critical": True, "budget": 7}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "role")
+
+
+class SecurityEngineerHighOnNormal(unittest.TestCase):
+    def test_security_engineer_high_on_normal(self):
+        tool_input = {"subagent_type": "security-engineer"}
+        state = {"critical": False, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "role")
+
+
+# ---------------- AC3e–AC3f: best-of-N candidate ----------------
+
+
+class BestOfNCandidateXhigh(unittest.TestCase):
+    def test_best_of_n_candidate_xhigh(self):
+        tool_input = {"subagent_type": "software-engineer", "name": "boN-opus"}
+        state = {"critical": True, "budget": 8}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "role")
+
+
+class BestOfNCandidateLowBudgetInheritsXhigh(unittest.TestCase):
+    def test_best_of_n_candidate_low_budget_inherits_xhigh(self):
+        tool_input = {"subagent_type": "software-engineer", "name": "boN-opus"}
+        state = {"critical": True, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "default")
+
+
+# ---------------- AC4 / AC4b: env override ----------------
 
 
 class EnvEffortOverridesAll(unittest.TestCase):
@@ -59,19 +228,134 @@ class EnvEffortOverridesAll(unittest.TestCase):
         self.assertEqual(result["effort"], "high")
 
 
-class InvalidEnvValueFallsBack(unittest.TestCase):
-    def test_invalid_env_value_falls_back(self):
-        env = {"CLAUDE_THINKING_EFFORT": "banana"}
+class EnvForcesLowOnImplementationRole(unittest.TestCase):
+    def test_env_forces_low_overrides_xhigh_default(self):
+        tool_input = {"subagent_type": "software-engineer"}
+        env = {"CLAUDE_THINKING_EFFORT": "low"}
+        result = resolve(tool_input=tool_input, env=env, state={})
+        self.assertEqual(result["effort"], "low")
+        self.assertEqual(result["source"], "env")
+
+
+# ---------------- AC5 / AC5b / AC5c: explicit thinking field ----------------
+
+
+class ExplicitInputWinsOverDefault(unittest.TestCase):
+    def test_explicit_input_wins_over_default(self):
+        explicit = {"thinking": {"effort": "low"}}
+        result = resolve(tool_input=explicit, env={}, state={})
+        self.assertEqual(result["effort"], "low")
+
+
+class ExplicitWinsOverImplementationRoleXhigh(unittest.TestCase):
+    def test_explicit_low_overrides_software_engineer_xhigh_default(self):
+        tool_input = {
+            "subagent_type": "software-engineer",
+            "thinking": {"effort": "low"},
+        }
+        result = resolve(tool_input=tool_input, env={}, state={})
+        self.assertEqual(result["effort"], "low")
+        self.assertEqual(result["source"], "explicit")
+
+
+class ExplicitWinsOverDowngrade(unittest.TestCase):
+    def test_explicit_xhigh_overrides_code_reviewer_high(self):
+        tool_input = {
+            "subagent_type": "code-reviewer",
+            "thinking": {"effort": "xhigh"},
+        }
+        result = resolve(tool_input=tool_input, env={}, state={})
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "explicit")
+
+
+# ---------------- AC6 / AC6b / AC6c: hook end-to-end + source field ----------------
+
+
+class SourceFieldReportsWinningLayer(unittest.TestCase):
+    def test_env_win_reports_env_source(self):
+        env = {"CLAUDE_THINKING_EFFORT": "low"}
         result = resolve(tool_input={}, env=env, state={})
-        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "env")
+
+    def test_role_win_reports_role_source(self):
+        tool_input = {"subagent_type": "architect"}
+        state = {"critical": True, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["source"], "role")
+
+    def test_explicit_win_reports_explicit_source(self):
+        result = resolve(tool_input={"thinking": {"effort": "low"}},
+                         env={}, state={})
+        self.assertEqual(result["source"], "explicit")
+
+    def test_default_win_reports_default_source(self):
+        result = resolve(tool_input={}, env={}, state={})
+        self.assertEqual(result["source"], "default")
+
+
+# ---------------- AC7: snapshot test for downgrade-list / agent frontmatter ----------------
+
+
+class DowngradeListMatchesAgentFrontmatter(unittest.TestCase):
+    """Pins `_DOWNGRADE_TO_HIGH ∪ _DOWNGRADE_TO_LOW` to exactly the seven
+    Sonnet-executor agent files. Drift in either direction fails CI: a missing
+    entry would silently waste capability; an extra entry for an Opus-promoted
+    agent would silently downgrade it.
+    """
+
+    EXPECTED_ROLES = {
+        "code-reviewer", "qa-engineer", "product-reviewer",
+        "patch-critic", "database-engineer", "security-engineer",
+        "planning-agent",
+    }
+
+    def _frontmatter(self, role):
+        path = REPO_ROOT / "agents" / f"{role}.md"
+        text = path.read_text()
+        match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+        return match.group(1) if match else ""
+
+    def _is_sonnet_executor(self, role):
+        body = self._frontmatter(role)
+        executor = re.search(r"^executor:\s*(\S+)", body, re.MULTILINE)
+        if executor:
+            return "sonnet" in executor.group(1).lower()
+        model = re.search(r"^model:\s*(\S+)", body, re.MULTILINE)
+        return bool(model) and "sonnet" in model.group(1).lower()
+
+    def test_every_role_has_sonnet_executor(self):
+        for role in self.EXPECTED_ROLES:
+            self.assertTrue(
+                self._is_sonnet_executor(role),
+                f"{role}: expected Sonnet executor (model or executor field)")
+
+    def test_downgrade_list_matches_sonnet_executor_agents(self):
+        from thinking_role import _DOWNGRADE_TO_HIGH, _DOWNGRADE_TO_LOW
+        actual = set(_DOWNGRADE_TO_HIGH) | set(_DOWNGRADE_TO_LOW)
+        self.assertEqual(actual, self.EXPECTED_ROLES,
+                         "Downgrade set drift vs agent frontmatter")
+
+
+# ---------------- Pipeline-state / debug-display regression tests ----------------
+
+
+class EnvDisplayOverridesAll(unittest.TestCase):
+    def test_env_display_overrides_all(self):
+        explicit = {"thinking": {"display": "omitted"}}
+        env = {"CLAUDE_THINKING_DISPLAY": "text"}
+        result = resolve(tool_input=explicit, env=env, state={})
+        self.assertEqual(result["display"], "text")
 
 
 class PipelineStateDirEnvRedirect(unittest.TestCase):
     def test_pipeline_state_dir_env_redirect(self):
         with tempfile.TemporaryDirectory() as tmp:
             _write_state(tmp, "redirect-test",
-                         "---\ntask_id: redirect-test\nphase: build\ncritical: true\n---\n")
-            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+                         "---\ntask_id: redirect-test\nphase: build\n"
+                         "critical: true\n---\n")
+            with patch.dict(os.environ,
+                            {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
                 state = read_active_state()
             self.assertEqual(state["task_id"], "redirect-test")
             self.assertTrue(state["critical"])
@@ -80,88 +364,11 @@ class PipelineStateDirEnvRedirect(unittest.TestCase):
 class MissingPipelineStateDirIsSafe(unittest.TestCase):
     def test_missing_pipeline_state_dir_is_safe(self):
         missing = "/tmp/definitely-does-not-exist-nope-zzz"
-        with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": missing}, clear=True):
+        with patch.dict(os.environ,
+                        {"CLAUDE_PIPELINE_STATE_DIR": missing}, clear=True):
             state = read_active_state()
         self.assertEqual(state["task_id"], "")
         self.assertFalse(state["critical"])
-
-
-class ArchitectCriticalOrBudget7YieldsXhigh(unittest.TestCase):
-    def test_architect_critical_or_budget_7_yields_xhigh(self):
-        tool_input = {"subagent_type": "architect"}
-        state = {"critical": True, "budget": 5}
-        result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "xhigh")
-
-
-class SecurityEngineerXhighOnCriticalAndBudget(unittest.TestCase):
-    def test_security_engineer_xhigh_on_critical_and_budget(self):
-        tool_input = {"subagent_type": "security-engineer"}
-        state = {"critical": True, "budget": 7}
-        result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "xhigh")
-
-
-class SecurityEngineerHighOnNormal(unittest.TestCase):
-    def test_security_engineer_high_on_normal(self):
-        tool_input = {"subagent_type": "security-engineer"}
-        state = {"critical": False, "budget": 5}
-        result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "high")
-
-
-class CodeReviewerHighDefault(unittest.TestCase):
-    def test_code_reviewer_high_default(self):
-        tool_input = {"subagent_type": "code-reviewer"}
-        result = resolve(tool_input=tool_input, env={}, state={"critical": True, "budget": 12})
-        self.assertEqual(result["effort"], "high")
-
-
-class QaEngineerHighDefault(unittest.TestCase):
-    def test_qa_engineer_high_default(self):
-        tool_input = {"subagent_type": "qa-engineer"}
-        result = resolve(tool_input=tool_input, env={}, state={"critical": True, "budget": 12})
-        self.assertEqual(result["effort"], "high")
-
-
-class CriticalBudget7DoesNotChangeEngineerEffort(unittest.TestCase):
-    def test_critical_budget_7_does_not_change_engineer_effort(self):
-        tool_input = {"subagent_type": "software-engineer"}
-        state = {"critical": True, "budget": 7}
-        result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "high")
-
-
-class NonCriticalBudget10StaysDefault(unittest.TestCase):
-    def test_non_critical_budget_10_stays_default(self):
-        tool_input = {"subagent_type": "software-engineer"}
-        state = {"critical": False, "budget": 10}
-        result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "high")
-
-
-class ArchitectBelowThresholdHigh(unittest.TestCase):
-    def test_architect_below_threshold_high(self):
-        tool_input = {"subagent_type": "architect"}
-        state = {"critical": False, "budget": 6}
-        result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "high")
-
-
-class BestOfNCandidateXhigh(unittest.TestCase):
-    def test_best_of_n_candidate_xhigh(self):
-        tool_input = {"subagent_type": "software-engineer", "name": "boN-opus"}
-        state = {"critical": True, "budget": 8}
-        result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "xhigh")
-
-
-class BestOfNCandidateLowBudgetHigh(unittest.TestCase):
-    def test_best_of_n_candidate_low_budget_high(self):
-        tool_input = {"subagent_type": "software-engineer", "name": "boN-opus"}
-        state = {"critical": True, "budget": 5}
-        result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "high")
 
 
 class DebugStateFileTriggersTextDisplay(unittest.TestCase):
@@ -170,7 +377,8 @@ class DebugStateFileTriggersTextDisplay(unittest.TestCase):
             _write_state(tmp, "fix-me",
                          "---\ntask_id: fix-me\nphase: build\n---\n")
             (Path(tmp) / "fix-me-debug.md").write_text("debug notes")
-            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+            with patch.dict(os.environ,
+                            {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
                 state = read_active_state()
             result = resolve(tool_input={}, env={}, state=state)
         self.assertEqual(result["display"], "text")
@@ -187,27 +395,22 @@ class DebugFrontmatterTriggersTextDisplay(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             _write_state(tmp, "live-debug",
                          "---\ntask_id: live-debug\nphase: debugging\n---\n")
-            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+            with patch.dict(os.environ,
+                            {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
                 state = read_active_state()
             result = resolve(tool_input={}, env={}, state=state)
         self.assertTrue(state["debug_active"])
         self.assertEqual(result["display"], "text")
 
 
-class SoftwareEngineerCriticalBudget10YieldsHighNotXhigh(unittest.TestCase):
-    def test_software_engineer_critical_budget_10_yields_high_not_xhigh(self):
-        tool_input = {"subagent_type": "software-engineer"}
-        state = {"critical": True, "budget": 10}
-        result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "high")
-
-
 class MalformedBudgetCoercesToZero(unittest.TestCase):
     def test_non_numeric_budget_returns_zero(self):
         with tempfile.TemporaryDirectory() as tmp:
             _write_state(tmp, "bad-budget",
-                         "---\ntask_id: bad-budget\nphase: build\nbudget: abc\n---\n")
-            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+                         "---\ntask_id: bad-budget\nphase: build\n"
+                         "budget: abc\n---\n")
+            with patch.dict(os.environ,
+                            {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
                 state = read_active_state()
             self.assertEqual(state["budget"], 0)
 
@@ -216,38 +419,23 @@ class MultiplePipelineFilesPickNewestByMtime(unittest.TestCase):
     def test_newer_pipeline_file_wins_over_older(self):
         with tempfile.TemporaryDirectory() as tmp:
             older = _write_state(tmp, "aaa-older",
-                                 "---\ntask_id: aaa-older\nphase: build\n---\n")
+                                 "---\ntask_id: aaa-older\nphase: build\n"
+                                 "---\n")
             newer = _write_state(tmp, "zzz-newer",
-                                 "---\ntask_id: zzz-newer\nphase: review\n---\n")
+                                 "---\ntask_id: zzz-newer\nphase: review\n"
+                                 "---\n")
             os.utime(older, (1_000_000, 1_000_000))
             os.utime(newer, (2_000_000, 2_000_000))
-            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+            with patch.dict(os.environ,
+                            {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
                 state = read_active_state()
             self.assertEqual(state["task_id"], "zzz-newer")
 
 
-class SourceFieldReportsWinningLayer(unittest.TestCase):
-    def test_env_win_reports_env_source(self):
-        env = {"CLAUDE_THINKING_EFFORT": "low"}
-        result = resolve(tool_input={}, env=env, state={})
-        self.assertEqual(result["source"], "env")
-
-    def test_role_win_reports_role_source(self):
-        tool_input = {"subagent_type": "architect"}
-        state = {"critical": True, "budget": 5}
-        result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["source"], "role")
-
-    def test_explicit_win_reports_explicit_source(self):
-        result = resolve(tool_input={"thinking": {"effort": "low"}}, env={}, state={})
-        self.assertEqual(result["source"], "explicit")
-
-    def test_default_win_reports_default_source(self):
-        result = resolve(tool_input={}, env={}, state={})
-        self.assertEqual(result["source"], "default")
+# ---------------- Resolver script + hook integration ----------------
 
 
-RESOLVER_SCRIPT = Path(__file__).resolve().parents[1] / "hooks" / "_lib" / "resolve-thinking.py"
+RESOLVER_SCRIPT = REPO_ROOT / "hooks" / "_lib" / "resolve-thinking.py"
 
 
 def _run_resolver(payload):
@@ -277,6 +465,19 @@ class ResolverEmitsDecisionLine(unittest.TestCase):
         self.assertEqual(first, "SKIP")
 
 
+def _cleanup_metric_session(session):
+    log_path = (Path.home() / ".claude" / "metrics" / session
+                / "hook-injections.jsonl")
+    if log_path.exists():
+        log_path.unlink()
+    parent = log_path.parent
+    if parent.exists():
+        try:
+            parent.rmdir()
+        except OSError:
+            pass
+
+
 class HookLogsOnlyDoesNotBlock(unittest.TestCase):
     def test_missing_thinking_exits_zero_no_block_stderr(self):
         result = _run_hook({"tool_name": "Agent", "tool_input": {}})
@@ -289,26 +490,52 @@ class HookLogsOnlyDoesNotBlock(unittest.TestCase):
 
     def test_missing_thinking_writes_log_line(self):
         session = f"test-{uuid.uuid4()}"
-        log_path = Path.home() / ".claude" / "metrics" / session / "hook-injections.jsonl"
+        log_path = (Path.home() / ".claude" / "metrics" / session
+                    / "hook-injections.jsonl")
         try:
             result = _run_hook(
-                {"tool_name": "Agent", "tool_input": {"subagent_type": "architect"}},
+                {"tool_name": "Agent",
+                 "tool_input": {"subagent_type": "architect"}},
                 env={"CLAUDE_SESSION_ID": session})
             self.assertEqual(result.returncode, 0)
-            self.assertTrue(log_path.exists(), f"expected log at {log_path}")
+            self.assertTrue(log_path.exists(),
+                            f"expected log at {log_path}")
             line = log_path.read_text().strip().splitlines()[-1]
             entry = json.loads(line)
             self.assertEqual(entry["agent_role"], "architect")
-            self.assertIn("effort", entry["resolved"])
+            self.assertEqual(entry["resolved"]["effort"], "xhigh")
         finally:
-            if log_path.exists():
-                log_path.unlink()
-            log_path.parent.rmdir() if log_path.parent.exists() else None
+            _cleanup_metric_session(session)
+
+
+class HookLogsDowngradeRole(unittest.TestCase):
+    def test_missing_thinking_with_code_reviewer_logs_high(self):
+        session = f"test-{uuid.uuid4()}"
+        log_path = (Path.home() / ".claude" / "metrics" / session
+                    / "hook-injections.jsonl")
+        try:
+            result = _run_hook(
+                {"tool_name": "Agent",
+                 "tool_input": {"subagent_type": "code-reviewer"}},
+                env={"CLAUDE_SESSION_ID": session})
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue(log_path.exists(),
+                            f"expected log at {log_path}")
+            line = log_path.read_text().strip().splitlines()[-1]
+            entry = json.loads(line)
+            self.assertEqual(entry["resolved"]["effort"], "high")
+            self.assertEqual(entry["resolved"]["source"], "role")
+        finally:
+            _cleanup_metric_session(session)
+
+
+# ---------------- Coerce-state / debug-mtime regression tests ----------------
 
 
 class CoerceStateTaskClassAndBestofnRoundTrip(unittest.TestCase):
     def test_explicit_feature_and_bestofn_true(self):
-        body = "---\ntask_id: t\nphase: build\ntask_class: feature\nbestofn: true\n---\n"
+        body = ("---\ntask_id: t\nphase: build\ntask_class: feature\n"
+                "bestofn: true\n---\n")
         state = coerce_state(parse_frontmatter(body), False)
         self.assertEqual(state["task_class"], "feature")
         self.assertIs(state["bestofn"], True)
@@ -340,8 +567,10 @@ class ReadActiveStateBestofnRoundTrip(unittest.TestCase):
     def test_pipeline_with_bestofn_true_round_trips(self):
         with tempfile.TemporaryDirectory() as tmp:
             _write_state(tmp, "bon-on",
-                         "---\ntask_id: bon-on\nphase: build\nbestofn: true\n---\n")
-            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+                         "---\ntask_id: bon-on\nphase: build\n"
+                         "bestofn: true\n---\n")
+            with patch.dict(os.environ,
+                            {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
                 state = read_active_state()
             self.assertIs(state["bestofn"], True)
 
@@ -349,7 +578,8 @@ class ReadActiveStateBestofnRoundTrip(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             _write_state(tmp, "bon-off",
                          "---\ntask_id: bon-off\nphase: build\n---\n")
-            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+            with patch.dict(os.environ,
+                            {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
                 state = read_active_state()
             self.assertIs(state["bestofn"], False)
 
@@ -359,7 +589,8 @@ class DebugMtimeFieldNoneWhenNoDebugFile(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             _write_state(tmp, "no-debug",
                          "---\ntask_id: no-debug\nphase: build\n---\n")
-            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+            with patch.dict(os.environ,
+                            {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
                 state = read_active_state()
             self.assertIsNone(state["debug_mtime"])
 
@@ -372,7 +603,8 @@ class DebugMtimeFieldFloatWhenDebugFileExists(unittest.TestCase):
             debug_file = Path(tmp) / "with-debug-debug.md"
             debug_file.write_text("notes")
             os.utime(debug_file, (1_500_000_000.0, 1_500_000_000.0))
-            with patch.dict(os.environ, {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
+            with patch.dict(os.environ,
+                            {"CLAUDE_PIPELINE_STATE_DIR": tmp}, clear=True):
                 state = read_active_state()
             self.assertEqual(state["debug_mtime"], 1_500_000_000.0)
 
@@ -380,7 +612,7 @@ class DebugMtimeFieldFloatWhenDebugFileExists(unittest.TestCase):
 class FreshDebugFileWithinTtlYieldsTextDisplay(unittest.TestCase):
     def test_fresh_debug_file_within_ttl_yields_text(self):
         now = 1_500_000_000.0
-        state = {"debug_active": True, "debug_mtime": now - 120}  # 2 minutes ago
+        state = {"debug_active": True, "debug_mtime": now - 120}
         result = resolve(tool_input={}, env={}, state=state, now=now)
         self.assertEqual(result["display"], "text")
 
@@ -388,7 +620,7 @@ class FreshDebugFileWithinTtlYieldsTextDisplay(unittest.TestCase):
 class StaleDebugFileBeyondTtlYieldsOmittedDisplay(unittest.TestCase):
     def test_old_debug_file_beyond_ttl_yields_omitted(self):
         now = 1_500_000_000.0
-        state = {"debug_active": True, "debug_mtime": now - 2400}  # 40 minutes ago
+        state = {"debug_active": True, "debug_mtime": now - 2400}
         result = resolve(tool_input={}, env={}, state=state, now=now)
         self.assertEqual(result["display"], "omitted")
 
@@ -396,7 +628,7 @@ class StaleDebugFileBeyondTtlYieldsOmittedDisplay(unittest.TestCase):
 class EnvDisplayWinsOverStaleDebugTtl(unittest.TestCase):
     def test_env_display_text_overrides_old_debug_omitted(self):
         now = 1_500_000_000.0
-        state = {"debug_active": True, "debug_mtime": now - 2400}  # past TTL
+        state = {"debug_active": True, "debug_mtime": now - 2400}
         env = {"CLAUDE_THINKING_DISPLAY": "text"}
         result = resolve(tool_input={}, env=env, state=state, now=now)
         self.assertEqual(result["display"], "text")
@@ -413,8 +645,8 @@ class NoDebugFileYieldsOmittedDisplay(unittest.TestCase):
 class CustomTtlEnvOverridesDefault(unittest.TestCase):
     def test_custom_short_ttl_truncates_window(self):
         now = 1_500_000_000.0
-        state = {"debug_active": True, "debug_mtime": now - 120}  # 2 min ago
-        env = {"CLAUDE_DEBUG_DISPLAY_TTL": "60"}  # 60 s window
+        state = {"debug_active": True, "debug_mtime": now - 120}
+        env = {"CLAUDE_DEBUG_DISPLAY_TTL": "60"}
         result = resolve(tool_input={}, env=env, state=state, now=now)
         self.assertEqual(result["display"], "omitted")
 
