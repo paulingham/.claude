@@ -127,6 +127,11 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/observation-capture.sh",
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/tool-timing-capture.sh",
+            "timeout": 5000
           }
         ]
       },
@@ -210,6 +215,17 @@
             "type": "command",
             "command": "$HOME/.local/bin/hcom post",
             "timeout": 86400
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/tool-timing-capture.sh",
+            "timeout": 5000
           }
         ]
       }

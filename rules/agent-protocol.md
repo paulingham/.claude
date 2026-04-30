@@ -325,16 +325,31 @@ source of truth):
   `record_type:"depth_violation"`, `depth`, `max_depth`, `subagent_type`,
   `task_id`, `action:"prevented"`. Exit 2 on block.
 - `hooks/runtime-guard.sh` (PreToolUse Agent|Bash|Write|Edit; Read
-  excluded — high-volume, fast-bounded). Mode A on Agent records
+  excluded — high-volume, fast-bounded). **Owns wall-clock cap
+  ENFORCEMENT only** — historical per-call durations are captured
+  separately by `hooks/tool-timing-capture.sh`. Mode A on Agent records
   `metrics/$SID/subagent-runtimes/<key>.start` (idempotent — first-seen
-  timestamp wins). Mode B on Bash|Write|Edit performs an orchestrator-level
-  global scan and emits a shutdown directive on stderr (exit 2) for any
-  start-file whose elapsed time exceeds the per-class cap. No
-  `CLAUDE_SUBAGENT_ID` dependency — Option C global scan reads start-file
-  bodies (`<unix_ts>:<class>:<display>`) for stderr enrichment. Logs
-  `metrics/$SID/runtime-violations.jsonl`.
-- `hooks/subagent-stop-trajectory.sh` — extended on SubagentStop to delete
-  the matching `<key>.start` file, preventing stale-timestamp false
+  timestamp wins; the start-file is the in-flight probe Mode B requires
+  because the post-completion `tool-timings.jsonl` stream cannot detect
+  an agent stuck mid-call). Mode B on Bash|Write|Edit performs an
+  orchestrator-level global scan and emits a shutdown directive on
+  stderr (exit 2) for any start-file whose elapsed time exceeds the
+  per-class cap. No `CLAUDE_SUBAGENT_ID` dependency — Option C global
+  scan reads start-file bodies (`<unix_ts>:<class>:<display>`) for
+  stderr enrichment. Logs `metrics/$SID/runtime-violations.jsonl`.
+- `hooks/tool-timing-capture.sh` (PostToolUse + PostToolUseFailure) —
+  appends one compact JSON line per completed tool call to
+  `metrics/$SID/tool-timings.jsonl` with fields `ts`, `tool`,
+  `duration_ms`, `success`, `agent_role`, `task_id` (last two omitted
+  when absent). Reads `duration_ms` from the Claude Code 2.1.119+
+  payload; `success` is `true` for PostToolUse and `false` for
+  PostToolUseFailure. JSON emission goes through `python3 json.dumps`
+  via `hooks/_lib/tool-timing-emit.py` — never bash `printf` for
+  dynamic values (load-bearing learned instinct). This is the
+  canonical historical-duration source for any consumer that needs
+  completed-call timing without re-deriving from start-files.
+- `hooks/subagent-stop-trajectory.sh` — owns cleanup of the matching
+  `<key>.start` file on SubagentStop, preventing stale-timestamp false
   positives on re-spawn with the same key. Shared SHA1 derivation via
   `_lib/runtime-guard-key.sh`.
 
@@ -344,8 +359,8 @@ source of truth):
   `SendMessage({type:"shutdown_request", name:"<display>"})` form,
   directly actionable per `## Teammate Lifecycle (team phases)` above.
 - **Non-team subagent**: stderr says "next tool call blocked; orchestrator
-  should re-dispatch per rules/operational-protocol.md". No equivalent
-  out-of-band kill exists in the current Agent tool input schema; the
+  should re-dispatch per rules/operational-protocol.md". An equivalent
+  out-of-band kill is not currently exposed by the Agent tool input schema; the
   next tool the runaway subagent attempts is refused at PreToolUse, the
   orchestrator interprets the violation log, and decides re-dispatch
   (retry-twice-then-escalate). Mirrors the `pre-agent-thinking.sh` Path-B
