@@ -18,6 +18,15 @@ if [[ -z "$FILE_PATH" ]]; then
     exit 0
 fi
 
+# Subagent worktrees: linter/formatter configs in a worktree are scaffold/setup
+# work or branch-scoped experiments that still face code review before merge.
+# Block at the top-level project root only — that is the surface where "weaken
+# the rules to pass" would actually escape into main. Matches the worktree-
+# path allowance in orchestrator-discipline.sh.
+if [[ "$FILE_PATH" =~ /\.claude/worktrees/ ]]; then
+    exit 0
+fi
+
 BASENAME=$(basename "$FILE_PATH")
 
 # Check against known linter/formatter config patterns
