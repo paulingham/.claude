@@ -2,23 +2,26 @@
 from pathlib import Path
 from typing import Optional
 
+WORKSTREAMS = "workstreams"
+EXCLUDED_ROOT_DIRS = {WORKSTREAMS, "health-reports"}
+
 
 def ws_root(state_dir: Path, workstream: Optional[str]) -> Path:
-    return state_dir / "workstreams" / workstream if workstream else state_dir
+    return state_dir / WORKSTREAMS / workstream if workstream else state_dir
+
+
+def _ws_glob(state_dir: Path, pattern: str) -> list:
+    ws_dir = state_dir / WORKSTREAMS
+    return list(ws_dir.glob(pattern)) if ws_dir.is_dir() else []
 
 
 def legacy_paths(state_dir: Path) -> list:
-    ws_dir = state_dir / "workstreams"
-    nested = list(ws_dir.glob("*/*-pipeline.md")) if ws_dir.is_dir() else []
-    return list(state_dir.glob("*-pipeline.md")) + nested
+    return list(state_dir.glob("*-pipeline.md")) + _ws_glob(state_dir, "*/*-pipeline.md")
 
 
 def new_paths(state_dir: Path) -> list:
-    excluded = {"workstreams", "health-reports"}
-    root = [p for p in state_dir.glob("*/pipeline.md") if p.parent.name not in excluded]
-    ws_dir = state_dir / "workstreams"
-    nested = list(ws_dir.glob("*/*/pipeline.md")) if ws_dir.is_dir() else []
-    return root + nested
+    root = [p for p in state_dir.glob("*/pipeline.md") if p.parent.name not in EXCLUDED_ROOT_DIRS]
+    return root + _ws_glob(state_dir, "*/*/pipeline.md")
 
 
 def task_id_of(path: Path) -> str:
@@ -26,4 +29,4 @@ def task_id_of(path: Path) -> str:
 
 
 def is_workstream(path: Path, state_dir: Path) -> bool:
-    return (state_dir / "workstreams") in path.parents
+    return (state_dir / WORKSTREAMS) in path.parents
