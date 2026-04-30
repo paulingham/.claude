@@ -1,18 +1,16 @@
-# Session: ~/.claude harness — wave4-R ATDD default + settings restoration (PR #50) ready
+# Session: ~/.claude harness — opus47-thinking-defaults Anthropic-aligned (xhigh on Opus 4.7)
 
 _A short, distinctive title describing the current engineering work_
 
 # Active Work
 _Current pipeline phase, task ID, branch name. What's in progress. Immediate next steps._
 
-- **wave4-R ATDD default + settings restoration (PR #50, `refactor/wave4-R-atdd-settings` → main, harness-change label).** Replaces incremental TDD with ATDD as default Build cycle (batched RED across all ACs → implement → post-refactor GREEN → mutation gate ≥70%). Three explicit exceptions retain per-behaviour TDD: bug fixes, parsers/state-machines/financial calc, security-sensitive code. Mutation gate is now a HARD GATE at `/verify` Tier 3 — ≥70% kill rate on changed lines required. Manual mutation analysis approved as methodology when automated tools (mutmut/Stryker) unavailable.
-- **tdd-guard.sh scope shift**: `hooks/tdd-guard.sh` moved from Write/Edit matcher → Bash matcher; fires only on `gh pr create` / `gh pr ready`, not on every file edit. Preserves Build-phase iteration speed; gate enforced at PR-creation boundary. Helper: `hooks/_lib/tdd-guard-pr.sh` (52 lines). Test suite: `tests/test_tdd_guard_pr_gate.sh` (11 tests).
-- **settings.json restored**: deleted `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING` and `CLAUDE_CODE_DISABLE_1M_CONTEXT` suppression flags (Wave 4-J instability long resolved). `CLAUDE_CODE_SUBAGENT_MODEL` MUST stay literal `"opus"` — `"default"` is NOT a valid alias in current Claude Code and causes ALL agent spawns to fail. Codified in `memory/feedback_settings_restoration.md`.
-- Modified: `rules/engineering-protocol.md` § ATDD Protocol (canonical procedure), `skills/build-implementation/SKILL.md`, `skills/verify/SKILL.md` (Tier 3 hard gate), `hooks/tdd-guard.sh`, `settings.json`. New: `hooks/_lib/tdd-guard-pr.sh`, `tests/test_tdd_guard_pr_gate.sh`, `memory/feedback_settings_restoration.md`.
-- Test commands: `bash tests/test_tdd_guard_pr_gate.sh` (11/11) + `PYTHONPATH=hooks/_lib python3 -m pytest tests/` (983 passed / 23 pre-existing failures unrelated to wave4-R).
-- 5 commits on branch; 3 in-cycle corrections during pipeline (model alias, iron-law contradiction, section name mismatch) — all fixed before Ship per § In-Cycle Fix Rule.
+- **opus47-thinking-defaults Anthropic-alignment (PR pending, harness-change).** Anthropic April 23 2026 postmortem (https://www.anthropic.com/engineering/april-23-postmortem) flipped Claude Code default to **xhigh on Opus 4.7, high on other models**. Harness aligned via Option C (executor-model-mapped carve-outs): 6 Sonnet-executor roles get explicit `effort=high` carve-out in resolver layer; `planning-agent` keeps `effort=low`; Opus-executor roles inherit new xhigh fallback. Path-B advisory hooks remain log-only — flip changes WHAT gets logged, not WHAT gets applied at the model boundary (still pending `modified_tool_input` in Agent input schema).
+- New AC7 snapshot test `DowngradeListMatchesAgentFrontmatter` reads `model:` and `executor:` fields from agent files to lock the carve-out list against silent drift — pattern reuse from `tests/test_agent_tools_spec.py`.
+- Helper extracted: `_role_downgrade()` in resolver — called out in plan to avoid breaching the 8-line ceiling on the precedence layer function.
+- Test commands: `cd ~/.claude && python3 -m unittest tests.test_thinking_defaults` — **58 tests pass cleanly**.
 - Prior PRs: #50 wave4-R atdd-settings, #48 wave4-N approval-token, #47 wave4-P hook telemetry, #46 wave4-O learning-gc, #45 wave4 hooks bash-write-guard + settings-path-lint, #42 wave4-L mcp-hooks, #41 wave4-M instinct-injection, #39 wave3-H session-store adapters, #38 wave3-I continuous-planning, #37 wave2-F2 await-pattern, #36 wave2-F1 tool-allowlists, #33 wave1-B depth/runtime guards, #32 wave1-D1 advisor-reviews, #30 wave0 main-branch invariant, #29 thinking defaults (Path B log-only), #28 internal-eval, #27 best-of-n.
-- Active workstreams remaining: **wave3-I-continuous-planning** (review CHANGES_REQUESTED — needs fix loop), **advisor-reviews**, **opus47-thinking-defaults**, **wave2-F2-await-pattern** (cleanup).
+- Active workstreams remaining: **wave3-I-continuous-planning** (review CHANGES_REQUESTED — needs fix loop), **advisor-reviews**, **wave2-F2-await-pattern** (cleanup).
 
 # Codebase Map
 _Key directories and files. What they contain. How they connect. Where to start reading. Entry points for the main flows._
@@ -90,6 +88,7 @@ _Commands that work: build, test, lint, type-check. Environment setup (env vars,
 - **Stale runtime-guard start files**: when `runtime-guard.sh` fires spurious cap violations from prior sessions, clean up via `find ~/.claude/metrics -name "*.start" | xargs rm -f`. Common false-positive trigger after multi-day pipelines.
 - **wave4-R tdd-guard PR-gate tests**: `bash tests/test_tdd_guard_pr_gate.sh` — 11 tests for the `gh pr create` / `gh pr ready` gate behaviour. Helper at `hooks/_lib/tdd-guard-pr.sh` (52 lines). **Loop-guard fragility**: running this test suite >10 times within 60s trips the harness loop guard (advisory). Fix: `rm -rf state/hook-guard/tdd-guard` before re-running. Not blocking, but watch for it during fast iteration.
 - **wave4-R full pytest baseline**: `PYTHONPATH=hooks/_lib python3 -m pytest tests/` reports 983 passed / 23 pre-existing failures on main (unrelated to wave4-R — same family as wave3 baseline carry-forward). Use 983 green as the new baseline for downstream pipelines.
+- **opus47-thinking-defaults tests**: `cd ~/.claude && python3 -m unittest tests.test_thinking_defaults` — **58 tests pass cleanly**. Project hash for `~/.claude` is `8efffd88329f34786e1828737702e911`. Path-B advisory hook log surface: `metrics/{session}/hook-injections.jsonl` JSONL records — assert against this when modifying log-only thinking/advisor hooks.
 
 # Critical Paths
 _Files and modules that are fragile or have complex dependencies. Things that break easily. Areas needing special care. Known timing sensitivities._
