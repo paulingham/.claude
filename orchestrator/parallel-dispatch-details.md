@@ -241,8 +241,8 @@ Agent({
   model: "sonnet",
   prompt: """
 TaskId: {task-id}
-PlanPath: pipeline-state/{task-id}-plan.md
-ScratchpadDir: pipeline-state/{task-id}-scratchpad/
+PlanPath: pipeline-state/{task-id}/plan.md
+ScratchpadDir: pipeline-state/{task-id}/scratchpad/
 TeamRoster: {comma-separated names of build engineer teammates}
 PollSeconds: 60
 
