@@ -191,6 +191,11 @@ runtime tracking.
 - `hooks/subagent-stop-trajectory.sh` — extended with start-file cleanup on
   SubagentStop. Shared key derivation via `_lib/runtime-guard-key.sh`
   ensures the cleanup unambiguously targets the just-stopped agent.
+- `hooks/tool-timing-capture.sh` (PostToolUse + PostToolUseFailure) —
+  appends one JSONL line per call to `metrics/$SID/tool-timings.jsonl`
+  using the Claude Code 2.1.119+ `duration_ms` payload field. Capture
+  vs. enforcement split: this hook owns capture; `runtime-guard.sh`
+  owns enforcement. See `rules/agent-protocol.md` § Resource Bounds.
 
 **Shutdown semantics (Path-B disclosure):**
 
