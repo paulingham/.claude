@@ -1,0 +1,19 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /Users/Paul.Ingham/.claude/.claude/worktrees/agent-2296b43f
+collecting ... collected 11 items
+
+tests/test_pipeline_state_paths.py::test_task_state_path_returns_new_layout PASSED [  9%]
+tests/test_pipeline_state_paths.py::test_task_state_path_workstream_variant PASSED [ 18%]
+tests/test_pipeline_state_paths.py::test_task_state_path_workstream_none_means_root[None] PASSED [ 27%]
+tests/test_pipeline_state_paths.py::test_task_state_path_workstream_none_means_root[] PASSED [ 36%]
+tests/test_dual_path_discovery.py::test_legacy_layout_still_discoverable PASSED [ 45%]
+tests/test_dual_path_discovery.py::test_fresher_layout_wins_on_collision PASSED [ 54%]
+tests/test_dual_path_discovery.py::test_stale_new_layout_does_not_eclipse_live_legacy PASSED [ 63%]
+tests/test_dual_path_discovery.py::test_workstream_beats_root_on_task_id_collision PASSED [ 72%]
+tests/test_dual_path_discovery.py::test_in_flight_pipeline_resumable PASSED [ 81%]
+tests/test_pipeline_protocol_doc.py::test_pipeline_protocol_documents_new_layout PASSED [ 90%]
+tests/test_pipeline_protocol_doc.py::test_autonomous_intelligence_scratchpad_path_updated PASSED [100%]
+
+============================== 11 passed in 0.05s ==============================

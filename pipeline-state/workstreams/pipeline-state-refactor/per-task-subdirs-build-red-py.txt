@@ -1,0 +1,62 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /Users/Paul.Ingham/.claude/.claude/worktrees/agent-2296b43f
+collecting ... collected 2 items / 2 errors
+
+==================================== ERRORS ====================================
+_____________ ERROR collecting tests/test_pipeline_state_paths.py ______________
+ImportError while importing test module '/Users/Paul.Ingham/.claude/.claude/worktrees/agent-2296b43f/tests/test_pipeline_state_paths.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_pipeline_state_paths.py:10: in <module>
+    from pipeline_state_paths import task_state_path
+E   ModuleNotFoundError: No module named 'pipeline_state_paths'
+______________ ERROR collecting tests/test_dual_path_discovery.py ______________
+ImportError while importing test module '/Users/Paul.Ingham/.claude/.claude/worktrees/agent-2296b43f/tests/test_dual_path_discovery.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_dual_path_discovery.py:5: in <module>
+    from pipeline_state_paths import find_pipeline_files
+E   ModuleNotFoundError: No module named 'pipeline_state_paths'
+=========================== short test summary info ============================
+ERROR tests/test_pipeline_state_paths.py
+ERROR tests/test_dual_path_discovery.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!!
+============================== 2 errors in 0.14s ===============================
+============================= test session starts ==============================
+platform darwin -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /Users/Paul.Ingham/.claude/.claude/worktrees/agent-2296b43f
+collecting ... collected 2 items
+
+tests/test_pipeline_protocol_doc.py::test_pipeline_protocol_documents_new_layout FAILED [ 50%]
+tests/test_pipeline_protocol_doc.py::test_autonomous_intelligence_scratchpad_path_updated FAILED [100%]
+
+=================================== FAILURES ===================================
+_________________ test_pipeline_protocol_documents_new_layout __________________
+
+    def test_pipeline_protocol_documents_new_layout():
+        content = _read("rules/pipeline-protocol.md")
+>       assert "{task-id}/{phase}.md" in content
+E       assert '{task-id}/{phase}.md' in '# Pipeline Protocol\n\nDetailed orchestrator procedures: see `~/.claude/orchestrator/pipeline-orchestration.md`\n\n## Skills Are Mandatory, Not Optional\n\nWhen a pipeline phase has a corresponding skill, the skill\'s procedure MUST be executed. The dispatch mechanism depends on the phase:\n\n- **Subagent phases** (Plan, Ship, Deploy, single-slice Build): Invoke via Skill tool or Agent tool with `isolation: "worktree"`. Ephemeral, no visibility.\n- **Team phases** (multi-slice Build, Review, Final Gate): Spawn teammates into the pipeline team via Agent tool with `team_name`. Visible in tmux panes. See `rules/parallel-dispatch-protocol.md`.\n- **Single-slice Build**: Use subagent with `isolation: "worktree"` (team overhead not justified for one engineer).\n\n**The skill IS the phase.** Whether invoked via Skill tool, read by a subagent, or read by a teammate, the full skill procedure must be followed.\n\n### Team Dispatch\n\nFor phases in the Team Phases table (see `rules/parallel-dispatch-protocol.md`), teammates are spawned into the pipeline team and read their own skill files. The orchestrator creates tasks and assigns them. See `orchestrator/parallel-dispatch-details.md` for ... with options\n- The orchestrator coordinates and delegates, it does not write code — especially under time pressure\n\n### Why this exists\nEnvironment-dependent testing (mobile devices, WebView integration, staging deploys) inherently requires test-fix-retest cycles that unit tests cannot validate. Running full pipeline gates on each intermediate fix wastes effort on throwaway states. The gates add value on the final working state, not on each debugging step.\n\n## Enforcement\n\n> **IRON LAW: NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.**\n\n- If you catch yourself about to use Write or Edit on a source file, STOP\n- If you catch yourself about to skip a skill invocation, STOP\n- If you catch yourself about to spawn a write-capable subagent WITHOUT `isolation: "worktree"`, STOP (team teammates manage their own branches)\n- If you catch yourself spawning an agent or teammate without referencing the skill file, STOP\n- If you catch yourself keeping teammates alive across phases (idle token burn), STOP -- shut them down\n- The user saying "just fix it quickly" is not an excuse to bypass process\n- The pipeline exists to catch mistakes. Every shortcut is a missed catch.\n'
+
+tests/test_pipeline_protocol_doc.py:18: AssertionError
+_____________ test_autonomous_intelligence_scratchpad_path_updated _____________
+
+    def test_autonomous_intelligence_scratchpad_path_updated():
+        content = _read("rules/autonomous-intelligence.md")
+>       assert "pipeline-state/{task-id}/scratchpad/" in content
+E       assert 'pipeline-state/{task-id}/scratchpad/' in '# Autonomous Intelligence Protocol\n\nThree systems that make the pipeline self-improving: agents share knowledge in real-time, engineering context survives compaction, and the system gets better at building YOUR project with every run.\n\n## 1. Pipeline Scratchpad\n\nCross-agent knowledge sharing within a single pipeline run. Agents discover things (fragile files, working patterns, environment quirks). Instead of that knowledge dying with the agent, it flows forward to every subsequent agent.\n\n### Directory\n\n```\npipeline-state/{task-id}-scratchpad/\n  {role}-{phase}.md          # Agent findings\n```\n\nCreated by the orchestrator at pipeline start (alongside the pipeline state file). Cleaned up with pipeline state after completion.\n\n### Agent Writes\n\nEvery write-capable agent appends findings before completion. Include this in every agent\'s spawn prompt:\n\n> "Before completing, write any discoveries to the pipeline scratchpad at `pipeline-state/{task-id}-scratchpad/{your-role}-{phase}.md`. Format below. Only write genuinely useful findings — not task narration."\n\nFinding format:\n\n```markdown\n---\ncategory: discovery|warning|pattern|fragility|decision\n---\n\n{On...y: `cat session-memory/{project-hash}/notes.md`\n3. Check auto-learn gate: count observations since last `/learn`\n\n### Agent Spawn (additions to existing protocol)\n\nEvery agent spawn prompt now includes (in order):\n1. Skill file reference (existing)\n2. Agent definition reference (existing)\n3. Instinct injection (existing)\n4. Agent memory (existing)\n5. **Session memory injection** (NEW — engineering context)\n6. **Scratchpad injection** (NEW — this pipeline\'s findings)\n7. **Scratchpad write instruction** (NEW — contribute back)\n\n### Pipeline Reflect (additions to existing protocol)\n\nAfter existing reflection steps:\n1. **Capture observation** to `learning/{project-hash}/observations.jsonl`\n2. **Check auto-learn gate** — invoke `/learn` if met\n3. **Update session memory** — spawn `session-memory-updater` agent with latest engineering context (background, non-blocking)\n4. **Clean up scratchpad** — deleted with pipeline state\n\n### Pipeline Resume (additions to existing protocol)\n\nWhen resuming a pipeline:\n1. Read session memory (primary orientation mechanism)\n2. Read scratchpad (pick up where agents left off)\n3. Continue from current phase with full context\n'
+
+tests/test_pipeline_protocol_doc.py:25: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_pipeline_protocol_doc.py::test_pipeline_protocol_documents_new_layout
+FAILED tests/test_pipeline_protocol_doc.py::test_autonomous_intelligence_scratchpad_path_updated
+============================== 2 failed in 0.02s ===============================
