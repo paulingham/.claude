@@ -38,13 +38,17 @@ Dedup the union by `task_id` with **workstream-wins precedence**; tie-break by m
 
 Always use the helper (`_psp_find_active_pipelines`) rather than open-coding the globs — the helper handles exclusion of `health-reports/` and `workstreams/` siblings.
 
-Also scan for debug state and discussion files (DUAL_PATH):
+Also scan for debug state and discussion files (DUAL_PATH — same dedup
+rules as above; same `health-reports/` exclusion):
 ```bash
-# New layout
-find ~/.claude/pipeline-state -maxdepth 2 -mindepth 2 \( -name "debug.md" -o -name "discussion.md" \) 2>/dev/null
+# New layout (root + workstream-nested)
+find ~/.claude/pipeline-state \( -name "debug.md" -o -name "discussion.md" \) \
+  -not -path "*/health-reports/*" 2>/dev/null
 # Legacy layout
 ls ~/.claude/pipeline-state/*-debug.md 2>/dev/null
 ls ~/.claude/pipeline-state/*-discussion.md 2>/dev/null
+ls ~/.claude/pipeline-state/workstreams/*/*-debug.md 2>/dev/null
+ls ~/.claude/pipeline-state/workstreams/*/*-discussion.md 2>/dev/null
 ```
 
 Also scan workstream metadata:
