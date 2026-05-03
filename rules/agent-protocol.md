@@ -109,7 +109,7 @@ Agents share findings within a pipeline run via the scratchpad. See `rules/auton
 The orchestrator injects scratchpad findings into the agent's prompt. Agents do not read the scratchpad directory directly — the orchestrator curates what's relevant.
 
 ### Writing (Before Completion)
-Before completing, write discoveries to `pipeline-state/{task-id}-scratchpad/{role}-{phase}.md`. Use YAML frontmatter with `category: discovery|warning|pattern|fragility|decision`. Only write genuinely useful findings, not task narration. If nothing noteworthy was discovered, skip this step.
+Before completing, write discoveries to `pipeline-state/{task-id}/scratchpad/{role}-{phase}.md`. Use YAML frontmatter with `category: discovery|warning|pattern|fragility|decision`. Only write genuinely useful findings, not task narration. If nothing noteworthy was discovered, skip this step.
 
 ## Agent Memory Protocol
 

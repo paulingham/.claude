@@ -104,8 +104,8 @@ When `/intake` has tagged the task `bestofn: true` (computed in Step 2d-bis as `
 6. **Merge & cleanup**:
    - `git merge --no-ff build/{task-id}-boN-{winner-slug}` into the pipeline's working branch
    - For every loser: `git worktree remove --force <path>` then `git branch -D build/{task-id}-boN-{slug}`
-   - Write `pipeline-state/{task-id}-best-of-n.md` (frontmatter: task_id, phase=build, verdict=BEST_OF_N_COMPLETE, timestamp; sections: Candidates Run, Winner, Selection Rationale, Cost Estimate Per Candidate)
-   - Append `category: decision` note to `pipeline-state/{task-id}-scratchpad/best-of-n-selection.md`
+   - Write `pipeline-state/{task-id}/best-of-n.md` (frontmatter: task_id, phase=build, verdict=BEST_OF_N_COMPLETE, timestamp; sections: Candidates Run, Winner, Selection Rationale, Cost Estimate Per Candidate)
+   - Append `category: decision` note to `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md`
 7. **Winner proceeds to standard Review** — Best-of-N does not skip review or any subsequent gate.
 
 **Fallback**: on `BEST_OF_N_FAILED` (insufficient candidates or all candidates failed their own tests), fall back to the standard single-engineer Build dispatch. Log the fallback in pipeline state under `## Re-routes`. Never halts.
@@ -247,10 +247,10 @@ Context:
 [session memory content — full or priority sections by role]
 
 ## Pipeline Scratchpad (findings from prior agents)
-[relevant findings from pipeline-state/{task-id}-scratchpad/]
+[relevant findings from pipeline-state/{task-id}/scratchpad/]
 
 Before completing, write any noteworthy discoveries to:
-pipeline-state/{task-id}-scratchpad/{your-role}-{phase}.md
+pipeline-state/{task-id}/scratchpad/{your-role}-{phase}.md
 
 **Continuous Planning:** A `planning-agent` teammate may append `## Plan Update — <ISO>` sections to `pipeline-state/{task-id}-plan.md` while you work. Before starting each new behavior in your TDD cycle, re-read the plan file and check for `## Plan Update —` sections with timestamps newer than your spawn time. If you receive a `SendMessage` of type `plan_update`, finish your current RED-GREEN-REFACTOR cycle first, then re-read before starting the next behavior. Do not abandon a cycle in flight.
 
