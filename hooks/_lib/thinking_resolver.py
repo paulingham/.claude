@@ -35,7 +35,7 @@ def resolve(tool_input, env, state, now=None):
         ("env", _valid_env(env, "CLAUDE_THINKING_EFFORT", _EFFORTS)),
         ("explicit", explicit.get("effort")),
         ("role", role_effort(tool_input, state)),
-    ], "xhigh")
+    ], "high")
     display, _ = _pick([
         ("env", _valid_env(env, "CLAUDE_THINKING_DISPLAY", _DISPLAYS)),
         ("explicit", explicit.get("display")),
