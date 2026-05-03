@@ -108,6 +108,61 @@ E2E results feed into the `/verify` skill (Tier 4):
 | SKIP | VERIFIED_WITH_SKIP -- product-reviewer must acknowledge |
 | N/A | VERIFIED (no trigger files changed) |
 
+## Web Trigger Matrix
+
+Parallel to the mobile Maestro matrix above. Web (browser-rendered) projects must
+exercise a real environment when any of the categories below are touched. "Real
+environment" means a deployed preview URL or an ephemeral `docker-compose` stack
+spun up for the test run — NOT JSDOM, NOT a unit-test mock. Driver: Playwright
+or Cypress.
+
+### Web E2E Required (YES)
+
+| Category | Trigger |
+|----------|---------|
+| Route changes | New/renamed/removed route, route-level redirect, route auth guard change |
+| Auth/Session | Login/logout flow, session cookie shape, JWT issuance, RBAC guard, OAuth callback |
+| Migrations (FK / NOT NULL) | Any schema migration adding, removing, or modifying a foreign key OR a `NOT NULL` column. SQL-only migrations count |
+| Env var addition | New required env var consumed at runtime (front-end build constants OR back-end config). Optional env vars with safe defaults are exempt |
+| Public API contract | Endpoint added/removed, request or response shape change, status code change, public webhook payload change |
+
+### Web E2E Not Required (NO)
+
+- Pure styling tweaks (CSS/Tailwind) that do not change layout/visibility
+- Internal helper refactors with no public API surface change
+- Test-only files (`*.test.*`, `__tests__/`)
+- Documentation, READMEs, comments
+- Optional env vars with safe defaults (already covered by unit tests)
+
+### Real-Environment Stack Requirements
+
+At least ONE of the following must be wired up before the suite can satisfy the
+"real environment" requirement:
+
+| Stack | Use when |
+|-------|----------|
+| Deployed preview URL (Vercel/Netlify/Render PR preview) | The repo has CI-provisioned preview deploys for every PR |
+| `docker-compose up -d` ephemeral stack | The repo ships a `docker-compose.e2e.yml` (or equivalent) that boots app + DB + dependencies |
+| Cloud ephemeral env (Fly Machines, Heroku Review App, Railway env) | The repo provisions PR-scoped ephemeral envs |
+
+If NONE of these is available, web E2E status is `SKIP` (parallel to mobile's
+"prerequisites not met" rule). Skip is NOT a hard blocker but the
+product-reviewer must acknowledge it in `/product-acceptance`.
+
+### Driver Selection
+
+| Driver | When |
+|--------|------|
+| Playwright | Default. Cross-browser, fast, CI-friendly. |
+| Cypress | When the project already has a Cypress harness — do not introduce a second driver. |
+
+Targeted runs are an optimization. Full suite (`playwright test` /
+`cypress run`) is the default for changes spanning ≥2 trigger categories.
+
 ## Incident Context
 
 This protocol exists because unit tests passed while the app was broken in production. A login domain was not whitelisted in `constants.ts`, and no E2E flow caught it because Maestro was not integrated into the pipeline. Unit tests mocked the URL classification layer, so the bug was invisible to the test suite.
+
+The web matrix was added in Wave 2 (Apr 27 2026 cohort) to close the same hole
+on browser projects: a route or migration change shipping with green unit tests
+but no real-environment exercise is the same failure mode in a different shell.

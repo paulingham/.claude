@@ -215,6 +215,68 @@ Trade-off accepted: bare `git checkout foo` is forbidden universally — even fr
 - `hooks/main-branch-guard.sh` — PreToolUse Bash hook. Inspects `tool_input.command`, blocks (exit 2) any forbidden bare form, logs to `metrics/$SESSION/main-branch-violations.jsonl` with `source: "prevented"`.
 - `hooks/worktree-cwd-check.sh` — SubagentStop hook. Re-confirms prevented violations and detects drift (`git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD != "main"`), appending `source: "post-confirmed"` and `source: "drift-detected"` records. Diagnostic only — never blocks.
 
+### Non-LLM Gates on Destructive Verbs
+
+> **Iron law.** Destructive verbs do NOT clear on LLM judgement alone. They require a non-LLM, time-bounded human-set token before the harness will let them through.
+
+The PocketOS Apr 27 2026 incident is the motivating case: an LLM-blessed deploy
+script ran `volumeDelete` on a production volume that no human had reviewed in the
+60 seconds before execution. The agent had been told the volume was a staging
+artifact; the orchestrator had not been told it was attached to production. The
+LLM correctly executed the literal instruction. There was no second gate.
+
+The Non-LLM Gate fixes that class of failure for an enumerated set of verbs.
+The list is the SOURCE OF TRUTH at `hooks/_lib/destructive-verbs.txt` — one ERE
+pattern per line — and is loaded by `hooks/_lib/destructive-verb-detect.sh`.
+`hooks/main-branch-guard.sh` invokes the destructive-verb module BEFORE its
+HEAD-mutation check, so destructive verbs are caught even when they appear in
+shell forms that would otherwise pass the main-branch invariant (e.g.
+`(cd "$WT" && fly destroy my-app)` would have HEAD-discipline-clean delegation
+prefixes but is still gated).
+
+**The list (canonical — see `hooks/_lib/destructive-verbs.txt` for the live regex):**
+
+| Verb / pattern | Class |
+|---|---|
+| `volumeDelete` | Cloud volume deletion |
+| `aws s3 rb` | S3 bucket removal |
+| `gcloud sql instances delete` | GCP SQL instance teardown |
+| `railway down` | Railway service teardown |
+| `fly destroy` | Fly.io app teardown |
+| `DROP TABLE`, `TRUNCATE` | Schema/data destruction |
+| `git push --force-with-lease` (and `-f` / `--force`) to `main`/`master`/`release`/`production`/`staging`/`develop` | Force push to non-feature branch |
+| `rm -rf $HOME` / `rm -rf ~` | Filesystem destruction |
+| `kubectl delete namespace prod` (or `production`) | Kubernetes prod teardown |
+
+**Confirmation contract:**
+
+To run any of the above, BOTH must hold within the last `CLAUDE_DESTRUCTIVE_CONFIRM_TTL`
+seconds (default `600`):
+
+1. `CLAUDE_DESTRUCTIVE_CONFIRM=I-have-a-restorable-backup-elsewhere`
+2. `CLAUDE_DESTRUCTIVE_CONFIRM_TS=$(date +%s)`
+
+Both env vars must be exported in the shell that invokes the destructive command.
+The token is verbatim — case-sensitive, hyphenated, no quotes. The TS is unix
+seconds. The orchestrator should NOT auto-set these vars; a human (or a tightly-scoped
+deploy operator account with a documented backup) sets them.
+
+When the gate fires WITHOUT a valid token, the hook logs a JSONL record at
+`metrics/$SESSION/main-branch-violations.jsonl` with `source: "destructive-verb"`
+and `action: "prevented"`, prints a block message naming the offending command,
+and exits 2.
+
+**Why time-bounded:** A static "yes I'm sure" token would persist in shell
+history forever and become useless. A 600-second window forces a human to
+re-export the token immediately before the destructive operation, which is the
+cheapest possible non-LLM gate.
+
+**Why a separate file:** the list grows with new cloud APIs and new failure
+modes. Keeping the patterns in `hooks/_lib/destructive-verbs.txt` (one ERE per
+line, `#` for comments) lets us add entries without editing executable code,
+and lets the test in `tests/test_destructive_verb_block.py` and
+`tests/shell/test_destructive_verb_block.bats` enumerate the file directly.
+
 ## Teammate Lifecycle (team phases)
 
 Teammates are spawned just-in-time and shut down after their phase:

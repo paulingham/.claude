@@ -78,6 +78,7 @@ The previous threshold (`task_class=="feature" AND Budget>=5`) was tightened to 
 
 **Procedure:**
 
+0. **Pre-flight resource check (Wave-2 B11.2)**: source `skills/best-of-n/lib/score.sh` and call `check_worktree_capacity` against the project repo. Default cap is **6 worktrees on workstations, 12 on CI** (`CI=true`); override via `CLAUDE_BESTOFN_MAX_WORKTREES`. If the cap is exceeded → log `fallback-to-single-engineer` to the pipeline state's `## Re-routes` section and dispatch the standard single-engineer Build instead. This protects against disk/inode pressure on hosts that already have parallel sessions or abandoned pipelines holding worktrees open. Falling back is silent — the pipeline never halts and never asks the user.
 1. **Load roster** from `skills/best-of-n/config.json`. Default: Opus 4.7 + Sonnet 4.6 (always included) + an optional external-frontier slot (GPT-5.3-Codex / Gemini 3.1 Pro) gated behind `required_env`. Respect `max_candidates` as an upper bound.
 2. **Validate candidates**: drop any whose `required_env` is unset and emit `[best-of-n] Skipping {slug}: {required_env} not set`. For external candidates, call `skills/best-of-n/external-runner.sh`; if it exits non-zero, drop the candidate. Must end with ≥ 2 candidates or the dispatch aborts with `BEST_OF_N_FAILED` and the pipeline falls back to the standard single-engineer Build dispatch.
 3. **Spawn one engineer teammate per candidate** into the pipeline team in a single message:
