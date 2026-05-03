@@ -41,9 +41,13 @@ WORKTREE_ROOT=$(git -C "$HOOK_DIR" rev-parse --show-toplevel 2>/dev/null || echo
 ALLOWED_DIR=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "$WORKTREE_ROOT/pipeline-state" 2>/dev/null || echo "$WORKTREE_ROOT/pipeline-state")
 REAL_FILE=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")
 BASENAME=$(basename -- "$REAL_FILE")
+PARENT_DIR=$(dirname -- "$REAL_FILE")
+PARENT_NAME=$(basename -- "$PARENT_DIR")
 
-if [[ "$REAL_FILE" == "$ALLOWED_DIR"/* ]] && [[ "$BASENAME" =~ ^[A-Za-z0-9_-]+-plan\.md$ ]]; then
-  exit 0
+# DUAL_PATH: allow legacy <id>-plan.md OR new-layout plan.md under pipeline-state/<id>/.
+if [[ "$REAL_FILE" == "$ALLOWED_DIR"/* ]]; then
+  [[ "$BASENAME" =~ ^[A-Za-z0-9_-]+-plan\.md$ ]] && exit 0
+  [[ "$BASENAME" == "plan.md" && "$PARENT_NAME" =~ ^[A-Za-z0-9_-]+$ && "$PARENT_DIR" != "$ALLOWED_DIR" ]] && exit 0
 fi
 
 LOG_DIR="${HOME:-/tmp}/.claude/metrics/$SESSION"

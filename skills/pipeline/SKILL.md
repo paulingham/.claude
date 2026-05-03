@@ -54,8 +54,10 @@ Check whether the working directory has no recognizable project file (`package.j
 
 **MANDATORY**: Create a structured pipeline state file at pipeline start. This is the single source of truth for pipeline state — it survives context compaction.
 
+The canonical write path is the per-task subdir layout: `pipeline-state/{task-id}/pipeline.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/pipeline.md`). The legacy flat form `pipeline-state/{task-id}-pipeline.md` is read-tolerated during the 90-day DUAL_PATH soak (see `rules/pipeline-protocol.md` § Structured Pipeline State) but MUST NOT be written by new pipelines.
+
 ```
-pipeline-state/[feature-name]-pipeline.md
+pipeline-state/[feature-name]/pipeline.md
 ---
 task_id: [feature-name]
 phase: build
@@ -85,11 +87,11 @@ Classification: [feature/refactor/bug]
 
 Update this file as each phase completes with verdict, artifacts, and agent summaries.
 
-**Mirror the `critical`, `task_class`, and `bestofn` flags from intake.** Read all three from `pipeline-state/{task-id}-intake.md` (set by intake Steps 2d and 2d-bis) and write them into the pipeline state frontmatter on creation. This ensures `/pipeline-resume` preserves the dispatch decision across context compaction so the Build phase still routes correctly.
+**Mirror the `critical`, `task_class`, and `bestofn` flags from intake.** Read all three from `pipeline-state/{task-id}/intake.md` (set by intake Steps 2d and 2d-bis) and write them into the pipeline state frontmatter on creation. This ensures `/pipeline-resume` preserves the dispatch decision across context compaction so the Build phase still routes correctly.
 
 **Do NOT dual-write to memory/.** The `pipeline-state/` file is the sole authority. Use `/pipeline-resume` to recover state across sessions.
 
-**Discussion context:** If a discussion file exists (`pipeline-state/{task-id}-discussion.md` from intake Step 2b), reference it in the pipeline state under `## Intake Discussion` and pass its decisions to the architect during the Plan phase.
+**Discussion context:** If a discussion file exists (`pipeline-state/{task-id}/discussion.md` from intake Step 2b), reference it in the pipeline state under `## Intake Discussion` and pass its decisions to the architect during the Plan phase.
 
 ### Workstream Support
 
@@ -140,7 +142,7 @@ Scaffolding is NOT a gate — it produces files and structure that the Build pha
 **Greenfield detection (check FIRST, before all other scaffolding):**
 If the working directory has no recognizable project file (`package.json`, `Gemfile`, `go.mod`, `pyproject.toml`, `Cargo.toml`, `pom.xml`) AND no `src/` or `app/` or `lib/` directory: this is a greenfield project. Invoke `/greenfield-scaffold` which handles ALL bootstrapping (framework, DevX, design system, infrastructure, seed data). After `/greenfield-scaffold` completes, re-run the scaffold detection table — existing skills will detect any remaining gaps.
 
-- Frontend feature detected (changed files include `.tsx/.jsx/.vue/.svelte`) AND no `pipeline-state/{task-id}-design-brief.md` exists AND no established distinctive branding (tokens.css has only default values or doesn't exist)? → `/creative-direction` FIRST
+- Frontend feature detected (changed files include `.tsx/.jsx/.vue/.svelte`) AND no `pipeline-state/{task-id}/design-brief.md` exists AND no established distinctive branding (tokens.css has only default values or doesn't exist)? → `/creative-direction` FIRST
 - No `Dockerfile`? → `/infra-scaffold`
 - No `styles/tokens.css` and no `theme.extend.colors` in Tailwind config? → `/design-system-init`
 - No logging config and task touches backend? → `/observability-setup`
@@ -185,7 +187,7 @@ After the architect produces a plan, validate it before proceeding to Build.
 
 #### Autonomous Mode
 
-1. Write architect's plan to `pipeline-state/{task-id}-plan-validation.md`
+1. Write architect's plan to `pipeline-state/{task-id}/plan-validation.md`
 2. Spawn challengers as team (parallel):
 
    ```
@@ -245,7 +247,7 @@ For each phase:
 
 #### Build Phase Dispatch — Best-of-N Check
 
-Read `bestofn` from the pipeline state frontmatter (mirrored from `pipeline-state/{task-id}-intake.md` at pipeline creation; computed by intake Step 2d-bis as `critical OR (task_class == "feature" AND budget >= 5)`).
+Read `bestofn` from the pipeline state frontmatter (mirrored from `pipeline-state/{task-id}/intake.md` at pipeline creation; computed by intake Step 2d-bis as `critical OR (task_class == "feature" AND budget >= 5)`).
 
 - If `bestofn == true`: dispatch via the **Best-of-N Build Team** variant (see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team). This is not a separate skill — it is a dispatch mode of the Build Team that runs N candidate models in parallel and selects the winner. The winner still proceeds through the normal Review → Final Gate → Ship gates.
 - If absent (older pipelines pre-flag): treated as `False` — use standard Build dispatch.
@@ -370,7 +372,7 @@ When a skill returns `WRONG_SKILL: {guidance}`, the orchestrator automatically r
 
 - **Maximum one re-route per pipeline** — a second `WRONG_SKILL` escalates to user.
 - The target skill is parsed from the guidance text (e.g., `WRONG_SKILL: use /module-extraction` → target is `/module-extraction`).
-- Routing is recorded in `pipeline-state/{task-id}-pipeline.md` under a `## Re-routes` section.
+- Routing is recorded in `pipeline-state/{task-id}/pipeline.md` under a `## Re-routes` section.
 
 ### Step 4b: Extraction Assessment (Automatic, Post-Accept)
 
@@ -430,7 +432,7 @@ When all phases are complete (including Deploy if applicable):
 1. Update pipeline-state file: mark all phases as `completed`, record PR URL and deploy URL
 2. Report PR URL (and deploy URL if deployed) to user
 3. Output final pipeline summary with all agent contributions
-4. Clean up pipeline-state file
+4. Clean up pipeline-state file (see Step 7d for the canonical Reflect cleanup snippet — dual-form during the DUAL_PATH soak)
 
 ### Step 7: Reflect
 
@@ -466,6 +468,49 @@ Invoke `/learn` to analyze session observations, pipeline analytics, and review 
 7. Reports new/updated instincts to the orchestrator
 
 The orchestrator reports learnings to the user (skip if nothing actionable). Every pipeline — whether it had rework or ran clean — feeds the learning flywheel.
+
+#### 7d. Reflect Cleanup (Dual-Form During DUAL_PATH Soak)
+
+After analytics, reflection, and learning are complete, remove the pipeline state files. Cleanup is dual-form during the 90-day DUAL_PATH soak (per `rules/pipeline-protocol.md` § Structured Pipeline State):
+
+1. **Form 1 — new-layout subdir cleanup** (single op): `rm -rf pipeline-state/{task-id}/` removes the per-task subdir and every phase artifact under it. Workstream variant: `rm -rf pipeline-state/workstreams/{ws}/{task-id}/`.
+2. **Form 2 — legacy phase enumeration**: iterate the canonical phase list via `_psp_phase_list` (sourced from `hooks/_lib/pipeline-state-paths.sh`) and remove each `pipeline-state/{task-id}-{phase}.md` file. **NEVER use a bare wildcard glob over the task prefix** — that matches prefix neighbours (e.g. cleanup of `tool` would delete `tool-timing-capture-*` files). R12 mitigation.
+3. Approval token + trajectory have well-known names; remove them by exact path: `pipeline-state/{task-id}-approval.token` and `pipeline-state/{task-id}-trajectory.jsonl`.
+
+Canonical cleanup snippet (mirrors what the orchestrator runs):
+
+```bash
+source ~/.claude/hooks/_lib/pipeline-state-paths.sh
+state_dir="$HOME/.claude/pipeline-state"
+task="{task-id}"
+ws=""  # set to the workstream name when applicable
+
+# Form 1: new-layout subdir.
+if [ -n "$ws" ]; then
+  rm -rf "$state_dir/workstreams/$ws/$task"
+else
+  rm -rf "$state_dir/$task"
+fi
+
+# Form 2: legacy phase enumeration via _psp_phase_list (NO bare globs).
+while IFS= read -r phase; do
+  if [ -n "$ws" ]; then
+    rm -f "$state_dir/workstreams/$ws/$task-$phase.md"
+  else
+    rm -f "$state_dir/$task-$phase.md"
+  fi
+done < <(_psp_phase_list)
+
+# Approval token + trajectory (well-known names, not phases).
+if [ -n "$ws" ]; then
+  rm -f "$state_dir/workstreams/$ws/$task-approval.token" \
+        "$state_dir/workstreams/$ws/$task-trajectory.jsonl"
+else
+  rm -f "$state_dir/$task-approval.token" "$state_dir/$task-trajectory.jsonl"
+fi
+```
+
+After the 90-day soak ends and a follow-up pipeline removes legacy-read code paths, Form 2 is dropped — only Form 1 remains.
 
 ## Status Reporting
 

@@ -85,23 +85,26 @@ Archives a completed workstream:
 
 ## Integration with Pipeline
 
-When a workstream is active, the pipeline skill stores state files in the workstream directory:
+When a workstream is active, the pipeline skill stores state files under a per-task subdirectory inside the workstream directory (DUAL_PATH soak — see `rules/pipeline-protocol.md` § Structured Pipeline State):
 
-- Pipeline state: `pipeline-state/workstreams/{name}/{task-id}-pipeline.md`
-- Build results: `pipeline-state/workstreams/{name}/{task-id}-build.md`
-- Debug state: `pipeline-state/workstreams/{name}/{task-id}-debug.md`
-- Discussion: `pipeline-state/workstreams/{name}/{task-id}-discussion.md`
-- Trajectory: `pipeline-state/workstreams/{name}/{task-id}-trajectory.jsonl`
+- Pipeline state: `pipeline-state/workstreams/{name}/{task-id}/pipeline.md`
+- Build results: `pipeline-state/workstreams/{name}/{task-id}/build.md`
+- Debug state: `pipeline-state/workstreams/{name}/{task-id}/debug.md`
+- Discussion: `pipeline-state/workstreams/{name}/{task-id}/discussion.md`
+- Trajectory: `pipeline-state/workstreams/{name}/{task-id}/trajectory.jsonl`
+
+Legacy flat form (`pipeline-state/workstreams/{name}/{task-id}-{phase}.md`) remains readable during the 90-day soak window but is never written by new code. Path resolution always goes through `hooks/_lib/pipeline_state_paths.py` (or `pipeline-state-paths.sh` from bash).
 
 Branch convention: `feat/{workstream}/{task}` (e.g., `feat/auth/login-page`)
 
 ## Integration with Pipeline Resume
 
-`/pipeline-resume` scans both:
-- `pipeline-state/*-pipeline.md` (ungrouped)
-- `pipeline-state/workstreams/*/` (workstream-grouped)
+`/pipeline-resume` uses the canonical four-glob discovery sequence (see `skills/pipeline-resume/SKILL.md` Step 1). Workstream-nested pipelines (`pipeline-state/workstreams/{name}/{task-id}/pipeline.md`) are returned alongside root-level pipelines (`pipeline-state/{task-id}/pipeline.md`). When the same `task_id` collides between root and workstream, **workstream wins**; ties within a layout class break by mtime.
 
-And displays them grouped for the user.
+Display groups results for the user:
+- Workstream-nested pipelines (grouped by workstream name)
+- Root-level (ungrouped) pipelines
+- Active debug sessions (both layouts)
 
 ## Phase Output
 

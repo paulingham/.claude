@@ -1,0 +1,9 @@
+1..1
+not ok 1 _psp_task_state_path emits new-layout path
+# (in test file tests/shell/test_pipeline_state_paths_sh.bats, line 13)
+#   `[ "$status" -eq 0 ]' failed
+
+The following warnings were encountered during tests:
+BW01: `run`'s command `bash -c source '/Users/Paul.Ingham/.claude/.claude/worktrees/agent-2296b43f/hooks/_lib/pipeline-state-paths.sh'; _psp_task_state_path tk-1 build` exited with code 127, indicating 'Command not found'. Use run's return code checks, e.g. `run -127`, to fix this message.
+      (from function `run' in file /opt/homebrew/Cellar/bats-core/1.13.0/lib/bats-core/test_functions.bash, line 420,
+       in test file tests/shell/test_pipeline_state_paths_sh.bats, line 12)

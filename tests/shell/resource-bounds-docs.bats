@@ -29,13 +29,22 @@ setup() {
     "$REPO_ROOT/README.md" | grep -q 'Resource Bounds'
 }
 
-@test "T4.6 Wave-1 hot files: rules/*.md show ZERO deletions vs main" {
-  cd "$REPO_ROOT"
-  local del_count
-  del_count=$(git diff main..HEAD --numstat -- 'rules/*.md' 2>/dev/null \
-    | awk '{ sum += $2 } END { print sum+0 }')
-  [ "$del_count" = "0" ]
-}
+# T4.6 retired (per-task-subdirs refactor, 2026-05).
+# The original invariant — "rules/*.md show ZERO deletions vs main" — was a
+# wave1-B-specific guard while resource-bounds-protocol prose was being
+# additively layered into rules/agent-protocol.md and
+# rules/parallel-dispatch-protocol.md. The wave1-B work has long since
+# merged. The per-task-subdirs refactor intentionally rewrites
+# pipeline-state path formats (e.g., `{task-id}-scratchpad/` →
+# `{task-id}/scratchpad/`) across rules/*.md, which is a legitimate
+# refactor, not a regression of the wave1-B additivity contract. Keeping
+# this assertion in place would block all future rules/*.md evolution.
+#
+# Replacement coverage: T4.1-T4.5, T4.7, T4.8 still pin the documented
+# anchors that wave1-B introduced (## Resource Bounds H2,
+# CLAUDE_SUBAGENT_DEPTH mention/assignment, Subagent depth context line).
+# Anchor-based assertions are how we should have scoped this from the
+# start.
 
 @test "T4.7 example body assignment present in BOTH orchestrator docs" {
   # AC4.4a / AC4.5a — literal CLAUDE_SUBAGENT_DEPTH= assignment (trailing =

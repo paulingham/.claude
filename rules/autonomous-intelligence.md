@@ -9,17 +9,19 @@ Cross-agent knowledge sharing within a single pipeline run. Agents discover thin
 ### Directory
 
 ```
-pipeline-state/{task-id}-scratchpad/
+pipeline-state/{task-id}/scratchpad/
   {role}-{phase}.md          # Agent findings
 ```
 
-Created by the orchestrator at pipeline start (alongside the pipeline state file). Cleaned up with pipeline state after completion.
+Workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/scratchpad/{role}-{phase}.md`.
+
+Created by the orchestrator at pipeline start (alongside the pipeline state file). Cleaned up with `rm -rf pipeline-state/{task-id}/` after completion. During the DUAL_PATH soak (see `rules/pipeline-protocol.md` § Structured Pipeline State), the legacy form `pipeline-state/{task-id}-scratchpad/` is still tolerated by readers; new pipelines write to the new layout only.
 
 ### Agent Writes
 
 Every write-capable agent appends findings before completion. Include this in every agent's spawn prompt:
 
-> "Before completing, write any discoveries to the pipeline scratchpad at `pipeline-state/{task-id}-scratchpad/{your-role}-{phase}.md`. Format below. Only write genuinely useful findings — not task narration."
+> "Before completing, write any discoveries to the pipeline scratchpad at `pipeline-state/{task-id}/scratchpad/{your-role}-{phase}.md`. Format below. Only write genuinely useful findings — not task narration."
 
 Finding format:
 
@@ -334,7 +336,7 @@ errors are logged to stderr and the hook exits 0.
 ### Pipeline Pre-flight (additions to existing protocol)
 
 After existing pre-flight steps:
-1. Create scratchpad directory: `mkdir -p pipeline-state/{task-id}-scratchpad/`
+1. Create scratchpad directory: `mkdir -p pipeline-state/{task-id}/scratchpad/`
 2. Read session memory: `cat session-memory/{project-hash}/notes.md`
 3. Check auto-learn gate: count observations since last `/learn`
 

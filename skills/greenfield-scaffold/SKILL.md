@@ -36,7 +36,7 @@ Product Discovery:
 
 If the user's original request already includes this detail, extract directly — don't re-ask.
 
-Persist to `pipeline-state/{task-id}-product-brief.md`:
+Persist to `pipeline-state/{task-id}/product-brief.md`:
 ```markdown
 ---
 task_id: {task-id}
@@ -97,7 +97,7 @@ Agent({
 })
 ```
 
-Persist to `pipeline-state/{task-id}-tech-stack.md`.
+Persist to `pipeline-state/{task-id}/tech-stack.md`.
 
 **Present to user for approval** (same pattern as pipeline plan validation interactive mode). If the user specifies a different stack, the architect adapts.
 
@@ -127,7 +127,7 @@ Agent({
 })
 ```
 
-Persist to `pipeline-state/{task-id}-ui-architecture.md`.
+Persist to `pipeline-state/{task-id}/ui-architecture.md`.
 
 ### Step 4: Framework Bootstrap (Infrastructure Engineer)
 
@@ -284,8 +284,8 @@ Agent({
   isolation: "worktree",
   mode: "bypassPermissions",
   prompt: "Create placeholder pages for the application.
-    UI Architecture: {from pipeline-state/{task-id}-ui-architecture.md}
-    Design Brief: {from pipeline-state/{task-id}-design-brief.md}
+    UI Architecture: {from pipeline-state/{task-id}/ui-architecture.md}
+    Design Brief: {from pipeline-state/{task-id}/design-brief.md}
     Design system primitives are in components/ui/.
 
     For each screen in the screen inventory:
@@ -313,7 +313,7 @@ Invoke `/project-setup` (existing skill):
 
 ### Step 10: State Tracking
 
-Update `pipeline-state/{task-id}-greenfield.md`:
+Update `pipeline-state/{task-id}/greenfield.md`:
 ```markdown
 ---
 task_id: {task-id}

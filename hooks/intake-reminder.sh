@@ -48,13 +48,16 @@ for keyword in "start wave" "wave 2" "wave 3" "wave 4" "wave 5" "wave 6" "batch"
 done
 
 if [[ "$HAS_BATCH_KEYWORD" == true ]]; then
-    # Check for active pipeline state
+    # DUAL_PATH: helper covers both legacy *-pipeline.md AND new {task-id}/pipeline.md
+    # AND excludes reserved root dirs (workstreams/, health-reports/) per
+    # pipeline_state_paths_helpers.EXCLUDED_ROOT_DIRS.
+    source ~/.claude/hooks/_lib/pipeline-state-paths.sh
     PIPELINE_DIR="$HOME/.claude/pipeline-state"
     ACTIVE_FILES=""
     if [[ -d "$PIPELINE_DIR" ]]; then
-        ACTIVE_FILES=$(find "$PIPELINE_DIR" -name "*-pipeline.md" -type f 2>/dev/null | head -1)
+        ACTIVE_FILES=$(_psp_find_active_pipelines "$PIPELINE_DIR" 2>/dev/null | head -1)
     fi
-    
+
     if [[ -z "$ACTIVE_FILES" ]]; then
         echo "BLOCKED: Batch/wave work detected but no pipeline state exists. Invoke /intake or /pipeline first to set up pipeline infrastructure (state files, scratchpad, session memory, observation tracking)." >&2
         exit 2

@@ -38,9 +38,9 @@ It **preserves**: State tracking, scratchpad, session memory, observations, revi
 
 Before spawning any agents:
 
-1. **Create pipeline state file**:
+1. **Create pipeline state file** (canonical per-task subdir layout — `pipeline-state/{batch-id}/pipeline.md`):
    ```
-   Write pipeline-state/{batch-id}-pipeline.md with:
+   Write pipeline-state/{batch-id}/pipeline.md with:
    ---
    task_id: {batch-id}
    phase: build
@@ -60,7 +60,7 @@ Before spawning any agents:
 
 2. **Create scratchpad directory**:
    ```bash
-   mkdir -p pipeline-state/{batch-id}-scratchpad/
+   mkdir -p pipeline-state/{batch-id}/scratchpad/
    ```
 
 3. **Initialise session memory** (if not exists):
@@ -150,9 +150,9 @@ After all tasks shipped:
 
 3. **Update session memory** — spawn background agent to capture engineering knowledge.
 
-4. **Clean up**:
-   - Delete `pipeline-state/{batch-id}-pipeline.md`
-   - Delete `pipeline-state/{batch-id}-scratchpad/`
+4. **Clean up** (dual-form during 90-day DUAL_PATH soak):
+   - `rm -rf pipeline-state/{batch-id}/` (new layout — single op)
+   - Remove any legacy phase files via `_psp_phase_list` (see `skills/pipeline/SKILL.md` Step 7d for the canonical cleanup snippet — never bare globs)
    - Remove worktree branches
 
 ## Orchestrator Boundaries (same as full pipeline)

@@ -116,16 +116,27 @@ fi
 # ---------------------------------------------------------------------------
 # Pipeline state detection (output to context — critical for resume)
 # ---------------------------------------------------------------------------
+# DUAL_PATH: extract task_id from a pipeline file path under either layout.
+_ssb_task_id_of() {
+    local pf="$1" b; b=$(basename "$pf")
+    if [[ "$b" == "pipeline.md" ]]; then
+        basename "$(dirname "$pf")"
+    else
+        echo "$b" | sed 's/-pipeline\.md$//'
+    fi
+}
+
 PIPELINE_DIR="$HOME/.claude/pipeline-state"
 if [[ -d "$PIPELINE_DIR" ]]; then
-    ACTIVE_PIPELINES=$(find "$PIPELINE_DIR" -maxdepth 1 -name "*-pipeline.md" 2>/dev/null)
+    LEGACY=$(find "$PIPELINE_DIR" -maxdepth 1 -name "*-pipeline.md" 2>/dev/null || true)
+    NEW=$(find "$PIPELINE_DIR" -mindepth 2 -maxdepth 2 -name "pipeline.md" 2>/dev/null || true)
+    ACTIVE_PIPELINES=$(printf '%s\n%s' "$LEGACY" "$NEW" | grep -v '^$' || true)
     if [[ -n "$ACTIVE_PIPELINES" ]]; then
         echo ""
         echo "ACTIVE PIPELINES (invoke /pipeline-resume):"
         while IFS= read -r pfile; do
             [[ -z "$pfile" ]] && continue
-            PNAME=$(basename "$pfile" | sed 's/-pipeline\.md$//')
-            # Extract current phase from the file
+            PNAME=$(_ssb_task_id_of "$pfile")
             CURRENT_PHASE=$(grep -E "in_progress" "$pfile" 2>/dev/null | head -1 | sed 's/^- //' | sed 's/:.*//' | xargs)
             if [[ -n "$CURRENT_PHASE" ]]; then
                 echo "  - $PNAME: phase=$CURRENT_PHASE"
@@ -135,12 +146,11 @@ if [[ -d "$PIPELINE_DIR" ]]; then
         done <<< "$ACTIVE_PIPELINES"
     fi
 
-    # Check for merged PRs with pending deploy
-    SHIP_COMPLETE=$(grep -rl "Ship:.*completed\|Ship:.*PR_CREATED" "$PIPELINE_DIR"/*-pipeline.md 2>/dev/null | head -1)
+    SHIP_COMPLETE=$(grep -rl "Ship:.*completed\|Ship:.*PR_CREATED" "$PIPELINE_DIR" 2>/dev/null | grep -E '(-pipeline\.md|/pipeline\.md)$' | head -1)
     if [[ -n "$SHIP_COMPLETE" ]]; then
         DEPLOY_PENDING=$(grep -l "Deploy:.*pending" "$SHIP_COMPLETE" 2>/dev/null)
         if [[ -n "$DEPLOY_PENDING" ]]; then
-            PNAME=$(basename "$SHIP_COMPLETE" | sed 's/-pipeline\.md$//')
+            PNAME=$(_ssb_task_id_of "$SHIP_COMPLETE")
             echo ""
             echo "DEPLOY PENDING: $PNAME (Ship complete, Deploy not started — check if PR merged, then invoke /deploy)"
         fi

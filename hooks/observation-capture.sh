@@ -67,15 +67,16 @@ if [[ ! -f "$START_TIME_FILE" ]]; then
     date +%s | _state_write "session-start-${PPID}"
 fi
 
-# Pipeline phase: from env var, or detect from active pipeline state file
+# Pipeline phase: from env var, or detect from active pipeline state file (DUAL_PATH).
 PHASE="${CLAUDE_PIPELINE_PHASE:-}"
 if [[ -z "$PHASE" ]]; then
     PIPELINE_DIR="$HOME/.claude/pipeline-state"
     if [[ -d "$PIPELINE_DIR" ]]; then
-        # Find the active pipeline and extract current phase
-        ACTIVE_FILE=$(grep -rl "in_progress" "$PIPELINE_DIR"/*-pipeline.md 2>/dev/null | head -1)
+        # shellcheck source=_lib/pipeline-state-paths.sh
+        source "$(dirname "${BASH_SOURCE[0]}")/_lib/pipeline-state-paths.sh"
+        ACTIVE_FILE=$(_psp_find_active_pipelines "$PIPELINE_DIR" \
+            | xargs grep -l "in_progress" 2>/dev/null | head -1)
         if [[ -n "$ACTIVE_FILE" ]]; then
-            # Extract the phase that's in_progress from the Phases section
             PHASE=$(grep -E "in_progress" "$ACTIVE_FILE" 2>/dev/null | head -1 | sed 's/^- //' | sed 's/:.*//' | tr -d ' ' | tr '[:upper:]' '[:lower:]')
         fi
     fi

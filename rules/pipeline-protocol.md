@@ -24,10 +24,39 @@ Best-of-N Build dispatch fires when `/intake` tags the task with `bestofn: true`
 
 Phase results are persisted as files in `~/.claude/pipeline-state/` to survive context compaction and enable inter-phase communication.
 
-### File Convention
-- **Naming**: `{task-id}-{phase}.md` e.g. `auth-feature-build.md`, `PROJ-123-review.md`
-- **Lifecycle**: created by phase agent/skill, read by next phase, deleted after pipeline completes
+### File Convention (Canonical — per-task subdirectory)
+
+The canonical layout is **per-task subdirectory**: every artifact for a given pipeline lives under `pipeline-state/{task-id}/`.
+
+- **Naming**: `pipeline-state/{task-id}/{phase}.md` (e.g. `pipeline-state/auth-feature/build.md`, `pipeline-state/PROJ-123/review.md`)
+- **Workstream variant**: `pipeline-state/workstreams/{ws}/{task-id}/{phase}.md` (workstream-scoped pipelines nest under `workstreams/{ws}/`)
+- **Scratchpad**: `pipeline-state/{task-id}/scratchpad/{role}-{phase}.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/scratchpad/{role}-{phase}.md`)
+- **Approval token**: `pipeline-state/{task-id}/approval.token`
+- **Trajectory**: `pipeline-state/{task-id}/trajectory.jsonl`
+- **Health reports** (project-wide, NOT task-keyed): `pipeline-state/health-reports/{date}.md`
+- **Lifecycle**: created by phase agent/skill, read by next phase, removed by `rm -rf pipeline-state/{task-id}/` after pipeline completes
 - **Why files, not memory**: files survive context compaction intact; orchestrator memory does not
+- **Why subdirectory**: cleanup is one operation (`rm -rf {task-id}/`); prefix-collision bugs are gone (`tool` cleanup cannot match `tool-timing-capture-*`); concurrent pipelines are filesystem-isolated
+
+### DUAL_PATH soak (90-day window)
+
+The harness is migrating from a flat layout (`pipeline-state/{task-id}-{phase}.md`) to the canonical subdirectory layout above. **DUAL_PATH** is the migration strategy: readers tolerate both layouts, writers go to NEW layout only. The soak runs for **90 days** from the migration PR's merge timestamp (aligned with `CLAUDE_LEARNING_RETENTION_DAYS` precedent), after which a follow-up pipeline removes the legacy-read code paths.
+
+During the soak:
+
+- **Writers always emit the new layout**. No skill or hook writes to the legacy form.
+- **Readers tolerate both layouts**. Discovery globs cover both forms; helper functions in `hooks/_lib/pipeline_state_paths.py` (Python) and `hooks/_lib/pipeline-state-paths.sh` (bash) are the single point of truth for path resolution.
+- **Discovery globs (canonical)**:
+  ```
+  pipeline-state/<task>/pipeline.md                            # new, root
+  pipeline-state/workstreams/<ws>/<task>/pipeline.md           # new, workstream
+  pipeline-state/<task>-pipeline.md                             # legacy, root
+  pipeline-state/workstreams/<ws>/<task>-pipeline.md            # legacy, workstream
+  pipeline-state/health-reports/                                # EXCLUDED from active-pipeline scans
+  ```
+- **Read-precedence (locked by tests)**: workstream layout beats root layout when `task_id` collides. Within a single layout-class, fresher mtime wins. Ties favour the new layout. The approval-token reader returns whichever path exists; if both exist, fresher mtime wins.
+- **Reflect cleanup is dual-form**: `rm -rf pipeline-state/{task-id}/` for the new layout AND iterate the canonical phase list (`_psp_phase_list`) to remove any legacy `pipeline-state/{task-id}-{phase}.md` files. Bare globs are forbidden (they would catch prefix neighbours).
+- **Soak end**: a cleanup pipeline removes legacy-read code paths from helpers, hooks, and skills, gated on `find pipeline-state -maxdepth 1 -name "*-pipeline.md" -type f` returning zero.
 
 ### Format
 ```markdown
@@ -55,13 +84,14 @@ timestamp: {ISO 8601}
 ```
 
 ### Orchestrator Responsibilities
-- Check `pipeline-state/` for in-progress work before starting any new pipeline
+- Check `pipeline-state/` for in-progress work before starting any new pipeline (use `_psp_find_active_pipelines` or `find_pipeline_files` — they cover both layouts)
 - If in-progress state found: invoke `/pipeline-resume` to continue from the correct phase
 - `pipeline-state/` is the single source of truth — do NOT dual-write to `memory/`
 - Pass the previous phase's state file path to the next phase agent
 - Delete all state files for a task after pipeline completion or abandonment
-- Also delete `pipeline-state/{task-id}-approval.token` at Reflect step 6d alongside `{task-id}-*.md` state files. Stale APPROVED tokens from crashed pipelines would silently pre-authorize future pipelines that reuse the same task-id.
+- At Reflect step 6d, remove `pipeline-state/{task-id}/` (new layout, recursive) AND iterate `_psp_phase_list` to remove legacy `pipeline-state/{task-id}-{phase}.md` + `pipeline-state/{task-id}-approval.token` files. Stale APPROVED tokens from crashed pipelines would silently pre-authorize future pipelines that reuse the same task-id.
 - Never leave stale state files — they confuse future pipeline runs
+- Never use bare globs (`pipeline-state/{task-id}*`) for cleanup — prefix neighbours collide. Always enumerate phases via `_psp_phase_list`.
 
 ## Pre-flight Protocol (MANDATORY before any work begins)
 
@@ -72,7 +102,7 @@ timestamp: {ISO 8601}
 4. **Enumerate all pipeline phases** and the skill for each
 5. **Determine dispatch mode**: single-slice (subagents) or multi-slice/multi-domain (team)
 6. **Create pipeline team**: `TeamCreate("pipeline-{task-id}")` -- always, even for single-slice (the team hosts review + final gate teammates)
-6b. **Create pipeline scratchpad**: `mkdir -p pipeline-state/{task-id}-scratchpad/` (see `rules/autonomous-intelligence.md`)
+6b. **Create pipeline scratchpad**: `mkdir -p pipeline-state/{task-id}/scratchpad/` (see `rules/autonomous-intelligence.md`)
 6c. **Load session memory**: Read `session-memory/{project-hash}/notes.md` if it exists. Create from template if first pipeline in this project
 7. **Write the phase plan** as a visible message to the user
 8. **Execute phases in order**, spawning teammates for team phases, subagents for subagent phases. Inject session memory + scratchpad findings into every agent prompt (see `rules/autonomous-intelligence.md` § Agent Spawn)

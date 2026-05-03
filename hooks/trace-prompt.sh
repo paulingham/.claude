@@ -50,17 +50,21 @@ fi
 
 session_id="${CLAUDE_SESSION_ID:-local-$$}"
 
-# Resolve task_id + phase from the first pipeline-state file (best-effort).
+# Resolve task_id + phase from the first pipeline-state file (best-effort, DUAL_PATH).
 task_id="unknown"
 phase="unknown"
 pipeline_glob="${HOME}/.claude/pipeline-state"
 shopt -s nullglob
-pipeline_files=("$pipeline_glob"/*-pipeline.md)
+pipeline_files=("$pipeline_glob"/*-pipeline.md "$pipeline_glob"/*/pipeline.md)
 shopt -u nullglob
 if (( ${#pipeline_files[@]} > 0 )); then
     first_pipeline="${pipeline_files[0]}"
     base=$(basename "$first_pipeline")
-    task_id="${base%-pipeline.md}"
+    if [[ "$base" == "pipeline.md" ]]; then
+        task_id=$(basename "$(dirname "$first_pipeline")")
+    else
+        task_id="${base%-pipeline.md}"
+    fi
     parsed_phase=$(grep -m1 '^phase:' "$first_pipeline" 2>/dev/null | awk '{print $2}')
     phase="${parsed_phase:-unknown}"
 fi
