@@ -1,6 +1,6 @@
 # Parallel Dispatch Details (Orchestrator-Only)
 
-Extracted from `rules/parallel-dispatch-protocol.md`. Agents do not need this content.
+Extracted from `rules/_detail/parallel-dispatch-protocol.md`. Agents do not need this content.
 
 ## Team Creation
 
@@ -21,7 +21,7 @@ Every teammate spawn propagates `CLAUDE_SUBAGENT_DEPTH` through the spawn
 shell so `hooks/depth-guard.sh` can refuse runaway recursion. Set
 `CLAUDE_SUBAGENT_DEPTH = parent_depth + 1` in the shell that invokes the
 Agent tool — the teammate inherits it via process env. See
-`rules/agent-protocol.md > Resource Bounds` for caps and override semantics.
+`rules/_detail/agent-protocol.md > Resource Bounds` for caps and override semantics.
 
 Example (orchestrator-side teammate spawn shell):
 
@@ -41,7 +41,7 @@ records the teammate's start time at this same call and emits a precise
 `SendMessage({type:"shutdown_request", name:"<display>"})` directive on
 stderr if the teammate later exceeds `CLAUDE_TEAMMATE_MAX_RUNTIME` (3600s
 default). Subagent-class spawns (`team_name` empty) get a next-tool-call-blocked
-directive — see `rules/parallel-dispatch-protocol.md > Resource Bounds`
+directive — see `rules/_detail/parallel-dispatch-protocol.md > Resource Bounds`
 for the Path-B disclosure.
 
 ## Plan Validation Phase Dispatch (Autonomous Mode)
@@ -503,7 +503,7 @@ esac
 
 **Logging:** every call appends one JSONL record to `metrics/${CLAUDE_SESSION_ID}/await-events.jsonl` with `record_type: await_match | await_timeout`.
 
-**Checkpoint vocabulary:** See `rules/parallel-dispatch-protocol.md § Checkpoint Vocabulary` for standard marker strings.
+**Checkpoint vocabulary:** See `rules/_detail/parallel-dispatch-protocol.md § Checkpoint Vocabulary` for standard marker strings.
 
 ### Deprecation: Sleep-Poll Loops
 

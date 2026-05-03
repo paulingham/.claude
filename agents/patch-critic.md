@@ -101,7 +101,7 @@ If you find yourself writing "this could be cleaner" or "consider extracting" �
 - **PATCH_APPROVED**: all four rubric dimensions PASS, all tests green.
 - **PATCH_REJECTED**: any rubric dimension FAILED, or any test failed, or any input missing.
 
-PATCH_REJECTED returns to fix-engineer (per `rules/pipeline-protocol.md` § In-Cycle Fix Rule). It does NOT escalate to the user.
+PATCH_REJECTED returns to fix-engineer (per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule). It does NOT escalate to the user.
 
 ## Output Format
 

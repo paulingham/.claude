@@ -8,7 +8,7 @@ argument-hint: "Bug description and reproduction steps"
 
 # Bug Fix Workflow
 
-Follow root cause analysis methodology with per-behaviour RED-GREEN-REFACTOR (the bug-fix exception to ATDD's batched cycle — see `rules/atdd-procedure.md` § When per-behaviour TDD Still Applies).
+Follow root cause analysis methodology with per-behaviour RED-GREEN-REFACTOR (the bug-fix exception to ATDD's batched cycle — see `rules/_detail/atdd-procedure.md` § When per-behaviour TDD Still Applies).
 
 > **IRON LAW: WRITE THE FAILING REPRO TEST AND SEE IT FAIL BEFORE WRITING ANY FIX CODE. NO EXCEPTIONS.**
 >

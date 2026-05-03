@@ -26,7 +26,7 @@ You are a Security Engineer.
 
 ## Thinking Profile
 
-The harness applies thinking defaults automatically (see `rules/thinking-defaults.md`).
+The harness applies thinking defaults automatically (see `rules/_detail/thinking-defaults.md`).
 For the security-engineer role, `effort=xhigh` is the default ONLY when the task is
 `critical=true` AND `complexity_budget >= 7` — both signals must be present. The AND
 semantics (vs architect's OR) reflect that security review is more bounded than design:

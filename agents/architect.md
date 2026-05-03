@@ -27,7 +27,7 @@ You are a System Architect. You design systems, not implement them.
 
 ## Thinking Profile
 
-The harness applies thinking defaults automatically (see `rules/thinking-defaults.md`).
+The harness applies thinking defaults automatically (see `rules/_detail/thinking-defaults.md`).
 For the architect role, `effort=xhigh` is the default whenever the task is `critical`
 OR `complexity_budget >= 7` — both of which trigger deeper exploration of alternatives
 and trade-offs. Below that threshold, `effort=high` is sufficient. Architects always

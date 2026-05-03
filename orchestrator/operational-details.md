@@ -1,6 +1,6 @@
 # Operational Details (Orchestrator-Only)
 
-Extracted from `rules/operational-protocol.md`. Agents do not need this content.
+Extracted from `rules/_detail/operational-protocol.md`. Agents do not need this content.
 
 ## Escalation Protocol
 

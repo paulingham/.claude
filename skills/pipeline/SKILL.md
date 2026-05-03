@@ -54,7 +54,7 @@ Check whether the working directory has no recognizable project file (`package.j
 
 **MANDATORY**: Create a structured pipeline state file at pipeline start. This is the single source of truth for pipeline state — it survives context compaction.
 
-The canonical write path is the per-task subdir layout: `pipeline-state/{task-id}/pipeline.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/pipeline.md`). The legacy flat form `pipeline-state/{task-id}-pipeline.md` is read-tolerated during the 90-day DUAL_PATH soak (see `rules/pipeline-protocol.md` § Structured Pipeline State) but MUST NOT be written by new pipelines.
+The canonical write path is the per-task subdir layout: `pipeline-state/{task-id}/pipeline.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/pipeline.md`). The legacy flat form `pipeline-state/{task-id}-pipeline.md` is read-tolerated during the 90-day DUAL_PATH soak (see `rules/_detail/pipeline-protocol.md` § Structured Pipeline State) but MUST NOT be written by new pipelines.
 
 ```
 pipeline-state/[feature-name]/pipeline.md
@@ -106,7 +106,7 @@ If no workstream is active, use the default `pipeline-state/` directory (existin
 
 If intake flagged `multi_repo: true`, or if a manifest exists in `~/.claude/manifests/`:
 
-1. **Read or create manifest**: See `rules/multi-repo-protocol.md` for format and auto-creation triggers
+1. **Read or create manifest**: See `rules/_detail/multi-repo-protocol.md` for format and auto-creation triggers
 2. **Resolve repo paths**: Verify all manifest repos exist locally. If a planned repo doesn't exist yet, it will be created during scaffold (Step 2b)
 3. **Add `manifest:` to pipeline state frontmatter** with the manifest path
 4. **Add `## Repos` section** to pipeline state tracking per-repo phases
@@ -240,7 +240,7 @@ For each phase:
 1. Update the memory file to mark the phase as `in_progress`
 2. **Sequential read-only phases** (Test analysis, Accept): Invoke the skill via the Skill tool
 2b. **Sequential write-capable phases** (Build, Verify Tier 3, QA gap-fill, scaffold): Spawn agent via Agent tool with `isolation: "worktree"`, instructing them to read and execute the skill file at `~/.claude/skills/[name]/SKILL.md`
-3. **Parallel phases**: Use Parallel Dispatch Protocol (see `rules/parallel-dispatch-protocol.md`) — spawn agents in a single message, each reading their own skill file
+3. **Parallel phases**: Use Parallel Dispatch Protocol (see `rules/_detail/parallel-dispatch-protocol.md`) — spawn agents in a single message, each reading their own skill file
 4. Read the Phase Output (Verdict, Next, Artifacts)
 5. If verdict is a failure/rejection: handle per Step 4 (Recovery)
 6. If verdict is success: update memory file with verdict and artifacts, advance to next
@@ -249,7 +249,7 @@ For each phase:
 
 Read `bestofn` from the pipeline state frontmatter (mirrored from `pipeline-state/{task-id}/intake.md` at pipeline creation; computed by intake Step 2d-bis as `critical OR (task_class == "feature" AND budget >= 5)`).
 
-- If `bestofn == true`: dispatch via the **Best-of-N Build Team** variant (see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team). This is not a separate skill — it is a dispatch mode of the Build Team that runs N candidate models in parallel and selects the winner. The winner still proceeds through the normal Review → Final Gate → Ship gates.
+- If `bestofn == true`: dispatch via the **Best-of-N Build Team** variant (see `rules/_detail/parallel-dispatch-protocol.md` § Best-of-N Build Team). This is not a separate skill — it is a dispatch mode of the Build Team that runs N candidate models in parallel and selects the winner. The winner still proceeds through the normal Review → Final Gate → Ship gates.
 - If absent (older pipelines pre-flag): treated as `False` — use standard Build dispatch.
 - Otherwise: use the standard Build dispatch (single-engineer subagent with worktree, or standard Build Team for multi-slice / multi-domain work).
 
@@ -448,7 +448,7 @@ This aggregates phase verdicts, agent counts, and review rounds into `metrics/pi
 
 #### 7b. Qualitative Reflection
 
-Run the reflection checklist from `rules/reflection-protocol.md`.
+Run the reflection checklist from `rules/_detail/reflection-protocol.md`.
 
 If the pipeline experienced failures, >2 review rounds, or any recovery loop: invoke `/forensics` before reflection. The forensics report provides evidence-based findings for the reflection checklist.
 
@@ -471,7 +471,7 @@ The orchestrator reports learnings to the user (skip if nothing actionable). Eve
 
 #### 7d. Reflect Cleanup (Dual-Form During DUAL_PATH Soak)
 
-After analytics, reflection, and learning are complete, remove the pipeline state files. Cleanup is dual-form during the 90-day DUAL_PATH soak (per `rules/pipeline-protocol.md` § Structured Pipeline State):
+After analytics, reflection, and learning are complete, remove the pipeline state files. Cleanup is dual-form during the 90-day DUAL_PATH soak (per `rules/_detail/pipeline-protocol.md` § Structured Pipeline State):
 
 1. **Form 1 — new-layout subdir cleanup** (single op): `rm -rf pipeline-state/{task-id}/` removes the per-task subdir and every phase artifact under it. Workstream variant: `rm -rf pipeline-state/workstreams/{ws}/{task-id}/`.
 2. **Form 2 — legacy phase enumeration**: iterate the canonical phase list via `_psp_phase_list` (sourced from `hooks/_lib/pipeline-state-paths.sh`) and remove each `pipeline-state/{task-id}-{phase}.md` file. **NEVER use a bare wildcard glob over the task prefix** — that matches prefix neighbours (e.g. cleanup of `tool` would delete `tool-timing-capture-*` files). R12 mitigation.
