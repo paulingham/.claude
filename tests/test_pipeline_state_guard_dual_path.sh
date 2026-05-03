@@ -43,6 +43,17 @@ printf -- '---\ntask_id: t1\nverdict: in_progress\n---\n' > "$TMP/.claude/pipeli
 rc=$(run_guard "software-engineer")
 assert_exit 0 "$rc" "guard_passes_when_legacy_layout_pipeline_exists"
 
+# Reserved root dir exclusion: health-reports/ must NOT count as an active pipeline,
+# even if it contains a stray pipeline.md. Mirrors EXCLUDED_ROOT_DIRS in
+# pipeline_state_paths_helpers.py — protects against false positives when a
+# health scan or other reserved tool drops a pipeline.md sentinel.
+echo "Test guard_blocks_when_only_health_reports_pipeline_exists"
+rm -rf "$TMP/.claude/pipeline-state"
+mkdir -p "$TMP/.claude/pipeline-state/health-reports"
+printf -- '---\ntask_id: hr1\nverdict: in_progress\n---\n' > "$TMP/.claude/pipeline-state/health-reports/pipeline.md"
+rc=$(run_guard "software-engineer")
+assert_exit 2 "$rc" "guard_blocks_when_only_health_reports_pipeline_exists"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]] || exit 1

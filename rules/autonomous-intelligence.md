@@ -336,7 +336,7 @@ errors are logged to stderr and the hook exits 0.
 ### Pipeline Pre-flight (additions to existing protocol)
 
 After existing pre-flight steps:
-1. Create scratchpad directory: `mkdir -p pipeline-state/{task-id}-scratchpad/`
+1. Create scratchpad directory: `mkdir -p pipeline-state/{task-id}/scratchpad/`
 2. Read session memory: `cat session-memory/{project-hash}/notes.md`
 3. Check auto-learn gate: count observations since last `/learn`
 

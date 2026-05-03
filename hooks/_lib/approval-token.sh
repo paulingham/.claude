@@ -43,7 +43,10 @@ _at_valid_verdict() {
 
 _at_write_token() {
   # Validate task_id to prevent path traversal. Writes go to NEW layout only.
-  [[ "$1" =~ ^[A-Za-z0-9_.-]+$ ]] || return 1
+  # First char MUST be alnum/underscore/hyphen — rejects '.' and '..' which
+  # would resolve $HOME/.claude/pipeline-state/{task}/approval.token to a
+  # parent directory landing pad.
+  [[ "$1" =~ ^[A-Za-z0-9_-][A-Za-z0-9_.-]*$ ]] || return 1
   _at_valid_verdict "$2" || return 1
   local target; target=$(_at_new_token_path "$1")
   mkdir -p "$(dirname "$target")"

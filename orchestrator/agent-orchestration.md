@@ -279,7 +279,7 @@ Also include the scratchpad write instruction in every write-capable agent's pro
 | Instincts (learning/instincts/) | No -- injected by orchestrator into spawn prompt |
 | Agent memory (agent-memory/{role}/) | No -- injected by orchestrator into spawn prompt |
 | Session memory (session-memory/{hash}/) | No -- injected by orchestrator into spawn prompt |
-| Pipeline scratchpad (pipeline-state/{id}-scratchpad/) | No -- injected by orchestrator into spawn prompt |
+| Pipeline scratchpad (pipeline-state/{id}/scratchpad/) | No -- injected by orchestrator into spawn prompt |
 
 ### Interacting with Teammates
 
