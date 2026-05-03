@@ -134,7 +134,7 @@ User → /intake (classify + score) → /pipeline (drive phases)
 ### Delivery Pipeline
 
 1. **Plan** → Architect designs slices (subagent). Gate: alternatives documented.
-2. **Plan Validation** → Interactive: user approves. Autonomous: product-reviewer + software-engineer challenge (**team**). Gate: PLAN_APPROVED.
+2. **Plan Validation** → Interactive: user approves. Autonomous: heavy challenger **team** (product-reviewer + software-engineer) when `critical OR Budget >= 7`; otherwise lightweight `/plan-self-validation` (architect re-reads its own plan against a structured rubric). Gate: PLAN_APPROVED.
 3. **Build** → `/build-implementation` (subagent for single-slice, **team for multi-slice**). Gate: tests green, shape met.
 4. **Review** → `/code-review` + `/security-review` (**team** -- tmux visible, persistent context). Gate: both APPROVE.
    - Review is 1-2 rounds max. Re-review uses same reviewer (context preserved). Async when possible.
@@ -161,7 +161,7 @@ Three systems make the pipeline self-improving (see `rules/autonomous-intelligen
 
 Every agent spawn includes: instincts + agent memory + session memory + scratchpad findings.
 
-Set `CLAUDE_ENABLE_TRACE=1` to capture per-spawn prompt traces to `metrics/{session}/trace/` for debugging agent failures (default off, 7-day retention, see `rules/autonomous-intelligence.md` § Prompt Tracing).
+Tracing is off by default (`CLAUDE_ENABLE_TRACE=0` in `settings.json`). Enable per-session with `/debug-trace on` to capture rendered spawn prompts to `metrics/{session}/trace/`; turn it off again with `/debug-trace off`. See `rules/autonomous-intelligence.md` § Prompt Tracing.
 
 ### Skill Directory
 
@@ -172,7 +172,7 @@ Set `CLAUDE_ENABLE_TRACE=1` to capture per-spawn prompt traces to `metrics/{sess
 | `/epic-breakdown` | Decomposing epics into stories | STORIES_READY |
 | `/estimation` | Sizing stories with Complexity Budget | ESTIMATED |
 | `/story-writing` | Writing individual user stories | STORY_READY |
-| `/build-implementation` | Build phase: incremental TDD + shape checks (default). When intake sets `bestofn: true` (critical, OR feature with Budget >= 5), the pipeline dispatches Build as a Best-of-N Team variant — see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team | BUILD_COMPLETE |
+| `/build-implementation` | Build phase: incremental TDD + shape checks (default). When intake sets `bestofn: true` (critical, OR `[best-of-n]` user override), the pipeline dispatches Build as a Best-of-N Team variant — see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team | BUILD_COMPLETE |
 | `/refactor` | Build phase: safe refactoring workflow | REFACTOR_COMPLETE |
 | `/bug-fix` | Build phase: root cause analysis + TDD fix | BUG_FIXED |
 | `/code-review` | Review phase: SOLID/DRY/quality audit | APPROVE / CHANGES_REQUESTED |
@@ -185,6 +185,7 @@ Set `CLAUDE_ENABLE_TRACE=1` to capture per-spawn prompt traces to `metrics/{sess
 | `/tech-spike` | Time-boxed technical research | SPIKE_COMPLETE |
 | `/project-setup` | Scaffolding project-level CLAUDE.md | PROJECT_SETUP_COMPLETE |
 | `/pipeline-resume` | Resume interrupted pipeline from state files | RESUMED |
+| `/plan-self-validation` | Lightweight Plan Validation: architect re-reads its own plan against a structured holes-finding rubric. Used when `critical == false AND Budget < 7` | PLAN_APPROVED / PLAN_HOLES |
 | `/harness-config` | Modify hooks, settings.json, non-.md config | CONFIG_APPLIED |
 | `/deploy` | CD phase: staging/production deploy with rollback | DEPLOYED / ROLLED_BACK |
 | `/infra-scaffold` | Generate Dockerfile, docker-compose, CI/CD, health endpoints | INFRA_SCAFFOLDED |
@@ -197,6 +198,7 @@ Set `CLAUDE_ENABLE_TRACE=1` to capture per-spawn prompt traces to `metrics/{sess
 | `/voice-scaffold` | Scaffold voice skill/action (Alexa, Google, Twilio IVR) | VOICE_SCAFFOLDED |
 | `/module-extraction` | Extract a bounded context into an in-process module with an explicit port (same repo, no forcing function) | BOUNDARY_READY / MODULE_EXTRACTED / EXTRACTION_BLOCKED / WRONG_SKILL |
 | `/debug` | Persistent debug state for complex, multi-session bugs | DEBUG_RESOLVED |
+| `/debug-trace` | Toggle prompt tracing for the current session (`on` / `off`) | TRACE_TOGGLED |
 | `/forensics` | Post-incident pipeline investigation | CLEAN / ANOMALIES_FOUND |
 | `/workstream` | Manage isolated workstreams for parallel development | WORKSTREAM_CREATED |
 | `/batch-pipeline` | Pre-planned batch work (waves, bulk fixes) — lightweight pipeline with state tracking | BATCH_COMPLETE |
@@ -268,5 +270,3 @@ All detailed protocols are in `rules/` (auto-loaded each session):
 - `orchestrator/agent-orchestration.md` — Agent selection, team management, orchestrator discipline
 - `orchestrator/operational-details.md` — Escalation procedures, error recovery details
 - `orchestrator/parallel-dispatch-details.md` — Team dispatch procedure, review loop with persistent reviewers, audit trail
-
-@RTK.md

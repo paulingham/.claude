@@ -83,9 +83,14 @@ Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1` suppresses the hook.
 
 See `rules/autonomous-intelligence.md` § Consolidation Gate for full semantics.
 
-### 6b-bis. Model-Efficiency Check (Every 20 Observations)
+### 6b-bis. Model-Efficiency Check (Every 10 Observations OR Weekly, whichever fires first)
 
-If `observations_since_learn` in `~/.claude/learning/{project-hash}/.learn-state.json` is a non-zero multiple of 20, invoke `/eval-model-effectiveness` to refresh the model recommendation report. This is advisory — the report is written to disk; no live config is changed. Skip silently if the state file is missing or the counter is 0.
+Invoke `/eval-model-effectiveness` to refresh the model recommendation report when EITHER trigger fires:
+
+- **Observation cadence**: `observations_since_learn` in `~/.claude/learning/{project-hash}/.learn-state.json` is a non-zero multiple of 10. The Reflect step handles this trigger.
+- **Wall-clock cadence**: at least 7 days have elapsed since the last `/eval-model-effectiveness` run. This trigger is typically driven by `/loop 7d /eval-model-effectiveness` rather than the Reflect step itself — Reflect only fires the observation-cadence check.
+
+This is advisory — the report is written to disk; no live config is changed. Skip silently if the state file is missing or the observation counter is 0.
 
 ### 6c. Update Session Memory
 

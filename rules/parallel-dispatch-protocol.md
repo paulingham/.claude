@@ -15,15 +15,16 @@ The pipeline uses two dispatch mechanisms:
 
 ## Team Phases
 
-### Plan Validation Team (ALL pipelines)
+### Plan Validation Team (heavy branch — autonomous + `critical OR Budget >= 7`)
 
 | Scenario | Teammates | Parallel? |
 |----------|-----------|-----------|
 | Interactive mode | No team (user reviews) | N/A |
-| Autonomous mode | product-reviewer (plan-reviewer) + software-engineer (plan-engineer) | Yes |
+| Autonomous mode + heavy gate (`critical OR Budget >= 7`) | product-reviewer (plan-reviewer) + software-engineer (plan-engineer) | Yes |
+| Autonomous mode + light gate (everything else) | No team — invoke `/plan-self-validation` (one-shot architect re-read against a structured rubric) | N/A |
 
-Key advantage: challengers **remember the plan context** on re-review — no prompt reconstruction needed.
-Shut down both challengers after plan validation completes.
+Key advantage of the heavy team: challengers **remember the plan context** on re-review — no prompt reconstruction needed.
+Shut down both challengers after plan validation completes. The light branch is a single skill invocation with no team — used when criticality is standard AND Budget < 7. See `skills/plan-self-validation/SKILL.md` and `rules/pipeline-protocol.md` § Phase Checklist (Plan).
 
 **HARD SEQUENCING REQUIREMENT** (hooks and prompt quality both matter):
 
@@ -71,7 +72,9 @@ See `hooks/_lib/should_spawn_planning_agent.py` for the spawn-gate predicate.
 
 ### Best-of-N Build Team (conditional — `bestofn:true` from intake)
 
-When `/intake` has tagged the task `bestofn: true` (computed in Step 2d-bis as `critical OR (task_class=="feature" AND Budget>=5)`), the Build phase dispatches as a Team variant that runs the same slice across N candidate models in parallel and picks the best output. This is NOT a separate skill — it is a dispatch mode of the Build Team. The winner still faces the normal Review → Final Gate → Ship gates; scoring selects *which* candidate faces those gates, it does not substitute for them.
+When `/intake` has tagged the task `bestofn: true` (computed in Step 2d-bis as `critical OR user_override`, where `user_override` fires on the literal `[best-of-n]` token in the request text), the Build phase dispatches as a Team variant that runs the same slice across N candidate models in parallel and picks the best output. This is NOT a separate skill — it is a dispatch mode of the Build Team. The winner still faces the normal Review → Final Gate → Ship gates; scoring selects *which* candidate faces those gates, it does not substitute for them.
+
+The previous threshold (`task_class=="feature" AND Budget>=5`) was tightened to criticality-only after baseline data showed the 2-3x spend was not justified for non-critical features. Users who still want Best-of-N on a non-critical task pass `[best-of-n]` in their request.
 
 **Procedure:**
 

@@ -18,7 +18,7 @@ For phases in the Team Phases table (see `rules/parallel-dispatch-protocol.md`),
 
 ## Best-of-N Build Dispatch
 
-Best-of-N Build dispatch fires when `/intake` tags the task with `bestofn: true`. The gate is `critical OR (task_class == "feature" AND Budget >= 5)` — Best-of-N is therefore the default for non-trivial features as well as for any critical task. The persisted `bestofn` flag (written by intake Step 2d-bis to the intake state file, mirrored into the pipeline state by `/pipeline` Step 2) drives the dispatch and survives context compaction; `/pipeline-resume` reads the flag rather than recomputing it. Implementation is a Team dispatch variant (see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team) — N candidate engineers run in parallel worktrees, each on a different model, and a single code-reviewer selects the winner. The winner still faces the normal Review → Final Gate → Ship gates; scoring picks *which* candidate faces those gates, it does not substitute for them. Cost is roughly 2-3x a standard build; justified on high-stakes slices and non-trivial features where a quality uplift beats the extra spend. On failure, the pipeline falls back to standard Build dispatch — it never halts and never asks the user.
+Best-of-N Build dispatch fires when `/intake` tags the task with `bestofn: true`. The gate is `critical OR user_override` — Best-of-N is the default only for critical tasks (payment, auth, security-sensitive, cross-repo contract, production-blocking bugs), plus any task where the user explicitly opts in by including the literal `[best-of-n]` token in their request. The persisted `bestofn` flag (written by intake Step 2d-bis to the intake state file, mirrored into the pipeline state by `/pipeline` Step 2) drives the dispatch and survives context compaction; `/pipeline-resume` reads the flag rather than recomputing it. Implementation is a Team dispatch variant (see `rules/parallel-dispatch-protocol.md` § Best-of-N Build Team) — N candidate engineers run in parallel worktrees, each on a different model, and a single code-reviewer selects the winner. The winner still faces the normal Review → Final Gate → Ship gates; scoring picks *which* candidate faces those gates, it does not substitute for them. Cost is roughly 2-3x a standard build; justified on critical slices where a quality uplift beats the extra spend. On failure, the pipeline falls back to standard Build dispatch — it never halts and never asks the user.
 
 ## Structured Pipeline State
 
@@ -114,9 +114,10 @@ Before advancing to any phase, verify the previous gate passed AND invoke the re
 - **Plan**: Design validation is a HARD GATE (ALL pipelines). No implementation begins without:
   1. Architect produces plan with `## Alternatives Considered` (minimum 2 genuine approaches)
   2. Interactive mode: user approves the plan
-  3. Autonomous mode: product-reviewer + software-engineer both APPROVE the plan
-  4. Maximum 2 rounds of revision before escalation
-  5. Gate tracked in pipeline state as `Plan Validation` phase
+  3. Autonomous mode dispatch (chosen by criticality + budget):
+     - **Heavy** (`critical == true OR Budget >= 7`): spawn product-reviewer + software-engineer challengers as a team — both must APPROVE the plan. Maximum 2 rounds of revision before escalation.
+     - **Light** (everything else): invoke `/plan-self-validation` — architect re-reads its own plan against a structured holes-finding rubric. One-shot, no team. Verdict: `PLAN_APPROVED` continues; `PLAN_HOLES` returns to architect with the hole list (max 1 revision; if still holes, escalate to heavy challengers).
+  4. Gate tracked in pipeline state as `Plan Validation` phase. Pipeline state records the dispatch mode (`heavy` or `light`) for forensic visibility.
   Use `/epic-breakdown`, `/estimation`, `/story-writing`, `/tech-spike` as needed
 - **Build**: `/build-implementation` or `/refactor` or `/bug-fix` -- TDD, shape self-check
 - **Review**: `/code-review` + `/security-review` as team (tmux visible) -- both must APPROVE
