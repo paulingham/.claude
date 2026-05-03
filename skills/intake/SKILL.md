@@ -133,7 +133,7 @@ Check for multi-repo signals BEFORE routing to pipeline:
 
 If ANY signal is true:
 - Flag `multi_repo: true` in the routing output
-- The pipeline will auto-create/read the manifest (see `rules/multi-repo-protocol.md`)
+- The pipeline will auto-create/read the manifest (see `rules/_detail/multi-repo-protocol.md`)
 - No separate command needed — the pipeline handles it
 
 ```

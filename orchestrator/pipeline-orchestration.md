@@ -1,12 +1,12 @@
 # Pipeline Orchestration (Orchestrator-Only)
 
-Extracted from `rules/pipeline-protocol.md`. Agents do not need this content.
+Extracted from `rules/_detail/pipeline-protocol.md`. Agents do not need this content.
 
 ## Pipeline State Tracking
 
 Pipeline state is tracked using `pipeline-state/[feature-name]/pipeline.md` files (workstream variant: `pipeline-state/workstreams/{ws}/[feature-name]/pipeline.md`). Each pipeline run creates a state file with YAML frontmatter (task_id, phase, verdict, timestamp, scale, branch) plus phase status, verdicts, artifacts, and agent summaries. This is the single source of truth — do NOT dual-write to `memory/`.
 
-During the DUAL_PATH soak (see `rules/pipeline-protocol.md` § Structured Pipeline State), the legacy flat form `pipeline-state/[feature-name]-pipeline.md` is still tolerated by readers but never written by new code. Path resolution always goes through `hooks/_lib/pipeline_state_paths.py` (or `pipeline-state-paths.sh` from bash).
+During the DUAL_PATH soak (see `rules/_detail/pipeline-protocol.md` § Structured Pipeline State), the legacy flat form `pipeline-state/[feature-name]-pipeline.md` is still tolerated by readers but never written by new code. Path resolution always goes through `hooks/_lib/pipeline_state_paths.py` (or `pipeline-state-paths.sh` from bash).
 
 ### State File Structure
 

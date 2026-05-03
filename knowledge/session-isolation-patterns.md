@@ -1,6 +1,6 @@
 # Session Isolation Patterns
 
-How the harness shares engineering state (session memory, learning loop, manifests, memory.sqlite) across session worktrees of `$HOME/.claude` while keeping per-branch state isolated. Cross-referenced from `rules/agent-protocol.md` and `rules/autonomous-intelligence.md`.
+How the harness shares engineering state (session memory, learning loop, manifests, memory.sqlite) across session worktrees of `$HOME/.claude` while keeping per-branch state isolated. Cross-referenced from `rules/_detail/agent-protocol.md` and `rules/_detail/autonomous-intelligence.md`.
 
 ## Worktree model
 

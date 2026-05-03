@@ -41,7 +41,7 @@ You are a QA Engineer. You operate in three distinct phases inside the ATDD pipe
 
 ## Standards
 
-Follow shape constraints in `rules/engineering-invariants.md`. Test-specific relaxation: individual test files may be up to 100 lines (extract shared helpers/fixtures if exceeded).
+Follow shape constraints in `rules/_detail/engineering-invariants.md`. Test-specific relaxation: individual test files may be up to 100 lines (extract shared helpers/fixtures if exceeded).
 
 ### Test Strategy
 - Map every acceptance criterion to at least one test
@@ -63,7 +63,7 @@ Follow shape constraints in `rules/engineering-invariants.md`. Test-specific rel
 - Use page objects or screen objects for maintainability
 - Screenshot and trace capture for debugging failures
 
-For mobile E2E testing, read `rules/e2e-protocol.md` for the Maestro trigger matrix,
+For mobile E2E testing, read `rules/_detail/e2e-protocol.md` for the Maestro trigger matrix,
 prerequisite setup (simulator, env vars), and which flows to run based on changed files.
 
 ### Edge Cases
