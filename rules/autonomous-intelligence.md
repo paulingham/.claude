@@ -51,12 +51,16 @@ Before spawning each agent, the orchestrator reads the scratchpad directory and 
 - [build/software-engineer] decision: Used service object for AuthService (shared SDK dep)
 ```
 
-**Injection rules:**
-- Include ALL warnings and fragility findings (these prevent mistakes)
-- Include discoveries and patterns relevant to the agent's phase
-- Include decisions from the build phase when spawning reviewers (context for review)
-- Skip findings from the same role re-spawned (they already know)
-- If scratchpad is empty, skip the section silently
+**Injection rules** (category × spawn target — see `orchestrator/agent-orchestration.md` § Pipeline Scratchpad Injection for the canonical matrix):
+- `warning` → forwarded to ALL subsequent phases (every spawn after the writer)
+- `fragility` → forwarded to ALL subsequent phases
+- `discovery` → forwarded to the next immediate phase only, then dropped
+- `pattern` → forwarded to the same role on subsequent phases only
+- `decision` → forwarded to reviewers and Final Gate roles only
+- Skip findings from the same role re-spawned within the same phase (they already know)
+- If the filtered set is empty, skip the section silently — no header, no placeholder
+
+The `scratchpad-bytes.sh` PreToolUse hook records the post-filter byte count per spawn to `metrics/{session-id}/scratchpad-bytes.jsonl` so regressions in filter behaviour or unexpected bloat are catchable in forensics.
 
 ### Why Scratchpad, Not Agent Memory
 
@@ -261,14 +265,17 @@ Mismatch (a `logged` record without a paired `orchestrator-injected` record for 
 | `CLAUDE_DISABLE_INSTINCT_INJECTION` | unset | Set to `1` to fast-exit the hook (per-session escape hatch). |
 | `CLAUDE_HOOK_PROFILE` | `standard` | When set to `minimal`, the hook fast-exits — matches the suppression pattern of the four sibling Path-B hooks. |
 
-## 4. Prompt Tracing (Optional)
+## 4. Prompt Tracing (Opt-In)
 
 Debugging aid for agent failures: capture the exact rendered prompt the orchestrator sent to a spawn — skills, instincts, session memory, scratchpad, agent memory, all already composed into `tool_input.prompt` by the orchestrator.
 
 ### Enabling
 
-- `CLAUDE_ENABLE_TRACE=1` in the environment enables tracing
-- Unset or `0` (default) = zero overhead — the hook's first line fast-exits
+Tracing is **off by default** (`CLAUDE_ENABLE_TRACE=0` in `settings.json` env block). The hook's first line fast-exits when disabled — zero overhead in the default state.
+
+To enable for the current session, invoke `/debug-trace on`. To disable, `/debug-trace off`. The toggle is per-session; the durable default (off) lives in `settings.json` and survives session boundaries. See `skills/debug-trace/SKILL.md` for the full skill contract.
+
+Direct env-var override (`CLAUDE_ENABLE_TRACE=1`) still works for callers who want to enable tracing outside a Claude Code session — the skill is a convenience, not a gate.
 
 ### Location and Format
 

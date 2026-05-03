@@ -165,13 +165,13 @@ Persist the flag to `pipeline-state/{task-id}/intake.md` frontmatter as `critica
 ### Step 2d-bis: Best-of-N Tag (MANDATORY)
 
 Derive `bestofn`:
-`bestofn = critical OR (task_class == "feature" AND complexity_budget >= 5)`
+`bestofn = critical OR user_override`
 
-Bug, refactor, and spike pipelines are excluded from the budget path.
+Where `user_override` is true when the user's request contains the literal token `[best-of-n]` (case-insensitive). This is the manual override — the user explicitly asks for Best-of-N regardless of criticality. No other budget- or class-based path enables the flag; the cost-vs-quality tradeoff for non-critical work is no longer worth the 2-3x spend by default.
 
 Always print:
 ```
-[Intake] Best-of-N: enabled (reason: critical | feature+budget>=5)
+[Intake] Best-of-N: enabled (reason: critical | user-override)
 ```
 or:
 ```
