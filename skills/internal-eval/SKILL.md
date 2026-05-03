@@ -29,6 +29,39 @@ This skill is the orchestration shell. The heavy lifting lives in four sub-skill
 
 ## Process
 
+### Step 0: Grader Isolation
+
+Before the agent runs, oracle/grader files MUST be moved out of the case directory so the
+agent cannot read or import them. This closes the reward-hack class where the agent
+inspects `grader.py` (or `grader.sh`) and tailors its diff to satisfy the oracle's literal
+checks rather than solving the task.
+
+For each `eval/cases/<case-id>/grader.{py,sh}` (and any `oracle.py` / `oracle.sh` sibling):
+
+1. Compute a quarantine path under a tmp directory the agent's shadow `HOME` cannot reach:
+   `mktemp -d -t graders.XXXXXX` (outside `eval/runs/<run-id>/home/<case-id>/`).
+2. `mv` the grader file from the case directory to the quarantine path. Record the
+   original path and quarantine path in a manifest (`eval/runs/<run-id>/cases/<case-id>/grader-manifest.json`).
+3. Run the agent. Inner-pipeline isolation already restricts `HOME` (see
+   `run/ISOLATION.md`), so the agent has no path to the quarantined files.
+4. After the agent has produced its candidate diff and exited, restore each grader by
+   `mv`-ing it back from the quarantine path to the case directory. Verify byte-equivalence
+   against the manifest's recorded SHA256 — if a grader was modified, fail the case as
+   `failed_infra` (the agent reached files it should not have).
+5. Score the candidate diff against the now-restored grader.
+
+The `eval-anti-hack-lint.sh` PostToolUse hook (see `hooks/eval-anti-hack-lint.sh`) provides
+defense-in-depth: it greps the candidate's changed files for known
+grader-introspection patterns (`sys._getframe`, `inspect.stack`,
+`unittest.TestCase.run`, `pytest.hookimpl`, custom `__getattr__` on assert results)
+and emits `eval-hack-suspects.jsonl` + exit 2 on match. A clean run produces no
+suspects.
+
+Failure modes:
+- Grader file missing post-run → agent deleted it → `failed_infra`
+- Grader file modified post-run → agent tampered with it → `failed_infra`
+- Lint hook flagged hack pattern → `failed_diff` with `failure_reason: "anti-hack-lint"`
+
 ### Step 1: Resolve inputs
 
 1. Parse the subcommand and flags. `run` is the default if unspecified.
