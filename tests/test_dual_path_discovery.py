@@ -45,3 +45,34 @@ def test_in_flight_pipeline_resumable(tmp_path):
     legacy = tmp_path / "in-flight-pipeline.md"
     _touch(legacy, 1000.0)
     assert legacy in find_pipeline_files(tmp_path)
+
+
+# Slice B — approval-token read precedence (AC #6).
+import os as _os
+import subprocess as _sp
+from pathlib import Path as _Path
+
+_LIB = _Path(__file__).resolve().parents[1] / "hooks" / "_lib" / "approval-token.sh"
+
+
+def _at_token_path(home: _Path, task_id: str) -> str:
+    env = dict(_os.environ); env["HOME"] = str(home)
+    result = _sp.run(
+        ["bash", "-c", f"source '{_LIB}' && _at_token_path '{task_id}'"],
+        capture_output=True, text=True, env=env, timeout=15,
+    )
+    return result.stdout.strip()
+
+
+def test_approval_token_path_returns_existing_layout(tmp_path):
+    home = tmp_path
+    state = home / ".claude" / "pipeline-state"
+    state.mkdir(parents=True)
+    legacy = state / "tA-approval.token"
+    legacy.write_text("{}")
+    assert _at_token_path(home, "tA") == str(legacy)
+    legacy.unlink()
+    new_dir = state / "tA"; new_dir.mkdir()
+    new = new_dir / "approval.token"
+    new.write_text("{}")
+    assert _at_token_path(home, "tA") == str(new)
