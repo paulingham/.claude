@@ -22,14 +22,17 @@ Post-incident investigation of pipeline runs. Reconstructs timelines, detects an
 ### Step 1: Gather Evidence
 
 ```bash
-# Trajectory file (agent events timeline)
-cat ~/.claude/pipeline-state/{task-id}-trajectory.jsonl 2>/dev/null
+# Trajectory file (agent events timeline) — new layout, with legacy fallback during 90-day DUAL_PATH soak
+cat ~/.claude/pipeline-state/{task-id}/trajectory.jsonl 2>/dev/null \
+  || cat ~/.claude/pipeline-state/{task-id}-trajectory.jsonl 2>/dev/null
 
 # Pipeline state file
-cat ~/.claude/pipeline-state/{task-id}-pipeline.md 2>/dev/null
+cat ~/.claude/pipeline-state/{task-id}/pipeline.md 2>/dev/null \
+  || cat ~/.claude/pipeline-state/{task-id}-pipeline.md 2>/dev/null
 
 # Debug state (if debugging loop was entered)
-cat ~/.claude/pipeline-state/{task-id}-debug.md 2>/dev/null
+cat ~/.claude/pipeline-state/{task-id}/debug.md 2>/dev/null \
+  || cat ~/.claude/pipeline-state/{task-id}-debug.md 2>/dev/null
 
 # Git history during the pipeline
 git log --oneline --since="{pipeline start}" --until="{pipeline end or now}"
@@ -88,7 +91,7 @@ For each anomaly, propose a cause:
 
 ### Step 6: Produce Findings
 
-Write `pipeline-state/{task-id}-forensics.md`:
+Write `pipeline-state/{task-id}/forensics.md`:
 
 ```markdown
 ---
@@ -133,6 +136,6 @@ timestamp: {ISO 8601}
 ```
 Verdict: CLEAN / ANOMALIES_FOUND / INVESTIGATION_INCOMPLETE
 Next: Feed findings into /pipeline Step 7 (Reflect)
-Artifacts: pipeline-state/{task-id}-forensics.md
+Artifacts: pipeline-state/{task-id}/forensics.md
 ```
 $ARGUMENTS
