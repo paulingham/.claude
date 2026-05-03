@@ -264,6 +264,56 @@ Both verdicts are acceptable. The orchestrator logs the verdict in pipeline stat
 
 **Cost**: ~$0.05/build typical (Sonnet 4.6, ~20 poll cycles × ~700 tokens). Worst-case $0.60 at 200-turn budget exhaustion (planning silently stops, Build continues).
 
+### Best-of-N Build Team Dispatch (conditional — `bestofn:true` from intake)
+
+When `/intake` has tagged the task `bestofn: true` (computed in Step 2d-bis as `critical OR user_override`, where `user_override` fires on the literal `[best-of-n]` token in the request text), the Build phase dispatches as a Team variant that runs the same slice across N candidate models in parallel and picks the best output. This is NOT a separate skill — it is a dispatch mode of the Build Team. The winner still faces the normal Review → Final Gate → Ship gates; scoring selects *which* candidate faces those gates, it does not substitute for them.
+
+The previous threshold (`task_class=="feature" AND Budget>=5`) was tightened to criticality-only after baseline data showed the 2-3x spend was not justified for non-critical features. Users who still want Best-of-N on a non-critical task pass `[best-of-n]` in their request.
+
+**Procedure:**
+
+0. **Pre-flight resource check (Wave-2 B11.2)**: source `skills/best-of-n/lib/score.sh` and call `check_worktree_capacity` against the project repo. Default cap is **6 worktrees on workstations, 12 on CI** (`CI=true`); override via `CLAUDE_BESTOFN_MAX_WORKTREES`. If the cap is exceeded → log `fallback-to-single-engineer` to the pipeline state's `## Re-routes` section and dispatch the standard single-engineer Build instead. This protects against disk/inode pressure on hosts that already have parallel sessions or abandoned pipelines holding worktrees open. Falling back is silent — the pipeline never halts and never asks the user.
+1. **Load roster** from `skills/best-of-n/config.json`. Default: Opus 4.7 + Sonnet 4.6 (always included) + an optional external-frontier slot (GPT-5.3-Codex / Gemini 3.1 Pro) gated behind `required_env`. Respect `max_candidates` as an upper bound.
+2. **Validate candidates**: drop any whose `required_env` is unset and emit `[best-of-n] Skipping {slug}: {required_env} not set`. For external candidates, call `skills/best-of-n/external-runner.sh`; if it exits non-zero, drop the candidate. Must end with ≥ 2 candidates or the dispatch aborts with `BEST_OF_N_FAILED` and the pipeline falls back to the standard single-engineer Build dispatch.
+3. **Spawn one engineer teammate per candidate** into the pipeline team in a single message:
+   ```
+   Agent({
+     subagent_type: "software-engineer",    // or "frontend-engineer" for UI slices
+     isolation: "worktree",
+     model: "<agent_model_param>",          // "opus" / "sonnet" / "haiku"
+     team_name: "pipeline-{task-id}",
+     name: "boN-{slug}",
+     mode: "bypassPermissions",
+     prompt: "<slice spec + ACs>
+              Read ~/.claude/skills/build-implementation/SKILL.md and execute fully.
+              Commit to branch: build/{task-id}-boN-{slug}"
+   })
+   ```
+   External candidates are dispatched via `skills/best-of-n/external-runner.sh` (honest stub today; returns non-zero until a provider is wired). **Do not fabricate results** for external runners that fail.
+4. **Collect results** per candidate: branch, commit SHA, test exit code, shape violation count (run `hooks/code-shape-check.sh` across changed files on the branch), diff size (`git diff --stat main..<branch>`).
+5. **Spawn ONE code-reviewer teammate for selection** with the rubric:
+   - `test_pass`: 1 if all tests green else 0 (dominant — broken code cannot win)
+   - `shape_compliance`: `max(0, 1 - violations/10)`
+   - `subjective_quality`: reviewer's 1-5 score on clarity + correctness, with written justification
+   - `diff_size`: tie-breaker only
+   - Composite: `test_pass*1000 + shape_compliance*100 + subjective_quality*20 - (diff_size/100)`
+   - Ties break by smaller diff, then cheaper tier (sonnet < opus < external-frontier, integer ranks 1/2/3)
+   - Reviewer MUST write a `## Selection Rationale` section — copied verbatim to the scratchpad for future `/learn` runs.
+6. **Merge & cleanup**:
+   - `git merge --no-ff build/{task-id}-boN-{winner-slug}` into the pipeline's working branch
+   - For every loser: `git worktree remove --force <path>` then `git branch -D build/{task-id}-boN-{slug}`
+   - Write `pipeline-state/{task-id}/best-of-n.md` (frontmatter: task_id, phase=build, verdict=BEST_OF_N_COMPLETE, timestamp; sections: Candidates Run, Winner, Selection Rationale, Cost Estimate Per Candidate)
+   - Append `category: decision` note to `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md`
+7. **Winner proceeds to standard Review** — Best-of-N does not skip review or any subsequent gate.
+
+**Fallback**: on `BEST_OF_N_FAILED` (insufficient candidates or all candidates failed their own tests), fall back to the standard single-engineer Build dispatch. Log the fallback in pipeline state under `## Re-routes`. Never halts.
+
+**Helpers** (orchestrator-side, not skills):
+- `skills/best-of-n/config.json` — roster, selection weights, tie-breaker order
+- `skills/best-of-n/lib/score.sh` — sourceable pure-bash `score_candidate`, `pick_winner`, `check_budget_gate`
+- `skills/best-of-n/external-runner.sh` — extension point for non-Anthropic candidates (honest stub today)
+- `skills/best-of-n/tests/test_best_of_n.sh` — deterministic test of scoring, cleanup, and budget gate
+
 ## Review Phase Dispatch
 
 Always uses the team. Spawn both reviewers in a single message:
@@ -537,3 +587,33 @@ For each team phase, the orchestrator records:
 [Final Gate] VERDICTS -- VERIFIED + COVERED + APPROVED
 [Final Gate] COMPLETE -- all shut down
 ```
+
+## Batch Execution (Pre-Planned Work)
+
+When executing multiple pre-planned tasks in parallel (e.g., production readiness waves), use `/batch-pipeline` instead of driving phases manually. The batch pipeline preserves critical infrastructure while skipping redundant phases.
+
+### Why batch-pipeline exists
+
+The full `/pipeline` (Plan → Plan Validation → Build → Review → Final Gate → Ship → Deploy → Reflect) is designed for new work that needs classification and planning. Pre-planned batch work (where the architect output already exists as a document) can skip Plan and Plan Validation, but **must not skip** state tracking, scratchpad, session memory, or the learning loop.
+
+### What the orchestrator must NOT do for batch work
+
+- Spawn build agents directly without creating pipeline state first
+- Skip review (code-review + security-review are always mandatory)
+- Skip the Reflect step (observations, session memory, cleanup)
+- Drive phases manually without state file tracking
+- Forget to inject session memory, scratchpad, and instincts into agent prompts
+
+### What changes vs single-task pipeline
+
+| Aspect | Single task | Batch |
+|--------|-------------|-------|
+| Entry point | `/intake` → `/pipeline` | `/batch-pipeline` |
+| Plan phase | Architect designs | Already done (plan document) |
+| Plan validation | User or challengers approve | Already approved |
+| Build dispatch | 1 agent or team | N agents in parallel |
+| Review dispatch | Team (persistent reviewers) | Subagents (parallel, per-task) |
+| Final Gate | verify + test + accept team | Skipped (batch items are typically small) |
+| State tracking | Same | Same (one state file per batch) |
+| Scratchpad | Same | Shared across all batch agents |
+| Observations | Same | One observation per batch |
