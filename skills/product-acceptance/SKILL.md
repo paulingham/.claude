@@ -84,7 +84,7 @@ bash "$HOME/.claude/hooks/_lib/write-approval-token.sh" \
 - `$TASK_ID`: the current pipeline task ID (from `CLAUDE_PIPELINE_TASK_ID` env or branch name last segment)
 - `$VERDICT`: one of `APPROVED`, `APPROVED_WITH_CONDITIONS`, `REJECTED`
 - Token is written for ALL verdicts — readers distinguish "phase ran and approved" from "phase ran and rejected" from "phase never ran (missing)"
-- Token is deleted at Reflect step 6d alongside other `pipeline-state/{task-id}-*` files
+- Token is deleted at Reflect step 6d alongside the other `pipeline-state/{task-id}/` artifacts (canonical write path: `pipeline-state/{task-id}/approval.token`; legacy `pipeline-state/{task-id}-approval.token` is read-tolerated during the 90-day DUAL_PATH soak)
 
 ## Acceptance Checklist
 

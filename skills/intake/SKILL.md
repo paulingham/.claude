@@ -43,7 +43,7 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 2. **Project already multi-repo?**
    - Project CLAUDE.md has a `## Service Context` section → route to service.
    - No → continue.
-3. **Default**: route to `/module-extraction`. Log the decision to `pipeline-state/{task-id}-intake.md` with rationale: "No FF detected; no existing Service Context. Defaulting to module extraction."
+3. **Default**: route to `/module-extraction`. Log the decision to `pipeline-state/{task-id}/intake.md` with rationale: "No FF detected; no existing Service Context. Defaulting to module extraction."
 
 **No user prompt.** Plan Validation challengers receive the routing rationale and can flip it if wrong.
 
@@ -90,7 +90,7 @@ Skip this gate only when Ambiguity = 1 (fully specified ACs with no interpretati
 
 #### Discussion Persistence (MANDATORY when this gate fires)
 
-Create `pipeline-state/{task-id}-discussion.md` to persist the exploration discussion:
+Create `pipeline-state/{task-id}/discussion.md` to persist the exploration discussion:
 
 ```markdown
 ---
@@ -160,7 +160,7 @@ Always print one of:
 [Intake] Criticality: standard
 ```
 
-Persist the flag to `pipeline-state/{task-id}-intake.md` frontmatter as `critical: true|false`. `/pipeline` reads this flag to decide whether the Build phase routes to `/best-of-n` or the standard `/build-implementation`.
+Persist the flag to `pipeline-state/{task-id}/intake.md` frontmatter as `critical: true|false`. `/pipeline` reads this flag to decide whether the Build phase routes to `/best-of-n` or the standard `/build-implementation`.
 
 ### Step 2d-bis: Best-of-N Tag (MANDATORY)
 
@@ -178,7 +178,7 @@ or:
 [Intake] Best-of-N: disabled
 ```
 
-Persist both to `pipeline-state/{task-id}-intake.md` frontmatter:
+Persist both to `pipeline-state/{task-id}/intake.md` frontmatter:
 - `task_class: {the classification from Step 1}`
 - `bestofn: true|false`
 
