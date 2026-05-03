@@ -22,14 +22,17 @@ Creates and maintains persistent debug state for complex bugs that require multi
 
 ### Step 1: Create or Load Debug State
 
-Check for existing debug state:
+Check for existing debug state (covers both layouts during the DUAL_PATH soak):
 ```bash
+# New layout (canonical)
+ls ~/.claude/pipeline-state/*/debug.md 2>/dev/null
+# Legacy layout (read-tolerated)
 ls ~/.claude/pipeline-state/*-debug.md 2>/dev/null
 ```
 
 If a debug state file exists for this task, load it and continue from the current state.
 
-If no state exists, create `pipeline-state/{task-id}-debug.md`:
+If no state exists, create `pipeline-state/{task-id}/debug.md`:
 
 ```markdown
 ---
@@ -123,6 +126,6 @@ Verdict: DEBUG_ACTIVE / DEBUG_RESOLVED / DEBUG_ESCALATED
 Next: If RESOLVED → resume pipeline from Review phase
       If ESCALATED → user decides next steps
       If ACTIVE → continue debugging loop
-State: pipeline-state/{task-id}-debug.md
+State: pipeline-state/{task-id}/debug.md
 ```
 $ARGUMENTS

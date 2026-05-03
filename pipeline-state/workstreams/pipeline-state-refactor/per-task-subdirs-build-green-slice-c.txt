@@ -1,0 +1,36 @@
+=== Slice C — POST-IMPLEMENTATION GREEN ===
+Date: 2026-05-03T15:47:04Z
+Branch tip SHA: bc6b5e7729be94247e34b413bfb8c80a1e04d215
+
+--- pytest tests/test_pipeline_state_skills_writes.py tests/test_pipeline_state_cleanup.py ---
+============================= test session starts ==============================
+platform darwin -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /Users/Paul.Ingham/.claude/.claude/worktrees/agent-2296b43f/.claude/worktrees/agent-07085b7d
+collecting ... collected 9 items
+
+tests/test_pipeline_state_skills_writes.py::test_pipeline_skill_creates_state_under_subdir PASSED [ 11%]
+tests/test_pipeline_state_skills_writes.py::test_intake_writes_intake_md_under_subdir PASSED [ 22%]
+tests/test_pipeline_state_skills_writes.py::test_greenfield_writes_product_brief_under_subdir PASSED [ 33%]
+tests/test_pipeline_state_skills_writes.py::test_module_extraction_writes_boundary_analysis_under_subdir PASSED [ 44%]
+tests/test_pipeline_state_skills_writes.py::test_continuous_planning_writes_planning_cursor_under_subdir PASSED [ 55%]
+tests/test_pipeline_state_cleanup.py::test_reflect_cleanup_removes_subdir_in_one_op PASSED [ 66%]
+tests/test_pipeline_state_cleanup.py::test_reflect_cleanup_does_not_touch_other_tasks PASSED [ 77%]
+tests/test_pipeline_state_cleanup.py::test_reflect_cleanup_does_not_match_prefix_neighbors PASSED [ 88%]
+tests/test_pipeline_state_cleanup.py::test_reflect_cleanup_iterates_canonical_phase_list PASSED [100%]
+
+============================== 9 passed in 0.23s ===============================
+
+--- bash tests/test_health_report_relocation.sh ---
+Test: health_scan_writes_under_health_reports_subdir
+  ok: new layout documented
+  ok: legacy flat path removed
+Summary: 2 passed, 0 failed
+
+--- bash tests/test_approval_token_path_migration.sh (xfail until Slice B) ---
+Test: write_approval_token_uses_new_layout_only
+  FAIL: new-layout token MISSING at /var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.CKtgzdBuWb/.claude/pipeline-state/t1/approval.token
+  FAIL: legacy-layout token present at /var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.CKtgzdBuWb/.claude/pipeline-state/t1-approval.token
+Summary: 0 passed, 2 failed
+EXPECTED FAIL: depends on slice-b refactor of hooks/_lib/approval-token.sh
+RC=99 (99 = expected xfail in Slice C isolation; 0 at integration time)

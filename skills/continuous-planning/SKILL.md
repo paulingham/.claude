@@ -39,8 +39,8 @@ The orchestrator injects the following into the planning-agent's prompt header:
 
 ```
 TaskId: {task-id}
-PlanPath: pipeline-state/{task-id}-plan.md
-ScratchpadDir: pipeline-state/{task-id}-scratchpad/
+PlanPath: pipeline-state/{task-id}/plan.md
+ScratchpadDir: pipeline-state/{task-id}/scratchpad/
 TeamRoster: name1,name2,name3
 PollSeconds: 60   # default; overridable via CLAUDE_PLANNING_POLL_SECONDS
 ```
@@ -69,7 +69,7 @@ A general observation is not a contradiction.
 ## Poll Loop Procedure
 
 1. Read spawn parameters from the prompt header.
-2. Initialize the cursor file at `pipeline-state/{task-id}-planning-cursor.json`
+2. Initialize the cursor file at `pipeline-state/{task-id}/planning-cursor.json`
    (a JSON list of `{filename, content_hash}`). The cursor persists across
    poll cycles and survives context compaction.
 3. Loop until `shutdown_request` SendMessage received:
@@ -80,7 +80,7 @@ A general observation is not a contradiction.
       the next poll.
    2. For each new finding, apply the Contradiction Rubric.
    3. On contradiction: append a `## Plan Update — {ISO 8601 timestamp}`
-      section to `pipeline-state/{task-id}-plan.md` (Edit tool only — the
+      section to `pipeline-state/{task-id}/plan.md` (Edit tool only — the
       `planning-agent-edit-scope.sh` PreToolUse hook enforces this scope).
    4. Broadcast a `plan_update` SendMessage to every teammate in TeamRoster.
    5. **Only after** the Edit and broadcast succeed, call
@@ -112,7 +112,7 @@ Append-only to the plan file. Never edit prior sections.
 {
   "type": "plan_update",
   "task_id": "{task-id}",
-  "plan_path": "pipeline-state/{task-id}-plan.md",
+  "plan_path": "pipeline-state/{task-id}/plan.md",
   "update_section_anchor": "Plan Update — {ISO timestamp}",
   "ts": "{ISO timestamp}"
 }
