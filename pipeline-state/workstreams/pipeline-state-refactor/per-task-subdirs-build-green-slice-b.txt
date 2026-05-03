@@ -1,5 +1,5 @@
 ============================================================
-Python tests:
+POST-REFACTOR GREEN — Slice B all 16 tests
 ============================================================
 ============================= test session starts ==============================
 platform darwin -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14
@@ -15,11 +15,8 @@ tests/test_dual_path_discovery.py::test_workstream_beats_root_on_task_id_collisi
 tests/test_dual_path_discovery.py::test_in_flight_pipeline_resumable PASSED [ 85%]
 tests/test_dual_path_discovery.py::test_approval_token_path_returns_existing_layout PASSED [100%]
 
-============================== 7 passed in 0.09s ===============================
+============================== 7 passed in 0.10s ===============================
 
-============================================================
-Bash tests:
-============================================================
 
 --- tests/test_pipeline_state_guard_dual_path.sh ---
 Test guard_passes_when_new_layout_pipeline_exists
@@ -92,3 +89,14 @@ Test settings_postcompact_command_text_unions_both_globs
   ok: command unions both globs
 
 Results: 2 passed, 0 failed
+
+============================================================
+REGRESSION — touched-area existing tests
+============================================================
+  ok: no traversal write occurred
+
+Results: 11 passed, 0 failed
+---
+=== Results: 101 passed, 0 failed ===
+
+All tests passed.
