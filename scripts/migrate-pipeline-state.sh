@@ -10,7 +10,8 @@ TERMINAL_PREFIXES=("thinking-defaults-xhigh" "wave4-S")
 TERMINAL_VERDICTS_RE='^verdict: (completed|PR_CREATED|MERGED|FAILED|REJECTED)$'
 
 _mps_matches() {
-  local prefix="$1" scratch="$PIPELINE_DIR/${prefix}-scratchpad"
+  local prefix="$1"
+  local scratch="$PIPELINE_DIR/${prefix}-scratchpad"
   shopt -s nullglob
   local m=("$PIPELINE_DIR/${prefix}-"*.md "$PIPELINE_DIR/${prefix}-"*.token)
   shopt -u nullglob
@@ -19,7 +20,8 @@ _mps_matches() {
 }
 
 _mps_guard() {
-  local prefix="$1" pipe="$PIPELINE_DIR/${prefix}-pipeline.md"
+  local prefix="$1"
+  local pipe="$PIPELINE_DIR/${prefix}-pipeline.md"
   [ ! -f "$pipe" ] && { printf 'REFUSING: %s has phase files but no %s\n' "$prefix" "$pipe" >&2; exit 2; }
   grep -Eq "$TERMINAL_VERDICTS_RE" "$pipe" \
     || { printf 'REFUSING: %s is not in a terminal verdict\n' "$pipe" >&2; exit 2; }
