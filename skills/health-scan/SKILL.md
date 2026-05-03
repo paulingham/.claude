@@ -83,7 +83,7 @@ grep -rn "TODO\|FIXME\|HACK" --include="*.{ts,tsx,js,jsx,rb,py,go}" .
 
 ### 7. Produce Report
 
-Write to `pipeline-state/health-report-{date}.md`:
+Write to `pipeline-state/health-reports/{date}.md` (relocated under a `health-reports/` subdir — health is a project-wide concern, not task-scoped; the legacy flat path `pipeline-state/health-report-{date}.md` is deprecated to remove namespace overlap with task-id `health-report-2026-04-30` per R12):
 
 ```markdown
 ---
@@ -128,7 +128,7 @@ If Jira automation is configured (`~/.claude/automation/config.sh` exists and `J
 Verdict: HEALTHY / NEEDS_ATTENTION / CRITICAL_ISSUES
 Score: {A/B/C/D/F}
 Findings: {critical}/{high}/{medium} (critical/high/medium)
-Report: pipeline-state/health-report-{date}.md
+Report: pipeline-state/health-reports/{date}.md
 Tickets created: {N} (if Jira configured)
 ```
 $ARGUMENTS

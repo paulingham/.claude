@@ -16,8 +16,10 @@ done
 
 [ -n "$TASK_ID" ] && [ -n "$VERDICT" ] || { echo "missing --task-id or --verdict" >&2; exit 2; }
 
-# Validate task_id — reject anything that could escape pipeline-state/
-if [[ ! "$TASK_ID" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+# Validate task_id — reject anything that could escape pipeline-state/.
+# First char MUST be alnum/underscore/hyphen — rejects '.' and '..' which
+# would resolve to a parent-directory landing pad under the new layout.
+if [[ ! "$TASK_ID" =~ ^[A-Za-z0-9_-][A-Za-z0-9_.-]*$ ]]; then
   echo "write-approval-token: invalid task_id '$TASK_ID'" >&2
   exit 1
 fi

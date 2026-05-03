@@ -10,9 +10,11 @@ _alg_hours_since() {
 }
 
 _alg_current_pipeline_id() {
+  # DUAL_PATH: discovers both legacy and new-layout pipeline files.
+  source "$(dirname "${BASH_SOURCE[0]}")/pipeline-state-paths.sh"
   local dir="$HOME/.claude/pipeline-state" f
   [[ -d "$dir" ]] || { echo ""; return; }
-  f=$(grep -rl "in_progress" "$dir"/*-pipeline.md 2>/dev/null | head -1)
+  f=$(_psp_find_active_pipelines "$dir" | xargs grep -l "in_progress" 2>/dev/null | head -1)
   [[ -n "$f" ]] && awk '/^task_id:/ {print $2; exit}' "$f" 2>/dev/null || echo ""
 }
 

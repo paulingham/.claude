@@ -21,7 +21,7 @@ This skill is dispatched via the Agent tool with `isolation: "worktree"`. The or
 ### Step 1: Read AC Test Stubs from the Plan
 
 Before writing any code:
-1. Open `pipeline-state/{task-id}-plan.md` and locate the **Failing Test Stubs (per AC)** section the architect produced.
+1. Open `pipeline-state/{task-id}/plan.md` and locate the **Failing Test Stubs (per AC)** section the architect produced.
 2. For each AC in this slice, the stub list names: test file path, test name, assertion intent.
 3. **If any AC has no stub, halt immediately** — surface the gap to the architect and request a stub. Implementation cannot begin without a complete stub list.
 4. The stub list IS your implementation plan. Three test invocations per slice — not three per AC, three per slice. See `rules/engineering-protocol.md` § ATDD Protocol for the full cycle.

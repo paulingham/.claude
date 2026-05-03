@@ -22,9 +22,9 @@ Canonical reference for the environment-variable contract that lets an **inner**
 
 Without this contract, inner and outer pipelines collide on:
 
-1. **pipeline-state** — both write to `~/.claude/pipeline-state/*-pipeline.md`. `CLAUDE_PIPELINE_BYPASS=1` lets the inner proceed without a state file of its own in the outer's directory; `HOME` isolation gives it its own directory entirely.
-2. **scratchpad** — `pipeline-state/{task-id}-scratchpad/`. Same mitigation as (1).
-3. **trajectory** — `pipeline-state/{task-id}-trajectory.jsonl`. `CLAUDE_PIPELINE_TASK_ID` forces the namespace.
+1. **pipeline-state** — both write to `~/.claude/pipeline-state/{task-id}/pipeline.md` (canonical) or `~/.claude/pipeline-state/*-pipeline.md` (legacy, read-tolerated during 90-day DUAL_PATH soak). `CLAUDE_PIPELINE_BYPASS=1` lets the inner proceed without a state file of its own in the outer's directory; `HOME` isolation gives it its own directory entirely.
+2. **scratchpad** — `pipeline-state/{task-id}/scratchpad/` (canonical; legacy: `pipeline-state/{task-id}-scratchpad/`). Same mitigation as (1).
+3. **trajectory** — `pipeline-state/{task-id}/trajectory.jsonl` (canonical; legacy: `pipeline-state/{task-id}-trajectory.jsonl`). `CLAUDE_PIPELINE_TASK_ID` forces the namespace.
 4. **observations** — `learning/{project-hash}/observations.jsonl`. `CLAUDE_PROJECT_HASH` redirects.
 5. **learning/instincts** — `learning/{project-hash}/instincts/`. Same as (4).
 6. **session-memory** — `session-memory/{project-hash}/notes.md`. Respects `HOME` + `CLAUDE_PROJECT_HASH`.

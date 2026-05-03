@@ -65,11 +65,15 @@ if [[ "${CLAUDE_PIPELINE_BYPASS:-}" == "1" ]]; then
     exit 0
 fi
 
-# Check for active pipeline state file — project-local first, then global fallback
+# Check for active pipeline state file — project-local first, then global fallback.
+# DUAL_PATH: helper covers both legacy *-pipeline.md AND new {task-id}/pipeline.md
+# AND excludes reserved root dirs (workstreams/, health-reports/) per
+# pipeline_state_paths_helpers.EXCLUDED_ROOT_DIRS.
+source ~/.claude/hooks/_lib/pipeline-state-paths.sh
 GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 for PIPELINE_DIR in "$GIT_ROOT/pipeline-state" "$HOME/.claude/pipeline-state"; do
     if [[ -d "$PIPELINE_DIR" ]]; then
-        ACTIVE_FILES=$(find "$PIPELINE_DIR" -name "*-pipeline.md" -type f 2>/dev/null | head -1)
+        ACTIVE_FILES=$(_psp_find_active_pipelines "$PIPELINE_DIR" 2>/dev/null | head -1)
         if [[ -n "$ACTIVE_FILES" ]]; then
             exit 0
         fi

@@ -49,7 +49,7 @@ bash "$WORKTREE/skills/pr-creation/lib/check-approval-token.sh"
 
 - **APPROVED** or **APPROVED_WITH_CONDITIONS**: proceed to Step 1.
 - **Missing token** or **REJECTED**: exits with `PR_BLOCKED` message including remediation hint.
-- **No active pipeline** (no `pipeline-state/{task-id}-pipeline.md`): manual PR path — gate skips, proceed.
+- **No active pipeline** (no `pipeline-state/{task-id}/pipeline.md` and no legacy `pipeline-state/{task-id}-pipeline.md`): manual PR path — gate skips, proceed.
 
 Cross-references: `hooks/auto-pr.sh` performs an advisory read of the same token and suppresses its PR suggestion when the gate is closed.
 

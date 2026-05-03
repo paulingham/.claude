@@ -59,7 +59,7 @@ Produces a written artifact that downstream phases and the Build pipeline consum
    - Grep within the module for module-level mutable state (globals, singletons, `let` at module scope, class variables, `$`-globals).
    - Grep for writes to state owned by OTHER modules (cross-boundary mutation — breaks extraction).
    - If either is present and cannot be resolved → return `EXTRACTION_BLOCKED: shared-state must be resolved first` with the specific state cited.
-6. **Write the artifact** to `pipeline-state/{task-id}-boundary-analysis.md`.
+6. **Write the artifact** to `pipeline-state/{task-id}/boundary-analysis.md`.
 
 ### Artifact Format
 
@@ -108,7 +108,7 @@ Produces the module's public port as a reviewable source file.
 
 ### Procedure
 
-1. **Read the Phase 1 artifact** from `pipeline-state/{task-id}-boundary-analysis.md`.
+1. **Read the Phase 1 artifact** from `pipeline-state/{task-id}/boundary-analysis.md`.
 2. **Derive the public surface** from the Inbound Dependencies table:
    - Every inbound symbol is a candidate for the port.
    - Collapse near-duplicates (e.g., two callers calling `getSubscription` with different param shapes → one signature with a union or overload).

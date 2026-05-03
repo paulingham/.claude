@@ -258,14 +258,14 @@ session_memory_sync_out "$PROJECT_HASH" "$NOTES_PATH"  # file → backend (no-op
 
 Before spawning any agent during a pipeline, the orchestrator reads the scratchpad:
 
-1. **Read**: `ls pipeline-state/{task-id}-scratchpad/*.md`
+1. **Read**: `ls pipeline-state/{task-id}/scratchpad/*.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/scratchpad/*.md`). During the DUAL_PATH soak (see `rules/pipeline-protocol.md` § Structured Pipeline State), the legacy form `pipeline-state/{task-id}-scratchpad/*.md` is still tolerated.
 2. **Filter**: Include ALL warnings and fragility findings. Include discoveries/patterns relevant to the agent's phase. Include build decisions when spawning reviewers.
 3. **Inject** under `## Pipeline Scratchpad (findings from prior agents)` with source attribution
 4. **If empty**: Skip silently
 
 Also include the scratchpad write instruction in every write-capable agent's prompt:
 
-> "Before completing, write any noteworthy discoveries to `pipeline-state/{task-id}-scratchpad/{your-role}-{phase}.md` with YAML frontmatter `category: discovery|warning|pattern|fragility|decision`. Skip if nothing noteworthy."
+> "Before completing, write any noteworthy discoveries to `pipeline-state/{task-id}/scratchpad/{your-role}-{phase}.md` with YAML frontmatter `category: discovery|warning|pattern|fragility|decision`. Skip if nothing noteworthy."
 
 ### What Teammates Get
 
@@ -279,7 +279,7 @@ Also include the scratchpad write instruction in every write-capable agent's pro
 | Instincts (learning/instincts/) | No -- injected by orchestrator into spawn prompt |
 | Agent memory (agent-memory/{role}/) | No -- injected by orchestrator into spawn prompt |
 | Session memory (session-memory/{hash}/) | No -- injected by orchestrator into spawn prompt |
-| Pipeline scratchpad (pipeline-state/{id}-scratchpad/) | No -- injected by orchestrator into spawn prompt |
+| Pipeline scratchpad (pipeline-state/{id}/scratchpad/) | No -- injected by orchestrator into spawn prompt |
 
 ### Interacting with Teammates
 
