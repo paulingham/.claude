@@ -18,7 +18,7 @@
 
 On every session start, before responding to the user's first message:
 
-1. **Check for in-progress pipeline**: `ls pipeline-state/*-pipeline.md 2>/dev/null`. If found, automatically invoke `/pipeline-resume`. Inform the user: "Resuming [pipeline name] from [phase]."
+1. **Check for in-progress pipeline**: source `~/.claude/hooks/_lib/pipeline-state-paths.sh` and run `_psp_find_active_pipelines "$HOME/.claude/pipeline-state" 2>/dev/null | head -1` (the helper unions new-layout `pipeline-state/{task-id}/pipeline.md`, legacy `pipeline-state/{task-id}-pipeline.md`, and their workstream variants). If found, automatically invoke `/pipeline-resume`. Inform the user: "Resuming [pipeline name] from [phase]."
 2. **Check for merged PRs with pending deploy**: if a pipeline state file shows Ship=completed + Deploy=pending, check `gh pr view --json state`. If merged, auto-invoke `/deploy`.
 
 These checks are silent if nothing is found — don't report "no pipelines found."

@@ -5,15 +5,20 @@
 # are .subagent_type / .subagent_id (NO .tool_input wrapper). Token usage assumed at
 # .usage.input_tokens (top level), matching that asymmetry.
 
+_cf_pipeline_id_from_path() {
+  # New: parent dir. Legacy: basename minus '-pipeline.md'.
+  case "$(basename "$1")" in
+    pipeline.md) basename "$(dirname "$1")" ;;
+    *) local base; base=$(basename "$1"); echo "${base%-pipeline.md}" ;;
+  esac
+}
+
 _cf_pipeline_id() {
   # DUAL_PATH: helper finds new-layout {task}/pipeline.md AND legacy {task}-pipeline.md.
   source "$(dirname "${BASH_SOURCE[0]}")/pipeline-state-paths.sh"
   local newest; newest=$(_psp_find_active_pipelines | head -1)
   [ -z "$newest" ] && { echo "none"; return 0; }
-  case "$(basename "$newest")" in
-    pipeline.md) basename "$(dirname "$newest")" ;;
-    *) base=$(basename "$newest"); echo "${base%-pipeline.md}" ;;
-  esac
+  _cf_pipeline_id_from_path "$newest"
 }
 
 _cf_session_id() {
