@@ -10,7 +10,7 @@ task_id: wave4-R
 
 The harness shifted from **incremental per-behaviour TDD** (one test, one impl, one refactor, repeat) to **Acceptance-Test-Driven Development (ATDD)** with a single batched RED-GREEN-REFACTOR cycle plus a quantitative mutation gate per slice.
 
-- `rules/engineering-protocol.md` § ATDD Protocol replaces the old "Incremental TDD Protocol" section. Three test invocations per slice (batched RED, post-implementation GREEN, post-refactor GREEN) plus one mutation report. Same mandatory Iron Laws, different cadence.
+- `rules/atdd-procedure.md` (split out of `rules/engineering-protocol.md` in 2026-05) defines the ATDD Protocol that replaced the old "Incremental TDD Protocol". Three test invocations per slice (batched RED, post-implementation GREEN, post-refactor GREEN) plus one mutation report. Same mandatory Iron Laws, different cadence. Engineering invariants (shape, naming, security baseline, testing standards) live in `rules/engineering-invariants.md`.
 - `skills/build-implementation/SKILL.md` Step 1 now reads the architect's per-AC failing-test stub list and halts if any AC has no stub. Step 2 implements the batched ATDD cycle.
 - `hooks/tdd-guard.sh` rewired from PreToolUse Write/Edit to PreToolUse Bash gate. Triggers only on `gh pr create` / `gh pr ready`. Blocks PR creation when the diff against the base branch contains source changes with no test changes. Helper logic in `hooks/_lib/tdd-guard-pr.sh` (50 lines, self-contained).
 - `skills/verify/SKILL.md` Tier 3 (mutation testing) is now a HARD GATE at >= 70% kill rate on changed lines. Below threshold = UNVERIFIED. The manual fallback is approved as gate-passing methodology, but the threshold still applies.

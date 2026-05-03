@@ -86,7 +86,7 @@ No `isolation: "worktree"` — code-reviewer is read-only.
 
 Shape measurements are enforced by build hooks. Include measurements in your report for the audit trail, but do not flag passing measurements as findings. Only flag if a measurement EXCEEDS limits despite hooks — this indicates a hook bypass, and the finding severity is "process" (fix the hooks, not the code).
 
-- [ ] Shape constraints met (see `rules/engineering-protocol.md`)
+- [ ] Shape constraints met (see `rules/engineering-invariants.md`)
 - [ ] No DRY violations (duplicated logic)
 - [ ] SRP: each class/module has one reason to change
 - [ ] Tests are meaningful (not just coverage padding)
