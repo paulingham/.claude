@@ -34,10 +34,15 @@ if [[ -z "$TASK_ID" ]]; then
   exit 0  # No active pipeline — skip
 fi
 
-# Sanitize TASK_ID to prevent path traversal
-TASK_ID="${TASK_ID//[^a-zA-Z0-9_.-]/}"
+# Sanitize TASK_ID to prevent path traversal — drop '.' (R10 hardening for new layout).
+TASK_ID="${TASK_ID//[^a-zA-Z0-9_-]/}"
 
-TRAJECTORY_FILE="${HOME}/.claude/pipeline-state/${TASK_ID}-trajectory.jsonl"
+# Empty TASK_ID after sanitization (e.g. ".." input) → no write.
+[[ -z "$TASK_ID" ]] && exit 0
+
+# DUAL_PATH: write to new layout {task-id}/trajectory.jsonl.
+TASK_DIR="${HOME}/.claude/pipeline-state/${TASK_ID}"
+TRAJECTORY_FILE="${TASK_DIR}/trajectory.jsonl"
 
 # Guard against path traversal — file must be under pipeline-state/
 case "$TRAJECTORY_FILE" in
@@ -48,10 +53,11 @@ esac
 if [[ ! -d "${HOME}/.claude/pipeline-state" ]]; then
   exit 0
 fi
+mkdir -p "$TASK_DIR" 2>/dev/null || exit 0
 
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-jq -n \
+jq -nc \
   --arg ts "$TIMESTAMP" \
   --arg agent "$AGENT_TYPE" \
   --arg task_id "$TASK_ID" \

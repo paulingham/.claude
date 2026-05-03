@@ -109,7 +109,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'",
+            "command": "{ ls pipeline-state/*-pipeline.md pipeline-state/*/pipeline.md; } 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'",
             "timeout": 10000
           }
         ]

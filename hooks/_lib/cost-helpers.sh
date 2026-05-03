@@ -6,11 +6,14 @@
 # .usage.input_tokens (top level), matching that asymmetry.
 
 _cf_pipeline_id() {
-  local newest base
-  # shellcheck disable=SC2012  # ls -t mtime sort intentional; matches plan spec
-  newest=$(ls -t "$HOME/.claude/pipeline-state/"*-pipeline.md 2>/dev/null | head -1)
+  # DUAL_PATH: helper finds new-layout {task}/pipeline.md AND legacy {task}-pipeline.md.
+  source "$(dirname "${BASH_SOURCE[0]}")/pipeline-state-paths.sh"
+  local newest; newest=$(_psp_find_active_pipelines | head -1)
   [ -z "$newest" ] && { echo "none"; return 0; }
-  base=$(basename "$newest"); echo "${base%-pipeline.md}"
+  case "$(basename "$newest")" in
+    pipeline.md) basename "$(dirname "$newest")" ;;
+    *) base=$(basename "$newest"); echo "${base%-pipeline.md}" ;;
+  esac
 }
 
 _cf_session_id() {

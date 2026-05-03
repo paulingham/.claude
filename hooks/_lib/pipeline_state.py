@@ -1,9 +1,9 @@
-"""Active pipeline state file discovery. Picks newest *-pipeline.md by mtime."""
-import glob
+"""Active pipeline state file discovery — DUAL_PATH (new + legacy layouts)."""
 import os
 from pathlib import Path
 
 from pipeline_frontmatter import coerce_state, parse_frontmatter
+from pipeline_state_paths import discover_state_path, find_pipeline_files
 
 
 def _state_dir(state_dir):
@@ -12,13 +12,13 @@ def _state_dir(state_dir):
 
 
 def _find_pipeline_file(directory):
-    files = glob.glob(str(Path(directory) / "*-pipeline.md"))
-    files.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-    return files[0] if files else None
+    files = find_pipeline_files(Path(directory))
+    files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return str(files[0]) if files else None
 
 
 def _debug_path(directory, task_id):
-    return Path(directory, f"{task_id}-debug.md") if task_id else None
+    return discover_state_path(Path(directory), task_id, "debug") if task_id else None
 
 
 def _debug_mtime(path):

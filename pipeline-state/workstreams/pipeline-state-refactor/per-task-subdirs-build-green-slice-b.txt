@@ -1,0 +1,94 @@
+============================================================
+Python tests:
+============================================================
+============================= test session starts ==============================
+platform darwin -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /Users/Paul.Ingham/.claude/.claude/worktrees/agent-6d68dbad
+collecting ... collected 7 items
+
+tests/test_auto_learn_gate_dual_path.py::test_current_pipeline_id_finds_new_layout PASSED [ 14%]
+tests/test_dual_path_discovery.py::test_legacy_layout_still_discoverable PASSED [ 28%]
+tests/test_dual_path_discovery.py::test_fresher_layout_wins_on_collision PASSED [ 42%]
+tests/test_dual_path_discovery.py::test_stale_new_layout_does_not_eclipse_live_legacy PASSED [ 57%]
+tests/test_dual_path_discovery.py::test_workstream_beats_root_on_task_id_collision PASSED [ 71%]
+tests/test_dual_path_discovery.py::test_in_flight_pipeline_resumable PASSED [ 85%]
+tests/test_dual_path_discovery.py::test_approval_token_path_returns_existing_layout PASSED [100%]
+
+============================== 7 passed in 0.09s ===============================
+
+============================================================
+Bash tests:
+============================================================
+
+--- tests/test_pipeline_state_guard_dual_path.sh ---
+Test guard_passes_when_new_layout_pipeline_exists
+  ok: guard_passes_when_new_layout_pipeline_exists
+Test guard_passes_when_legacy_layout_pipeline_exists
+  ok: guard_passes_when_legacy_layout_pipeline_exists
+
+Results: 2 passed, 0 failed
+
+--- tests/test_pipeline_analytics_dual_path.sh ---
+Test analytics_globs_phase_files_under_subdir
+  ok: analytics found new-layout phase files
+
+Results: 1 passed, 0 failed
+
+--- tests/test_observation_capture_dual_path.sh ---
+Test observation_capture_extracts_phase_from_new_layout
+  ok: extracted phase=build from new-layout fixture
+
+Results: 1 passed, 0 failed
+
+--- tests/test_subagent_stop_trajectory_dual_path.sh ---
+Test trajectory_writes_to_new_layout
+  ok: trajectory written to new-layout path
+Test trajectory_rejects_dotdot_task_id_under_new_layout
+  ok: '..' task_id sanitized — no traversal write
+
+Results: 2 passed, 0 failed
+
+--- tests/test_planning_agent_edit_scope_new_layout.sh ---
+Test planning_agent_edit_scope_accepts_new_layout_plan_md
+  ok: Edit on pipeline-state/t1/plan.md returns 0
+Test planning_agent_edit_scope_accepts_legacy_plan_md
+  ok: Edit on legacy pipeline-state/t1-plan.md returns 0
+Test planning_agent_edit_scope_rejects_other_md_under_subdir
+  ok: Edit on pipeline-state/t1/build.md returns 2
+
+Results: 3 passed, 0 failed
+
+--- tests/test_intake_reminder_new_layout.sh ---
+Test batch_keyword_passes_when_new_layout_pipeline_exists
+  ok: batch keyword + new-layout pipeline = no block
+  ok: batch keyword + legacy pipeline = no block (sanity)
+  ok: empty pipeline-state still blocks (sanity)
+
+Results: 3 passed, 0 failed
+
+--- tests/test_session_start_bootstrap_new_layout.sh ---
+Test bootstrap_lists_new_layout_active_pipelines
+  ok: bootstrap lists new-layout pipeline
+
+Results: 1 passed, 0 failed
+
+--- tests/test_trace_prompt_new_layout.sh ---
+Test trace_prompt_resolves_task_id_from_new_layout
+  ok: trace file has task_id=t-trace from new layout
+
+Results: 1 passed, 0 failed
+
+--- tests/test_cost_helpers_new_layout.sh ---
+Test cost_helpers_pipeline_id_finds_new_layout
+  ok: _cf_pipeline_id returned cost-task
+
+Results: 1 passed, 0 failed
+
+--- tests/test_settings_postcompact_glob.sh ---
+Test settings_postcompact_command_matches_both_layouts
+  ok: command found state files
+Test settings_postcompact_command_text_unions_both_globs
+  ok: command unions both globs
+
+Results: 2 passed, 0 failed

@@ -13,11 +13,14 @@ mkdir -p "$TMP/.claude"; ln -s "$REPO_ROOT/hooks" "$TMP/.claude/hooks"
 ln -s "$REPO_ROOT/skills" "$TMP/.claude/skills"
 
 mkdir -p "$TMP/.claude/pipeline-state/t1"
+# Frontmatter intentionally lacks `verdict: in_progress` so that the FIRST
+# `in_progress` line the hook finds is `- Build: in_progress` in the body
+# (matches the legacy hook's phase-extraction contract verbatim).
 cat > "$TMP/.claude/pipeline-state/t1/pipeline.md" <<'EOF'
 ---
 task_id: t1
 phase: build
-verdict: in_progress
+verdict: PIPELINE_ACTIVE
 ---
 
 ## Phases
