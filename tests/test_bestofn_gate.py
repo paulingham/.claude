@@ -4,49 +4,59 @@ import unittest
 from bestofn_gate import should_dispatch_bestofn
 
 
-class FeatureAtThresholdEnables(unittest.TestCase):
-    def test_feature_budget_5_enables(self):
-        self.assertTrue(should_dispatch_bestofn(False, "feature", 5))
-
-
-class FeatureBelowThresholdDisables(unittest.TestCase):
-    def test_feature_budget_4_disables(self):
-        self.assertFalse(should_dispatch_bestofn(False, "feature", 4))
-
-
-class BugWithHighBudgetDisables(unittest.TestCase):
-    def test_bug_budget_8_disables(self):
-        self.assertFalse(should_dispatch_bestofn(False, "bug", 8))
-
-
-class RefactorWithHighBudgetDisables(unittest.TestCase):
-    def test_refactor_budget_10_disables(self):
-        self.assertFalse(should_dispatch_bestofn(False, "refactor", 10))
-
-
-class SpikeWithHighBudgetDisables(unittest.TestCase):
-    def test_spike_budget_12_disables(self):
-        self.assertFalse(should_dispatch_bestofn(False, "spike", 12))
-
-
-class CriticalBugLowBudgetEnables(unittest.TestCase):
+class CriticalEnables(unittest.TestCase):
     def test_critical_bug_low_budget_enables(self):
         self.assertTrue(should_dispatch_bestofn(True, "bug", 2))
 
-
-class CriticalFeatureAtThresholdEnables(unittest.TestCase):
-    def test_critical_feature_budget_5_enables(self):
+    def test_critical_feature_enables(self):
         self.assertTrue(should_dispatch_bestofn(True, "feature", 5))
 
 
-class EmptyClassNonCriticalDisables(unittest.TestCase):
-    def test_empty_class_budget_9_disables(self):
+class NonCriticalFeatureDisables(unittest.TestCase):
+    def test_feature_budget_5_disables(self):
+        self.assertFalse(should_dispatch_bestofn(False, "feature", 5))
+
+    def test_feature_high_budget_disables(self):
+        self.assertFalse(should_dispatch_bestofn(False, "feature", 12))
+
+
+class NonCriticalOtherClassesDisable(unittest.TestCase):
+    def test_bug_disables(self):
+        self.assertFalse(should_dispatch_bestofn(False, "bug", 8))
+
+    def test_refactor_disables(self):
+        self.assertFalse(should_dispatch_bestofn(False, "refactor", 10))
+
+    def test_spike_disables(self):
+        self.assertFalse(should_dispatch_bestofn(False, "spike", 12))
+
+    def test_empty_class_disables(self):
         self.assertFalse(should_dispatch_bestofn(False, "", 9))
 
 
-class CaseSensitiveClassDisables(unittest.TestCase):
-    def test_uppercase_feature_disables(self):
-        self.assertFalse(should_dispatch_bestofn(False, "FEATURE", 5))
+class UserOverrideEnables(unittest.TestCase):
+    def test_token_in_request_enables(self):
+        self.assertTrue(
+            should_dispatch_bestofn(False, "feature", 2, "Add login [best-of-n]")
+        )
+
+    def test_token_case_insensitive(self):
+        self.assertTrue(
+            should_dispatch_bestofn(False, "bug", 1, "Fix bug [BEST-OF-N]")
+        )
+
+    def test_token_alone_enables(self):
+        self.assertTrue(should_dispatch_bestofn(False, "refactor", 3, "[best-of-n]"))
+
+
+class NoOverrideTokenDisables(unittest.TestCase):
+    def test_partial_token_disables(self):
+        self.assertFalse(
+            should_dispatch_bestofn(False, "feature", 5, "best of n please")
+        )
+
+    def test_empty_request_disables(self):
+        self.assertFalse(should_dispatch_bestofn(False, "feature", 5, ""))
 
 
 if __name__ == "__main__":

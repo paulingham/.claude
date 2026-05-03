@@ -256,16 +256,28 @@ session_memory_sync_out "$PROJECT_HASH" "$NOTES_PATH"  # file → backend (no-op
 
 ### Pipeline Scratchpad Injection (Automatic)
 
-Before spawning any agent during a pipeline, the orchestrator reads the scratchpad:
+Before spawning any agent during a pipeline, the orchestrator reads the scratchpad and applies a **category-based relevance filter** so each spawn only sees findings that bear on its phase. This keeps prompt size bounded and prevents irrelevant noise from drowning load-bearing warnings.
 
 1. **Read**: `ls pipeline-state/{task-id}/scratchpad/*.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/scratchpad/*.md`). During the DUAL_PATH soak (see `rules/pipeline-protocol.md` § Structured Pipeline State), the legacy form `pipeline-state/{task-id}-scratchpad/*.md` is still tolerated.
-2. **Filter**: Include ALL warnings and fragility findings. Include discoveries/patterns relevant to the agent's phase. Include build decisions when spawning reviewers.
-3. **Inject** under `## Pipeline Scratchpad (findings from prior agents)` with source attribution
-4. **If empty**: Skip silently
+2. **Filter** by category × spawn target:
+
+   | Finding category | Forwarded to |
+   |------------------|--------------|
+   | `warning` | ALL subsequent phases (every spawn after the writer) |
+   | `fragility` | ALL subsequent phases (every spawn after the writer) |
+   | `discovery` | Next immediate phase only (e.g. build → review, then dropped) |
+   | `pattern` | Same role on subsequent phases only (e.g. software-engineer pattern → next software-engineer spawn; never to product-reviewer) |
+   | `decision` | Reviewers (`code-reviewer`, `security-engineer`) and Final Gate roles (`qa-engineer`, `product-reviewer`, `patch-critic`) only |
+
+   The phase ordering used to compute "subsequent" follows the canonical pipeline: Plan → Build → Review → Verify → Test → Accept → Patch-Critique → Ship → Deploy. The writer's `{phase}` field on the scratchpad file determines provenance.
+3. **Inject** the filtered set under `## Pipeline Scratchpad (findings from prior agents)` with source attribution `[role/phase] category: …`. Findings are listed by category, fragility/warnings first.
+4. **If the filtered set is empty**: skip the section silently — no header, no placeholder.
 
 Also include the scratchpad write instruction in every write-capable agent's prompt:
 
 > "Before completing, write any noteworthy discoveries to `pipeline-state/{task-id}/scratchpad/{your-role}-{phase}.md` with YAML frontmatter `category: discovery|warning|pattern|fragility|decision`. Skip if nothing noteworthy."
+
+**Forensics**: the `scratchpad-bytes.sh` PreToolUse hook (Agent matcher) measures the bytes of scratchpad content visible to each spawn after filtering and logs to `metrics/{session-id}/scratchpad-bytes.jsonl`. Use this to spot regressions (a phase suddenly seeing 10x more bytes) or under-injection (warnings dropped because the filter was misapplied).
 
 ### What Teammates Get
 
