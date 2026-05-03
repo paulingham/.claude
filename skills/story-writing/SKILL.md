@@ -33,7 +33,7 @@ For each criterion, use Given/When/Then:
 
 ### 4. Estimate with Complexity Budget
 
-See the Complexity Budget table in `rules/operational-protocol.md`. Score each dimension 1-3.
+See the Complexity Budget table in `rules/_detail/operational-protocol.md`. Score each dimension 1-3.
 
 ### 5. Failing Test Stubs (per AC)
 

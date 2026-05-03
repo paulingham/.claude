@@ -14,7 +14,7 @@ Sizes stories using a 5-dimension Complexity Budget that reflects AI-native work
 
 ## Complexity Budget
 
-See the Complexity Budget table in `rules/operational-protocol.md` for the 5-dimension scoring matrix and thresholds.
+See the Complexity Budget table in `rules/_detail/operational-protocol.md` for the 5-dimension scoring matrix and thresholds.
 
 Score each dimension 1-3. Total budget determines action and Fibonacci mapping.
 

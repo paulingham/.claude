@@ -82,7 +82,7 @@ Agent({
     3. ## Alternatives Considered (minimum 2 alternatives with rejection rationale)
     4. Any constraint-driven overrides from the Constraint Modifiers table
     5. ## Service Topology:
-       Unless a forcing function from ~/.claude/rules/module-boundaries-protocol.md
+       Unless a forcing function from ~/.claude/rules/_detail/module-boundaries-protocol.md
        (FF1–FF5) is present in the product brief, recommend a single-service
        MODULAR MONOLITH. In-process module boundaries first; new services only
        when a forcing function is explicitly named. If the brief implies
@@ -172,7 +172,7 @@ Agent({
        their public interfaces — never by reaching into another module's
        internals.
 
-       See `~/.claude/rules/module-boundaries-protocol.md` for the full
+       See `~/.claude/rules/_detail/module-boundaries-protocol.md` for the full
        rules, including:
        - What counts as a public contract vs. private internals
        - How modules are tested at the seam

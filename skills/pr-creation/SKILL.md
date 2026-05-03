@@ -67,7 +67,7 @@ if [[ "$COMMON_DIR_ABS" == "$GIT_DIR_ABS" ]]; then
 fi
 ```
 
-All subsequent commands in this skill use `git -C "$WORKTREE" ...` or `(cd "$WORKTREE" && ...)`. Bare `git checkout|switch|merge|...` and bare `gh pr create` are blocked by `hooks/main-branch-guard.sh` regardless of cwd. See `rules/agent-protocol.md > ## Main-Branch Invariant`.
+All subsequent commands in this skill use `git -C "$WORKTREE" ...` or `(cd "$WORKTREE" && ...)`. Bare `git checkout|switch|merge|...` and bare `gh pr create` are blocked by `hooks/main-branch-guard.sh` regardless of cwd. See `rules/_detail/agent-protocol.md > ## Main-Branch Invariant`.
 
 ## Context
 

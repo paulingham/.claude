@@ -1,6 +1,6 @@
 # Agent Orchestration (Orchestrator-Only)
 
-Extracted from `rules/agent-protocol.md`. Agents do not need this content.
+Extracted from `rules/_detail/agent-protocol.md`. Agents do not need this content.
 
 ## Orchestrator Discipline
 
@@ -137,7 +137,7 @@ Operators inspect `metrics/{session}/hook-injections.jsonl` to see what defaults
 
 **Forward pointer**: When Claude Code lands `modified_tool_input` for hook returns (Path A) or the Agent tool input schema exposes `thinking`, the hook's enforcement layer flips. The resolver, tests, and precedence rules are unchanged.
 
-See `rules/thinking-defaults.md` § Hook Behavior for the full precedence table and field semantics.
+See `rules/_detail/thinking-defaults.md` § Hook Behavior for the full precedence table and field semantics.
 
 ### Tool Allowlist Auto-Derivation (Automatic)
 
@@ -149,11 +149,11 @@ Once the Agent input schema lands `allowed_tools`, this flips to enforcement: re
 
 **Override**: `CLAUDE_DISABLE_TOOL_ALLOWLIST=1` is a per-session escape hatch (hook fast-exits). Useful when a spawn legitimately needs a wider surface than its role declares — record the rationale in the pipeline scratchpad.
 
-**Reference**: `rules/agent-protocol.md` § Per-Agent Tool Scoping for the full contract (frontmatter shape, subset semantics, metrics fields).
+**Reference**: `rules/_detail/agent-protocol.md` § Per-Agent Tool Scoping for the full contract (frontmatter shape, subset semantics, metrics fields).
 
 ### Instinct Injection (every Agent spawn)
 
-Before invoking `Agent(...)`, the orchestrator MUST resolve and splice the `## Learned Patterns` block into the spawn prompt body. The hook (`hooks/instinct-injector.sh`) is **advisory/log-only** today — it cannot mutate the prompt because the Agent input schema does not yet expose `modified_tool_input`. The orchestrator-side splice IS the actual delivery mechanism. See `rules/autonomous-intelligence.md` § Instinct Injection for the selection algorithm, JSONL forensic format, and Path-B disclosure surface.
+Before invoking `Agent(...)`, the orchestrator MUST resolve and splice the `## Learned Patterns` block into the spawn prompt body. The hook (`hooks/instinct-injector.sh`) is **advisory/log-only** today — it cannot mutate the prompt because the Agent input schema does not yet expose `modified_tool_input`. The orchestrator-side splice IS the actual delivery mechanism. See `rules/_detail/autonomous-intelligence.md` § Instinct Injection for the selection algorithm, JSONL forensic format, and Path-B disclosure surface.
 
 #### Caller contract
 
@@ -180,7 +180,7 @@ Before invoking `Agent(...)`, the orchestrator MUST resolve and splice the `## L
 
    Or invoke the entry script `hooks/_lib/resolve-instincts.py` directly (the same script the hook uses) and read its `RESOLVED {json}` line for the rendered block plus telemetry.
 
-3. **Splice when non-empty**: if `block != ""`, insert it into the spawn prompt at the `## Learned Patterns (from system learning)` insertion point documented in `rules/parallel-dispatch-protocol.md` § Teammate Prompt Template. If `block == ""`, omit the section silently — do not inject an empty header.
+3. **Splice when non-empty**: if `block != ""`, insert it into the spawn prompt at the `## Learned Patterns (from system learning)` insertion point documented in `rules/_detail/parallel-dispatch-protocol.md` § Teammate Prompt Template. If `block == ""`, omit the section silently — do not inject an empty header.
 
 4. **Write the orchestrator-injected JSONL record** (Path-B disclosure surface). After the spawn-prompt write succeeds, append to `metrics/{session-id}/instinct-injections.jsonl`:
 
@@ -234,14 +234,14 @@ Before spawning any agent, the orchestrator reads the session memory file:
 
 1. **Check**: `~/.claude/session-memory/{project-hash}/notes.md`
 2. **If exists and under 2000 chars**: Include full content under `## Session Context`
-3. **If exists and over 2000 chars**: Include only priority sections for the agent's role (see `rules/autonomous-intelligence.md` § Injection Priority)
+3. **If exists and over 2000 chars**: Include only priority sections for the agent's role (see `rules/_detail/autonomous-intelligence.md` § Injection Priority)
 4. **If not exists**: Skip silently
 
 Session memory is engineering context — build commands, fragile files, patterns, discoveries. It survives context compaction and gives agents immediate orientation.
 
 ### Session Memory Update (Backend Sync Wrap)
 
-When dispatching a `session-memory-updater` agent (per `rules/autonomous-intelligence.md` § Update Mechanism), the orchestrator wraps the spawn with backend round-trip helpers from `hooks/_lib/session-store.sh`. This keeps the agent Edit-only (no `Bash` tool grant), preserving the Path B per-agent tool-allowlist invariant.
+When dispatching a `session-memory-updater` agent (per `rules/_detail/autonomous-intelligence.md` § Update Mechanism), the orchestrator wraps the spawn with backend round-trip helpers from `hooks/_lib/session-store.sh`. This keeps the agent Edit-only (no `Bash` tool grant), preserving the Path B per-agent tool-allowlist invariant.
 
 Canonical wrap template (orchestrator-side bash):
 
@@ -252,13 +252,13 @@ session_memory_sync_in "$PROJECT_HASH" "$NOTES_PATH"   # backend → file (no-op
 session_memory_sync_out "$PROJECT_HASH" "$NOTES_PATH"  # file → backend (no-op for local)
 ```
 
-`sync_in` materialises the remote blob (or template stamp on first-run miss) into `$NOTES_PATH`. `sync_out` mirrors the file back. For `BACKEND=local` (default), both helpers are byte-no-ops — zero behaviour change. For `BACKEND=s3` / `BACKEND=redis`, the helpers do the round-trip; PUT failures emit a JSONL forensic line via `log-injection.sh` and exit 0 so the workflow never blocks on durability. See `rules/autonomous-intelligence.md` § Adapters and `session-memory/adapters/README.md` for the full contract.
+`sync_in` materialises the remote blob (or template stamp on first-run miss) into `$NOTES_PATH`. `sync_out` mirrors the file back. For `BACKEND=local` (default), both helpers are byte-no-ops — zero behaviour change. For `BACKEND=s3` / `BACKEND=redis`, the helpers do the round-trip; PUT failures emit a JSONL forensic line via `log-injection.sh` and exit 0 so the workflow never blocks on durability. See `rules/_detail/autonomous-intelligence.md` § Adapters and `session-memory/adapters/README.md` for the full contract.
 
 ### Pipeline Scratchpad Injection (Automatic)
 
 Before spawning any agent during a pipeline, the orchestrator reads the scratchpad and applies a **category-based relevance filter** so each spawn only sees findings that bear on its phase. This keeps prompt size bounded and prevents irrelevant noise from drowning load-bearing warnings.
 
-1. **Read**: `ls pipeline-state/{task-id}/scratchpad/*.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/scratchpad/*.md`). During the DUAL_PATH soak (see `rules/pipeline-protocol.md` § Structured Pipeline State), the legacy form `pipeline-state/{task-id}-scratchpad/*.md` is still tolerated.
+1. **Read**: `ls pipeline-state/{task-id}/scratchpad/*.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/scratchpad/*.md`). During the DUAL_PATH soak (see `rules/_detail/pipeline-protocol.md` § Structured Pipeline State), the legacy form `pipeline-state/{task-id}-scratchpad/*.md` is still tolerated.
 2. **Filter** by category × spawn target:
 
    | Finding category | Forwarded to |
@@ -349,7 +349,7 @@ CLAUDE_SUBAGENT_DEPTH=$child_depth Agent \
 
 The literal `CLAUDE_SUBAGENT_DEPTH=<N>` assignment is the load-bearing piece —
 it must appear in the shell that invokes the Agent tool, not merely in
-surrounding prose. See `rules/parallel-dispatch-protocol.md > Resource
+surrounding prose. See `rules/_detail/parallel-dispatch-protocol.md > Resource
 Bounds` for caps, env overrides, and refusal semantics. The mechanism mirrors
 the Path-B precedent in `pre-agent-thinking.sh`: documentation-first
 discipline today, automatic injection when the Agent tool input schema
@@ -405,12 +405,12 @@ You are a specialist {role} for task {task-id}.
 
 Read these before starting:
 - `~/.claude/knowledge/{relevant-file}.md`
-- `~/.claude/rules/engineering-invariants.md`
-- `~/.claude/rules/atdd-procedure.md` (build/fix phases)
+- `~/.claude/rules/_detail/engineering-invariants.md`
+- `~/.claude/rules/_detail/atdd-procedure.md` (build/fix phases)
 
 ## Standards
 
-Follow shape constraints and all standards in `rules/engineering-invariants.md`. For build phases, also follow `rules/atdd-procedure.md`.
+Follow shape constraints and all standards in `rules/_detail/engineering-invariants.md`. For build phases, also follow `rules/_detail/atdd-procedure.md`.
 
 ## Acceptance Criteria
 

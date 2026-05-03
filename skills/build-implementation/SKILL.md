@@ -24,7 +24,7 @@ Before writing any code:
 1. Open `pipeline-state/{task-id}/plan.md` and locate the **Failing Test Stubs (per AC)** section the architect produced.
 2. For each AC in this slice, the stub list names: test file path, test name, assertion intent.
 3. **If any AC has no stub, halt immediately** — surface the gap to the architect and request a stub. Implementation cannot begin without a complete stub list.
-4. The stub list IS your implementation plan. Three test invocations per slice — not three per AC, three per slice. See `rules/atdd-procedure.md` for the full cycle.
+4. The stub list IS your implementation plan. Three test invocations per slice — not three per AC, three per slice. See `rules/_detail/atdd-procedure.md` for the full cycle.
 
 ### Step 1b: Install Required Dependencies
 
@@ -38,7 +38,7 @@ If the orchestrator's prompt specifies dependencies, install them here. If you d
 
 ### Step 2: Implement Slice via ATDD (Three test invocations per slice)
 
-Follow the ATDD Protocol in `rules/atdd-procedure.md`:
+Follow the ATDD Protocol in `rules/_detail/atdd-procedure.md`:
 
 1. **BATCHED RED**: Write every AC test as one batch (the architect's stubs verbatim). Run the suite ONCE. Capture the RED output. Verify each test fails for the right reason — the named behavior is absent.
 2. **IMPLEMENT FREELY**: Write production code until every batched test passes. Shape constraints apply continuously: 8-line method cap, CC <= 5, nesting <= 2, 50-line file cap. Fix as you go, not at the end. Run the suite ONCE. Capture the GREEN output.
@@ -46,11 +46,11 @@ Follow the ATDD Protocol in `rules/atdd-procedure.md`:
 4. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% required. If <70%, add tests targeting the surviving mutations and return to step 2 — the slice is NOT complete.
 5. **COMMIT** with the four audit artifacts: batched RED output, post-implementation GREEN output, post-refactor GREEN output, mutation report.
 
-**Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN-REFACTOR. See `rules/atdd-procedure.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
+**Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN-REFACTOR. See `rules/_detail/atdd-procedure.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
 
 ### Step 3: Shape Check After Every File
 
-After completing or modifying ANY file, verify all metrics in `rules/engineering-invariants.md` (8-line functions, 50-line files, CC <= 5, nesting <= 2, DRY).
+After completing or modifying ANY file, verify all metrics in `rules/_detail/engineering-invariants.md` (8-line functions, 50-line files, CC <= 5, nesting <= 2, DRY).
 
 If any metric is violated, refactor BEFORE moving to the next test case.
 
@@ -76,7 +76,7 @@ Before declaring the build complete:
 - [ ] No DRY violations (no logic duplicated 2+ times)
 - [ ] All tests pass
 - [ ] ATDD audit trail visible (batched RED + post-implementation GREEN + post-refactor GREEN + mutation report >= 70%)
-- [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `rules/e2e-protocol.md` trigger matrix)
+- [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `rules/_detail/e2e-protocol.md` trigger matrix)
 - [ ] If `/tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries
 
 ## Worktree Isolation

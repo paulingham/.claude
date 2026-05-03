@@ -249,7 +249,7 @@ If `~/.claude/automation/daemon.sh` exists (automation system is installed):
  **Modular Monolith**. Omit for other roles.]
 
 This project is a modular monolith. Module boundaries are governed by
-`~/.claude/rules/module-boundaries-protocol.md` — read that file before
+`~/.claude/rules/_detail/module-boundaries-protocol.md` — read that file before
 creating a new module, adding a cross-module call, or proposing a
 service split.
 
