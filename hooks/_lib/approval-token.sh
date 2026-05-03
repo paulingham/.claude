@@ -1,9 +1,20 @@
 #!/usr/bin/env bash
-# Approval token library — Wave 4-N
-# Source this file; call _at_* functions.
+# Approval token library — Wave 4-N. ABI FROZEN; only path resolution changes
+# during DUAL_PATH soak. Read precedence: existing file wins; on collision,
+# fresher mtime wins. Writes go to NEW layout only.
+# shellcheck source=pipeline-state-paths.sh
+source "$(dirname "${BASH_SOURCE[0]}")/pipeline-state-paths.sh"
+
+_at_legacy_token_path() { echo "$HOME/.claude/pipeline-state/$1-approval.token"; }
+_at_new_token_path()    { echo "$HOME/.claude/pipeline-state/$1/approval.token"; }
 
 _at_token_path() {
-  echo "$HOME/.claude/pipeline-state/$1-approval.token"
+  local l n; l=$(_at_legacy_token_path "$1"); n=$(_at_new_token_path "$1")
+  if [ -f "$l" ] && [ ! -f "$n" ]; then echo "$l"
+  elif [ -f "$n" ] && [ ! -f "$l" ]; then echo "$n"
+  elif [ -f "$l" ] && [ -f "$n" ] && [ "$l" -nt "$n" ]; then echo "$l"
+  else echo "$n"
+  fi
 }
 
 _at_resolve_task_id() {
@@ -13,7 +24,7 @@ _at_resolve_task_id() {
 }
 
 _at_pipeline_active() {
-  [ -f "$HOME/.claude/pipeline-state/$1-pipeline.md" ]
+  _psp_pipeline_active "$1"
 }
 
 _at_token_exists() {
@@ -31,11 +42,13 @@ _at_valid_verdict() {
 }
 
 _at_write_token() {
-  # Validate task_id to prevent path traversal
+  # Validate task_id to prevent path traversal. Writes go to NEW layout only.
   [[ "$1" =~ ^[A-Za-z0-9_.-]+$ ]] || return 1
   _at_valid_verdict "$2" || return 1
+  local target; target=$(_at_new_token_path "$1")
+  mkdir -p "$(dirname "$target")"
   printf '{"verdict":"%s","timestamp":"%s","signer":"product-acceptance"}\n' \
-    "$2" "$(date -u +%FT%TZ)" > "$(_at_token_path "$1")"
+    "$2" "$(date -u +%FT%TZ)" > "$target"
 }
 
 _at_emit_jsonl() {

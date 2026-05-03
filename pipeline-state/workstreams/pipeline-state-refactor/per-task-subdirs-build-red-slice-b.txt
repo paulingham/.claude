@@ -1,0 +1,264 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /Users/Paul.Ingham/.claude/.claude/worktrees/agent-6d68dbad
+collecting ... collected 7 items
+
+tests/test_auto_learn_gate_dual_path.py::test_current_pipeline_id_finds_new_layout FAILED [ 14%]
+tests/test_dual_path_discovery.py::test_legacy_layout_still_discoverable PASSED [ 28%]
+tests/test_dual_path_discovery.py::test_fresher_layout_wins_on_collision PASSED [ 42%]
+tests/test_dual_path_discovery.py::test_stale_new_layout_does_not_eclipse_live_legacy PASSED [ 57%]
+tests/test_dual_path_discovery.py::test_workstream_beats_root_on_task_id_collision PASSED [ 71%]
+tests/test_dual_path_discovery.py::test_in_flight_pipeline_resumable PASSED [ 85%]
+tests/test_dual_path_discovery.py::test_approval_token_path_returns_existing_layout FAILED [100%]
+
+=================================== FAILURES ===================================
+__________________ test_current_pipeline_id_finds_new_layout ___________________
+
+tmp_path = PosixPath('/private/var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/pytest-of-Paul.Ingham/pytest-9/test_current_pipeline_id_finds0')
+
+    def test_current_pipeline_id_finds_new_layout(tmp_path):
+        state = tmp_path / ".claude" / "pipeline-state" / "t-new"
+        state.mkdir(parents=True)
+        (state / "pipeline.md").write_text("---\ntask_id: t-new\nverdict: in_progress\n---\n")
+>       assert _run_alg_current_pipeline_id(tmp_path) == "t-new"
+E       AssertionError: assert '' == 't-new'
+E         
+E         - t-new
+
+tests/test_auto_learn_gate_dual_path.py:23: AssertionError
+_______________ test_approval_token_path_returns_existing_layout _______________
+
+tmp_path = PosixPath('/private/var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/pytest-of-Paul.Ingham/pytest-9/test_approval_token_path_retur0')
+
+    def test_approval_token_path_returns_existing_layout(tmp_path):
+        home = tmp_path
+        state = home / ".claude" / "pipeline-state"
+        state.mkdir(parents=True)
+        legacy = state / "tA-approval.token"
+        legacy.write_text("{}")
+        assert _at_token_path(home, "tA") == str(legacy)
+        legacy.unlink()
+        new_dir = state / "tA"; new_dir.mkdir()
+        new = new_dir / "approval.token"
+        new.write_text("{}")
+>       assert _at_token_path(home, "tA") == str(new)
+E       AssertionError: assert '/private/var...pproval.token' == '/private/var...pproval.token'
+E         
+E         - /private/var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/pytest-of-Paul.Ingham/pytest-9/test_approval_token_path_retur0/.claude/pipeline-state/tA/approval.token
+E         ?                                                                                                                                                  ^
+E         + /private/var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/pytest-of-Paul.Ingham/pytest-9/test_approval_token_path_retur0/.claude/pipeline-state/tA-approval.token
+E         ?                                                                                                                                                  ^
+
+tests/test_dual_path_discovery.py:78: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_auto_learn_gate_dual_path.py::test_current_pipeline_id_finds_new_layout
+FAILED tests/test_dual_path_discovery.py::test_approval_token_path_returns_existing_layout
+========================= 2 failed, 5 passed in 0.08s ==========================
+
+============================================================
+Bash tests:
+============================================================
+
+--- tests/test_pipeline_state_guard_dual_path.sh ---
+Test guard_passes_when_new_layout_pipeline_exists
+  FAIL: guard_passes_when_new_layout_pipeline_exists (expected 0, got 127)
+Test guard_passes_when_legacy_layout_pipeline_exists
+  FAIL: guard_passes_when_legacy_layout_pipeline_exists (expected 0, got 127)
+
+Results: 0 passed, 2 failed
+  exit: 0
+
+--- tests/test_pipeline_analytics_dual_path.sh ---
+Test analytics_globs_phase_files_under_subdir
+  FAIL: analytics did not pick up new-layout phase files (rc=1)
+  (no metrics file)
+
+Results: 0 passed, 1 failed
+  exit: 0
+
+--- tests/test_observation_capture_dual_path.sh ---
+Test observation_capture_extracts_phase_from_new_layout
+  FAIL: phase not extracted from new-layout fixture
+
+Results: 0 passed, 1 failed
+  exit: 0
+
+--- tests/test_subagent_stop_trajectory_dual_path.sh ---
+Test trajectory_writes_to_new_layout
+  FAIL: trajectory not at /var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.xmRcXgaVaZ/.claude/pipeline-state/t1/trajectory.jsonl
+Test trajectory_rejects_dotdot_task_id_under_new_layout
+  ok: '..' task_id sanitized — no traversal write
+
+Results: 1 passed, 1 failed
+  exit: 0
+
+--- tests/test_planning_agent_edit_scope_new_layout.sh ---
+Test planning_agent_edit_scope_accepts_new_layout_plan_md
+  FAIL: Edit on pipeline-state/t1/plan.md returns 0 (expected 0, got 2)
+Test planning_agent_edit_scope_accepts_legacy_plan_md
+  ok: Edit on legacy pipeline-state/t1-plan.md returns 0
+Test planning_agent_edit_scope_rejects_other_md_under_subdir
+  ok: Edit on pipeline-state/t1/build.md returns 2
+
+Results: 2 passed, 1 failed
+  exit: 0
+
+--- tests/test_intake_reminder_new_layout.sh ---
+Test batch_keyword_passes_when_new_layout_pipeline_exists
+  ok: batch keyword + new-layout pipeline = no block
+
+Results: 1 passed, 0 failed
+  exit: 0
+
+--- tests/test_session_start_bootstrap_new_layout.sh ---
+SKILL AWARENESS BOOTSTRAP:
+Entry: /intake (classify + route) | /pipeline (drive phases)
+Build: /build-implementation, /refactor, /bug-fix
+Review: /code-review + /security-review (parallel)
+Verify: /verify | Test: /qa-test-strategy | Accept: /product-acceptance
+Ship: /pr-creation | Deploy: /deploy + /deployment-verification
+Scaffold: /api-scaffold, /db-migration, /infra-scaffold, /design-system-init
+Plan: /epic-breakdown, /estimation, /story-writing, /tech-spike
+Debug: /debug (persistent state for complex bugs)
+Utils: /forensics (post-incident investigation) | /workstream (parallel feature isolation)
+
+STALE WORKTREES: 5 orphaned worktree(s) in .claude/worktrees/ — clean up with: git worktree remove .claude/worktrees/<name> --force
+
+IRON LAWS:
+- NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
+- NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
+- THE ORCHESTRATOR NEVER WRITES SOURCE CODE
+- NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.
+
+Results: 0 passed, 1 failed
+  exit: 0
+
+--- tests/test_trace_prompt_new_layout.sh ---
+Test trace_prompt_resolves_task_id_from_new_layout
+  FAIL: task_id not resolved from new-layout fixture
+/var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.598iUpdhOk/.claude/metrics/test-sess/trace/software-engineer-unknown-20260503T151353Z.txt
+
+Results: 0 passed, 1 failed
+  exit: 0
+
+--- tests/test_cost_helpers_new_layout.sh ---
+Test cost_helpers_pipeline_id_finds_new_layout
+  FAIL: expected 'cost-task', got 'none'
+
+Results: 0 passed, 1 failed
+  exit: 0
+
+--- tests/test_settings_postcompact_glob.sh ---
+Test settings_postcompact_command_matches_both_layouts
+  ok: command found state files
+Test settings_postcompact_command_text_unions_both_globs
+  FAIL: command does not union both globs: ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'
+
+Results: 1 passed, 1 failed
+  exit: 0
+
+============================================================
+Bash tests (RE-RUN with proper HOME isolation):
+============================================================
+
+--- tests/test_pipeline_state_guard_dual_path.sh ---
+Test guard_passes_when_new_layout_pipeline_exists
+  FAIL: guard_passes_when_new_layout_pipeline_exists (expected 0, got 2)
+Test guard_passes_when_legacy_layout_pipeline_exists
+  ok: guard_passes_when_legacy_layout_pipeline_exists
+
+Results: 1 passed, 1 failed
+  exit: 0
+
+--- tests/test_pipeline_analytics_dual_path.sh ---
+Test analytics_globs_phase_files_under_subdir
+  FAIL: analytics did not pick up new-layout phase files (rc=1)
+  (no metrics file)
+
+Results: 0 passed, 1 failed
+  exit: 0
+
+--- tests/test_observation_capture_dual_path.sh ---
+Test observation_capture_extracts_phase_from_new_layout
+  FAIL: phase not extracted from new-layout fixture
+{"record_type":"tool_use","timestamp":"2026-05-03T15:15:52Z","session_id":"26000FA0-223D-4A64-8B0B-339319E7FBF6","tool":"Read","file":"x.md","project":"agent-6d68dbad","project_hash":"test","phase":"","agent_role":"","outcome":"success"}
+
+Results: 0 passed, 1 failed
+  exit: 0
+
+--- tests/test_subagent_stop_trajectory_dual_path.sh ---
+Test trajectory_writes_to_new_layout
+  FAIL: trajectory not at /var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.T9yFesBJlk/.claude/pipeline-state/t1/trajectory.jsonl
+Test trajectory_rejects_dotdot_task_id_under_new_layout
+  ok: '..' task_id sanitized — no traversal write
+
+Results: 1 passed, 1 failed
+  exit: 0
+
+--- tests/test_planning_agent_edit_scope_new_layout.sh ---
+Test planning_agent_edit_scope_accepts_new_layout_plan_md
+  FAIL: Edit on pipeline-state/t1/plan.md returns 0 (expected 0, got 2)
+Test planning_agent_edit_scope_accepts_legacy_plan_md
+  ok: Edit on legacy pipeline-state/t1-plan.md returns 0
+Test planning_agent_edit_scope_rejects_other_md_under_subdir
+  ok: Edit on pipeline-state/t1/build.md returns 2
+
+Results: 2 passed, 1 failed
+  exit: 0
+
+--- tests/test_intake_reminder_new_layout.sh ---
+Test batch_keyword_passes_when_new_layout_pipeline_exists
+  FAIL: hook blocked despite new-layout pipeline (rc=2)
+  ok: batch keyword + legacy pipeline = no block (sanity)
+  ok: empty pipeline-state still blocks (sanity)
+
+Results: 2 passed, 1 failed
+  exit: 0
+
+--- tests/test_session_start_bootstrap_new_layout.sh ---
+SKILL AWARENESS BOOTSTRAP:
+Entry: /intake (classify + route) | /pipeline (drive phases)
+Build: /build-implementation, /refactor, /bug-fix
+Review: /code-review + /security-review (parallel)
+Verify: /verify | Test: /qa-test-strategy | Accept: /product-acceptance
+Ship: /pr-creation | Deploy: /deploy + /deployment-verification
+Scaffold: /api-scaffold, /db-migration, /infra-scaffold, /design-system-init
+Plan: /epic-breakdown, /estimation, /story-writing, /tech-spike
+Debug: /debug (persistent state for complex bugs)
+Utils: /forensics (post-incident investigation) | /workstream (parallel feature isolation)
+
+STALE WORKTREES: 5 orphaned worktree(s) in .claude/worktrees/ — clean up with: git worktree remove .claude/worktrees/<name> --force
+
+IRON LAWS:
+- NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
+- NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
+- THE ORCHESTRATOR NEVER WRITES SOURCE CODE
+- NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.
+
+Results: 0 passed, 1 failed
+  exit: 0
+
+--- tests/test_trace_prompt_new_layout.sh ---
+Test trace_prompt_resolves_task_id_from_new_layout
+  FAIL: task_id not resolved from new-layout fixture
+/var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.m6ke4wkrrS/.claude/metrics/test-sess/trace/software-engineer-unknown-20260503T151553Z.txt
+
+Results: 0 passed, 1 failed
+  exit: 0
+
+--- tests/test_cost_helpers_new_layout.sh ---
+Test cost_helpers_pipeline_id_finds_new_layout
+  FAIL: expected 'cost-task', got 'none'
+
+Results: 0 passed, 1 failed
+  exit: 0
+
+--- tests/test_settings_postcompact_glob.sh ---
+Test settings_postcompact_command_matches_both_layouts
+  ok: command found state files
+Test settings_postcompact_command_text_unions_both_globs
+  FAIL: command does not union both globs: ls pipeline-state/*-pipeline.md 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'
+
+Results: 1 passed, 1 failed
+  exit: 0

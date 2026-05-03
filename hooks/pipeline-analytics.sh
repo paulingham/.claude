@@ -19,9 +19,11 @@ PIPELINE_DIR="$HOME/.claude/pipeline-state"
 METRICS_DIR="$HOME/.claude/metrics"
 mkdir -p "$METRICS_DIR"
 
-PIPELINE_FILE="$PIPELINE_DIR/${TASK_ID}-pipeline.md"
+# DUAL_PATH: prefer new layout, fall back to legacy.
+PIPELINE_FILE="$PIPELINE_DIR/${TASK_ID}/pipeline.md"
+[[ -f "$PIPELINE_FILE" ]] || PIPELINE_FILE="$PIPELINE_DIR/${TASK_ID}-pipeline.md"
 if [[ ! -f "$PIPELINE_FILE" ]]; then
-  echo "ERROR: Pipeline file not found: $PIPELINE_FILE" >&2
+  echo "ERROR: Pipeline file not found for task $TASK_ID" >&2
   exit 1
 fi
 
@@ -46,8 +48,10 @@ VERDICT_TEST=""
 VERDICT_ACCEPT=""
 VERDICT_SHIP=""
 
-for PHASE_FILE in "$PIPELINE_DIR/${TASK_ID}"-*.md; do
+# DUAL_PATH: glob phase files from new-layout subdir AND legacy flat form.
+for PHASE_FILE in "$PIPELINE_DIR/${TASK_ID}"/*.md "$PIPELINE_DIR/${TASK_ID}"-*.md; do
   [[ "$PHASE_FILE" == *"-pipeline.md" ]] && continue
+  [[ "$PHASE_FILE" == */pipeline.md ]] && continue
   [[ ! -f "$PHASE_FILE" ]] && continue
 
   PHASE_NAME=$(extract_field "$PHASE_FILE" "phase")
@@ -62,16 +66,17 @@ for PHASE_FILE in "$PIPELINE_DIR/${TASK_ID}"-*.md; do
   esac
 done
 
-# Count agents from trajectory file
-TRAJECTORY_FILE="$PIPELINE_DIR/${TASK_ID}-trajectory.jsonl"
+# Count agents from trajectory file (DUAL_PATH).
+TRAJECTORY_FILE="$PIPELINE_DIR/${TASK_ID}/trajectory.jsonl"
+[[ -f "$TRAJECTORY_FILE" ]] || TRAJECTORY_FILE="$PIPELINE_DIR/${TASK_ID}-trajectory.jsonl"
 AGENT_COUNT=0
 if [[ -f "$TRAJECTORY_FILE" ]]; then
   AGENT_COUNT=$(wc -l < "$TRAJECTORY_FILE" | tr -d ' ')
 fi
 
-# Count review rounds from review phase files
+# Count review rounds from review phase files (DUAL_PATH).
 REVIEW_ROUNDS=0
-for PHASE_FILE in "$PIPELINE_DIR/${TASK_ID}"-review*.md; do
+for PHASE_FILE in "$PIPELINE_DIR/${TASK_ID}"/review*.md "$PIPELINE_DIR/${TASK_ID}"-review*.md; do
   [[ -f "$PHASE_FILE" ]] && ((REVIEW_ROUNDS++)) || true
 done
 [[ "$REVIEW_ROUNDS" -eq 0 ]] && REVIEW_ROUNDS=1
