@@ -134,7 +134,7 @@ This is automatic — the user does not need to invoke `/design-system-init` man
 
 ### 3d. Post-Greenfield Mode
 
-If this skill is invoked after `/greenfield-scaffold` (detect by checking for `pipeline-state/{task-id}-tech-stack.md` and `pipeline-state/{task-id}-product-brief.md`):
+If this skill is invoked after `/greenfield-scaffold` (detect by checking for `pipeline-state/{task-id}/tech-stack.md` and `pipeline-state/{task-id}/product-brief.md`):
 
 1. **Read the greenfield artifacts** instead of scanning from scratch:
    - Product brief → use for CLAUDE.md project description
