@@ -30,14 +30,14 @@ def _write_state(dirpath, task_id, body):
     return path
 
 
-# ---------------- AC1 / AC1b: hardcoded fallback flips to xhigh ----------------
+# ---------------- AC1 / AC1b: hardcoded fallback is high ----------------
 
 
-class DefaultEffortIsXhigh(unittest.TestCase):
-    def test_default_effort_is_xhigh(self):
+class DefaultEffortIsHigh(unittest.TestCase):
+    def test_default_effort_is_high(self):
         with patch.dict("os.environ", {}, clear=True):
             result = resolve(tool_input={}, env={}, state={})
-        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["effort"], "high")
         self.assertEqual(result["display"], "omitted")
         self.assertEqual(result["source"], "default")
 
@@ -46,7 +46,7 @@ class InvalidEnvValueFallsBack(unittest.TestCase):
     def test_invalid_env_value_falls_back(self):
         env = {"CLAUDE_THINKING_EFFORT": "banana"}
         result = resolve(tool_input={}, env=env, state={})
-        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["effort"], "high")
         self.assertEqual(result["source"], "default")
 
 
@@ -103,37 +103,37 @@ class PlanningAgentLowDefault(unittest.TestCase):
         self.assertEqual(result["source"], "role")
 
 
-# ---------------- AC2g–AC2i: implementation roles inherit xhigh default ----------------
+# ---------------- AC2g–AC2i: implementation roles inherit high default ----------------
 
 
-class SoftwareEngineerInheritsXhigh(unittest.TestCase):
-    def test_software_engineer_inherits_xhigh_default(self):
+class SoftwareEngineerInheritsHigh(unittest.TestCase):
+    def test_software_engineer_inherits_high_default(self):
         tool_input = {"subagent_type": "software-engineer"}
         # Neutral state: inherits default fallback.
         neutral = resolve(tool_input=tool_input, env={}, state={})
-        self.assertEqual(neutral["effort"], "xhigh")
+        self.assertEqual(neutral["effort"], "high")
         self.assertEqual(neutral["source"], "default")
         # Even with critical+budget=10, software-engineer is NOT in any
-        # promotion or downgrade set, so resolves via the default fallback.
+        # promotion or downgrade set, so resolves via the rule 4 fallback.
         elevated = resolve(tool_input=tool_input, env={},
                            state={"critical": True, "budget": 10})
-        self.assertEqual(elevated["effort"], "xhigh")
+        self.assertEqual(elevated["effort"], "high")
         self.assertEqual(elevated["source"], "default")
 
 
-class FrontendEngineerInheritsXhigh(unittest.TestCase):
-    def test_frontend_engineer_inherits_xhigh_default(self):
+class FrontendEngineerInheritsHigh(unittest.TestCase):
+    def test_frontend_engineer_inherits_high_default(self):
         tool_input = {"subagent_type": "frontend-engineer"}
         result = resolve(tool_input=tool_input, env={}, state={})
-        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["effort"], "high")
         self.assertEqual(result["source"], "default")
 
 
-class InfrastructureEngineerInheritsXhigh(unittest.TestCase):
-    def test_infrastructure_engineer_inherits_xhigh_default(self):
+class InfrastructureEngineerInheritsHigh(unittest.TestCase):
+    def test_infrastructure_engineer_inherits_high_default(self):
         tool_input = {"subagent_type": "infrastructure-engineer"}
         result = resolve(tool_input=tool_input, env={}, state={})
-        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["effort"], "high")
         self.assertEqual(result["source"], "default")
 
 
@@ -166,12 +166,12 @@ class ArchitectNonCriticalBudget7YieldsXhigh(unittest.TestCase):
         self.assertEqual(result["source"], "role")
 
 
-class ArchitectBelowThresholdInheritsXhigh(unittest.TestCase):
-    def test_architect_below_threshold_inherits_xhigh(self):
+class ArchitectBelowThresholdInheritsHigh(unittest.TestCase):
+    def test_architect_below_threshold_inherits_high(self):
         tool_input = {"subagent_type": "architect"}
         state = {"critical": False, "budget": 6}
         result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["effort"], "high")
         self.assertEqual(result["source"], "default")
 
 
@@ -208,12 +208,12 @@ class BestOfNCandidateXhigh(unittest.TestCase):
         self.assertEqual(result["source"], "role")
 
 
-class BestOfNCandidateLowBudgetInheritsXhigh(unittest.TestCase):
-    def test_best_of_n_candidate_low_budget_inherits_xhigh(self):
+class BestOfNCandidateLowBudgetInheritsHigh(unittest.TestCase):
+    def test_best_of_n_candidate_low_budget_inherits_high(self):
         tool_input = {"subagent_type": "software-engineer", "name": "boN-opus"}
         state = {"critical": True, "budget": 5}
         result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["effort"], "high")
         self.assertEqual(result["source"], "default")
 
 
@@ -229,7 +229,7 @@ class EnvEffortOverridesAll(unittest.TestCase):
 
 
 class EnvForcesLowOnImplementationRole(unittest.TestCase):
-    def test_env_forces_low_overrides_xhigh_default(self):
+    def test_env_forces_low_overrides_high_default(self):
         tool_input = {"subagent_type": "software-engineer"}
         env = {"CLAUDE_THINKING_EFFORT": "low"}
         result = resolve(tool_input=tool_input, env=env, state={})
@@ -248,7 +248,7 @@ class ExplicitInputWinsOverDefault(unittest.TestCase):
 
 
 class ExplicitWinsOverImplementationRoleXhigh(unittest.TestCase):
-    def test_explicit_low_overrides_software_engineer_xhigh_default(self):
+    def test_explicit_low_overrides_software_engineer_high_default(self):
         tool_input = {
             "subagent_type": "software-engineer",
             "thinking": {"effort": "low"},
@@ -503,7 +503,7 @@ class HookLogsOnlyDoesNotBlock(unittest.TestCase):
             line = log_path.read_text().strip().splitlines()[-1]
             entry = json.loads(line)
             self.assertEqual(entry["agent_role"], "architect")
-            self.assertEqual(entry["resolved"]["effort"], "xhigh")
+            self.assertEqual(entry["resolved"]["effort"], "high")
         finally:
             _cleanup_metric_session(session)
 
