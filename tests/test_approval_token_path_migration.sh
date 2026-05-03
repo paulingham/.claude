@@ -66,6 +66,41 @@ else
   FAIL=$((FAIL + 1))
 fi
 
+echo "Test: write_approval_token_rejects_dotdot_task_id"
+
+# A task_id of '..' under the new layout would expand to
+# $HOME/.claude/pipeline-state/../approval.token, i.e. $HOME/.claude/approval.token.
+# The current regex ^[A-Za-z0-9_.-]+$ accepts this (path traversal). The
+# tightened regex ^[A-Za-z0-9_-][A-Za-z0-9_.-]*$ MUST reject it.
+DOTDOT_LANDING="$HOME/.claude/approval.token"
+DOTDOT_LITERAL="$HOME/.claude/pipeline-state/../approval.token"
+rm -f "$DOTDOT_LANDING"
+
+if _at_write_token ".." "APPROVED"; then
+  echo "  FAIL: _at_write_token accepted task_id='..' (path traversal)"
+  FAIL=$((FAIL + 1))
+else
+  echo "  ok: _at_write_token rejected task_id='..'"
+  PASS=$((PASS + 1))
+fi
+
+if [[ ! -f "$DOTDOT_LANDING" ]]; then
+  echo "  ok: no landing-pad file at $DOTDOT_LANDING"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: traversal write landed at $DOTDOT_LANDING"
+  FAIL=$((FAIL + 1))
+  rm -f "$DOTDOT_LANDING"
+fi
+
+if [[ ! -f "$DOTDOT_LITERAL" ]]; then
+  echo "  ok: no literal '..' file at pipeline-state/../approval.token"
+  PASS=$((PASS + 1))
+else
+  echo "  FAIL: literal traversal file at $DOTDOT_LITERAL"
+  FAIL=$((FAIL + 1))
+fi
+
 echo "Summary: $PASS passed, $FAIL failed"
 if [[ $FAIL -eq 0 ]]; then
   exit 0
