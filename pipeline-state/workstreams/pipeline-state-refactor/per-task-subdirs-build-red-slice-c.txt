@@ -1,0 +1,49 @@
+===== Slice C — Batched RED Audit Artifact =====
+Timestamp: 2026-05-03T15:15:23Z
+
+===== Python tests (test_pipeline_state_skills_writes.py + test_pipeline_state_cleanup.py) =====
+        enumeration-driven, not glob-driven.
+        """
+        legacy_target = _make_legacy(tmp_path, "t1", ["pipeline", "build", "review", "verify"])
+        # Off-list file with same prefix — cleanup must NOT remove it.
+        off_list = tmp_path / "t1-arbitrary-suffix.md"
+        off_list.write_text("---\ntask_id: t1\n---\n")
+        code, _, err = _run_cleanup(tmp_path, "t1")
+        assert code == 0, err
+        for p in legacy_target:
+            assert not p.exists(), f"phase-list file {p} should be removed"
+        assert off_list.exists(), "off-list file must NOT be removed"
+        # Doc-grep: SKILL must show iteration via `_psp_phase_list` (e.g.
+        # `while IFS= read -r phase` ... `_psp_phase_list`).
+        skill_text = PIPELINE_SKILL.read_text()
+>       assert "_psp_phase_list" in skill_text, \
+            "SKILL.md must invoke `_psp_phase_list` for cleanup iteration"
+E       AssertionError: SKILL.md must invoke `_psp_phase_list` for cleanup iteration
+E       assert '_psp_phase_list' in '---\nname: "pipeline"\ndescription: "Use when user wants to Autonomous pipeline orchestration: classifies work, determines phases, tracks state via tasks, invokes skills in sequence, manages review loops and error recovery. The conductor that replaces manual orchestration. Use at the start of any implementation work."\n---\n\n# Pipeline Orchestration\n\n## What This Skill Does\n\nThe autonomous conductor for the delivery pipeline. Takes a task, determines which phases apply, and drives skills in sequence — tracking state, managing review loops, and handling failures.\n\n## When to Invoke\n\n- Immediately after classifying work type (feature, refactor, bug fix)\n- The `/intake` skill invokes this, or the orchestrator invokes it directly after the pre-flight protocol\n\n## Process\n\n### Step 1: Classify Work and Determine Pipeline\n\n| Work Type | Entry Skill | Pipeline Phases |\n|-----------|-------------|-----------------|\n| Feature (micro) | `/build-implementation` | Plan → Plan Validation → Build → Review → Ship |\n| Feature (small) | `/build-implementation` | Plan → Plan Validation → Build → Review → Verify → Ship |\n| Feature (medium) | `/build-implementation` | Plan → Pla...onl`)\n3. Reads review findings from the current pipeline\'s review state file (if it exists, before cleanup)\n4. Detects patterns and creates/updates instinct files in `learning/instincts/`\n5. Classifies review findings as "preventable by build agent" vs. "review-level only"\n6. Converts preventable findings into build-targeted instincts (backward feedback loop)\n7. Reports new/updated instincts to the orchestrator\n\nThe orchestrator reports learnings to the user (skip if nothing actionable). Every pipeline — whether it had rework or ran clean — feeds the learning flywheel.\n\n## Status Reporting\n\nAt each phase transition, output a brief status line:\n\n```\n[Build] COMPLETE — BUILD_COMPLETE, 5 files changed, 23 tests green\n[Review] PARALLEL DISPATCH — code-reviewer + security-engineer spawned...\n[Review] COMPLETE — both APPROVE\n[Verify] COMPLETE — VERIFIED (3/3 tiers pass)\n[Test] COMPLETE — COVERED (87% on critical paths)\n[Accept] COMPLETE — APPROVED\n[Ship] COMPLETE — PR_CREATED: https://github.com/...\n```\n\n## Phase Output\n\n```\nVerdict: PIPELINE_COMPLETE / PIPELINE_IN_PROGRESS\nNext: Report to user\nArtifacts: [PR URL, all phase verdicts, agent summaries]\n```\n'
+
+tests/test_pipeline_state_cleanup.py:150: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_pipeline_state_skills_writes.py::test_pipeline_skill_creates_state_under_subdir
+FAILED tests/test_pipeline_state_skills_writes.py::test_intake_writes_intake_md_under_subdir
+FAILED tests/test_pipeline_state_skills_writes.py::test_greenfield_writes_product_brief_under_subdir
+FAILED tests/test_pipeline_state_skills_writes.py::test_module_extraction_writes_boundary_analysis_under_subdir
+FAILED tests/test_pipeline_state_skills_writes.py::test_continuous_planning_writes_planning_cursor_under_subdir
+FAILED tests/test_pipeline_state_cleanup.py::test_reflect_cleanup_removes_subdir_in_one_op
+FAILED tests/test_pipeline_state_cleanup.py::test_reflect_cleanup_does_not_match_prefix_neighbors
+FAILED tests/test_pipeline_state_cleanup.py::test_reflect_cleanup_iterates_canonical_phase_list
+========================= 8 failed, 1 passed in 0.21s ==========================
+
+===== Shell test: test_health_report_relocation.sh =====
+Test: health_scan_writes_under_health_reports_subdir
+  FAIL: new layout documented (missing 'pipeline-state/health-reports/{date}.md')
+  FAIL: legacy flat path removed ('pipeline-state/health-report-{date}.md' still appears as a non-legacy reference)
+Summary: 0 passed, 2 failed
+(exit 1)
+
+===== Shell test (cross-slice xfail): test_approval_token_path_migration.sh =====
+Test: write_approval_token_uses_new_layout_only
+  FAIL: new-layout token MISSING at /var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.4qevdYuwal/.claude/pipeline-state/t1/approval.token
+  FAIL: legacy-layout token present at /var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.4qevdYuwal/.claude/pipeline-state/t1-approval.token
+Summary: 0 passed, 2 failed
+EXPECTED FAIL: depends on slice-b refactor of hooks/_lib/approval-token.sh
+(exit 99; 99 == EXPECTED_FAIL — depends on Slice B)
