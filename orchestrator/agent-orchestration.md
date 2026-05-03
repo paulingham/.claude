@@ -436,3 +436,69 @@ After every pipeline completion:
 2. Archive any that completed successfully
 3. Delete all files from `dynamic/`
 4. A leftover dynamic agent is a sign of incomplete cleanup — investigate before deleting
+
+## Pressure-Aware Enforcement (Orchestrator Discipline)
+
+The orchestrator has violated source-file discipline under time pressure in multiple sessions:
+
+- Debugging cycles where "just this one quick edit" felt faster than spawning an agent
+- Interactive loops where the user was waiting for a fix
+- **The Bash bypass**: Edit tool blocked → pivot to `Bash(python3 -c "open(...'w')")` or `sed -i` to write the same file. This is the same violation via a different tool. The hook catches Write/Edit; the iron law covers ALL write paths.
+
+These are exactly the moments discipline matters most. The 30 seconds saved by a direct edit:
+
+- Sets a precedent that erodes the entire agent model
+- Produces unreviewed code on the critical path
+- Has been called out by the user multiple times
+
+If a tool-level block fires (Edit blocked by `orchestrator-discipline.sh`), that is the system working correctly. The response is to invoke `/harness-config` — not to find a Bash equivalent. If agent overhead is genuinely blocking iteration, propose a process change to the user — do not silently bypass.
+
+## Continuation From WIP
+
+When an agent's prior attempt was committed as WIP, the orchestrator includes in the continuation prompt:
+
+- The WIP commit message (lists completed and remaining work)
+- `git log --oneline -3` output (to orient the agent)
+- Do NOT re-explain the full feature spec — the agent reads existing code and tests
+- The continuation agent runs tests first to confirm the WIP state is green
+
+## Worktree Lifecycle (subagent phases)
+
+After merging a worktree branch:
+
+1. Remove the worktree: `git worktree remove .claude/worktrees/agent-XXXX --force`
+2. Delete the branch: `git branch -d worktree-agent-XXXX`
+3. Verify with `git worktree list` — only the main worktree should remain
+
+Never leave stale worktrees — they consume disk space and confuse test runners.
+
+For the harness-of-harness case (session worktrees of `$HOME/.claude` created by `scripts/new-session.sh`), see `knowledge/session-isolation-patterns.md` for which state is shared via symlinks vs per-branch.
+
+## Dependency Management (orchestrator side)
+
+The orchestrator MUST NOT run `npm install`, `bundle add`, `pip install`, or any package manager command. These modify `package.json`, lock files, and `node_modules/` — all of which are source/build artifacts.
+
+**Who installs dependencies:**
+
+- **Build agents** install dependencies as part of their implementation work (in their worktree)
+- **Infrastructure engineers** install tool-level dependencies as part of scaffold work (in their worktree)
+
+**Orchestrator's role:**
+
+- Identify required dependencies during planning (from architect output or task requirements)
+- Include dependency requirements in the build agent's prompt
+- The build agent installs, verifies, and commits dependency changes in its worktree
+
+**Why:** `npm install` modifies the main working tree. If the orchestrator runs it, the main tree becomes dirty, conflicting with worktree-based agents. Dependencies installed in the main tree are NOT available in worktrees (which inherit from the git index). Dependencies are build artifacts — they go through agents.
+
+## Test Runner Isolation (first-worktree-in-project setup)
+
+Worktrees are created inside `.claude/worktrees/` within the project directory. Test runners that use directory discovery (Jest, pytest, rspec, go test) WILL find test files in worktrees, causing duplicate runs and false failures.
+
+After the FIRST worktree creation in any project, verify the test runner's config excludes `.claude/worktrees/`. Add exclusion if missing:
+
+- **Jest**: `testPathIgnorePatterns: ["/.claude/worktrees/"]` in jest.config
+- **pytest**: `testpaths = ["tests"]` in pyproject.toml (explicit paths, not discovery)
+- **rspec**: `--exclude-pattern '.claude/**'` in .rspec
+- **Go**: Module-scoped by default (no issue unless using recursive `./...`)
+- **Other**: Add equivalent exclusion for the project's test runner

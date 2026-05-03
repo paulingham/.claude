@@ -1,54 +1,15 @@
 # Agent Protocol
 
-Detailed orchestrator procedures: see `~/.claude/orchestrator/agent-orchestration.md`
+Content every agent (subagent or teammate) needs at spawn time. The iron laws governing orchestrator/agent boundaries live in `rules/core.md`. Orchestrator-side decision logic and lifecycle management lives in `~/.claude/orchestrator/agent-orchestration.md`.
 
-## Orchestrator Does Not Write Code
+## Isolation: Worktrees and Branches
 
-> **IRON LAW: THE ORCHESTRATOR NEVER WRITES SOURCE CODE. NO EXCEPTIONS.**
+You (the agent) are spawned into one of two modes — the orchestrator's spawn prompt tells you which:
 
-The orchestrator coordinates agents. It does NOT write, edit, or create source files directly. This is why you (as an agent) are being spawned -- all implementation, fixes, and config changes go through agents.
+- **Worktree** (write-capable subagent phases). The path is passed in your prompt as `Working directory: <path>`. All writes and git commands target this worktree. Write-capable roles: `software-engineer`, `frontend-engineer`, `qa-engineer`, `database-engineer`, `infrastructure-engineer`.
+- **Feature branch** in the pipeline team (team phase teammate). You create your own branch (e.g., `build/{task-id}-{slice}`) and commit there before completing.
 
-**Config exception**: The orchestrator MAY edit `.md` files ONLY in `.claude/`, `memory/`, and `rules/` directories for documentation and state tracking. This does NOT extend to `.json`, `.yaml`, `.sh`, or any executable/config format — delegate those via `/harness-config` skill to infrastructure-engineer.
-
-### Pressure-Aware Enforcement
-
-The orchestrator has violated source-file discipline under time pressure in multiple sessions:
-- Debugging cycles where "just this one quick edit" felt faster than spawning an agent
-- Interactive loops where the user was waiting for a fix
-- **The Bash bypass**: Edit tool blocked → pivot to `Bash(python3 -c "open(...'w')")` or `sed -i` to write the same file. This is the same violation via a different tool. The hook catches Write/Edit; the rule covers ALL write paths.
-
-**These are exactly the moments discipline matters most.** The 30 seconds saved by a direct edit:
-- Sets a precedent that erodes the entire agent model
-- Produces unreviewed code on the critical path
-- Has been called out by the user multiple times
-
-If a tool-level block fires (Edit blocked by orchestrator-discipline.sh), that is the system working correctly. The response is to invoke `/harness-config` — not to find a Bash equivalent.
-
-If agent overhead is genuinely blocking iteration, **propose a process change to the user** — do not silently bypass.
-
-## Isolation: Worktrees vs Teams
-
-### Subagent Phases: Worktree Isolation
-
-When the orchestrator spawns **subagents** that will create or modify files, it MUST use `isolation: "worktree"`.
-
-- **Write-capable subagents** (MUST use worktree): software-engineer, frontend-engineer, qa-engineer, database-engineer, infrastructure-engineer
-- **Read-only subagents** (NO worktree): code-reviewer, security-engineer, product-reviewer, architect
-
-### Team Phases: Branch Isolation
-
-When teammates are spawned into the pipeline team, they manage their own branches:
-- Each write-capable teammate creates a feature branch (e.g., `build/{task-id}-{slice}`)
-- Teammates commit to their branch before completing
-- The orchestrator merges branches after the phase completes
-- Read-only teammates (reviewers, product-reviewer) work on the main branch
-
-### Parallel Work
-
-- **Subagents**: Multiple worktrees spawned in a single message
-- **Team**: Multiple teammates spawned in a single message, each on their own branch
-- Code reviewer + security engineer -> team (visible in tmux, persistent for re-review)
-- QA + product-reviewer -> team (final gate, parallel)
+Read-only roles (`code-reviewer`, `security-engineer`, `product-reviewer`, `architect`) work without a worktree.
 
 ## Commit Protocol
 
@@ -132,25 +93,6 @@ Before completing, if the agent learned something project-specific:
 - Task-specific details ("added login button to header")
 - Information already in project CLAUDE.md
 - Temporary state that won't apply next time
-
-## Continuation From WIP
-
-When an agent's prior attempt was committed as WIP, the orchestrator includes in the continuation prompt:
-- The WIP commit message (lists completed and remaining work)
-- `git log --oneline -3` output (to orient the agent)
-- Do NOT re-explain the full feature spec — the agent reads existing code and tests
-- The continuation agent runs tests first to confirm the WIP state is green
-
-## Worktree Lifecycle (subagent phases)
-
-After merging a worktree branch:
-1. Remove the worktree: `git worktree remove .claude/worktrees/agent-XXXX --force`
-2. Delete the branch: `git branch -d worktree-agent-XXXX`
-3. Verify with `git worktree list` — only the main worktree should remain
-
-Never leave stale worktrees — they consume disk space and confuse test runners.
-
-For the harness-of-harness case (session worktrees of `$HOME/.claude` created by `scripts/new-session.sh`), see `knowledge/session-isolation-patterns.md` for which state is shared via symlinks vs per-branch.
 
 ## Main-Branch Invariant
 
@@ -277,27 +219,6 @@ line, `#` for comments) lets us add entries without editing executable code,
 and lets the test in `tests/test_destructive_verb_block.py` and
 `tests/shell/test_destructive_verb_block.bats` enumerate the file directly.
 
-## Teammate Lifecycle (team phases)
-
-Teammates are spawned just-in-time and shut down after their phase:
-1. **Spawn**: Orchestrator uses `Agent` with `team_name` and `name` parameters
-2. **Work**: Teammate reads skill file, creates branch, implements, commits
-3. **Complete**: Teammate marks task complete via `TaskUpdate`, goes idle
-4. **Shutdown**: Orchestrator sends `SendMessage({type: "shutdown_request"})` after phase
-5. **Merge**: Orchestrator merges the teammate's branch, deletes it
-
-Never keep teammates alive across phases — idle teammates burn tokens.
-Stale teammates from failed pipelines need manual cleanup (`tmux kill-session` if needed).
-
-## Dynamic Agents
-
-For complex tasks requiring specialist knowledge beyond the standard roster, the orchestrator can generate task-specific agents. See `~/.claude/orchestrator/agent-orchestration.md` § Dynamic Agent Generation for the full protocol.
-
-- Dynamic agents live in `agents/dynamic/` and are deleted after use
-- Archived in `agents/archive/` for future reference
-- Always use the standard agent template (see orchestrator doc)
-- Dynamic agents follow all the same rules: worktree isolation, commit protocol, shape constraints
-
 ## Shell Environment
 
 Agent shells may not inherit the user's version manager (nvm, rbenv, pyenv, rustup, etc.).
@@ -338,34 +259,14 @@ Before any agent signals completion (BUILD_COMPLETE, VERIFIED, etc.):
 
 "I ran the tests 50 turns ago" is not verification. Run them again.
 
-## Dependency Management
+## Dependency Management (agent side)
 
-The orchestrator MUST NOT run `npm install`, `bundle add`, `pip install`, or any package manager command. These modify `package.json`, lock files, and `node_modules/` — all of which are source/build artifacts.
+If your task needs new packages, install them in your worktree as part of implementation work:
+- Run the package manager command (`npm install`, `bundle add`, `pip install`, etc.)
+- Verify the install (`npm ls <pkg>`, `bundle info <pkg>`)
+- Commit `package.json`/`Gemfile` and lock file separately with a chore commit
 
-**Who installs dependencies:**
-- **Build agents** install dependencies as part of their implementation work (in their worktree)
-- **Infrastructure engineers** install tool-level dependencies as part of scaffold work (in their worktree)
-
-**Orchestrator's role:**
-- Identify required dependencies during planning (from architect output or task requirements)
-- Include dependency requirements in the build agent's prompt
-- The build agent installs, verifies, and commits dependency changes in its worktree
-
-**Why:** `npm install` modifies the main working tree. If the orchestrator runs it, the main tree becomes dirty, conflicting with worktree-based agents. Dependencies installed in the main tree are NOT available in worktrees (which inherit from the git index). Dependencies are build artifacts — they go through agents.
-
-## Test Runner Isolation
-
-Worktrees are created inside `.claude/worktrees/` within the project directory.
-Test runners that use directory discovery (Jest, pytest, rspec, go test) WILL find
-test files in worktrees, causing duplicate runs and false failures.
-
-After the FIRST worktree creation in any project, verify the test runner's config
-excludes `.claude/worktrees/`. Add exclusion if missing:
-- **Jest**: `testPathIgnorePatterns: ["/.claude/worktrees/"]` in jest.config
-- **pytest**: `testpaths = ["tests"]` in pyproject.toml (explicit paths, not discovery)
-- **rspec**: `--exclude-pattern '.claude/**'` in .rspec
-- **Go**: Module-scoped by default (no issue unless using recursive `./...`)
-- **Other**: Add equivalent exclusion for the project's test runner
+The orchestrator never installs dependencies — that's always the build agent's job. The orchestrator-side rationale and `Why this matters` rules live in `~/.claude/orchestrator/agent-orchestration.md` § Dependency Management.
 
 ## Resource Bounds
 
