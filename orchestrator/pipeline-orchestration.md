@@ -236,3 +236,43 @@ The orchestrator does not need to count observations, check dates, or evaluate c
 - **Never start a new pipeline without checking for in-progress ones.** One pipeline at a time per branch.
 - **Never discard pipeline state.** If the user wants to abandon, explicitly delete the memory file.
 - **Never assume prior context.** Always read state from the memory file, not from "I remember from last time."
+
+## Pre-flight Protocol (MANDATORY before any work begins)
+
+1. **Check `pipeline-state/`** for in-progress pipelines before starting new work. If found, invoke `/pipeline-resume`
+2. **Classify the work**: feature, refactor, bug fix, or tech spike
+3. **Map to entry skill**: `/build-implementation`, `/refactor`, `/bug-fix`, or `/tech-spike`
+3b. **Check for scaffolding needs**: if the task requires new API endpoints, schema changes, infrastructure, or observability, flag the appropriate utility skill (see pipeline SKILL.md Step 2b)
+4. **Enumerate all pipeline phases** and the skill for each
+5. **Determine dispatch mode**: single-slice (subagents) or multi-slice/multi-domain (team)
+6. **Create pipeline team**: `TeamCreate("pipeline-{task-id}")` -- always, even for single-slice (the team hosts review + final gate teammates)
+6b. **Create pipeline scratchpad**: `mkdir -p pipeline-state/{task-id}/scratchpad/` (see `rules/_detail/autonomous-intelligence.md`)
+6c. **Load session memory**: Read `session-memory/{project-hash}/notes.md` if it exists. Create from template if first pipeline in this project
+7. **Write the phase plan** as a visible message to the user
+8. **Execute phases in order**, spawning teammates for team phases, subagents for subagent phases. Inject session memory + scratchpad findings into every agent prompt (see `rules/_detail/autonomous-intelligence.md` § Agent Spawn)
+
+## After CHANGES_REQUESTED (Review Loop Dispatch)
+
+1. Spawn fix-engineer into the same pipeline team with the specific findings
+2. Fix-engineer fixes and commits
+3. Shut down fix-engineer, merge the fix branch
+4. **Re-assign to the raising reviewer is MANDATORY.** The reviewer is still alive in the team with full context. Do not skip re-review because the fix "looks right."
+5. `SendMessage` to the raising reviewer with: the original finding, the specific fix applied, and the file diff
+6. **Targeted re-review**: Only the reviewer who raised the finding re-reviews
+   - If code-reviewer raised findings and security-engineer APPROVED: only message code-reviewer
+   - If both raised findings: message both, but each only re-reviews their own findings
+7. The re-reviewer checks ONLY the addressed findings plus immediate surrounding context
+8. Max 2 total rounds (initial + 1 re-review). If still not resolved, escalate to user
+9. After both APPROVE: shut down both reviewers
+
+## Enforcement (Orchestrator Self-Discipline)
+
+> **Iron law: NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.** (Mirrored in `rules/core.md`.)
+
+- If you catch yourself about to use Write or Edit on a source file, STOP
+- If you catch yourself about to skip a skill invocation, STOP
+- If you catch yourself about to spawn a write-capable subagent WITHOUT `isolation: "worktree"`, STOP (team teammates manage their own branches)
+- If you catch yourself spawning an agent or teammate without referencing the skill file, STOP
+- If you catch yourself keeping teammates alive across phases (idle token burn), STOP — shut them down
+- The user saying "just fix it quickly" is not an excuse to bypass process
+- The pipeline exists to catch mistakes. Every shortcut is a missed catch.

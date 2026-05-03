@@ -249,7 +249,7 @@ For each phase:
 
 Read `bestofn` from the pipeline state frontmatter (mirrored from `pipeline-state/{task-id}/intake.md` at pipeline creation; computed by intake Step 2d-bis as `critical OR (task_class == "feature" AND budget >= 5)`).
 
-- If `bestofn == true`: dispatch via the **Best-of-N Build Team** variant (see `rules/_detail/parallel-dispatch-protocol.md` § Best-of-N Build Team). This is not a separate skill — it is a dispatch mode of the Build Team that runs N candidate models in parallel and selects the winner. The winner still proceeds through the normal Review → Final Gate → Ship gates.
+- If `bestofn == true`: dispatch via the **Best-of-N Build Team** variant (see `orchestrator/parallel-dispatch-details.md` § Best-of-N Build Team Dispatch). This is not a separate skill — it is a dispatch mode of the Build Team that runs N candidate models in parallel and selects the winner. The winner still proceeds through the normal Review → Final Gate → Ship gates.
 - If absent (older pipelines pre-flag): treated as `False` — use standard Build dispatch.
 - Otherwise: use the standard Build dispatch (single-engineer subagent with worktree, or standard Build Team for multi-slice / multi-domain work).
 
