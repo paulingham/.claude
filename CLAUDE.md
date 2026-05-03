@@ -252,7 +252,9 @@ See `rules/multi-repo-protocol.md` for full details.
 
 ## Detailed Protocols
 
-All detailed protocols are in `rules/` (auto-loaded each session):
+> **Two-tier rules layout** (C9.1 wave 3): load-bearing invariants live in `rules/core.md` (Iron Laws, code shape limits, worktree + commit protocol, pipeline phase order). Full protocols live in `rules/_detail/<topic>.md`. The original `rules/<topic>.md` files are stubs that redirect to `rules/_detail/`. C9.2 will switch the auto-load list below to load `rules/core.md` only and remove the stubs from auto-load.
+
+All detailed protocols are in `rules/` (auto-loaded each session — currently includes stubs; C9.2 will trim to `rules/core.md`):
 
 - `rules/agent-protocol.md` — Worktree isolation, commit protocol, orchestrator code ban
 - `rules/pipeline-protocol.md` — Pipeline phases, review loop, enforcement
