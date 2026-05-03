@@ -20,7 +20,20 @@ teardown() {
   rm -rf "$BATS_FILE_TMPDIR"
 }
 
-@test "_at_token_path: returns expected path under HOME" {
+@test "_at_token_path: returns NEW-layout path when no token exists (DUAL_PATH default)" {
+  # DUAL_PATH read precedence: when neither legacy nor new exists, the helper
+  # falls through to the NEW-layout path (writes go to new layout only).
+  # Pre-refactor this returned the legacy path; post-refactor it returns new.
+  run _at_token_path "wave4-N"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$HOME/.claude/pipeline-state/wave4-N/approval.token" ]
+}
+
+@test "_at_token_path: returns LEGACY-layout path when only legacy token exists (DUAL_PATH read)" {
+  # Read precedence: existing-file wins. When only the legacy token exists,
+  # the helper returns its legacy path so callers (auto-pr, check-approval)
+  # find in-flight tokens during the 90-day soak.
+  printf '{}' > "$HOME/.claude/pipeline-state/wave4-N-approval.token"
   run _at_token_path "wave4-N"
   [ "$status" -eq 0 ]
   [ "$output" = "$HOME/.claude/pipeline-state/wave4-N-approval.token" ]
@@ -165,11 +178,14 @@ teardown() {
   [ ! -f "/tmp/attacker/pr-blocked.jsonl" ]
 }
 
-@test "write-approval-token.sh: writes token file with given verdict" {
+@test "write-approval-token.sh: writes token file at NEW layout path with given verdict" {
+  # Post-refactor: writes go to NEW layout only — pipeline-state/{task}/approval.token.
+  # Legacy path is read-only during the 90-day DUAL_PATH soak.
   run bash "$REPO_ROOT/hooks/_lib/write-approval-token.sh" --task-id "task-W" --verdict "APPROVED"
   [ "$status" -eq 0 ]
-  [ -f "$HOME/.claude/pipeline-state/task-W-approval.token" ]
-  run jq -r '.verdict' "$HOME/.claude/pipeline-state/task-W-approval.token"
+  [ -f "$HOME/.claude/pipeline-state/task-W/approval.token" ]
+  [ ! -f "$HOME/.claude/pipeline-state/task-W-approval.token" ]
+  run jq -r '.verdict' "$HOME/.claude/pipeline-state/task-W/approval.token"
   [ "$output" = "APPROVED" ]
 }
 
