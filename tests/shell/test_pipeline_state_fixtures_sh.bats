@@ -86,3 +86,11 @@ teardown() { rm -rf "$TMP"; }
   grep -q "phase: pipeline" "$TMP/t1/pipeline.md"
   grep -q "phase: build" "$TMP/t1/build.md"
 }
+
+@test "phases='build' (no pipeline) still echoes pipeline.md path" {
+  run _psf_make_fixture --task-id=t1 --phases='build' "$TMP"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$TMP/t1/pipeline.md" ]
+  [ -f "$TMP/t1/build.md" ]
+  [ ! -f "$TMP/t1/pipeline.md" ]
+}

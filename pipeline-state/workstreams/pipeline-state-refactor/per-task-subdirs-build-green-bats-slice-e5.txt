@@ -1,0 +1,47 @@
+1..46
+ok 1 default layout=new writes subdir pipeline.md and echoes its path
+ok 2 layout=legacy writes flat pipeline.md and echoes its path
+ok 3 layout=new + workstream nests under workstreams/{ws}/{task}/{phase}.md
+ok 4 layout=legacy + workstream uses workstreams/{ws}/{task}-{phase}.md
+ok 5 phases='pipeline build review' writes all three phases (legacy)
+ok 6 phases='pipeline build' writes both phases (new)
+ok 7 verdict=completed is recorded in frontmatter
+ok 8 missing --task-id returns 1 with diagnostic on stderr
+ok 9 missing STATE_DIR returns 1 with diagnostic on stderr
+ok 10 invalid layout returns 1
+ok 11 phase field is set per-phase in each file
+ok 12 phases='build' (no pipeline) still echoes pipeline.md path
+ok 13 _at_token_path: returns expected path under HOME
+ok 14 _at_resolve_task_id: empty branch returns empty string
+ok 15 _at_resolve_task_id: main returns empty string
+ok 16 _at_resolve_task_id: master returns empty string
+ok 17 _at_resolve_task_id: build/wave4-N returns wave4-N
+ok 18 _at_resolve_task_id: build/wave4-N/slice-1 returns slice-1 (last segment)
+ok 19 _at_resolve_task_id: feature/wave4-N returns wave4-N
+ok 20 _at_pipeline_active: returns 0 when pipeline file exists
+ok 21 _at_pipeline_active: returns 1 when pipeline file is missing
+ok 22 _at_token_exists: returns 1 when token file is absent
+ok 23 _at_token_verdict: returns MISSING when file is absent
+ok 24 _at_write_token APPROVED + _at_token_exists: file is present after write
+ok 25 _at_token_verdict: round-trips APPROVED after write
+ok 26 _at_write_token: invalid verdict GARBAGE exits non-zero, no file written
+ok 27 _at_write_token APPROVED_WITH_CONDITIONS: verdict round-trips
+ok 28 _at_write_token REJECTED: verdict round-trips
+ok 29 _at_log_blocked: appends one JSONL line to metrics dir with task_id and reason
+ok 30 _at_write_token rejects traversal task_id
+ok 31 write-approval-token.sh rejects traversal task_id
+ok 32 _at_log_blocked handles task_id with quotes safely
+ok 33 _at_log_blocked sanitizes CLAUDE_SESSION_ID path
+ok 34 write-approval-token.sh: writes token file with given verdict
+ok 35 check-approval-token.sh: no pipeline file → exit 0, manual PR path message
+ok 36 check-approval-token.sh: pipeline active, no token → exit 2, PR_BLOCKED with remediation
+ok 37 check-approval-token.sh: pipeline active, REJECTED token → exit 2, PR_BLOCKED
+ok 38 check-approval-token.sh: pipeline active, APPROVED token → exit 0
+ok 39 check-approval-token.sh: pipeline active, APPROVED_WITH_CONDITIONS → exit 0
+ok 40 check-approval-token.sh: stale token (pipeline file deleted) → exit 0, manual PR path
+ok 41 _apf_resolve_branch: returns sanitized branch name; main→empty
+ok 42 auto-pr.sh: feature branch ahead, no pipeline file → suggestion emitted (manual PR path)
+ok 43 auto-pr.sh: pipeline active + APPROVED token → suggestion emitted
+ok 44 auto-pr.sh: pipeline active + REJECTED → suppressed + blocker logged
+ok 45 auto-pr.sh: pipeline active + missing token → suppressed + blocker logged
+ok 46 _psp_task_state_path emits new-layout path
