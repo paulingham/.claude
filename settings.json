@@ -199,6 +199,11 @@
             "timeout": 5000
           },
           {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/eval-anti-hack-lint.sh",
+            "timeout": 5000
+          },
+          {
             "type": "mcp_tool",
             "server": "gh-cache",
             "tool": "prefetch_pr",

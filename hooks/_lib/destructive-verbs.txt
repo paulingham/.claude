@@ -1,0 +1,25 @@
+# Destructive verb patterns guarded by hooks/main-branch-guard.sh.
+# One ERE pattern per line. Lines starting with '#' or empty lines are ignored.
+# Matched against the full command string after env-var stripping (case-sensitive).
+#
+# Wave 2 / A4 — closes the PocketOS Apr 27 2026 incident (volume deletion via LLM-blessed
+# deploy script that no human reviewed). Non-LLM gate: requires
+# CLAUDE_DESTRUCTIVE_CONFIRM=I-have-a-restorable-backup-elsewhere set within the last 600
+# seconds (re-export every 10 minutes during an authorized destructive operation).
+#
+# Volume / cloud storage deletion
+volumeDelete
+aws[[:space:]]+s3[[:space:]]+rb([[:space:]]|$)
+gcloud[[:space:]]+sql[[:space:]]+instances[[:space:]]+delete
+railway[[:space:]]+down([[:space:]]|$)
+fly[[:space:]]+destroy
+# Database destruction
+DROP[[:space:]]+TABLE
+TRUNCATE[[:space:]]+(TABLE[[:space:]]+)?[A-Za-z_]
+# Force push to non-feature destinations (any non-`feature/*` / non-`build/*` / non-PR ref)
+git[[:space:]]+push[[:space:]]+(--force-with-lease|-f|--force)([[:space:]]+[^[:space:]]+)*[[:space:]]+(main|master|release|production|staging|develop)([[:space:]]|$)
+# Filesystem destruction
+rm[[:space:]]+-rf[[:space:]]+\$HOME([[:space:]/]|$)
+rm[[:space:]]+-rf[[:space:]]+~([[:space:]/]|$)
+# Kubernetes destruction
+kubectl[[:space:]]+delete[[:space:]]+namespace[[:space:]]+(prod|production)
