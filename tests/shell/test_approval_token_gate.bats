@@ -12,6 +12,8 @@ setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   ln -sfn "$REPO_ROOT/hooks" "$HOME/.claude/hooks"
   source "$REPO_ROOT/hooks/_lib/approval-token.sh"
+  source "$REPO_ROOT/tests/_fixtures/pipeline_state.sh"
+  PIPELINE_STATE_DIR="$HOME/.claude/pipeline-state"
 }
 
 teardown() {
@@ -61,7 +63,7 @@ teardown() {
 }
 
 @test "_at_pipeline_active: returns 0 when pipeline file exists" {
-  touch "$HOME/.claude/pipeline-state/task1-pipeline.md"
+  _psf_make_fixture --task-id=task1 --layout=legacy "$PIPELINE_STATE_DIR" >/dev/null
   run _at_pipeline_active "task1"
   [ "$status" -eq 0 ]
 }
@@ -197,7 +199,7 @@ EOF
 
 @test "check-approval-token.sh: pipeline active, no token → exit 2, PR_BLOCKED with remediation" {
   _stub_branch "feature/wave4-N"
-  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _psf_make_fixture --task-id=wave4-N --layout=legacy "$PIPELINE_STATE_DIR" >/dev/null
   run bash "$REPO_ROOT/skills/pr-creation/lib/check-approval-token.sh"
   [ "$status" -eq 2 ]
   [[ "$output" == *"PR_BLOCKED"* ]]
@@ -207,7 +209,7 @@ EOF
 
 @test "check-approval-token.sh: pipeline active, REJECTED token → exit 2, PR_BLOCKED" {
   _stub_branch "feature/wave4-N"
-  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _psf_make_fixture --task-id=wave4-N --layout=legacy "$PIPELINE_STATE_DIR" >/dev/null
   _at_write_token "wave4-N" "REJECTED"
   run bash "$REPO_ROOT/skills/pr-creation/lib/check-approval-token.sh"
   [ "$status" -eq 2 ]
@@ -216,7 +218,7 @@ EOF
 
 @test "check-approval-token.sh: pipeline active, APPROVED token → exit 0" {
   _stub_branch "feature/wave4-N"
-  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _psf_make_fixture --task-id=wave4-N --layout=legacy "$PIPELINE_STATE_DIR" >/dev/null
   _at_write_token "wave4-N" "APPROVED"
   run bash "$REPO_ROOT/skills/pr-creation/lib/check-approval-token.sh"
   [ "$status" -eq 0 ]
@@ -224,7 +226,7 @@ EOF
 
 @test "check-approval-token.sh: pipeline active, APPROVED_WITH_CONDITIONS → exit 0" {
   _stub_branch "feature/wave4-N"
-  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _psf_make_fixture --task-id=wave4-N --layout=legacy "$PIPELINE_STATE_DIR" >/dev/null
   _at_write_token "wave4-N" "APPROVED_WITH_CONDITIONS"
   run bash "$REPO_ROOT/skills/pr-creation/lib/check-approval-token.sh"
   [ "$status" -eq 0 ]
@@ -273,7 +275,7 @@ _setup_mini_repo() {
 
 @test "auto-pr.sh: pipeline active + APPROVED token → suggestion emitted" {
   _setup_mini_repo "feature/wave4-N"
-  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _psf_make_fixture --task-id=wave4-N --layout=legacy "$PIPELINE_STATE_DIR" >/dev/null
   _at_write_token "wave4-N" "APPROVED"
   run bash "$REPO_ROOT/hooks/auto-pr.sh" <<< '{}'
   [ "$status" -eq 0 ]
@@ -282,7 +284,7 @@ _setup_mini_repo() {
 
 @test "auto-pr.sh: pipeline active + REJECTED → suppressed + blocker logged" {
   _setup_mini_repo "feature/wave4-N"
-  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _psf_make_fixture --task-id=wave4-N --layout=legacy "$PIPELINE_STATE_DIR" >/dev/null
   _at_write_token "wave4-N" "REJECTED"
   run bash "$REPO_ROOT/hooks/auto-pr.sh" <<< '{}'
   [ "$status" -eq 0 ]
@@ -294,7 +296,7 @@ _setup_mini_repo() {
 
 @test "auto-pr.sh: pipeline active + missing token → suppressed + blocker logged" {
   _setup_mini_repo "feature/wave4-N"
-  touch "$HOME/.claude/pipeline-state/wave4-N-pipeline.md"
+  _psf_make_fixture --task-id=wave4-N --layout=legacy "$PIPELINE_STATE_DIR" >/dev/null
   run bash "$REPO_ROOT/hooks/auto-pr.sh" <<< '{}'
   [ "$status" -eq 0 ]
   [[ "$output" != *"AUTO-PR"* ]]
