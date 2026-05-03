@@ -256,7 +256,7 @@ All detailed protocols are in `rules/` (auto-loaded each session):
 
 - `rules/agent-protocol.md` — Worktree isolation, commit protocol, orchestrator code ban
 - `rules/pipeline-protocol.md` — Pipeline phases, review loop, enforcement
-- `rules/engineering-protocol.md` — Code shape, TDD, testing standards, security baseline
+- `rules/engineering-invariants.md` — Code shape, naming, error handling, dependency resolution, testing standards, security baseline (always loaded)
 - `rules/operational-protocol.md` — Complexity Budget, error recovery principles
 - `rules/parallel-dispatch-protocol.md` — Hybrid dispatch: teams for Build/Review/Final Gate, subagents for Plan/Ship/Deploy
 - `rules/module-boundaries-protocol.md` — Modular monolith default, module contract artifacts, canonical forcing-function list (FF1–FF5)
@@ -264,6 +264,9 @@ All detailed protocols are in `rules/` (auto-loaded each session):
 - `rules/e2e-protocol.md` — Maestro E2E trigger matrix and prerequisites
 - `rules/reflection-protocol.md` — Post-pipeline reflection, root cause analysis, continuous improvement
 - `rules/autonomous-intelligence.md` — Pipeline scratchpad, session memory, continuous learning loop
+
+### Skill-Loaded Protocols (not auto-loaded, read by specific skills)
+- `rules/atdd-procedure.md` — Full ATDD cycle, mutation gate, per-behaviour TDD exceptions (loaded by `/build-implementation` and `/bug-fix`)
 
 ### Orchestrator-Only Protocols (not auto-loaded, read when needed)
 - `orchestrator/pipeline-orchestration.md` — State tracking, continuity, progress reporting, anti-patterns

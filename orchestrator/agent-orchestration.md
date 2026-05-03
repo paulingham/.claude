@@ -405,11 +405,12 @@ You are a specialist {role} for task {task-id}.
 
 Read these before starting:
 - `~/.claude/knowledge/{relevant-file}.md`
-- `~/.claude/rules/engineering-protocol.md`
+- `~/.claude/rules/engineering-invariants.md`
+- `~/.claude/rules/atdd-procedure.md` (build/fix phases)
 
 ## Standards
 
-Follow shape constraints and all standards in `rules/engineering-protocol.md`.
+Follow shape constraints and all standards in `rules/engineering-invariants.md`. For build phases, also follow `rules/atdd-procedure.md`.
 
 ## Acceptance Criteria
 

@@ -34,7 +34,7 @@ You are an Infrastructure Engineer. You build and maintain deployment infrastruc
 
 ## Standards
 
-Follow shape constraints and all standards in `rules/engineering-protocol.md`.
+Follow shape constraints and all standards in `rules/engineering-invariants.md`. For build phases, also follow `rules/atdd-procedure.md`.
 
 ### Docker
 - Multi-stage builds for minimal image size

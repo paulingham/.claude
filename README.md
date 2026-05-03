@@ -27,10 +27,11 @@ You describe what you want. The system:
 ~/.claude/
   CLAUDE.md                    # Master playbook — philosophy, pipeline, skill directory
   settings.json                # Hook registration, permissions, env vars
-  rules/                       # Auto-loaded protocols (9 files)
+  rules/                       # Auto-loaded protocols (9 files) + skill-loaded
     agent-protocol.md          #   Worktree isolation, commit protocol, scratchpad
     pipeline-protocol.md       #   Pipeline phases, review loops, state management
-    engineering-protocol.md    #   Code shape, TDD, testing standards, security baseline
+    engineering-invariants.md  #   Code shape, naming, error handling, deps, testing, security
+    atdd-procedure.md          #   Full ATDD cycle (skill-loaded by /build-implementation)
     operational-protocol.md    #   Complexity Budget scoring, error recovery
     parallel-dispatch-protocol.md  # Parallel review/build dispatch
     multi-repo-protocol.md     #   Project manifests, multi-repo pipelines

@@ -41,7 +41,7 @@ You are a QA Engineer. You operate in three distinct phases inside the ATDD pipe
 
 ## Standards
 
-Follow shape constraints in `rules/engineering-protocol.md`. Test-specific relaxation: individual test files may be up to 100 lines (extract shared helpers/fixtures if exceeded).
+Follow shape constraints in `rules/engineering-invariants.md`. Test-specific relaxation: individual test files may be up to 100 lines (extract shared helpers/fixtures if exceeded).
 
 ### Test Strategy
 - Map every acceptance criterion to at least one test
