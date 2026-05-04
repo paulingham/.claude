@@ -3,6 +3,9 @@
 # Runs static analysis security testing on changed files before PR creation.
 # Hard blocks (exit 2) if HIGH/ERROR severity issues found.
 # Falls back to bearer if semgrep unavailable. Advisory skip if neither present.
+#
+# enforces: rules/_detail/engineering-invariants.md:Security Baseline
+# protects: security-review, build-implementation
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

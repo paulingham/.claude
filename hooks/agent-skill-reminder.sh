@@ -10,6 +10,9 @@
 #
 # This hook fires BEFORE every Agent spawn. It reads stdin JSON (tool_input field)
 # to extract subagent_type, prompt, and isolation for classification.
+#
+# enforces: rules/_detail/agent-protocol.md:Per-Agent Tool Scoping
+# protects: build-implementation, all-skills
 
 # Hook profile
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

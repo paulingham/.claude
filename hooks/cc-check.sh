@@ -3,6 +3,9 @@
 # Fires after Write/Edit on source files (not tests, not config).
 # Warns (exit 0) if cyclomatic complexity exceeds 5. Never hard-blocks.
 # Supports: .ts/.tsx/.js/.jsx/.rb/.py/.go
+#
+# enforces: rules/core.md:Code Shape Limits
+# protects: build-implementation, code-review
 
 # Hook profile and loop guard
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

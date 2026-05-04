@@ -500,6 +500,16 @@
             "type": "command",
             "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/learning-gc.sh\"",
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-self-test.sh\"",
+            "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/harness-audit-advisory.sh\"",
+            "timeout": 5000
           }
         ]
       },
@@ -606,6 +616,16 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/cost-feed.sh\"",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/quality-gate-stop.sh\"",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/tdd-guard-stop.sh\"",
             "timeout": 5000
           }
         ]

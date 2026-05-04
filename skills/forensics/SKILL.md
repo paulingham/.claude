@@ -73,6 +73,31 @@ Flag any of the following:
 | Discipline violation | Files modified outside agent sessions | Orchestrator wrote code |
 | Stale state | Pipeline state timestamp >24h old | Abandoned pipeline |
 
+### Step 3b: Hook Protection Lookup
+
+When a hook violation is detected in `metrics/$SID/*-violations.jsonl`, look up the hook's protection annotations:
+
+```bash
+# For each violation record with a hook_name field, extract:
+grep -E '^# (enforces|protects):' ~/.claude/hooks/{hook_name}.sh 2>/dev/null
+```
+
+Render in the forensic report as a "Rule Protected" annotation under the relevant anomaly:
+
+> **This violation by `{hook-name}` protects:**
+> - **Rule**: `{value from # enforces:}`
+> - **Skills**: `{value from # protects:}`
+
+Update the **Anomalies table** schema to include a `Rule Protected` column:
+
+```markdown
+| # | Type | Description | Root Cause | Rule Protected |
+|---|------|------------|------------|----------------|
+| 1 | Main-branch violation | Bare `git checkout` detected | Agent omitted `git -C` delegation | `rules/_detail/agent-protocol.md:Main-Branch Invariant` (build-implementation, pr-creation) |
+```
+
+This traceability lets forensics readers immediately see which rule and which skill the hook was guarding when it fired — eliminating the "what does this hook protect?" question.
+
 ### Step 4: Artifact Integrity
 
 Cross-reference pipeline state with git:

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # SubagentStop hook: log agent completion and remind about worktree validation
 # Exit 0 = proceed, stdout added to Claude's context
+#
+# enforces: rules/_detail/agent-protocol.md:Per-Agent Tool Scoping
+# protects: all-agent-spawning-skills
 
 # Hook profile
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

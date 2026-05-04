@@ -2,6 +2,9 @@
 # Trajectory recorder — SubagentStop hook
 # Appends a structured record to the active pipeline trajectory file when an agent stops.
 # Auto-detects the active pipeline from pipeline-state files, or uses CLAUDE_PIPELINE_TASK_ID if set.
+#
+# enforces: rules/_detail/pipeline-protocol.md:Structured Pipeline State
+# protects: pipeline, forensics
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

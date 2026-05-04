@@ -2,6 +2,9 @@
 # Depth guard — PreToolUse Agent hook.
 # Refuses subagent spawn when CLAUDE_SUBAGENT_DEPTH >= max (default 3).
 # See rules/agent-protocol.md > Resource Bounds.
+#
+# enforces: rules/_detail/agent-protocol.md:Resource Bounds
+# protects: pipeline, build-implementation
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null

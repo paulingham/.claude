@@ -14,6 +14,9 @@
 #
 # The hook runs in async mode so session start is not blocked. On desktop
 # (where $HOME/.claude IS the harness) the hook is a no-op.
+#
+# enforces: rules/core.md:Iron Laws
+# protects: pipeline
 
 set -uo pipefail
 

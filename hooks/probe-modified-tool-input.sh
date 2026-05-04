@@ -3,6 +3,9 @@
 # Emits decision=approve with a thinking field and logs payload for inspection.
 # Run once (registered temporarily in settings.json), inspect /tmp/probe-*.log
 # AND the agent's rendered trace, then REMOVE registration before commit.
+#
+# enforces: rules/_detail/thinking-defaults.md:Hook Behavior
+# protects: pipeline
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

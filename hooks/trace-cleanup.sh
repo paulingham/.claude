@@ -4,6 +4,9 @@
 # Prunes prompt traces older than 7 days from ~/.claude/metrics/*/trace/.
 # No-op when metrics dir does not exist (common — tracing is opt-in).
 # Never blocks session start.
+#
+# enforces: rules/_detail/autonomous-intelligence.md:Prompt Tracing
+# protects: debug-trace
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

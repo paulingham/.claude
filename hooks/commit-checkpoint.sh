@@ -2,6 +2,9 @@
 # Commit Checkpoint — PreToolUse hook for git commit commands
 # Lightweight quality check: warns on issues but does not block.
 # Catches problems earlier than the PR quality gate.
+#
+# enforces: rules/_detail/agent-protocol.md:Commit Protocol
+# protects: build-implementation
 
 # Hook profile and loop guard
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # PreToolUse hook: block AskUserQuestion in autonomous mode.
 # Reads JSON from stdin, checks tool_name, exits 2 to block when matched.
+#
+# enforces: rules/core.md:Iron Laws
+# protects: pipeline
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:AskUserQuestion"

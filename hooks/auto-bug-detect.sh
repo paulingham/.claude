@@ -3,6 +3,10 @@
 # Detects bug-fix patterns from old_string/new_string diffs.
 # Logs to ~/.claude/metrics/bugs-detected.jsonl
 # Passive (exit 0).
+#
+# enforces: rules/_detail/atdd-procedure.md:ATDD Anti-Patterns
+# protects: build-implementation, bug-fix
+# self-test: skip
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
