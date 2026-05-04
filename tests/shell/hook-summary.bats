@@ -38,6 +38,13 @@ emit() {
   echo "$output" | grep -q "blocker"
   echo "$output" | grep -q "Most-Frequent Errors"
   echo "$output" | grep -q "Anomaly check OK"
+  # Strengthened: extract the Errors section body (heading -> next blank line)
+  # and assert the hook name does NOT appear there. Section heading alone is
+  # always printed, so a heading-only check passes even when categorisation is
+  # wrong; body-scoped assertion catches the regression.
+  errors_body="$(echo "$output" | awk '/^== Most-Frequent Errors/,/^$/')"
+  ! echo "$errors_body" | grep -q "^blocker"
+  echo "$errors_body" | grep -q "(no errors)"
 }
 
 @test "F2.3 mixed errors above threshold -> anomaly, exit 2; hook in Errors section" {

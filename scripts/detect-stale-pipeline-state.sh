@@ -35,7 +35,12 @@ mapfile -t FILES < <(find "$STATE_DIR" -maxdepth 2 -type f \
 extract_field() {  # $1=path, $2=key
   awk -v key="$2" '
     /^---[[:space:]]*$/ { fm = !fm; next }
-    fm && $0 ~ "^"key":" { sub("^"key":[[:space:]]*", ""); gsub(/^[[:space:]]+|[[:space:]]+$/, ""); print; exit }
+    fm && $0 ~ "^"key":" {
+      sub("^"key":[[:space:]]*", "")
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+      gsub(/^["'\'']|["'\'']$/, "")
+      print; exit
+    }
   ' "$1"
 }
 
@@ -51,6 +56,8 @@ check_pr_state() {  # $1=pr number. echoes state or "" if gh unavailable.
 }
 
 stale_count=0
+STALE_PATHS=()
+STALE_REASONS=()
 print_header() { printf '| %-44s | %-10s | %-50s | %-8s | %-8s |\n%s\n' "task_id (path)" "phase" "designated_branch" "merged?" "pr_state" "|---|---|---|---|---|"; }
 [[ "$JSON" -eq 0 ]] && print_header
 
@@ -70,6 +77,8 @@ for f in "${FILES[@]}"; do
   [[ "$pr_state" == "MERGED" || "$pr_state" == "CLOSED" ]] && reason="${reason:-pr-$pr_state}"
 
   [[ -z "$reason" ]] && continue
+  STALE_PATHS+=("$f")
+  STALE_REASONS+=("$reason")
   stale_count=$((stale_count + 1))
 
   if [[ "$JSON" -eq 1 ]]; then
@@ -83,13 +92,9 @@ for f in "${FILES[@]}"; do
   fi
 done
 
-if [[ "$PRUNE" -eq 1 && "$stale_count" -gt 0 ]]; then
+if [[ "$PRUNE" -eq 1 && "${#STALE_PATHS[@]}" -gt 0 ]]; then
   echo; echo "# Suggested cleanup commands (review before running):"
-  for f in "${FILES[@]}"; do
-    branch=$(extract_field "$f" designated_branch)
-    [[ -z "$branch" ]] && continue
-    is_branch_in_main "$branch"; rc=$?
-    [[ "$rc" -eq 0 || "$rc" -eq 2 ]] || continue   # 0=merged, 2=deleted (both stale)
+  for f in "${STALE_PATHS[@]}"; do
     dir="$(dirname "$f")"
     [[ "$dir" == "$STATE_DIR" ]] && echo "rm $f" || echo "rm -rf $dir"
   done
