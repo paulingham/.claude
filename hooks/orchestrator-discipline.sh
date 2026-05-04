@@ -4,7 +4,7 @@
 # Blocks the orchestrator from writing source files directly.
 # The orchestrator must delegate all file changes to agents via skills.
 #
-# ALLOW (by path): .md files, .claude/automation/, .claude/hooks/.
+# ALLOW (by path): .md files, .claude/automation/, .claude/hooks/, .claude-sessions/.
 # ALLOW (by caller context): tool call originates from a subagent — harness injects
 #   `subagent_type` into PreToolUse stdin JSON for every subagent tool call; the
 #   orchestrator's own tool calls always have an empty subagent_type.
@@ -32,7 +32,7 @@ is_path_allow_listed() {
     # path-based allowance every agent Write/Edit inside its worktree gets
     # misclassified as an orchestrator write. Treat ".claude/worktrees/" the
     # same way ".claude/hooks/" is treated: ownership is implied by the path.
-    [[ "$1" =~ /\.claude/worktrees/ ]]
+    [[ "$1" =~ /\.claude/worktrees/ ]] || [[ "$1" =~ /\.claude-sessions/ ]]
 }
 
 is_caller_a_subagent() {
@@ -43,7 +43,7 @@ is_caller_a_subagent() {
     # session CWD, not the agent CWD — but kept for belt-and-suspenders).
     local toplevel
     toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
-    [[ "$toplevel" == *"/.claude/worktrees/agent-"* ]] || [[ "$PWD" == *"/.claude/worktrees/agent-"* ]]
+    [[ "$toplevel" == *"/.claude/worktrees/agent-"* ]] || [[ "$PWD" == *"/.claude/worktrees/agent-"* ]] || [[ "$toplevel" == *"/.claude-sessions/"* ]] || [[ "$PWD" == *"/.claude-sessions/"* ]]
 }
 
 if is_path_allow_listed "$FILE_PATH"; then
