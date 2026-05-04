@@ -419,15 +419,28 @@ After both return:
 On CHANGES_REQUESTED:
 
 ```
-// 1. Spawn fix engineer into the same team
+// 1. Spawn fix-engineer into the same team
+//    NOTE: fix-engineer is its own agent (agents/fix-engineer.md) — it
+//    operates on the prior build's worktree (NOT a fresh worktree) and
+//    has fix-cycle-specific guidance (verify finding validity first,
+//    no scope creep, no compliance commit messages, no source-code
+//    apology comments).
 Agent({
   name: "fix-engineer",
   team_name: "pipeline-{task-id}",
-  subagent_type: "software-engineer",
-  prompt: "Read ~/.claude/agents/software-engineer.md for your role definition.
-    Fix these review findings: [findings]
+  subagent_type: "fix-engineer",
+  // Pass the prior build's worktree path so the fix targets the same
+  // branch the build engineer produced. Do NOT use isolation: "worktree"
+  // (that would create a fresh worktree without the build's commits).
+  prompt: "Read ~/.claude/agents/fix-engineer.md for your role definition.
+    Working directory: <prior-build-worktree-path>
+    Branch: <feature-branch-the-build-was-on>
+    Round: 1 (or 2 on re-review)
+    Findings to address: [verbatim reviewer text + cited file:line]
+    Build diff: [git diff main...HEAD]
     Verify each finding is valid before implementing.
-    If a suggestion would make code worse, report back with justification.
+    If a suggestion would make code worse, return verdict
+    FIX_REJECTED_TECHNICAL with justification.
     Commit with descriptive message (not 'fixed per review feedback')."
 })
 

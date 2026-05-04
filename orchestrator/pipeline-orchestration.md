@@ -253,8 +253,8 @@ The orchestrator does not need to count observations, check dates, or evaluate c
 
 ## After CHANGES_REQUESTED (Review Loop Dispatch)
 
-1. Spawn fix-engineer into the same pipeline team with the specific findings
-2. Fix-engineer fixes and commits
+1. Spawn fix-engineer (`subagent_type: fix-engineer`, see `agents/fix-engineer.md`) into the same pipeline team with the specific findings. Pass the prior build's worktree path in the prompt — do NOT use `isolation: "worktree"` (that would create a fresh worktree without the build's commits). See `orchestrator/parallel-dispatch-details.md` § Review Phase Dispatch for the full spawn shape.
+2. Fix-engineer fixes and commits on the same feature branch
 3. Shut down fix-engineer, merge the fix branch
 4. **Re-assign to the raising reviewer is MANDATORY.** The reviewer is still alive in the team with full context. Do not skip re-review because the fix "looks right."
 5. `SendMessage` to the raising reviewer with: the original finding, the specific fix applied, and the file diff
