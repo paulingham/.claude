@@ -83,6 +83,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `DEBUG_ESCALATED` | failure | `debug` | utility | Iteration cap hit; user escalation |
 | `TRACE_TOGGLED` | info | `debug-trace` | utility | Per-session prompt tracing on/off |
 | `HEALTHY` | info | `harness-audit`, `health-scan` | utility | No issues |
+| `TOOLS_VALID` | info | `harness-audit` | utility | All agent tools resolve to known catalog or MCP servers |
 | `WARNINGS` | info | `harness-audit` | utility | Non-blocking issues found |
 | `CRITICAL` | failure | `harness-audit` | utility | Blocking issues; harness needs repair |
 | `NEEDS_ATTENTION` | failure | `health-scan` | utility | Issues found; user reviews |

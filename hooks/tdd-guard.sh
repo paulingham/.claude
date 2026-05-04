@@ -34,4 +34,10 @@ source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/loop-guard.sh" && check_loop_g
 LIB="$(dirname "${BASH_SOURCE[0]}")/_lib"
 # shellcheck source=_lib/tdd-guard-pr.sh
 source "$LIB/tdd-guard-pr.sh"
+
+# Write pairing snapshot for SubagentStop forensics (Wave 5 / A8.2)
+source "$LIB/tdd-guard-pairing.sh" 2>/dev/null
+TASK_ID="${CLAUDE_PIPELINE_TASK_ID:-unknown}"
+[[ "$TASK_ID" != "unknown" ]] && declare -F _tdg_write_snapshot >/dev/null && _tdg_write_snapshot "$TASK_ID"
+
 _tdd_guard_pr_run "$COMMAND"
