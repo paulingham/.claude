@@ -174,9 +174,15 @@ After every pipeline completion (in the Reflect step), write a structured observ
   "pipeline_id": "{task-id}",
   "classification": "feature|refactor|bug",
   "phases": {
-    "build": {"verdict": "BUILD_COMPLETE", "rounds": 1, "agents": 2},
+    "build": {
+      "verdict": "BUILD_COMPLETE",
+      "rounds": 1,
+      "agents": [
+        {"role": "software-engineer", "model": "claude-sonnet-4-6"}
+      ]
+    },
     "review": {"verdict": "APPROVE", "rounds": 2, "findings": 3},
-    "verify": {"verdict": "VERIFIED", "tiers_passed": 3},
+    "verify": {"verdict": "VERIFIED", "tiers_passed": 3, "mutation_score": 0.78},
     "test": {"verdict": "COVERED", "coverage": 92},
     "accept": {"verdict": "APPROVED", "conditions": 0}
   },
@@ -193,6 +199,8 @@ After every pipeline completion (in the Reflect step), write a structured observ
 | Field | Type | Source |
 |---|---|---|
 | `cost_estimate_usd` | number (USD float, dollars) | computed via `hooks/_lib/cost_estimator.py` from `metrics/{session-id}/tool-timings.jsonl` records for this pipeline (joined by `task_id`). The producer calls `estimate_cost_usd_per_pipeline(timings_path)` and reads the value keyed by the current `task_id`; the result is a sum across every tool call attributed to the pipeline. |
+| `phases.build.agents` | array of `{role: string, model: string}` objects | one entry per build agent spawned for this pipeline (single-slice → length 1; multi-slice → length N). `role` matches the agent frontmatter `name:` field (`software-engineer`, `frontend-engineer`, etc.); `model` is the resolved executor (`claude-opus-4-7`, `claude-sonnet-4-6`, …). This is the canonical primary-key source for `(agent_role, task-class)` aggregation in `/learn` Step 7c — the prior integer-count form was deprecated when per-(role, task-class) cost-quality correlation was introduced in B12.2. |
+| `phases.verify.mutation_score` | number in `[0.0, 1.0]`, OR absent | mutation kill-rate on changed lines, captured by `/verify` Tier 3. Absent when the verify phase did not run a mutation pass (e.g. docs-only changes that skipped Tier 3 with documented rationale per `rules/_detail/engineering-invariants.md` § Proof of Correctness). The Iron Law (`rules/core.md` § 1) requires ≥0.70 on changed lines for any AC-bearing slice; observation readers MUST treat absence as "unknown", NOT as `0.0`. |
 
 The cost estimator is the single source of truth for token-to-USD conversion (see `PRICING_PER_MILLION` in `hooks/_lib/cost_estimator.py`). Unknown models contribute `0.0` and emit a deduplicated stderr warning — they do NOT raise, so a partial-pricing record always produces a numeric estimate.
 

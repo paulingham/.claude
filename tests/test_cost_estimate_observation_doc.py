@@ -30,7 +30,10 @@ def _observation_capture_section() -> str:
 
 def _learn_section_outside_step_1_and_10(needle: str) -> str:
     """Return the SKILL.md region containing `needle` IFF it is not inside
-    Step 1, Step 1b, Step 1c, or Step 10. Otherwise return ''.
+    Step 1, Step 1b, Step 1c, or Step 10 — scoped to the body of the
+    enclosing `### N[x]. ...` step so that callers asserting word presence
+    do not accidentally match keywords in unrelated steps elsewhere in the
+    file. Returns '' when the needle falls inside a forbidden step.
     """
     text = LEARN.read_text()
     if needle not in text:
@@ -39,17 +42,22 @@ def _learn_section_outside_step_1_and_10(needle: str) -> str:
     headers = [(m.start(), m.group(1)) for m in re.finditer(
         r"###\s+(\d+[a-z]?)\.\s+", text)]
     needle_pos = text.index(needle)
-    # Find the latest header before the needle.
+    # Find the latest header before the needle (and the next header after,
+    # to delimit the enclosing step body).
     enclosing = None
+    enclosing_start = 0
+    next_start = len(text)
     for pos, label in headers:
-        if pos < needle_pos:
+        if pos <= needle_pos:
             enclosing = label
+            enclosing_start = pos
         else:
+            next_start = pos
             break
     forbidden = {"1", "1b", "1c", "10"}
     if enclosing in forbidden:
         return ""
-    return text
+    return text[enclosing_start:next_start]
 
 
 class ObservationCaptureDocumentsCostEstimateField(unittest.TestCase):
@@ -104,15 +112,22 @@ class LearnSkillCorrelatesCostWithQualityOutsideStep1And10(unittest.TestCase):
             "section other than Step 1/1b/1c/10")
 
     def test_learn_describes_correlation_with_quality_outcomes(self):
-        text = LEARN.read_text()
+        # Scope the assertions to the post-Step-7b region so that the
+        # `rounds` / `rework` keywords being asserted are the ones inside
+        # the cost-quality correlation step itself, not unrelated mentions
+        # elsewhere in the file (the same words appear in multiple steps).
+        scoped = _learn_section_outside_step_1_and_10("cost_estimate_usd")
+        self.assertTrue(
+            scoped,
+            "skills/learn/SKILL.md must mention cost_estimate_usd in a "
+            "section other than Step 1/1b/1c/10")
         # The cost-quality correlation step must reference at least three
         # quality dimensions captured in the same observation record.
-        self.assertIn("cost_estimate_usd", text)
-        self.assertRegex(text, r"\brounds\b",
+        self.assertRegex(scoped, r"\brounds\b",
                          msg="correlation must reference review rounds")
-        self.assertRegex(text, r"\brework\b",
+        self.assertRegex(scoped, r"\brework\b",
                          msg="correlation must reference rework rate")
-        self.assertRegex(text, r"role.*task[- ]class|task[- ]class.*role",
+        self.assertRegex(scoped, r"role.*task[- ]class|task[- ]class.*role",
                          msg="correlation must aggregate per (role, task-class)")
 
     def test_learn_feeds_correlation_into_existing_instinct_logic(self):

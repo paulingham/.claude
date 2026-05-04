@@ -273,6 +273,8 @@ Per-pipeline observations carry a `cost_estimate_usd` field (number, USD float �
 - A `(role, task-class)` pair with `mean_cost_usd` in the top quartile AND (`mean_rounds >= 2.0` OR `rework_rate >= 0.33`) is flagged as a **prefer_opus candidate** — the role is paying premium cost without quality return, so escalating that role to Opus on this task class may improve outcomes. The flag feeds the existing `prefer_opus: true` writer (deferred — see `rules/_detail/autonomous-intelligence.md` § Executor Override (prefer_opus)) when the writer lands; until then, the candidate set is included in the Step 9 report under "Cost-quality candidates".
 - A pair with `mean_cost_usd` in the bottom quartile AND `mean_rounds <= 1.0` AND `rework_rate <= 0.10` is flagged as a **downgrade candidate** for `/eval-model-effectiveness` — the role is succeeding cheaply, so Sonnet may suffice. The recommendation report at `~/.claude/learning/{project-hash}/model-recommendations.md` consumes this list (advisory only — no live config change).
 
+Thresholds (`mean_rounds >= 2.0`, `rework_rate >= 0.33`, `mean_rounds <= 1.0`, `rework_rate <= 0.10`) are starting estimates; recalibrate when ≥30 cost-bearing observations exist per project so the quartile bands are statistically meaningful.
+
 **Backward compatibility:** if zero records carry `cost_estimate_usd` (legacy-only data, or pre-producer-wiring window per the implementation-status note), this step emits a single info line in the Step 9 report ("Cost-quality correlation: skipped — no cost-bearing observations") and no candidates are surfaced. The skill MUST NOT raise on absence.
 
 ### 8. Identify System Improvements (Continuous Self-Improvement)
