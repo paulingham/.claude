@@ -120,17 +120,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/context-warning.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/context-warning.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/observation-capture.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/observation-capture.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/tool-timing-capture.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/tool-timing-capture.sh\"",
             "timeout": 5000
           }
         ]
@@ -140,22 +140,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/code-shape-check.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/code-shape-check.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/function-body-check.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/function-body-check.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/cc-check.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/cc-check.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/injection-scan.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/injection-scan.sh\"",
             "timeout": 10000
           }
         ]
@@ -165,27 +165,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/code-shape-check.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/code-shape-check.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/function-body-check.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/function-body-check.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/cc-check.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/cc-check.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/injection-scan.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/injection-scan.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/auto-bug-detect.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/auto-bug-detect.sh\"",
             "timeout": 10000
           }
         ]
@@ -195,12 +195,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/eval-capture-on-merge.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/eval-capture-on-merge.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/eval-anti-hack-lint.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/eval-anti-hack-lint.sh\"",
             "timeout": 5000
           },
           {
@@ -229,7 +229,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/tool-timing-capture.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/tool-timing-capture.sh\"",
             "timeout": 5000
           }
         ]
@@ -252,52 +252,52 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/main-branch-guard.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/main-branch-guard.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/bash-write-guard.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/bash-write-guard.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/settings-path-lint.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/settings-path-lint.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/quality-gate.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/quality-gate.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/sast-check.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/sast-check.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/commit-checkpoint.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/commit-checkpoint.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/governance-capture.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/governance-capture.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/runtime-guard.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/runtime-guard.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/no-shell-read.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/no-shell-read.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/tdd-guard.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/tdd-guard.sh\"",
             "timeout": 10000
           }
         ]
@@ -307,27 +307,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/orchestrator-discipline.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/orchestrator-discipline.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/config-protection.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/config-protection.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/governance-capture.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/governance-capture.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/runtime-guard.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/runtime-guard.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/planning-agent-edit-scope.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/planning-agent-edit-scope.sh\"",
             "timeout": 5000
           }
         ]
@@ -337,27 +337,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/orchestrator-discipline.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/orchestrator-discipline.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/config-protection.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/config-protection.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/governance-capture.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/governance-capture.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/runtime-guard.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/runtime-guard.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/planning-agent-edit-scope.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/planning-agent-edit-scope.sh\"",
             "timeout": 5000
           }
         ]
@@ -367,7 +367,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/planning-agent-edit-scope.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/planning-agent-edit-scope.sh\"",
             "timeout": 5000
           }
         ]
@@ -377,47 +377,47 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/pipeline-state-guard.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/pipeline-state-guard.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/agent-skill-reminder.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/agent-skill-reminder.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/pre-agent-thinking.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/pre-agent-thinking.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/pre-agent-advisor.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/pre-agent-advisor.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/pre-agent-allowlist.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/pre-agent-allowlist.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/instinct-injector.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/instinct-injector.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/scratchpad-bytes.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/scratchpad-bytes.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/depth-guard.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/depth-guard.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/runtime-guard.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/runtime-guard.sh\"",
             "timeout": 5000
           }
         ]
@@ -427,7 +427,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/trace-prompt.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/trace-prompt.sh\"",
             "timeout": 5000
           }
         ]
@@ -437,7 +437,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/block-ask-user.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/block-ask-user.sh\"",
             "timeout": 5000
           }
         ]
@@ -487,17 +487,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/session-start-bootstrap.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/session-start-bootstrap.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/trace-cleanup.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/trace-cleanup.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/learning-gc.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/learning-gc.sh\"",
             "timeout": 10000
           }
         ]
@@ -527,7 +527,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/auto-pr.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/auto-pr.sh\"",
             "timeout": 15
           },
           {
@@ -537,12 +537,12 @@
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/cost-tracker.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/cost-tracker.sh\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/auto-learn-gate.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/auto-learn-gate.sh\"",
             "timeout": 10000
           }
         ]
@@ -573,7 +573,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/subagent-context.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/subagent-context.sh\"",
             "timeout": 5000
           },
           {
@@ -589,22 +589,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/subagent-validation.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/subagent-validation.sh\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/subagent-stop-trajectory.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/subagent-stop-trajectory.sh\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/worktree-cwd-check.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/worktree-cwd-check.sh\"",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/cost-feed.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/cost-feed.sh\"",
             "timeout": 5000
           }
         ]
@@ -624,7 +624,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/intake-reminder.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/intake-reminder.sh\"",
             "timeout": 10000
           }
         ]
@@ -644,7 +644,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/worktree-create.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/worktree-create.sh\"",
             "timeout": 15000
           }
         ]
@@ -655,7 +655,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/worktree-remove.sh",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/worktree-remove.sh\"",
             "timeout": 10000
           }
         ]
@@ -664,7 +664,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/statusline-robbyrussell.sh"
+    "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/statusline-robbyrussell.sh\""
   },
   "enabledPlugins": {
     "pyright-lsp@claude-plugins-official": true,
@@ -695,28 +695,28 @@
       "command": "bash",
       "args": [
         "-lc",
-        "exec python3 \"$HOME/.claude/skills/mcp_memory/server.py\""
+        "exec python3 \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/mcp_memory/server.py\""
       ]
     },
     "gh-cache": {
       "command": "bash",
       "args": [
         "-lc",
-        "exec python3 \"$HOME/.claude/hooks/_lib/github-cache-server.py\""
+        "exec python3 \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/github-cache-server.py\""
       ]
     },
     "lsp-typescript": {
       "command": "bash",
       "args": [
         "-lc",
-        "exec python3 \"$HOME/.claude/hooks/_lib/lsp-bridge-server.py\" --language ts"
+        "exec python3 \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/lsp-bridge-server.py\" --language ts"
       ]
     },
     "lsp-pyright": {
       "command": "bash",
       "args": [
         "-lc",
-        "exec python3 \"$HOME/.claude/hooks/_lib/lsp-bridge-server.py\" --language py"
+        "exec python3 \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/lsp-bridge-server.py\" --language py"
       ]
     }
   }

@@ -4,12 +4,12 @@
 # observation-capture.sh reads this as fallback when env var is empty.
 # For parallel agents: last-writer-wins (acceptable — parallel agents share phase).
 
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SubagentStart"
 trap 'log_hook_event $?' EXIT
 
-source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 # shellcheck source=_lib/state-dir.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"
 _ensure_state_dir

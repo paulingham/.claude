@@ -11,12 +11,12 @@
 # - code-reviewer, security-engineer, product-reviewer (read-only review)
 # - agents spawned with CLAUDE_PIPELINE_BYPASS=1 env var
 
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Agent"
 trap 'log_hook_event $?' EXIT
 
-source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
@@ -69,7 +69,7 @@ fi
 # DUAL_PATH: helper covers both legacy *-pipeline.md AND new {task-id}/pipeline.md
 # AND excludes reserved root dirs (workstreams/, health-reports/) per
 # pipeline_state_paths_helpers.EXCLUDED_ROOT_DIRS.
-source ~/.claude/hooks/_lib/pipeline-state-paths.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/pipeline-state-paths.sh"
 GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 for PIPELINE_DIR in "$GIT_ROOT/pipeline-state" "$HOME/.claude/pipeline-state"; do
     if [[ -d "$PIPELINE_DIR" ]]; then

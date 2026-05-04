@@ -9,14 +9,14 @@
 #   - Calls from inside a worktree are ALLOWED (agent-managed commits).
 #   - Calls from the orchestrator (PWD = main tree) are LINTED.
 
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
 trap 'log_hook_event $?' EXIT
 
 set -uo pipefail
 
-source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
