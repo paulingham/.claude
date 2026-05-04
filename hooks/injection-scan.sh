@@ -2,6 +2,9 @@
 # Injection Scan — PostToolUse hook for Write and Edit
 # Scans content of files written under ~/.claude/ for prompt injection patterns.
 # Advisory only (exit 0 + stderr warning). Never blocks legitimate writes.
+#
+# enforces: rules/_detail/agent-protocol.md:Hooks Calling MCP
+# protects: build-implementation, security-review
 
 # Hook profile and loop guard
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

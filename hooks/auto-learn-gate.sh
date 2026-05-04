@@ -2,6 +2,9 @@
 # Auto-Learn Gate — Stop hook. Fires a context message telling the orchestrator
 # to invoke /learn when thresholds are met. Never invokes /learn directly.
 # Test override: CLAUDE_LEARN_TEST_HASH sets the learning/<hash> dir explicitly.
+#
+# enforces: rules/_detail/autonomous-intelligence.md:Consolidation Gate
+# protects: learn
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

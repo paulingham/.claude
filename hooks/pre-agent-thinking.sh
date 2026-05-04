@@ -4,6 +4,9 @@
 # logs to ~/.claude/metrics/{session}/hook-injections.jsonl. Does NOT block: the
 # Agent tool input schema does not currently expose `thinking`, so enforcement is
 # deferred until Claude Code lands modified_tool_input support (Path A).
+#
+# enforces: rules/_detail/thinking-defaults.md:Hook Behavior
+# protects: build-implementation, pipeline
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null

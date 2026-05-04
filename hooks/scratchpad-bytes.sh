@@ -3,6 +3,9 @@
 # Measures the bytes of the post-filter scratchpad section embedded in the
 # spawn prompt and logs to ~/.claude/metrics/{session}/scratchpad-bytes.jsonl
 # for forensic visibility on injection size. Read-only; never blocks.
+#
+# enforces: rules/_detail/autonomous-intelligence.md:Pipeline Scratchpad
+# protects: pipeline, learn
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null

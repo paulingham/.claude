@@ -11,6 +11,9 @@
 #   CWD-based worktree detection is kept as a fallback but is unreliable because
 #   hooks run with the main session's CWD, not the subagent's CWD.
 # BLOCK: everything else (this is the orchestrator writing from the main tree).
+#
+# enforces: rules/core.md:Iron Laws
+# protects: build-implementation, all-skills
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

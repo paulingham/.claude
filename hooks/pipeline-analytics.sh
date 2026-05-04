@@ -2,6 +2,9 @@
 # Pipeline Analytics — called by /pipeline Reflect step after pipeline completion
 # Aggregates phase state files + trajectory into a single metrics record
 # Usage: bash pipeline-analytics.sh <task-id>
+#
+# enforces: rules/_detail/reflection-protocol.md:Pipeline Analytics
+# protects: pipeline, forensics
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

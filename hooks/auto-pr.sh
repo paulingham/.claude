@@ -2,6 +2,9 @@
 # Auto-PR Advisory Hook — Stop event
 # Detects when a feature branch has commits ahead of main and suggests /pr-creation.
 # Advisory only — never blocks. Suppresses suggestion when an active pipeline lacks a passing approval token.
+#
+# enforces: rules/_detail/pipeline-protocol.md:Phase Checklist
+# protects: pr-creation
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

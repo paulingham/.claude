@@ -6,6 +6,9 @@
 # ADVISORY mode (exit 0) — warns but does not block. Pre-existing violations exist
 # in the codebase (documented in project CLAUDE.md Known Limitations) so this hook
 # surfaces shape drift as a warning rather than a hard block.
+#
+# enforces: rules/core.md:Code Shape Limits
+# protects: build-implementation, code-review
 
 # Hook profile and loop guard
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

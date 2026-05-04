@@ -14,6 +14,9 @@
 #
 # Profile=minimal so it ALWAYS runs (matches orchestrator-discipline,
 # main-branch-guard, quality-gate).
+#
+# enforces: rules/core.md:Iron Laws
+# protects: build-implementation
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

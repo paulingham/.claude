@@ -11,6 +11,9 @@
 # pruned (>7d) by trace-cleanup.sh on SessionStart.
 #
 # Never blocks the tool call — exits 0 on every failure path.
+#
+# enforces: rules/_detail/autonomous-intelligence.md:Prompt Tracing
+# protects: debug-trace
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

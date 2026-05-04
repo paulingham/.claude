@@ -5,6 +5,10 @@
 # Project-aware: detects project type from file presence and only runs
 # checks relevant to that project. Uses per-check result tracking so
 # each check independently reports PASSED/FAILED.
+#
+# enforces: rules/_detail/pipeline-protocol.md:Phase Checklist
+# protects: pr-creation, code-review
+# self-test: skip
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
