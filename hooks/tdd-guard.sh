@@ -37,7 +37,13 @@ source "$LIB/tdd-guard-pr.sh"
 
 # Write pairing snapshot for SubagentStop forensics (Wave 5 / A8.2)
 source "$LIB/tdd-guard-pairing.sh" 2>/dev/null
+source "$LIB/jsonl-emit.sh" 2>/dev/null
 TASK_ID="${CLAUDE_PIPELINE_TASK_ID:-unknown}"
 [[ "$TASK_ID" != "unknown" ]] && declare -F _tdg_write_snapshot >/dev/null && _tdg_write_snapshot "$TASK_ID"
 
-_tdd_guard_pr_run "$COMMAND"
+_tdd_guard_pr_run "$COMMAND"; RC=$?
+if [[ "$RC" -eq 0 && "$TASK_ID" != "unknown" ]] && declare -F _tdg_events_path >/dev/null && declare -F _jsonl_emit >/dev/null; then
+  EVENTS=$(_tdg_events_path); mkdir -p "$(dirname "$EVENTS")"
+  _jsonl_emit "$EVENTS" source passed task_id "$TASK_ID"
+fi
+exit "$RC"

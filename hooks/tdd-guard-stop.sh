@@ -12,8 +12,10 @@ set -uo pipefail
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/tdd-guard-pairing.sh" 2>/dev/null
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/jsonl-emit.sh" 2>/dev/null
 
 TASK_ID="${CLAUDE_PIPELINE_TASK_ID:-}"
+TASK_ID="${TASK_ID//[^a-zA-Z0-9_.-]/}"
 [[ -z "$TASK_ID" ]] && exit 0
 
 EVENTS=$(_tdg_events_path)
@@ -34,7 +36,7 @@ while IFS= read -r line; do
     PREV_FILES=$(jq -r '.diff_files // 0' "$SNAP" 2>/dev/null || echo "0")
     CURR_FILES=$(git diff HEAD~1 HEAD --name-only 2>/dev/null | wc -l | tr -d ' ')
     [[ "$CURR_FILES" -lt "$PREV_FILES" ]] && RESULT="drift-detected" || RESULT="post-confirmed"
-    python3 -c "import json,time; print(json.dumps({'source':'$RESULT','task_id':'$TASK_ID','ts':int(time.time()),'hook':'tdd-guard-stop'}))" >> "$METRICS"
+    _jsonl_emit "$METRICS" source "$RESULT" task_id "$TASK_ID" hook tdd-guard-stop
   fi
 done < <(tail -n +"$((CURSOR+1))" "$EVENTS")
 
