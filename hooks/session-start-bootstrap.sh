@@ -212,3 +212,9 @@ echo "- NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST"
 echo "- NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE"
 echo "- THE ORCHESTRATOR NEVER WRITES SOURCE CODE"
 echo "- NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED."
+
+# ---------------------------------------------------------------------------
+# Version pin check (Wave 5 / A8.3) — sources _lib/session-start-version-check.sh
+# ---------------------------------------------------------------------------
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/session-start-version-check.sh" 2>/dev/null
+declare -F _ssvc_check_version >/dev/null && _ssvc_check_version
