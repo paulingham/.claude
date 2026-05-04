@@ -13,9 +13,9 @@ tools:
   - mcp_lsp_diagnostics_ts
   - mcp_lsp_diagnostics_py
 model: opus
-executor: claude-opus-4-7
-advisor: none
-# advisor-rationale: Opus-solo executor. Build engineering follows the ATDD cycle deterministically (batched RED → implement → refactor → mutation gate) — no advisor judgment needed mid-cycle.
+executor: claude-sonnet-4-6
+advisor: claude-opus-4-7
+# advisor-rationale: Sonnet-default executor with Opus advisor. Build engineering follows the deterministic ATDD cycle on Sonnet; advisor consulted on judgment calls (architectural choices surfacing mid-build, ambiguous spec interpretation). Override with `CLAUDE_FORCE_OPUS=1` for spawns requiring monolithic Opus reasoning.
 memory: project
 maxTurns: 150
 instinct_categories:

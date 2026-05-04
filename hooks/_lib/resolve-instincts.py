@@ -10,7 +10,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from agent_instinct_categories_loader import load_agent_instinct_categories  # noqa: E402
+from agent_parent_chain import load_expanded_instinct_categories  # noqa: E402
 from agent_path_validator import is_valid_subagent_type  # noqa: E402
 from instinct_env import resolve_min_confidence, resolve_top_n  # noqa: E402
 from instinct_injector import resolve_for_agent  # noqa: E402
@@ -33,7 +33,7 @@ def _resolved(rendered, cats, kept):
 
 
 def _handle_agent_spawn(payload, sub):
-    cats = load_agent_instinct_categories(sub) or []
+    cats = load_expanded_instinct_categories(sub) or []
     rendered = resolve_for_agent(sub, cats, load_instincts(project_hash()))
     kept = count_kept(rendered)
     write_log(payload, "logged", _resolved(rendered, cats, kept))

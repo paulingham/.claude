@@ -78,7 +78,8 @@
       "$HOME/.claude/rules",
       "$HOME/.claude/scripts",
       "$HOME/.claude/db",
-      "$HOME/.claude/manifests"
+      "$HOME/.claude/manifests",
+      "$HOME/.claude/.claude/worktrees"
     ]
   },
   "hooks": {

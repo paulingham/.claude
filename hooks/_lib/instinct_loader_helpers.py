@@ -1,10 +1,9 @@
 """Helpers for instinct_loader: parse, validate, normalize, log."""
-import json
 import re
-import subprocess
-from pathlib import Path
 
 import yaml
+
+from instinct_warning_log import log_warning  # noqa: F401 (re-export)
 
 _FM = re.compile(r"^---\n(.*?)\n---\n?(.*)$", re.DOTALL)
 _BODY = re.compile(r"^## Pattern[ \t]*\n(.*?)(?=\n##|\Z)",
@@ -31,18 +30,16 @@ def validate(fm, body):
     missing = next((k for k in _REQUIRED if k not in fm), None)
     if missing:
         return f"missing-{missing}-field"
+    if "prefer_opus" in fm and not isinstance(fm["prefer_opus"], bool):
+        return "non-bool-prefer-opus"
     return None if extract_summary(body) else "missing-or-empty-pattern-body"
 
 
 def normalize(fm, body, scope):
+    raw = fm.get("prefer_opus", False)
     return {"id": fm["id"], "confidence": float(fm["confidence"]),
             "roles": list(fm["roles"]), "domain": fm.get("domain", ""),
-            "scope": scope, "pattern_summary": extract_summary(body)}
+            "scope": scope, "pattern_summary": extract_summary(body),
+            "prefer_opus": raw if isinstance(raw, bool) else False}
 
 
-def log_warning(path, reason):
-    script = str(Path(__file__).parent / "log-injection.sh")
-    resolved = json.dumps({"file": str(path), "reason": reason})
-    cmd = ["bash", script, '{"tool_input":{"subagent_type":""}}',
-           resolved, "load-warning", "instinct-injections.jsonl"]
-    subprocess.run(cmd, stderr=subprocess.DEVNULL, check=False)

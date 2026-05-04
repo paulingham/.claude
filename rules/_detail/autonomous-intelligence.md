@@ -223,6 +223,7 @@ Scratchpad findings that recur across 3+ pipelines should be promoted to instinc
 - Same discovery/warning appearing in 3+ pipelines → create instinct with confidence 0.3
 - Same fragility appearing in 3+ pipelines → create instinct with confidence 0.5 (fragilities are high-value)
 - Same pattern validated across 3+ pipelines → create instinct with confidence 0.4
+- ≥3 pipelines in the same project where a Sonnet executor required ≥2 review rounds for the same role → set `prefer_opus: true` on the relevant instinct so subsequent spawns escalate to Opus (deferred — see § Instinct Injection)
 
 ### Instinct Injection (Path-B advisory)
 
@@ -240,7 +241,20 @@ The actionable summary in each rendered bullet comes from the `## Pattern` body 
 
 #### Per-agent `instinct_categories:` contract
 
-Every file in `agents/*.md` declares an `instinct_categories:` YAML list of role-name tokens. An instinct matches an agent IFF `set(instinct.roles) ∩ set(agent.instinct_categories) != ∅`. The full per-role mapping lives in `tests/test_agent_instinct_categories.py` as a snapshot — any frontmatter drift fails CI. The list MUST be a YAML list (not a comma-separated string); regression test `tests/test_learn_roles_enforcement.py` locks the contract in both directions.
+Every file in `agents/*.md` declares an `instinct_categories:` YAML list of role-name tokens. An instinct matches an agent IFF `set(instinct.roles) ∩ set(agent.expanded_instinct_categories) != ∅`, where the expanded set is the union of the agent's own flat declaration and every ancestor's flat declaration walked transitively via the optional `parent:` field (see Parent inheritance below). The full per-role flat mapping lives in `tests/test_agent_instinct_categories.py` as a snapshot — any frontmatter drift fails CI. The list MUST be a YAML list (not a comma-separated string); regression test `tests/test_learn_roles_enforcement.py` locks the contract in both directions.
+
+##### Parent inheritance
+
+An agent may declare an optional `parent: <role>` field pointing to another agent in `agents/*.md`. The instinct-injection caller resolves the agent's effective categories by walking the parent chain transitively: own flat categories ∪ parent's flat ∪ parent's parent's flat ∪ … until `parent:` is absent (root) or the walk would revisit a name already in the visited-set (cycle).
+
+Resolution lives in `hooks/_lib/agent_parent_chain.py`:
+
+- `resolve_parent_chain(subagent_type)` — returns the ordered ancestor list, terminating at root or cycle. Visited-set guards against `A→B→A` loops.
+- `load_expanded_instinct_categories(subagent_type)` — returns the sorted union of own + ancestor flat categories. The production caller `hooks/_lib/resolve-instincts.py` invokes this; the orchestrator's canonical Python snippet in `agent-orchestration.md` § Instinct Injection mirrors the call.
+
+Missing-parent handling: when `parent: <name>` resolves to a path that does not exist (e.g. `<name>.md` was renamed without updating descendants), the resolver emits a one-line warning to **stderr** AND appends a JSONL forensic record to `metrics/{session-id}/parent-chain-warnings.jsonl` (`{source: "missing-parent", agent: <child>, missing: <name>}`). The chain returns the partial accumulation up to the missing link; the resolver does NOT raise. Operators see degradation in their terminal output (stderr) without the pipeline crashing.
+
+Today only `frontend-engineer` declares a `parent:` (→ `software-engineer`). The mechanism is one-deep in the current agent set; the transitive walk and cycle protection are forward-looking for deeper chains (e.g. a future `security-architect.parent → architect`).
 
 #### JSONL forensic format
 
@@ -264,6 +278,16 @@ Mismatch (a `logged` record without a paired `orchestrator-injected` record for 
 | `CLAUDE_AGENTS_DIR` | unset | Test-only override of the agents directory used by `agent_instinct_categories_loader`. |
 | `CLAUDE_DISABLE_INSTINCT_INJECTION` | unset | Set to `1` to fast-exit the hook (per-session escape hatch). |
 | `CLAUDE_HOOK_PROFILE` | `standard` | When set to `minimal`, the hook fast-exits — matches the suppression pattern of the four sibling Path-B hooks. |
+
+#### Executor Override (prefer_opus)
+
+Wave 5/B6.3 introduces an OPTIONAL `prefer_opus: true` field in the instinct YAML frontmatter. When an instinct carrying the flag fires for a (role, project) pair — i.e. the instinct's `roles:` set intersects the spawning agent's expanded `instinct_categories` AND its `confidence` clears the floor — the orchestrator's executor resolver overrides the spawn's executor to `claude-opus-4-7`, regardless of the agent's frontmatter `executor:` value.
+
+Trigger condition (set by `/learn`): ≥3 pipelines in the same project where a Sonnet executor required ≥2 review rounds for the same role. The flag is data-driven escalation — the system learns when a given (role, project) routinely needs deeper reasoning and starts routing it to Opus automatically.
+
+`prefer_opus` lives at instinct file scope alongside `id`, `confidence`, `roles`, and `domain`. Validation: when present, must be a YAML bool. Non-bool values (e.g. `prefer_opus: "yes"`) are rejected by `instinct_loader_helpers.validate` with the warning code `non-bool-prefer-opus` and coerced to `False` by `normalize`. Absent: treated as `False`. The normalised dict surface is seven keys: `id`, `confidence`, `roles`, `domain`, `scope`, `pattern_summary`, `prefer_opus`.
+
+**Not yet implemented — `/learn` writer and orchestrator reader deferred to the next learning slice. Manually-authored instincts may set the flag, but the orchestrator does not yet consume it.** Slice B6.3 ships the parser/validator/normalizer paths and the contract docs only. The reader (orchestrator-side `executor_resolver.resolve_executor` extension that loads instincts and short-circuits to Opus on a `prefer_opus: true` match) is the next layer up.
 
 ## 4. Prompt Tracing (Opt-In)
 
