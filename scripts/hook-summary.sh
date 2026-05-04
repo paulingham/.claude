@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 # hook-summary.sh — JSONL telemetry analyzer.
 # Reads $CLAUDE_HOOK_LOG_DIR (default: $HOME/.claude/metrics) for **/hooks.jsonl,
-# prints slowest hooks + most-frequent failures. With --anomaly-check, exits 2
-# if any hook's error rate exceeds threshold (fraction, default 0.10) over the
-# last 100 invocations. Flags: --anomaly-check, --threshold FRAC, --last-n N,
-# --session SID, --hours H. Threshold may also be set via CLAUDE_HOOK_ANOMALY_THRESHOLD.
+# prints slowest hooks, most-frequent errors, and most-frequent enforcement blocks.
+# With --anomaly-check, exits 2 if any hook's ERROR rate exceeds threshold
+# (fraction, default 0.10) over the last 100 invocations.
+#
+# Exit-code semantics: exit 2 from a hook means an INTENTIONAL enforcement block
+# (no-shell-read, agent-skill-reminder, main-branch-guard, etc. refused a tool
+# call by design). Other non-zero codes mean a real hook crash or bug. We track
+# them separately so the orchestrator's normal harness-blocked-me events do not
+# inflate the anomaly error rate.
+#
+# Flags: --anomaly-check, --threshold FRAC, --last-n N, --session SID, --hours H.
+# Threshold may also be set via CLAUDE_HOOK_ANOMALY_THRESHOLD.
 set -uo pipefail
 
 LOG_DIR="${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}"
@@ -41,7 +49,8 @@ pattern = os.path.join(log_dir, session if session else "*", "hooks.jsonl")
 files = sorted(glob.glob(pattern))
 durations = defaultdict(list)
 exit_codes = defaultdict(list)
-failures = defaultdict(int)
+errors = defaultdict(int)              # exit_code not in {0, 2}
+enforcement_blocks = defaultdict(int)  # exit_code == 2
 total = 0
 
 for path in files:
@@ -68,8 +77,10 @@ for path in files:
                 ec = rec.get("exit_code", 0)
                 durations[name].append(dur)
                 exit_codes[name].append(ec)
-                if ec != 0:
-                    failures[name] += 1
+                if ec == 2:
+                    enforcement_blocks[name] += 1
+                elif ec != 0:
+                    errors[name] += 1
                 total += 1
     except OSError:
         continue
@@ -87,24 +98,44 @@ for name, durs in slowest:
     print("{:<35} {:>8} {:>8} {:>6}".format(name[:35], max(durs), avg, len(durs)))
 
 print()
-print("== Most-Frequent Failures (exit_code != 0) ==")
-if failures:
-    fail_sorted = sorted(failures.items(), key=lambda kv: -kv[1])[:last_n]
-    print("{:<35} {:>8}".format("hook", "fails"))
-    for name, n in fail_sorted:
+print("== Most-Frequent Errors (exit_code != 0 and != 2) ==")
+if errors:
+    err_sorted = sorted(errors.items(), key=lambda kv: -kv[1])[:last_n]
+    print("{:<35} {:>8}".format("hook", "errors"))
+    for name, n in err_sorted:
         print("{:<35} {:>8}".format(name[:35], n))
 else:
-    print("(no failures)")
+    print("(no errors)")
+
+print()
+print("== Most-Frequent Enforcement Blocks (exit_code == 2) ==")
+if enforcement_blocks:
+    blk_sorted = sorted(enforcement_blocks.items(), key=lambda kv: -kv[1])[:last_n]
+    print("{:<35} {:>8}".format("hook", "blocks"))
+    for name, n in blk_sorted:
+        print("{:<35} {:>8}".format(name[:35], n))
+else:
+    print("(no enforcement blocks)")
 
 if anomaly:
     flagged = []
+    block_rates = []
     for name, codes in exit_codes.items():
         window = codes[-100:]   # last 100 invocations
         if not window:
             continue
-        err_rate = sum(1 for ec in window if ec != 0) / len(window)
+        err_rate = sum(1 for ec in window if ec not in (0, 2)) / len(window)
+        blk_rate = sum(1 for ec in window if ec == 2) / len(window)
         if err_rate > threshold:
             flagged.append((name, err_rate, len(window)))
+        if blk_rate > 0:
+            block_rates.append((name, blk_rate, len(window)))
+    if block_rates:
+        print()
+        print("== ENFORCEMENT BLOCKS (informational, not anomalous) ==")
+        for name, rate, n in sorted(block_rates, key=lambda x: -x[1]):
+            blocks = int(round(rate * n))
+            print("  {} block_rate={:.0%} ({}/{} invocations)".format(name, rate, blocks, n))
     if flagged:
         print()
         print("== ANOMALY: {} hook(s) exceeded error-rate threshold {:.0%} ==".format(len(flagged), threshold))
