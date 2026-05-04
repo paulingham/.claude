@@ -219,6 +219,44 @@ line, `#` for comments) lets us add entries without editing executable code,
 and lets the test in `tests/test_destructive_verb_block.py` and
 `tests/shell/test_destructive_verb_block.bats` enumerate the file directly.
 
+## Portable Config Dir (`CLAUDE_CONFIG_DIR`)
+
+Every config-loading reference inside the harness MUST go through `${CLAUDE_CONFIG_DIR:-$HOME/.claude}`. Bare `~/.claude/` and bare `$HOME/.claude/` are FORBIDDEN in the following positions:
+
+- `source` lines inside `hooks/*.sh` and `hooks/_lib/*.sh`
+- `command:` strings in `settings.json` that invoke harness hook scripts (e.g., `bash …/hooks/X.sh`)
+- `args:` paths in `settings.json` `mcpServers` entries that point at server scripts shipped with the harness
+- `command:` strings in `settings.json` `statusLine` that point at harness scripts
+
+Why: `$HOME` and the harness config dir are not always the same path. Web-sandbox sessions (Claude Code on the web), corporate-managed homedirs, NFS-mounted homes, and any container with a non-default `$HOME` all break the assumption that `~/.claude` is the source tree. Claude Code documents `CLAUDE_CONFIG_DIR` as the supported env var for relocating the config tree, but shell `~` expansion is `$HOME`-driven and ignores `CLAUDE_CONFIG_DIR`. The only reliable form is the parameter-expansion default: `"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/…"`. Always quote — paths may contain spaces.
+
+Example — config-loading source line in a hook:
+
+```bash
+# Wrong (breaks if HOME ≠ config dir)
+source ~/.claude/hooks/_lib/log.sh
+source "$HOME/.claude/hooks/_lib/log.sh"
+
+# Right (portable)
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+```
+
+Example — hook command in settings.json:
+
+```json
+{
+  "type": "command",
+  "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/main-branch-guard.sh\""
+}
+```
+
+Out of scope (NOT covered by this convention):
+
+- **Runtime data paths** (`$HOME/.claude/metrics/`, `$HOME/.claude/learning/`, `$HOME/.claude/pipeline-state/`, etc.) — these stay rooted at `$HOME/.claude/` for now. A future `CLAUDE_DATA_DIR` env var may relocate them; that is a separate concern from config loading.
+- **Permissions globs in `settings.json`** (`Write($HOME/.claude/**)`, etc.) — these gate where Claude Code may write at runtime; they remain `$HOME/.claude` because the runtime data dir convention has not yet split from `$HOME`.
+
+Enforced by `tests/test_portable_config_dir.py` — drift in either position fails CI.
+
 ## Shell Environment
 
 Agent shells may not inherit the user's version manager (nvm, rbenv, pyenv, rustup, etc.).

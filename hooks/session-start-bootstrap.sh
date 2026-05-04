@@ -7,7 +7,7 @@
 # ---------------------------------------------------------------------------
 
 # Auto-start automation supervisor if repos are registered and it's not running
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SessionStart"
 trap 'log_hook_event $?' EXIT

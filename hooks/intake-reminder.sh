@@ -5,12 +5,12 @@
 #   1. HARD BLOCK (exit 2): Batch/wave keywords WITHOUT an active pipeline state.
 #   2. ADVISORY (exit 0): Single-task implementation keywords.
 
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "UserPromptSubmit"
 trap 'log_hook_event $?' EXIT
 
-source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)
 
@@ -51,7 +51,7 @@ if [[ "$HAS_BATCH_KEYWORD" == true ]]; then
     # DUAL_PATH: helper covers both legacy *-pipeline.md AND new {task-id}/pipeline.md
     # AND excludes reserved root dirs (workstreams/, health-reports/) per
     # pipeline_state_paths_helpers.EXCLUDED_ROOT_DIRS.
-    source ~/.claude/hooks/_lib/pipeline-state-paths.sh
+    source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/pipeline-state-paths.sh"
     PIPELINE_DIR="$HOME/.claude/pipeline-state"
     ACTIVE_FILES=""
     if [[ -d "$PIPELINE_DIR" ]]; then

@@ -4,12 +4,12 @@
 # Prevents agents from weakening linting rules to pass checks.
 # Hard block (exit 2).
 
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:${TOOL_NAME:-Write}"
 trap 'log_hook_event $?' EXIT
 
-source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')

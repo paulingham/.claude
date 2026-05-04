@@ -4,7 +4,7 @@
 # forcing callers to use the Read tool. Allows streaming tail (-f/-F),
 # outside-repo paths, and clauses with no path argument (pipe-only).
 
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Bash"
 trap 'log_hook_event $?' EXIT
