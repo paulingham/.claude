@@ -430,8 +430,13 @@ Agent({
   team_name: "pipeline-{task-id}",
   subagent_type: "fix-engineer",
   // Pass the prior build's worktree path so the fix targets the same
-  // branch the build engineer produced. Do NOT use isolation: "worktree"
-  // (that would create a fresh worktree without the build's commits).
+  // branch the build engineer produced. The path comes in via the
+  // prompt's `Working directory:` line (see agents/fix-engineer.md
+  // § Where You Run). Do NOT pass `isolation: "worktree"` here — that
+  // creates a fresh worktree off main without the build's commits, so
+  // the fix lands on the wrong tree and `git diff main...HEAD` shows
+  // nothing for the fix-engineer to address. This is a known pitfall
+  // — reproduced in the wave5-hygiene rev1 fix cycle (May 2026).
   prompt: "Read ~/.claude/agents/fix-engineer.md for your role definition.
     Working directory: <prior-build-worktree-path>
     Branch: <feature-branch-the-build-was-on>

@@ -115,6 +115,17 @@ If agnix is installed, run it and incorporate findings into the audit report. Fl
 - Flag any that are more than 7 days old (stale state from abandoned pipelines)
 - Report count of active vs stale state files
 
+### 7. Pipeline-State Health (branch-merged detection)
+
+Run `bash scripts/detect-stale-pipeline-state.sh --json` and parse the JSONL output. Each line is one stale pipeline-state directory whose `designated_branch` is already merged into `origin/main` (typical cause: a session crashed before reaching Reflect step 6d).
+
+- Severity: **WARNING** (not CRITICAL — stale state is hygiene, not a runtime block).
+- For each stale entry, report: `task_id`, `path`, `reason` (branch-merged | branch-deleted | pr-MERGED | pr-CLOSED).
+- Suggest the user run `bash scripts/detect-stale-pipeline-state.sh --prune` to see the cleanup commands (the script does not run `rm` itself).
+- Note known limitation in the report: squash-merged branches that retained their original ref are not detected by `merge-base --is-ancestor`; rely on the `pr` frontmatter field + `gh pr view` to cover that case.
+
+Verdict for this step: `PIPELINE_STATE_HEALTHY` if the detector exits 0; otherwise list each stale entry with its reason.
+
 ## Scoring
 
 | Category | Issues Found | Score |
@@ -136,6 +147,8 @@ If agnix is installed, run it and incorporate findings into the audit report. Fl
 | JSON | Invalid | ❌ |
 | Knowledge | All referenced | ✅ |
 | Knowledge | Orphan files | ⚠️ |
+| Pipeline State | None (no stale entries) | ✅ |
+| Pipeline State | Stale state files (branch merged + state not cleaned up) | ⚠️ |
 
 ## Output Format
 
@@ -181,6 +194,10 @@ Date: [timestamp]
 ### Pipeline State
 - N active state files
 - N stale files (>7 days old) — recommend cleanup
+
+### Pipeline-State Health (branch-merged)
+- ✅ All pipeline-state directories correspond to active or recently-completed pipelines
+- ⚠️ wave4-verification-depth — branch claude/add-property-based-testing-uaI6y deleted from origin (likely merged via PR #69); recommend cleanup
 
 ### Summary
 [Total: N critical, N warnings, N passing]
