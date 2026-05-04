@@ -3,6 +3,9 @@
 # Blocks modifications to linter/formatter config files.
 # Prevents agents from weakening linting rules to pass checks.
 # Hard block (exit 2).
+#
+# enforces: rules/_detail/agent-protocol.md:Portable Config Dir
+# protects: harness-config
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

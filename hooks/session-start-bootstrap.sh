@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Session-start hook: bootstrap skill awareness and iron laws
 # Outputs a concise skill directory reminder so the model knows what skills exist
+#
+# enforces: rules/core.md:Iron Laws
+# protects: pipeline, pipeline-resume
 
 # ---------------------------------------------------------------------------
 # Background services (silent — output goes to logs, not Claude's context)

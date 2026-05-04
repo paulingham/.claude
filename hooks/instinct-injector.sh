@@ -5,6 +5,9 @@
 # block: the Agent tool input schema does not currently expose a way to inject
 # prompt content from a hook, so the orchestrator-side caller is responsible
 # for the actual prompt-string splice. Mirrors pre-agent-thinking.sh shape.
+#
+# enforces: rules/_detail/autonomous-intelligence.md:Instinct Injection
+# protects: learn, build-implementation
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null

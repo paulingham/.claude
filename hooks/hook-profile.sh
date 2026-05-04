@@ -6,6 +6,9 @@
 #   minimal  — blocking/security hooks only (quality-gate, orchestrator-discipline)
 #   standard — all hooks (default)
 #   strict   — all hooks (same as standard; reserved for future stricter checks)
+#
+# enforces: rules/_detail/agent-protocol.md:Hook Profile
+# protects: pipeline
 check_hook_profile() {
   local required_level="$1"
   local profile="${CLAUDE_HOOK_PROFILE:-standard}"

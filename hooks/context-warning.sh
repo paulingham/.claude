@@ -3,6 +3,9 @@
 # Reads context usage from $HOME/.claude/state/ctx-percent (written by statusline)
 # Injects warnings at thresholds: 65% used = WARNING, 75% used = CRITICAL
 # Advisory only (exit 0). Debounced to avoid spam.
+#
+# enforces: rules/_detail/operational-protocol.md:Error Recovery
+# protects: pipeline
 
 # Hook profile
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

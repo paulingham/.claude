@@ -8,6 +8,9 @@
 # Mirrors the worktree-trust policy of orchestrator-discipline / bash-write-guard:
 #   - Calls from inside a worktree are ALLOWED (agent-managed commits).
 #   - Calls from the orchestrator (PWD = main tree) are LINTED.
+#
+# enforces: rules/_detail/agent-protocol.md:Portable Config Dir
+# protects: harness-config
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
