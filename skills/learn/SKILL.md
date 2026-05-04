@@ -143,7 +143,7 @@ Project-scoped instincts live in `~/.claude/learning/{project-hash}/instincts/`.
 ---
 id: instinct-{hash}
 confidence: 0.3
-category: {discovery|warning|pattern|fragility|decision}  # provenance enum on this instinct file. Distinct from `instinct_categories:` on agent files (which holds role-name tokens for filtering).
+category: {discovery|warning|pattern|fragility|decision|anti-pattern}  # provenance enum on this instinct file. Distinct from `instinct_categories:` on agent files (which holds role-name tokens for filtering). The `anti-pattern` value is mined exclusively from rework signals by Step 3d (see above); never set it by hand on a positive-guidance instinct.
 domain: {testing|code-style|architecture|workflow|performance|security}
 scope: project
 project: {project-hash}
@@ -166,7 +166,7 @@ last_seen: {ISO 8601}
 - `id` (REQUIRED, string): stable identifier; used as the dedup key by the resolver — when the same `id` appears in both project and global directories, the higher-confidence entry wins; on tie, project beats global. Also the secondary sort key (ASC) for stable output ordering.
 - `confidence` (REQUIRED, float 0.0-1.0): used both for the floor filter (default `0.4` via `CLAUDE_INSTINCT_MIN_CONFIDENCE`) and the primary sort key (DESC).
 - `roles` (REQUIRED, non-empty YAML list of role-name tokens): which agent roles this instinct applies to. Filtered by set-intersection with the spawning agent's `instinct_categories:` (see `agents/{role}.md` frontmatter). **MUST be a YAML list**, not a comma-separated string — `pipeline_frontmatter.parse_frontmatter` would silently corrupt list values to strings, so the loader uses `yaml.safe_load` and `tests/test_learn_roles_enforcement.py` locks the list-not-string contract. **An instinct emitted with empty `roles: []` is invisible to every spawn** (the role-filter intersection is always empty); `/learn` MUST default empty `roles` to `[software-engineer, code-reviewer]` and emit a `source: "learn-warning"` JSONL record (see Step 9 below).
-- `category` (RECOMMENDED, enum `discovery|warning|pattern|fragility|decision`): mirrors the scratchpad finding categories, allowing scratchpad → instinct promotion (see `rules/_detail/autonomous-intelligence.md` § Scratchpad → Instinct Promotion) to preserve provenance. Optional for backward compatibility with the 4 historical instincts that pre-date this field; the loader does not require it.
+- `category` (RECOMMENDED, enum `discovery|warning|pattern|fragility|decision|anti-pattern`): mirrors the scratchpad finding categories, allowing scratchpad → instinct promotion (see `rules/_detail/autonomous-intelligence.md` § Scratchpad → Instinct Promotion) to preserve provenance. Optional for backward compatibility with the 4 historical instincts that pre-date this field; the loader does not require it. The `anti-pattern` value is mined ONLY by Step 3d from `phases.review.rounds >= 2` rework signals — it is never written by hand on a positive-guidance instinct. The loader's `validate()` gates `category` against this six-value enum and returns `"invalid-category"` for unknown values.
 - `applies_to_roles` (OPTIONAL, YAML list): forward-looking alias for `roles:`. When present, ignored by the current loader; `roles:` is still the load-bearing field. Future loader versions may merge the two.
 - `domain`: appended to each rendered bullet — `- [{confidence:.2f}] {summary} ({domain})`. Optional; defaults to empty string in the renderer.
 - `scope`: set by the loader (`"project"` or `"global"`) based on the file's directory. Should not be hand-authored; if present, it is overwritten on load.
@@ -255,6 +255,8 @@ jq -r '
 ```
 
 The exact JSON shape is project-dependent — the principle is: count distinct pipeline IDs per `(tool_name, project_hash)` pair from the `TOOL_SYNTHESISED_PROMOTABLE` verdict; promotion gate is **3 distinct pipelines** (not 3 invocations within one pipeline). One-shot tools are invisible to this scan because they emit `TOOL_SYNTHESISED` (no `_PROMOTABLE` suffix).
+
+**Anti-pattern instincts are excluded from the auto-scaffold scan — promotable verdicts only.** Anti-pattern files emitted by Step 3d carry `category: anti-pattern` in their YAML frontmatter and never produce a `TOOL_SYNTHESISED_PROMOTABLE` verdict; they MUST not trigger skill scaffolding regardless of how often they recur. The scratch-tool promotion loop and the anti-pattern instinct loop are independent — neither feeds the other.
 
 #### Scaffold
 
