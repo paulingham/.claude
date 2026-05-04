@@ -17,6 +17,8 @@ instinct_categories:
   - qa-engineer
   - software-engineer
   - property-testing
+  - playwright
+  - web-e2e
 disallowedTools:
   - Agent
   - Skill
@@ -130,8 +132,9 @@ Before signaling build complete, review your own work. All verification must be 
    - Functions have single responsibility
    - No dead code, unused imports, commented-out blocks
 4. **PBT run produced ≥ 1 property per public function on changed lines, OR a documented justification why a property is impossible.** See `skills/qa-test-strategy/SKILL.md` § Property-Based Coverage for the procedure (Hypothesis / fast-check / PropEr; idempotence / inverse / oracle / metamorphic relations; 60s time-box per function; frozen counterexamples become unit tests). Justification format: one line per skipped function citing the impossibility class (I/O-only, pure SDK pass-through, single-call dispatcher).
-5. Fix any issues found — do not leave them for the reviewer
-6. The code-reviewer should find only design-level concerns, never mechanical issues
+5. **Web E2E flows exist for changed behavior matching web trigger globs, OR no web globs matched.** Cross-check `hooks/_lib/e2e_target_resolver.py` `WEB_PATTERNS` against the diff via `detect_targets(...)`; when web fires, a Playwright (or Cypress) spec MUST exercise the changed behavior. If web does not fire, document "no web globs matched" in the verify report.
+6. Fix any issues found — do not leave them for the reviewer
+7. The code-reviewer should find only design-level concerns, never mechanical issues
 
 ## Commit Cadence
 

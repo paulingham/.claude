@@ -22,7 +22,8 @@ Proves a feature works correctly beyond just passing tests. Runs three verificat
 |-------------|-------------------|----------------|-------------------|--------------|
 | Backend API | Hit real endpoint, verify response shape | curl + DB state check + log check | Mutate handler logic | N/A |
 | Frontend | Props match API response shape | Playwright/browser screenshot | Mutate component logic | N/A |
-| Mobile/WebView | Hook/service contract tests | Component render + prop verification | Mutation testing on lib/ business logic | Maestro flows against running simulator (conditional per `rules/e2e-protocol.md`) |
+| Mobile/WebView | Hook/service contract tests | Component render + prop verification | Mutation testing on lib/ business logic | Maestro (mobile) AND/OR Playwright/Cypress (web) — multi-target dispatch per `rules/_detail/e2e-protocol.md` |
+| Web (browser) | API contract tests against real endpoint | Curl + DOM snapshot + log check | Mutate handler/component logic | Playwright/Cypress against deployed preview / docker-compose / cloud ephemeral env (conditional per `rules/_detail/e2e-protocol.md`) |
 | Database | Schema constraint tests | Migrate up+down, verify integrity | N/A | N/A |
 | Infrastructure | Health endpoint responds | Readiness probe passes | N/A | N/A |
 
@@ -73,18 +74,51 @@ Read the project's tech stack pattern file if one exists at `~/.claude/skills/[s
 
 The manual fallback is approved as a gate-passing methodology — but the >= 70% threshold still applies. "Tooling unavailable" is not an exemption from the gate.
 
-### 4.5. Run Tier 4: E2E Tests (Conditional)
+### 4.5. Run Tier 4: E2E Tests (Conditional, multi-target)
 
-Tier 4 can run in parallel with Tier 3 (they are independent).
+Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mobile (Maestro) and web (Playwright / Cypress) dispatch independently per `rules/_detail/e2e-protocol.md`. Both can fire on the same change.
 
-1. **Check trigger matrix**: Consult `rules/e2e-protocol.md` -- do any changed files appear in the "E2E Required" list?
-   - If NO changed files match: Tier 4 status is N/A. Skip to step 5.
-   - If YES: proceed to step 2.
-2. **Check prerequisites**: Maestro CLI available, simulator booted, dev build installed, test credentials set.
-   - If prerequisites not met: Tier 4 status is SKIP. Record the missing prerequisite. Proceed to step 5.
-   - If prerequisites met: proceed to step 3.
-3. **Select flows**: Use the flow-to-file mapping in `rules/e2e-protocol.md` to determine which flows to run. Always include `app-launch.yaml`.
-4. **Execute**: Run selected flows. On failure, retry once per flow. If a flow fails twice, it is a genuine failure.
+1. **Detect targets** via `hooks/_lib/e2e_target_resolver.py`:
+
+   ```python
+   from e2e_target_resolver import detect_targets, select_web_driver, \
+       coerce_web_status_for_flake, compose_verdict
+   firing = detect_targets(changed_files, project_root)
+   # → {"mobile": "FIRED"|"N/A", "web": "FIRED"|"N/A"}
+   ```
+
+   - Mobile fires when: changed file matches a mobile glob AND `maestro/` directory exists.
+   - Web fires when: changed file matches a web glob AND (`playwright.config.{ts,js}` OR `cypress.config.{ts,js}` is present).
+   - Both matchers run independently — no short-circuit.
+
+2. **For each fired target, execute its suite** per the protocol's per-target Execution section.
+
+   - **Mobile** (Maestro): Check prerequisites (CLI, simulator, dev build, credentials). If unmet → mobile status = SKIP. Else select flows via the flow-to-file mapping (always include `app-launch.yaml`), execute, retry once on failure.
+   - **Web** (Playwright/Cypress): Resolve driver via `select_web_driver(project_root)` — when both configs are present, prefer Playwright and emit the warning verbatim into the report. Check prerequisites (driver installed, real environment available). If unmet → web status = SKIP. Else execute the suite.
+
+3. **Web flake handling (strict, no small-suite carve-out)**: capture intra-run flake_rate from the driver's retry counter, then coerce BEFORE composing.
+
+   ```python
+   coerced = coerce_web_status_for_flake(target_results, flake_rate)
+   # web → FAIL when flake_rate > 0.05 (strict `>`).
+   ```
+
+   Document `flake_rate: <decimal>` in the verify report.
+
+4. **Screenshots**: web E2E screenshots-on-assertion land at `pipeline-state/{task_id}/scratchpad/qa-engineer-verify-screenshots/` (mirrored as `SCREENSHOT_PATH_TEMPLATE` in the resolver — verbatim invariant).
+
+5. **Composite verdict (COERCE FIRST, COMPOSE SECOND)**:
+
+   ```python
+   verdict = compose_verdict(coerced)
+   ```
+
+   - Any target = FAIL → UNVERIFIED
+   - Any target = SKIP and no FAILs → VERIFIED_WITH_SKIP
+   - All fired targets = PASS → VERIFIED
+   - All N/A → VERIFIED
+
+6. **First-fire release note**: on first web-target fire for a project (no prior `pipeline-state/{task_id}/scratchpad/qa-engineer-verify-screenshots/` history), emit one line in the verify report: "Web E2E gating now active because <reason>".
 
 ### 5. Produce Verification Report
 
@@ -108,10 +142,17 @@ Tier 4 can run in parallel with Tier 3 (they are independent).
 - **Score**: [X/Y mutations caught]
 - **Uncaught**: [list of surviving mutations]
 
-### Tier 4: E2E (Maestro)
-- **Status**: PASS / FAIL / SKIP / N/A
-- **Flows run**: [list of executed flow files]
-- **Evidence**: [pass/fail per flow, retry attempts, skip reason if applicable]
+### Tier 4: E2E (multi-target — mobile + web)
+- **Per-target status**:
+  - Mobile (Maestro): PASS / FAIL / SKIP / N/A
+  - Web (Playwright/Cypress): PASS / FAIL / SKIP / N/A
+- **Composite (after coerce-then-compose)**: VERIFIED / VERIFIED_WITH_SKIP / UNVERIFIED
+- **Mobile flows run**: [list of executed Maestro flow files]
+- **Web driver**: Playwright | Cypress | (none — N/A)
+- **Web flake_rate**: [decimal; FAIL if > 0.05 — strict `>`]
+- **Driver-collision warning** (M4): [present iff both playwright + cypress configs detected]
+- **Screenshots**: `pipeline-state/{task_id}/scratchpad/qa-engineer-verify-screenshots/` (web only)
+- **Evidence**: [pass/fail per flow + per-spec, retry attempts, skip reason if applicable]
 
 ### Verdict: VERIFIED / VERIFIED_WITH_SKIP / UNVERIFIED
 [If VERIFIED_WITH_SKIP: Tier 4 was SKIP -- product-reviewer must acknowledge]

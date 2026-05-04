@@ -265,7 +265,7 @@ See `rules/_detail/multi-repo-protocol.md` for full details.
 - `rules/_detail/parallel-dispatch-protocol.md` — Hybrid dispatch: teams for Build/Review/Final Gate, subagents for Plan/Ship/Deploy, Best-of-N team variant
 - `rules/_detail/module-boundaries-protocol.md` — Modular monolith default, canonical forcing-function list (FF1–FF5)
 - `rules/_detail/multi-repo-protocol.md` — Project manifests, multi-repo pipelines, GitHub service config, linked PRs, deploy ordering
-- `rules/_detail/e2e-protocol.md` — Maestro E2E trigger matrix and prerequisites
+- `rules/_detail/e2e-protocol.md` — Multi-target E2E trigger matrix (mobile via Maestro, web via Playwright/Cypress) and prerequisites
 - `rules/_detail/reflection-protocol.md` — Post-pipeline reflection, observation capture, auto-learn gate, session-memory + scratchpad cleanup
 - `rules/_detail/autonomous-intelligence.md` — Pipeline scratchpad, session memory, continuous learning loop, instinct injection, prompt tracing
 - `rules/_detail/thinking-defaults.md` — Default `effort`/`display` resolution, role layer rules, xhigh allocation policy
