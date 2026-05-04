@@ -40,11 +40,12 @@ fi
 # Outer flock coordinates with learning-gc.sh; inner mkdir lock guards the
 # state file against re-entrant Stop firings within the same hook process.
 _alg_inner() {
-  local S OFF LAST_FIRED LAST_RUN PIPES OBS_COUNT NEW_IDS NEW_N NEW_SIZE LATEST_PID CUR_PID OUT
+  local S OFF LAST_FIRED LAST_RUN LAST_STARTED PIPES OBS_COUNT NEW_IDS NEW_N NEW_SIZE LATEST_PID CUR_PID OUT
   S=$(_als_read_state "$STATE")
   OFF=$(echo "$S" | jq -r '.last_observation_offset // 0')
   LAST_FIRED=$(echo "$S" | jq -r '.last_fired_pipeline_id // ""')
   LAST_RUN=$(echo "$S" | jq -r '.last_learn_run')
+  LAST_STARTED=$(echo "$S" | jq -r '.last_learn_started // ""')
   PIPES=$(echo "$S" | jq -r '.pipelines_since_learn // 0')
   OBS_COUNT=$(echo "$S" | jq -r '.observations_since_learn // 0')
   NEW_IDS=$(_als_count_pipeline_records "$OBS" "$OFF")
@@ -63,8 +64,8 @@ _alg_inner() {
     [[ -f "$LOG" && $(_als_file_size "$LOG") -gt 1048576 ]] && mv "$LOG" "$LOG.1"
     printf '[auto-learn-gate] obs=%s pipelines=%s last_run=%s gate=not-met\n' "$OBS_COUNT" "$PIPES" "$LAST_RUN" >> "$LOG"
   fi
-  OUT=$(jq -n --arg lr "$LAST_RUN" --argjson p "$PIPES" --argjson o "$OBS_COUNT" --arg fp "$LAST_FIRED" --argjson off "$NEW_SIZE" \
-    '{last_learn_run:(if $lr=="null" then null else $lr end),pipelines_since_learn:$p,observations_since_learn:$o,last_fired_pipeline_id:(if $fp=="" then null else $fp end),last_observation_offset:$off}')
+  OUT=$(jq -n --arg lr "$LAST_RUN" --arg ls "$LAST_STARTED" --argjson p "$PIPES" --argjson o "$OBS_COUNT" --arg fp "$LAST_FIRED" --argjson off "$NEW_SIZE" \
+    '{last_learn_run:(if $lr=="null" then null else $lr end),last_learn_started:(if $ls=="" then null else $ls end),pipelines_since_learn:$p,observations_since_learn:$o,last_fired_pipeline_id:(if $fp=="" then null else $fp end),last_observation_offset:$off}')
   _als_write_state "$STATE" "$OUT"
 }
 
