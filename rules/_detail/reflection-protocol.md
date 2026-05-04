@@ -77,7 +77,39 @@ Append a structured observation to `learning/{project-hash}/observations.jsonl`.
 
 ### 6b. Auto-Learn Gate Check
 
-The gate fires automatically via the `auto-learn-gate.sh` Stop hook — the orchestrator does not need to evaluate conditions. When thresholds are met (≥3 new pipeline observations, ≥3 pipelines or ≥24h since last run, pipeline-id idempotency), the hook emits a visible "Triggered" banner on stdout. On the next turn, invoke `/learn` (which in turn resets the gate counters — see `skills/learn/SKILL.md` Step 10).
+The gate fires automatically via the `auto-learn-gate.sh` Stop hook — the orchestrator does not need to evaluate conditions. When thresholds are met (≥3 new pipeline observations, ≥3 pipelines or ≥24h since last run, pipeline-id idempotency), the hook emits a visible "Triggered" banner on stdout.
+
+When the banner appears, invoke `/learn` as a **background-spawn** so Reflect can complete without waiting on instinct extraction.
+
+`/learn` is a Skill, not an Agent — there is no `agents/learn-runner.md`. The primary dispatch is the Skill tool, kicked off in a way that does not block Reflect:
+
+```
+Skill({
+  name: "learn",
+  // Reflect MUST NOT wait on completion. The Skill stamps
+  // last_learn_started in Step 1b immediately and finishes asynchronously;
+  // the next pipeline's pre-flight reads the sentinel pair and
+  // queues or runs /learn accordingly.
+})
+```
+
+**Pipeline must NOT block on /learn completion.** Reflect proceeds straight to § 6c (session-memory update) after the dispatch — `/learn` writes its sentinel (`last_learn_started`) immediately and finishes asynchronously. The next pipeline's pre-flight reads the sentinel pair and either invokes `/learn` itself or defers the invocation by one pipeline (see `orchestrator/pipeline-orchestration.md` § Learn-Status Pre-flight Check).
+
+A future Agent-tool variant (`run_in_background: true`, isolated worktree) is desirable once a dedicated `learn-runner` agent is shipped, but is NOT required today — the Skill-tool dispatch above is the canonical contract. The integration-test snapshot `DocsRecordBackgroundSpawnContract` pins the literal phrases `Pipeline must NOT block on /learn completion` and `run_in_background: true` so the aspiration remains documented.
+
+<!--
+Future Agent-tool form (deferred — agents/learn-runner.md does not yet exist):
+
+  Agent({
+    subagent_type: "learn-runner",
+    isolation: "worktree",
+    run_in_background: true,
+    prompt: "Read ~/.claude/skills/learn/SKILL.md and execute it fully."
+  })
+-->
+
+
+The /learn invocation resets the gate counters via `skills/learn/SKILL.md` Step 10 once it completes.
 
 Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1` suppresses the hook.
 
