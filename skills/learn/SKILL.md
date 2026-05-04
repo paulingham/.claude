@@ -198,6 +198,58 @@ Promote by:
 2. Set `scope: global` and `project: global`
 3. Global instincts are injected into ALL agent prompts regardless of project
 
+### 7b. Promote Recurring Scratch Tools to Permanent Skills (Live-SWE Loop)
+
+Beyond instincts, scan observations for the `TOOL_SYNTHESISED_PROMOTABLE` verdict (emitted by `/tool-synthesis` when the agent flagged a scratch tool's signature as reusable across pipelines). When the same tool **signature** (name + one-line description) appears across **≥ 3 distinct pipelines** for this project, scaffold a permanent skill for human review — never auto-merge.
+
+#### Detection
+
+```bash
+# Filter pipeline observations for the promotable verdict and group by tool name.
+jq -r '
+  select(.record_type == "pipeline" and .scratchpad_findings != null) |
+  .scratchpad_findings[] |
+  capture("(?<verdict>TOOL_SYNTHESISED_PROMOTABLE).*tool=(?<tool>[a-z0-9-]+)") |
+  .tool
+' ~/.claude/learning/$PROJECT_HASH/observations.jsonl 2>/dev/null \
+  | sort | uniq -c | awk '$1 >= 3 { print $2 }'
+```
+
+The exact JSON shape is project-dependent — the principle is: count distinct pipeline IDs per `(tool_name, project_hash)` pair from the `TOOL_SYNTHESISED_PROMOTABLE` verdict; promotion gate is **3 distinct pipelines** (not 3 invocations within one pipeline). One-shot tools are invisible to this scan because they emit `TOOL_SYNTHESISED` (no `_PROMOTABLE` suffix).
+
+#### Scaffold
+
+For each tool name passing the gate that does NOT already have `~/.claude/skills/<tool-name>/SKILL.md`:
+
+```bash
+TOOL=<tool-name>
+SKILL_DIR="$HOME/.claude/skills/$TOOL"
+if [[ ! -d "$SKILL_DIR" ]]; then
+  mkdir -p "$SKILL_DIR"
+  cp "$HOME/.claude/skills/_template/SKILL.md" "$SKILL_DIR/SKILL.md"
+  # Pre-fill name; reviewer fills the rest.
+  sed -i.bak "s/__SKILL_NAME__/$TOOL/g" "$SKILL_DIR/SKILL.md" && rm "$SKILL_DIR/SKILL.md.bak"
+fi
+```
+
+The scaffolded skill is **not** added to `rules/verdict-catalog.md` automatically — that requires a human-authored verdict + audit pass. The scaffold is a starting point; the reviewer either:
+
+1. **Promote** — fill in the skill body, add a verdict, run `/harness-audit`, ship as a PR.
+2. **Reject** — `rm -rf` the scaffold; the originating tool stays scratch.
+
+#### Surface for review
+
+In the `/learn` Report (Step 9 below), include a section listing every scaffolded skill awaiting human review:
+
+```
+Permanent Skill Scaffolds (Live-SWE promotion — awaiting review):
+  - skills/<tool-name>/SKILL.md (3 pipelines: PIPE-001, PIPE-014, PIPE-027)
+```
+
+Never modify `rules/verdict-catalog.md`, never wire the new skill into a pipeline phase, never enable it as a slash command. The scaffold is a draft; the human is the gate.
+
+Source for the recurrence threshold: same as scratchpad → instinct promotion (3+ pipelines), aligning with `rules/_detail/autonomous-intelligence.md` § Scratchpad → Instinct Promotion. Inspired by Live-SWE-agent (arXiv 2511.13646).
+
 ### 8. Identify System Improvements (Continuous Self-Improvement)
 
 Beyond instincts, analyze the data for system-level improvement proposals:

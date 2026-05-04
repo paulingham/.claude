@@ -11,6 +11,8 @@ tools:
   - NotebookEdit
   - ToolSearch
   - Computer
+  - mcp_lsp_diagnostics_ts
+  - mcp_lsp_diagnostics_py
 model: opus
 executor: claude-opus-4-7
 advisor: none

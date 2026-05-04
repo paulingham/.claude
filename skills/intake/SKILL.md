@@ -182,6 +182,45 @@ Persist both to `pipeline-state/{task-id}/intake.md` frontmatter:
 - `task_class: {the classification from Step 1}`
 - `bestofn: true|false`
 
+### Step 2e: Contract Identification (MANDATORY)
+
+Identify what *contracts* the task touches before routing. Contracts are the public surface of the change — if a contract changes, downstream code (tests, callers, sibling modules, external consumers) is affected. Surfacing them at intake feeds Tier 0 (Contracts) of the Proof-of-Correctness ladder (`rules/_detail/engineering-invariants.md` § Proof of Correctness) and the build-implementation "Write Contract Assertions" step (`skills/build-implementation/SKILL.md` § ATDD).
+
+Scan the request text and any existing CLAUDE.md / project layout for changes to:
+
+| Contract Class | Examples |
+|---|---|
+| **Public function signatures** | New/changed exported functions, their argument types and return types |
+| **Types / structs added or changed** | TypeScript interfaces, Python dataclasses, Go structs, Rust traits — anything other modules import |
+| **JSON schemas** | Request/response bodies, event payloads, config files with a versioned schema |
+| **OpenAPI paths** | New routes, changed methods, modified status codes, query/path/body parameters |
+| **DB schemas** | New tables, columns, indexes, constraints, foreign keys, RLS policies |
+| **Invariants** | "X is always non-empty", "Y is monotonic in time", "Z and W are mutually exclusive" |
+
+Persist the findings to `pipeline-state/{task-id}/intake.md` as a `## Contracts Touched` section AND mirror the list in the frontmatter as `contracts_touched:` (YAML list). The architect at Plan phase reads this section to derive Tier 0 contract assertions; the build engineer writes those assertions RED first.
+
+```markdown
+## Contracts Touched
+
+- types/structs added or changed: `User`, `Session.AuthState` (lib/auth/types.ts)
+- JSON schemas: `POST /v1/sessions` request body (added `mfa_token: string?`)
+- OpenAPI paths: `/v1/sessions` POST 401 response shape
+- DB schemas: `sessions.mfa_verified` BOOLEAN NOT NULL DEFAULT false
+- public function signatures: `validateMfaToken(token: string, userId: UUID): Promise<MfaResult>`
+- invariants: "a session is `mfa_verified=true` → `last_mfa_at` is non-null and within 30d"
+
+# If the task touches no contracts (pure UI copy, log format tweak, README), say so:
+- (none) — change is internal/cosmetic; no public surface affected. Tier 0 contracts skipped per rules/_detail/engineering-invariants.md § Proof of Correctness.
+```
+
+Output a one-line summary:
+
+```
+[Intake] Contracts Touched: N items (function-sigs=A, schemas=B, db=C, invariants=D) | (none — internal/cosmetic)
+```
+
+If `(none)`, this is the explicit justification for skipping Tier 0 — record it so the Final Gate's patch-critique step can verify the skip is honest.
+
 ### Step 3: Pre-flight Check
 
 Before invoking pipeline, verify and auto-fix:

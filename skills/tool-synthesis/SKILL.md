@@ -19,10 +19,25 @@ The synthesised tool lives at `${WORKTREE}/.claude-scratch-tools/<name>` and is 
 Triggers (any one is sufficient):
 
 - The same lookup or transformation is performed manually **3+ times** in the current task.
+- **Repeated grep over the same large directory tree (>3 times in a phase)** — when the same `rg`/`grep` invocation against the same root is issued more than three times in a single pipeline phase, a scratch tool that pre-indexes or pre-filters the tree pays for itself.
+- **Recurring AST-shape question** — the agent is using regex to answer a question that is fundamentally syntactic (function-with-decorator-X, class-extending-Y, call-to-Z-with-N-args). A scratch `ast-grep`/Tree-sitter wrapper makes the question deterministic.
+- **Project-specific lint check the agent re-implements** — the agent is hand-rolling the same convention check (forbidden import, naming rule, structural invariant) inside multiple Edits. A scratch linter expresses the rule once and runs it everywhere.
 - No extant tool covers the operation (no `rg` pattern, no `ast-grep` rule, no project-shipped script does it cleanly).
 - A repo-specific concern (custom DSL, generated file, codebase convention) makes off-the-shelf tools wrong.
 
 If a built-in tool (Grep, Glob, Read, Bash one-liner) covers it, USE IT — do not synthesise.
+
+### Promotability Gate
+
+If the synthesised tool's signature (name + one-line description + invocation pattern) would be **reusable across pipelines** (not just this task's accidental shape), record that explicitly in the scratchpad with `promotable: true`. The `/learn` skill scans observations for this marker; when the same tool signature appears in ≥3 pipelines it generates a permanent skill scaffold for human review (see `skills/learn/SKILL.md`). Use the verdict `TOOL_SYNTHESISED_PROMOTABLE` instead of `TOOL_SYNTHESISED` when this is the case.
+
+Promotability heuristics (each "yes" raises the score):
+
+- Tool answers a question that any pipeline in this codebase would reasonably ask.
+- Tool wraps a public API (LSP, CST, project config) rather than a one-shot pattern.
+- Tool's invocation does not encode task-specific paths, branches, or magic numbers.
+
+If you cannot articulate why the tool is reusable beyond this pipeline, mark it `TOOL_SYNTHESISED` (one-shot) and let it be cleaned up.
 
 ## Scope Boundary
 
@@ -123,14 +138,16 @@ The `.gitignore` rule is the safety net: even if cleanup is skipped, `git status
 ## Verdict
 
 - **TOOL_SYNTHESISED**: tool registered, used, and either (a) cleaned up or (b) flagged for promotion via `/skill-builder`.
+- **TOOL_SYNTHESISED_PROMOTABLE**: same as `TOOL_SYNTHESISED` plus the tool's signature is reusable across pipelines. The `/learn` skill picks this up and counts cross-pipeline recurrences; on the third occurrence it scaffolds a permanent skill at `skills/<tool-name>/SKILL.md` (from `skills/_template/`) and surfaces it for human review. The scratch tool is still cleaned up from the worktree — the permanent scaffold is the path forward, not a smuggled scratch tool.
 - **TOOL_UNNECESSARY**: built-in tools cover the operation; no synthesis performed.
 
 ## Phase Output
 
 ```
-Verdict: TOOL_SYNTHESISED / TOOL_UNNECESSARY
+Verdict: TOOL_SYNTHESISED / TOOL_SYNTHESISED_PROMOTABLE / TOOL_UNNECESSARY
 Tool: <name>
 Justification: <one line>
+Promotable: true | false (set when verdict == TOOL_SYNTHESISED_PROMOTABLE)
 Cleanup: confirmed / promoted-via-skill-builder
 ```
 
@@ -145,4 +162,20 @@ Cleanup: confirmed / promoted-via-skill-builder
 ## Inspiration
 
 Live-SWE-agent (arXiv 2511.13646) reports a +10pt SWE-Verified lift when agents can author runtime tools tailored to the repo under test. This skill packages that capability in a way that keeps `main` clean and review trails intact.
+
+## Why This Works
+
+The Live-SWE-agent paper (Cui et al., arXiv:2511.13646) reports an empirical **77.4% pass rate on SWE-bench-Verified** by allowing the agent to author scratch tools at inference time and reuse them within the run. The lift over a fixed-toolset baseline is concentrated in repository-specific tasks where off-the-shelf tools lack the right granularity:
+
+- **Codebase-specific search** (e.g., "find every place a stale config key is read") becomes a one-shot script instead of N grep iterations.
+- **AST-shape questions** become deterministic queries instead of regex approximations.
+- **Convention checks** become re-runnable linters instead of hand-rolled per-edit verifications.
+
+The empirical lift is conditional on three properties this skill enforces:
+
+1. **Per-worktree isolation** — scratch tools never leak to `main` (`.gitignore` + cleanup gate).
+2. **Auditability** — `registry.json` records every synthesis decision so reviewers can challenge the tool's existence.
+3. **Promotion path** — useful tools graduate via `/skill-builder` and `/learn` (the TOOL_SYNTHESISED_PROMOTABLE → permanent-skill scaffold), so reusable patterns harden into the harness instead of disappearing with the worktree.
+
+Without those three guards, scratch-tool synthesis becomes a way to smuggle untested code into production. With them, it is a controlled inference-time capability that has an empirical track record.
 $ARGUMENTS
