@@ -27,7 +27,28 @@ source "$_SETUP_DIR/scripts/_lib/install-rust.sh" || {
   printf 'FATAL: cannot source %s/scripts/_lib/install-rust.sh\n' "$_SETUP_DIR" >&2
   exit 1
 }
+# shellcheck disable=SC1091
+source "$_SETUP_DIR/scripts/_lib/cloud-link.sh" || {
+  printf 'FATAL: cannot source %s/scripts/_lib/cloud-link.sh\n' "$_SETUP_DIR" >&2
+  exit 1
+}
 # --- end bootstrap ---
+
+# -------------------------------------------------------------------
+# Step 0: Cloud-link (Claude Code on the web)
+# When the platform checks the harness out at $CLAUDE_PROJECT_DIR but Claude
+# Code reads from $HOME/.claude (different $HOME), symlink the harness into
+# $HOME/.claude so skills/hooks/settings.json register correctly. No-op on
+# desktop installs where $HOME/.claude IS the harness.
+# -------------------------------------------------------------------
+if [ -z "${CLAUDE_PROJECT_DIR:-}" ]; then
+  export CLAUDE_PROJECT_DIR="$_SETUP_DIR"
+fi
+
+if cloud_link_should_run; then
+  printf '\n\033[0;34mStep 0: Linking cloud harness into %s\033[0m\n' "$HOME/.claude"
+  cloud_link_harness "$CLAUDE_PROJECT_DIR" "$HOME/.claude"
+fi
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
