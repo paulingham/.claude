@@ -78,11 +78,13 @@ class NonBoolPreferOpusLogsWarningAndCoercesFalse(unittest.TestCase):
                          False)
 
 
-class NormalizeReturnDictHasSevenKeys(unittest.TestCase):
-    def test_normalize_keys_include_prefer_opus(self):
+class NormalizeReturnDictHasEightKeys(unittest.TestCase):
+    def test_normalize_keys_include_prefer_opus_and_category(self):
+        # C8 grew the surface from seven keys to eight by adding `category`.
+        # `category` is always present (defaults to "" when absent in fm).
         keys = set(normalize(dict(_MIN_FM), _MIN_BODY, "global").keys())
         expected = {"id", "confidence", "roles", "domain", "scope",
-                    "pattern_summary", "prefer_opus"}
+                    "pattern_summary", "prefer_opus", "category"}
         self.assertEqual(keys, expected)
 
 
@@ -90,3 +92,56 @@ class ValidatePreferOpusReturnsCodeNotMessage(unittest.TestCase):
     def test_validate_returns_code_for_non_bool_prefer_opus(self):
         fm = dict(_MIN_FM, prefer_opus=42)  # non-bool, non-string
         self.assertEqual(validate(fm, _MIN_BODY), "non-bool-prefer-opus")
+
+
+# ---------------- C8 S1: anti-pattern category gate ------------------------
+
+
+class ValidateAcceptsAntiPatternCategory(unittest.TestCase):
+    def test_anti_pattern_category_is_valid(self):
+        fm = dict(_MIN_FM, category="anti-pattern")
+        self.assertIsNone(validate(fm, _MIN_BODY))
+
+
+class ValidateRejectsUnknownCategory(unittest.TestCase):
+    def test_unknown_category_returns_invalid_category_code(self):
+        fm = dict(_MIN_FM, category="nonsense")
+        self.assertEqual(validate(fm, _MIN_BODY), "invalid-category")
+
+
+class ValidateAllowsAbsentCategoryForBackwardCompat(unittest.TestCase):
+    def test_absent_category_passes_validation(self):
+        # _MIN_FM has no category key — legacy instinct files predate the field.
+        self.assertIsNone(validate(dict(_MIN_FM), _MIN_BODY))
+
+
+class ValidateAcceptsEveryDocumentedCategory(unittest.TestCase):
+    def test_each_of_the_six_categories_is_valid(self):
+        for cat in ("discovery", "warning", "pattern", "fragility",
+                    "decision", "anti-pattern"):
+            with self.subTest(category=cat):
+                fm = dict(_MIN_FM, category=cat)
+                self.assertIsNone(validate(fm, _MIN_BODY))
+
+
+class NormalizeReturnsCategoryString(unittest.TestCase):
+    def test_category_present_in_normalized_dict(self):
+        fm = dict(_MIN_FM, category="anti-pattern")
+        result = normalize(fm, _MIN_BODY, "project")
+        self.assertEqual(result["category"], "anti-pattern")
+
+
+class NormalizeReturnDictHasEightKeysWhenCategoryPresent(unittest.TestCase):
+    def test_eight_keys_with_category(self):
+        fm = dict(_MIN_FM, category="anti-pattern")
+        keys = set(normalize(fm, _MIN_BODY, "project").keys())
+        expected = {"id", "confidence", "roles", "domain", "scope",
+                    "pattern_summary", "prefer_opus", "category"}
+        self.assertEqual(keys, expected)
+
+
+class NormalizeDefaultsCategoryToEmptyString(unittest.TestCase):
+    def test_absent_category_normalises_to_empty_string(self):
+        # Backward-compat: legacy files without `category:` produce "".
+        result = normalize(dict(_MIN_FM), _MIN_BODY, "project")
+        self.assertEqual(result["category"], "")
