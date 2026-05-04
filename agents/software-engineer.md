@@ -11,6 +11,9 @@ tools:
   - NotebookEdit
   - ToolSearch
 model: opus
+executor: claude-opus-4-7
+advisor: none
+# advisor-rationale: Opus-solo executor. Build engineering follows the ATDD cycle deterministically (batched RED → implement → refactor → mutation gate) — no advisor judgment needed mid-cycle.
 memory: project
 maxTurns: 150
 instinct_categories:

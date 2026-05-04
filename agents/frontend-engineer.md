@@ -12,6 +12,9 @@ tools:
   - ToolSearch
   - Computer
 model: opus
+executor: claude-opus-4-7
+advisor: none
+# advisor-rationale: Opus-solo executor. UI build engineering is procedural per the ATDD cycle plus the accessibility/design-quality checklists — no advisor handoff at slice boundaries.
 maxTurns: 150
 instinct_categories:
   - frontend-engineer

@@ -7,6 +7,9 @@ tools:
   - Glob
   - Edit
 model: sonnet
+executor: claude-sonnet-4-6
+advisor: none
+# advisor-rationale: Sonnet-solo, low-effort. Long-lived poll-loop role (read scratchpad, diff against plan, edit when contradicted). Iteration economics dominate; advisor handoff would defeat the purpose at every poll cycle.
 maxTurns: 200
 instinct_categories:
   - planning-agent

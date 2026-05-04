@@ -8,6 +8,9 @@ tools:
   - WebFetch
   - WebSearch
 model: opus
+executor: claude-opus-4-7
+advisor: none
+# advisor-rationale: Architect runs solo Opus on Plan phase. Design judgment is monolithic — an advisor handoff would dilute the architect's coherent design narrative and slow plan-validation latency on critical work.
 maxTurns: 60
 instinct_categories:
   - architect

@@ -5,6 +5,9 @@ tools:
   - Read
   - Edit
 model: haiku
+executor: claude-haiku-4-5-20251001
+advisor: none
+# advisor-rationale: Haiku-solo. Pure transcription role — read curated facts, edit a markdown file, exit. No reasoning surface; advisor handoff would be pure overhead.
 maxTurns: 10
 instinct_categories:
   - session-memory-updater

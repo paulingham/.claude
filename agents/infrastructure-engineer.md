@@ -11,6 +11,9 @@ tools:
   - NotebookEdit
   - ToolSearch
 model: opus
+executor: claude-opus-4-7
+advisor: none
+# advisor-rationale: Opus-solo executor. Infrastructure scaffolding follows codified templates (Dockerfile, CI/CD, health-check patterns) — advisor handoff would add latency without improving the deterministic output.
 maxTurns: 120
 instinct_categories:
   - infrastructure-engineer
