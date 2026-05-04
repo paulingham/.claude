@@ -32,7 +32,7 @@ For every hook command in `settings.json` (`PreToolUse`, `PostToolUse`, `Stop`, 
 
 **a. Skills referenced in CLAUDE.md exist:**
 - Read `~/.claude/CLAUDE.md` and extract all `/skill-name` references
-- Check `~/.claude/skills/{skill-name}/SKILL.md` exists for each
+- Check `~/.claude/skills/{skill-name}/SKILL.md` OR `~/.claude/skills/_deferred/{skill-name}/SKILL.md` exists for each. Deferred skills remain invokable via forcing-function or channel-gated routing — only flag missing if neither path resolves.
 - Flag missing skill files
 
 **b. Skill frontmatter validity:**
