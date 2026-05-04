@@ -373,9 +373,7 @@ precedence layers, top-down — the first match wins:
    `instinct_categories`, the resolver returns `claude-opus-4-7` for that
    spawn. Trigger: `/learn` is expected to set `prefer_opus: true` when ≥3
    pipelines in the same project show a Sonnet executor requiring ≥2 review
-   rounds. **Not yet implemented — orchestrator reader deferred to the next
-   learning slice. Manually-authored instincts may set the flag, but the
-   orchestrator does not yet consume it.**
+   rounds. **Not yet implemented — orchestrator reader deferred to the next learning slice. Manually-authored instincts may set the flag, but the orchestrator does not yet consume it.**
 3. **Frontmatter `executor:` field** — the default. After Wave 5/B6 the
    `software-engineer` and `frontend-engineer` agents resolve to
    `claude-sonnet-4-6`; reviewer/QA roles already resolved this way prior

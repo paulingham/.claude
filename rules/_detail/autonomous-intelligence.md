@@ -223,6 +223,7 @@ Scratchpad findings that recur across 3+ pipelines should be promoted to instinc
 - Same discovery/warning appearing in 3+ pipelines → create instinct with confidence 0.3
 - Same fragility appearing in 3+ pipelines → create instinct with confidence 0.5 (fragilities are high-value)
 - Same pattern validated across 3+ pipelines → create instinct with confidence 0.4
+- ≥3 pipelines in the same project where a Sonnet executor required ≥2 review rounds for the same role → set `prefer_opus: true` on the relevant instinct so subsequent spawns escalate to Opus (deferred — see § Instinct Injection)
 
 ### Instinct Injection (Path-B advisory)
 
@@ -277,6 +278,16 @@ Mismatch (a `logged` record without a paired `orchestrator-injected` record for 
 | `CLAUDE_AGENTS_DIR` | unset | Test-only override of the agents directory used by `agent_instinct_categories_loader`. |
 | `CLAUDE_DISABLE_INSTINCT_INJECTION` | unset | Set to `1` to fast-exit the hook (per-session escape hatch). |
 | `CLAUDE_HOOK_PROFILE` | `standard` | When set to `minimal`, the hook fast-exits — matches the suppression pattern of the four sibling Path-B hooks. |
+
+#### Executor Override (prefer_opus)
+
+Wave 5/B6.3 introduces an OPTIONAL `prefer_opus: true` field in the instinct YAML frontmatter. When an instinct carrying the flag fires for a (role, project) pair — i.e. the instinct's `roles:` set intersects the spawning agent's expanded `instinct_categories` AND its `confidence` clears the floor — the orchestrator's executor resolver overrides the spawn's executor to `claude-opus-4-7`, regardless of the agent's frontmatter `executor:` value.
+
+Trigger condition (set by `/learn`): ≥3 pipelines in the same project where a Sonnet executor required ≥2 review rounds for the same role. The flag is data-driven escalation — the system learns when a given (role, project) routinely needs deeper reasoning and starts routing it to Opus automatically.
+
+`prefer_opus` lives at instinct file scope alongside `id`, `confidence`, `roles`, and `domain`. Validation: when present, must be a YAML bool. Non-bool values (e.g. `prefer_opus: "yes"`) are rejected by `instinct_loader_helpers.validate` with the warning code `non-bool-prefer-opus` and coerced to `False` by `normalize`. Absent: treated as `False`. The normalised dict surface is seven keys: `id`, `confidence`, `roles`, `domain`, `scope`, `pattern_summary`, `prefer_opus`.
+
+**Not yet implemented — `/learn` writer and orchestrator reader deferred to the next learning slice. Manually-authored instincts may set the flag, but the orchestrator does not yet consume it.** Slice B6.3 ships the parser/validator/normalizer paths and the contract docs only. The reader (orchestrator-side `executor_resolver.resolve_executor` extension that loads instincts and short-circuits to Opus on a `prefer_opus: true` match) is the next layer up.
 
 ## 4. Prompt Tracing (Opt-In)
 

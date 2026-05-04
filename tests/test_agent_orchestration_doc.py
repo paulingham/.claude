@@ -53,5 +53,19 @@ class OrchestrationDocSnippetUsesExpandedLoader(unittest.TestCase):
             "canonical Python snippet must call expanded loader")
 
 
+
+
+_PREFER_OPUS_ORCH_CAVEAT = (
+    "Not yet implemented \u2014 orchestrator reader deferred to the next "
+    "learning slice.")
+
+
+class ExecutorResolutionMentionsPreferOpusWithDeferralCaveat(unittest.TestCase):
+    def test_executor_resolution_documents_prefer_opus_layer_with_caveat(self):
+        body = _spawn_procedure_section()
+        self.assertIn("prefer_opus", body)
+        self.assertIn(_PREFER_OPUS_ORCH_CAVEAT, body)
+
+
 if __name__ == "__main__":
     unittest.main()
