@@ -195,7 +195,6 @@ Tracing is off by default (`CLAUDE_ENABLE_TRACE=0` in `settings.json`). Enable p
 | `/web-frontend-patterns` | React/Next.js patterns, state, a11y, performance, caching | PATTERNS_APPLIED |
 | `/deployment-verification` | Post-deploy health checks, smoke tests, auto-rollback | DEPLOYMENT_VERIFIED |
 | `/load-test` | Performance testing: load, stress, baselines, SLA verification | PERFORMANCE_VERIFIED |
-| `/voice-scaffold` | Scaffold voice skill/action (Alexa, Google, Twilio IVR) | VOICE_SCAFFOLDED |
 | `/module-extraction` | Extract a bounded context into an in-process module with an explicit port (same repo, no forcing function) | BOUNDARY_READY / MODULE_EXTRACTED / EXTRACTION_BLOCKED / WRONG_SKILL |
 | `/debug` | Persistent debug state for complex, multi-session bugs | DEBUG_RESOLVED |
 | `/debug-trace` | Toggle prompt tracing for the current session (`on` / `off`) | TRACE_TOGGLED |
@@ -213,9 +212,9 @@ Tracing is off by default (`CLAUDE_ENABLE_TRACE=0` in `settings.json`). Enable p
 | `/design-system-init` | Generate design tokens, primitives, dark mode for a project | DESIGN_SYSTEM_READY |
 | `/tool-synthesis` | Build phase: author a one-shot scratch tool inside the worktree (codebase-specific search, AST query, custom lint) when standard tools are insufficient. Tool lives in `.claude-scratch-tools/`, never merged. Inspired by Live-SWE-agent (arXiv 2511.13646) | TOOL_SYNTHESISED / TOOL_UNNECESSARY |
 
-#### Advanced — Service / Multi-Repo (forcing function required)
+#### Deferred (forcing-function required)
 
-These skills are invoked only when a forcing function from `rules/_detail/module-boundaries-protocol.md` is named. The pipeline will route automatically — you do not invoke them directly. `/microservices-scaffold` enforces this at its Step 0.
+These skills live under `skills/_deferred/` and are invoked only when a forcing function from `rules/_detail/module-boundaries-protocol.md` is named (service / multi-repo work) or a domain-specific channel is in scope (voice). The pipeline routes automatically — you do not invoke them directly. `/microservices-scaffold` enforces the FF gate at its Step 0.
 
 | Skill | When to Invoke | Verdict |
 |-------|----------------|---------|
@@ -223,6 +222,7 @@ These skills are invoked only when a forcing function from `rules/_detail/module
 | `/microservices-scaffold` | New microservice (FF required; Step 0 gate) | SERVICE_SCAFFOLDED / WRONG_SKILL |
 | `/cross-service-pipeline` | Cross-repo contract + deploy coordination | CROSS_SERVICE_VERIFIED |
 | `/bff-scaffold` | Channel-specific BFF layer | BFF_SCAFFOLDED |
+| `/voice-scaffold` | Scaffold voice skill/action (Alexa, Google, Twilio IVR) | VOICE_SCAFFOLDED |
 
 ### Definition of Done
 

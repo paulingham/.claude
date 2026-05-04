@@ -32,15 +32,16 @@ For every hook command in `settings.json` (`PreToolUse`, `PostToolUse`, `Stop`, 
 
 **a. Skills referenced in CLAUDE.md exist:**
 - Read `~/.claude/CLAUDE.md` and extract all `/skill-name` references
-- Check `~/.claude/skills/{skill-name}/SKILL.md` exists for each
+- Check `~/.claude/skills/{skill-name}/SKILL.md` OR `~/.claude/skills/_deferred/{skill-name}/SKILL.md` exists for each. Deferred skills remain invokable via forcing-function or channel-gated routing — only flag missing if neither path resolves.
 - Flag missing skill files
 
 **b. Skill frontmatter validity:**
-- Each `skills/*/SKILL.md` must have: `name`, `description` fields in YAML frontmatter
+- Each `skills/*/SKILL.md` and `skills/_deferred/*/SKILL.md` (excluding `_template/`) must have: `name`, `description` fields in YAML frontmatter
 - Flag any missing required fields
+- Deferred skills (under `skills/_deferred/`) remain invokable via forcing-function or channel-gated routing, so they are subject to the same frontmatter checks as top-level skills
 
 **c. Skill structure drift (canonical template = `skills/_template/SKILL.md`):**
-For every `skills/*/SKILL.md` (excluding `_template/`), validate against the canonical template:
+For every `skills/*/SKILL.md` and `skills/_deferred/*/SKILL.md` (excluding `_template/`), validate against the canonical template. Deferred skills remain subject to the same frontmatter, section, and verdict checks because they are still invokable via the routing paths described in CLAUDE.md.
 
 - **Required frontmatter fields**: `name`, `description`, `verdict`, `phase`, `dispatch`. Flag any skill missing one or more.
 - **Phase enum**: `phase` MUST be one of: `intake`, `plan`, `plan-validation`, `build`, `review`, `final-gate`, `ship`, `deploy`, `reflect`, `utility`. Flag any skill with a value outside this list.
@@ -51,7 +52,7 @@ For every `skills/*/SKILL.md` (excluding `_template/`), validate against the can
 Verdict for this step: `STRUCTURE_OK` if every skill conforms; otherwise list the drift findings (one bullet per skill, naming the missing fields/headings).
 
 **d. Verdict consistency (canonical catalog = `rules/verdict-catalog.md`):**
-Cross-reference `skills/*/SKILL.md` verdict declarations against the catalog in both directions:
+Cross-reference `skills/*/SKILL.md` and `skills/_deferred/*/SKILL.md` (excluding `_template/`) verdict declarations against the catalog in both directions. Without including `_deferred/`, the reverse-direction check would falsely flag verdicts emitted only by deferred skills (e.g. `VOICE_SCAFFOLDED`, `BFF_SCAFFOLDED`, `SERVICE_EXTRACTED`, `SERVICE_SCAFFOLDED`, `CROSS_SERVICE_VERIFIED`, `CROSS_SERVICE_BLOCKED`, `EXTRACTION_BLOCKED`, `WRONG_SKILL`) as orphan catalog rows.
 
 - **Forward direction**: every `verdict` value declared in any skill's frontmatter (or in any `Verdict: X / Y` line in the body for legacy skills) MUST appear in `rules/verdict-catalog.md`. Flag any skill emitting a verdict the catalog does not list.
 - **Reverse direction**: every entry in `rules/verdict-catalog.md` MUST be emitted by at least one skill. Flag catalog rows whose `Emitter skill` column resolves to a non-existent `skills/<name>/SKILL.md`, or whose listed emitter does not actually emit that verdict.
