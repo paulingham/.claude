@@ -183,9 +183,22 @@ After every pipeline completion (in the Reflect step), write a structured observ
   "scratchpad_findings": ["list of category:summary from scratchpad"],
   "rework": false,
   "duration_phases": 6,
-  "complexity_budget": 9
+  "complexity_budget": 9,
+  "cost_estimate_usd": 0.4231
 }
 ```
+
+#### Field reference
+
+| Field | Type | Source |
+|---|---|---|
+| `cost_estimate_usd` | number (USD float, dollars) | computed via `hooks/_lib/cost_estimator.py` from `metrics/{session-id}/tool-timings.jsonl` records for this pipeline (joined by `task_id`). The producer calls `estimate_cost_usd_per_pipeline(timings_path)` and reads the value keyed by the current `task_id`; the result is a sum across every tool call attributed to the pipeline. |
+
+The cost estimator is the single source of truth for token-to-USD conversion (see `PRICING_PER_MILLION` in `hooks/_lib/cost_estimator.py`). Unknown models contribute `0.0` and emit a deduplicated stderr warning — they do NOT raise, so a partial-pricing record always produces a numeric estimate.
+
+**Backward compatibility:** readers (`/learn`, `/forensics`, `/eval-model-effectiveness`) MUST tolerate absence of `cost_estimate_usd` in legacy records written before this field was introduced. Treat absence as "unknown cost", NOT as `0.0` — a missing field is not the same as a free pipeline. Aggregations that need cost data should filter out records where the field is missing rather than coercing them to zero (which would skew downward averages).
+
+**Implementation status (2026-05-04):** the producer hook (`hooks/observation-capture.sh` is per-tool only; the per-pipeline writer lives in `skills/pipeline/SKILL.md` and `skills/batch-pipeline/SKILL.md` Step 6 / Step 7c — see those skill files for the exact append site) emits `cost_estimate_usd` only when `tool-timings.jsonl` contains the input data required by `cost_estimator.py` (`model` + `input_tokens` + `output_tokens` + optional cache-token fields). As of this slice, `tool-timings.jsonl` lacks those fields — the current shape is `{ts, tool, duration_ms, success, agent_role?, task_id?}` per `hooks/_lib/tool-timing-emit.py`. Until the upstream emitter is updated to capture model + token counts (see B12.3 follow-up for the producer-side wiring), `cost_estimate_usd` will be omitted from observation records and downstream consumers will see the field as absent. The field is documented here so the schema is stable when the producer lands; readers must already tolerate absence today.
 
 ### Consolidation Gate
 

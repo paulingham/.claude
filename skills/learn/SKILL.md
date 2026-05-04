@@ -250,6 +250,31 @@ Never modify `rules/verdict-catalog.md`, never wire the new skill into a pipelin
 
 Source for the recurrence threshold: same as scratchpad → instinct promotion (3+ pipelines), aligning with `rules/_detail/autonomous-intelligence.md` § Scratchpad → Instinct Promotion. Inspired by Live-SWE-agent (arXiv 2511.13646).
 
+### 7c. Correlate Cost with Quality Outcomes
+
+Per-pipeline observations carry a `cost_estimate_usd` field (number, USD float — see `rules/_detail/autonomous-intelligence.md` § Observation Capture). This step joins that cost with quality signals from the same record so high-cost-low-quality `(role, task-class)` pairs surface as escalation candidates.
+
+**Input** (single source): `~/.claude/learning/{project-hash}/observations.jsonl`, filtered to `record_type == "pipeline"`. Records missing `cost_estimate_usd` are excluded from the cost aggregates (NOT coerced to `0.0` — absence is "unknown", not "free", per the backward-compatibility note in autonomous-intelligence.md).
+
+**Group key:** `(agent_role, task-class)` — `agent_role` is read from `phases.build.agents[].role` if present, otherwise from `agent_role` on the matching `record_type == "tool_use"` records joined by `session_id`; `task-class` is the `classification` field on the pipeline record (`feature|refactor|bug|batch`).
+
+**Per-group aggregates computed:**
+
+| Aggregate | Computation | Output field |
+|---|---|---|
+| Total cost | sum of `cost_estimate_usd` across pipelines in the group | `total_cost_usd` |
+| Mean cost per pipeline | `total_cost_usd / count(pipelines_with_cost)` | `mean_cost_usd` |
+| Mean review rounds | mean of `phases.review.rounds` | `mean_rounds` |
+| Rework rate | `count(rework == true) / count(pipelines)` | `rework_rate` |
+| Mean mutation kill rate | mean of `phases.verify.mutation_score` when present, else null | `mean_mutation_score` |
+
+**Output:** an in-memory list of group dicts with keys `{agent_role, task_class, pipeline_count, total_cost_usd, mean_cost_usd, mean_rounds, rework_rate, mean_mutation_score}`. The list is fed to existing instinct-extraction logic (Step 5) and to the model-effectiveness recommendation surface (`/eval-model-effectiveness`):
+
+- A `(role, task-class)` pair with `mean_cost_usd` in the top quartile AND (`mean_rounds >= 2.0` OR `rework_rate >= 0.33`) is flagged as a **prefer_opus candidate** — the role is paying premium cost without quality return, so escalating that role to Opus on this task class may improve outcomes. The flag feeds the existing `prefer_opus: true` writer (deferred — see `rules/_detail/autonomous-intelligence.md` § Executor Override (prefer_opus)) when the writer lands; until then, the candidate set is included in the Step 9 report under "Cost-quality candidates".
+- A pair with `mean_cost_usd` in the bottom quartile AND `mean_rounds <= 1.0` AND `rework_rate <= 0.10` is flagged as a **downgrade candidate** for `/eval-model-effectiveness` — the role is succeeding cheaply, so Sonnet may suffice. The recommendation report at `~/.claude/learning/{project-hash}/model-recommendations.md` consumes this list (advisory only — no live config change).
+
+**Backward compatibility:** if zero records carry `cost_estimate_usd` (legacy-only data, or pre-producer-wiring window per the implementation-status note), this step emits a single info line in the Step 9 report ("Cost-quality correlation: skipped — no cost-bearing observations") and no candidates are surfaced. The skill MUST NOT raise on absence.
+
 ### 8. Identify System Improvements (Continuous Self-Improvement)
 
 Beyond instincts, analyze the data for system-level improvement proposals:
