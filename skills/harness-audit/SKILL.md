@@ -39,6 +39,18 @@ For every hook command in `settings.json` (`PreToolUse`, `PostToolUse`, `Stop`, 
 - Each `skills/*/SKILL.md` must have: `name`, `description` fields in YAML frontmatter
 - Flag any missing required fields
 
+**c. Skill structure drift (canonical template = `skills/_template/SKILL.md`):**
+For every `skills/*/SKILL.md` (excluding `_template/`), validate against the canonical template:
+
+- **Required frontmatter fields**: `name`, `description`, `verdict`, `phase`, `dispatch`. Flag any skill missing one or more.
+- **Phase enum**: `phase` MUST be one of: `intake`, `plan`, `plan-validation`, `build`, `review`, `final-gate`, `ship`, `deploy`, `reflect`, `utility`. Flag any skill with a value outside this list.
+- **Dispatch enum**: `dispatch` MUST be one of: `skill-tool`, `subagent`, `team`. Flag any skill with a value outside this list.
+- **Required sections**: every skill body MUST contain `## When to Invoke`, `## Procedure`, `## Output`, `## Verdict`. Flag any skill missing one or more headings (case-sensitive match on `^## `).
+- **Tests directory**: every skill SHOULD have `skills/{name}/tests/` (a directory or at minimum a `.gitkeep`). Skills without a `tests/` directory are flagged at WARNING severity (not CRITICAL — older skills may lack tests). New skills created from `_template/` automatically inherit it.
+- **Verdict catalog cross-reference**: the `verdict` value (or each value if a list) MUST appear in `rules/verdict-catalog.md` *if it exists*. Skip this check when the catalog file is absent. (The reverse-direction catalog audit lives in a separate `verdict-consistency` step added by C3.)
+
+Verdict for this step: `STRUCTURE_OK` if every skill conforms; otherwise list the drift findings (one bullet per skill, naming the missing fields/headings).
+
 ### 3. Agent Definitions Health
 
 **a. Required frontmatter fields:**
@@ -102,6 +114,8 @@ If agnix is installed, run it and incorporate findings into the audit report. Fl
 | Hooks | Missing/non-executable hooks | ❌ |
 | Skills | None | ✅ |
 | Skills | Missing skill files | ❌ |
+| Skill Structure | All skills match `_template/SKILL.md` (frontmatter + sections) | ✅ |
+| Skill Structure | Frontmatter or required-section drift on one or more skills | ⚠️ |
 | Agents | None | ✅ |
 | Agents | Missing frontmatter | ⚠️ |
 | Agents | Write tools not disallowed on read-only agents | ❌ |
@@ -126,6 +140,11 @@ Date: [timestamp]
 ### Skills (N/N passing)
 - ✅ /pipeline — SKILL.md found
 - ❌ /missing-skill — SKILL.md not found
+
+### Skill Structure (N/N matching template)
+- ✅ /verify — frontmatter + required sections present
+- ⚠️ /old-skill — missing `verdict` frontmatter field, missing `## When to Invoke` heading
+- ⚠️ /another-skill — no `tests/` directory
 
 ### Agent Definitions (N/N passing)
 - ✅ software-engineer — all frontmatter present
