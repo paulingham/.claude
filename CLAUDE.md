@@ -65,8 +65,8 @@ Every agent's `instinct_categories:` frontmatter (YAML list of role-name tokens)
 | Agent | Phase | Worktree | Default Model | Tunable |
 |-------|-------|----------|---------------|---------|
 | architect | Plan | No | opus | No |
-| software-engineer | Build | Yes | opus | Yes |
-| frontend-engineer | Build | Yes | opus | Yes |
+| software-engineer | Build | Yes | sonnet | Yes |
+| frontend-engineer | Build | Yes | sonnet | Yes |
 | database-engineer | Build | Yes | sonnet | Yes |
 | infrastructure-engineer | Build | Yes | opus | Yes |
 | planning-agent | Build (advisory) | No | sonnet | No |

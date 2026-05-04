@@ -106,27 +106,26 @@ class PlanningAgentLowDefault(unittest.TestCase):
 # ---------------- AC2g–AC2i: implementation roles inherit high default ----------------
 
 
-class SoftwareEngineerInheritsHigh(unittest.TestCase):
-    def test_software_engineer_inherits_high_default(self):
+class SoftwareEngineerExplicitDowngrade(unittest.TestCase):
+    def test_software_engineer_neutral_and_elevated_yield_high_role(self):
         tool_input = {"subagent_type": "software-engineer"}
-        # Neutral state: inherits default fallback.
+        # Neutral state: explicit role downgrade to high (rule 3b).
         neutral = resolve(tool_input=tool_input, env={}, state={})
         self.assertEqual(neutral["effort"], "high")
-        self.assertEqual(neutral["source"], "default")
-        # Even with critical+budget=10, software-engineer is NOT in any
-        # promotion or downgrade set, so resolves via the rule 4 fallback.
+        self.assertEqual(neutral["source"], "role")
+        # Elevated: not in any promotion set; hits explicit downgrade rule 3b.
         elevated = resolve(tool_input=tool_input, env={},
                            state={"critical": True, "budget": 10})
         self.assertEqual(elevated["effort"], "high")
-        self.assertEqual(elevated["source"], "default")
+        self.assertEqual(elevated["source"], "role")
 
 
-class FrontendEngineerInheritsHigh(unittest.TestCase):
-    def test_frontend_engineer_inherits_high_default(self):
+class FrontendEngineerExplicitDowngrade(unittest.TestCase):
+    def test_frontend_engineer_neutral_yields_high_role(self):
         tool_input = {"subagent_type": "frontend-engineer"}
         result = resolve(tool_input=tool_input, env={}, state={})
         self.assertEqual(result["effort"], "high")
-        self.assertEqual(result["source"], "default")
+        self.assertEqual(result["source"], "role")
 
 
 class InfrastructureEngineerInheritsHigh(unittest.TestCase):
@@ -208,13 +207,13 @@ class BestOfNCandidateXhigh(unittest.TestCase):
         self.assertEqual(result["source"], "role")
 
 
-class BestOfNCandidateLowBudgetInheritsHigh(unittest.TestCase):
-    def test_best_of_n_candidate_low_budget_inherits_high(self):
+class BestOfNCandidateLowBudgetDowngrades(unittest.TestCase):
+    def test_best_of_n_low_budget_software_engineer_downgrades_to_role(self):
         tool_input = {"subagent_type": "software-engineer", "name": "boN-opus"}
         state = {"critical": True, "budget": 5}
         result = resolve(tool_input=tool_input, env={}, state=state)
         self.assertEqual(result["effort"], "high")
-        self.assertEqual(result["source"], "default")
+        self.assertEqual(result["source"], "role")
 
 
 # ---------------- AC4 / AC4b: env override ----------------
@@ -298,7 +297,7 @@ class SourceFieldReportsWinningLayer(unittest.TestCase):
 
 
 class DowngradeListMatchesAgentFrontmatter(unittest.TestCase):
-    """Pins `_DOWNGRADE_TO_HIGH ∪ _DOWNGRADE_TO_LOW` to exactly the seven
+    """Pins `_DOWNGRADE_TO_HIGH ∪ _DOWNGRADE_TO_LOW` to exactly the nine
     Sonnet-executor agent files. Drift in either direction fails CI: a missing
     entry would silently waste capability; an extra entry for an Opus-promoted
     agent would silently downgrade it.
@@ -307,7 +306,7 @@ class DowngradeListMatchesAgentFrontmatter(unittest.TestCase):
     EXPECTED_ROLES = {
         "code-reviewer", "qa-engineer", "product-reviewer",
         "patch-critic", "database-engineer", "security-engineer",
-        "planning-agent",
+        "planning-agent", "software-engineer", "frontend-engineer",
     }
 
     def _frontmatter(self, role):
