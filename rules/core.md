@@ -14,17 +14,18 @@ These are absolutes. No exceptions. No "just this once."
 6. **FINDINGS SURFACED DURING REVIEW ARE FIXED IN THIS PIPELINE.** Never filed as follow-ups. Never surfaced as questions to the user. The pipeline does not ship known-incomplete fixes. Escalate ONLY when the required fix is architecturally large (>~100 LOC, cross-service) or outside the current task's layer. (Detail: `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule.)
 7. **EVERY PIPELINE PRODUCES AN OBSERVATION.** No exceptions — successes and failures both. The continuous learning loop depends on data volume. (Format and pipeline: `rules/_detail/reflection-protocol.md` § Capture Pipeline Observation, `rules/_detail/autonomous-intelligence.md` § Observation Capture.)
 
-## Code Shape Limits
+## Code Shape Rules (cohesion, not line count)
 
-Every code-touching agent enforces these continuously, not at the end:
+Every code-touching agent enforces continuously. Cohesion is the design rule; line counts are advisory smell signals only.
 
-- **Methods/functions**: 8 lines max (project override via `CLAUDE_FUNCTION_LINE_LIMIT`), CC ≤ 5, nesting ≤ 2
-- **Classes/files**: 50 lines max (project override via `CLAUDE_FILE_LINE_LIMIT`)
-- **Per-glob overrides**: `.claude/shape-overrides.json` (e.g., `{"*.rb": 80, "*.go": 100}`)
-- **Single public entry point** per class (`.call`/`.run`/`.execute`)
-- **DRY**: 2nd occurrence → extract immediately
+- **One thing per function.** If you cannot name it without a conjunction ("X and Y"), split.
+- **Cyclomatic complexity ≤ 5.** Nesting ≤ 2 — guard clauses or extraction, not deeper if/else.
+- **DRY on 2nd occurrence.** Extract immediately when logic recurs.
+- **Single public entry point** per class (`.call`/`.run`/`.execute`).
 
-Full standards (naming, SOLID, error handling, dependency resolution, security baseline, testing pyramid): `rules/_detail/engineering-invariants.md`.
+Soft warnings (advisory, surface in review but don't block): function bodies > 30 lines, files > 150 lines. The shape hook enforces a generous safety-net cap (`CLAUDE_FILE_LINE_LIMIT`, default 300) for clearly runaway output. Per-glob overrides via `.claude/shape-overrides.json` still apply.
+
+Full standards (naming, SOLID, error handling, dependency resolution, security baseline, test mix): `rules/_detail/engineering-invariants.md`.
 
 ## Worktree + Commit Protocol
 
@@ -38,7 +39,7 @@ Full protocol: `rules/_detail/agent-protocol.md`.
 
 ## Pipeline Phase Order
 
-`Plan → Plan Validation → Build → Review → Final Gate (Verify + Test + Accept + Patch Critique) → Ship → Deploy → Reflect`. No phase skipped. Every phase has a corresponding skill. Reflect always runs (§ Iron Law 7). Detail: `rules/_detail/pipeline-protocol.md`.
+`Plan → Plan Validation → Build (incl. code-review as final step) → Security Review → Final Gate (Verify + Test + Accept + Patch Critique) → Ship → Deploy → Reflect`. No phase skipped. Every phase has a corresponding skill. Code-review is no longer its own phase — it runs as the final step of Build (the value-add is "second model with different priors", not a separate phase boundary). Security review remains a separate phase (orthogonal concern). Reflect always runs (§ Iron Law 7). Detail: `rules/_detail/pipeline-protocol.md`.
 
 ## Where to Look Next
 

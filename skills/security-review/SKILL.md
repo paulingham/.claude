@@ -1,6 +1,6 @@
 ---
 name: "security-review"
-description: "Use when user wants to Review phase skill: spawn security-engineer agent for OWASP Top 10 audit, dependency scanning, secrets detection, and auth/authz review. Runs in parallel with code-review."
+description: "Use when user wants to Security Review phase skill: spawn security-engineer agent for OWASP Top 10 audit, dependency scanning, secrets detection, and auth/authz review. Runs after Build (which now includes code-review as its final step) and gates Final Gate."
 context: fork
 agent: security-engineer
 ---
@@ -34,9 +34,9 @@ Automates the Review phase security audit. Spawns a read-only security-engineer 
 
 ## When to Invoke
 
-- After Build phase completes
-- Run IN PARALLEL with `/code-review` — spawn both in a single message
-- Both must APPROVE before advancing to Verify phase
+- After Build phase emits `BUILD_COMPLETE` (which now includes code-reviewer APPROVE as a step inside Build).
+- Runs as its own phase — code-review is no longer parallel with security-review because code-review is now part of Build. Security review's gate is independent.
+- APPROVE required before advancing to Final Gate (verify + test + accept + patch-critique).
 
 ## Process
 

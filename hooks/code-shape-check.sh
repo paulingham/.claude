@@ -15,7 +15,10 @@ source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/loop-guard.sh" && check_loop_g
 
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
-LINE_LIMIT="${CLAUDE_FILE_LINE_LIMIT:-50}"
+# Safety-net cap — catches genuinely runaway files. Cohesion is the design
+# rule (see rules/core.md § Code Shape Rules); this hook only blocks clearly
+# broken output, not normal cohesive functions/files.
+LINE_LIMIT="${CLAUDE_FILE_LINE_LIMIT:-300}"
 
 # Only check if we have a file path
 if [[ -z "$FILE_PATH" ]]; then
