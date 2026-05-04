@@ -93,6 +93,28 @@ Analyze across all three data sources:
 | **Model efficiency** | Phase outcomes identical across model tiers | Pipeline analytics | "Sonnet handles DB migration reviews as well as Opus" |
 | **Test gaps** | Bug fixes correlate with specific file patterns | Pipeline analytics + observations | "Files matching **/hooks/*.ts have 3x the bug rate" |
 
+#### 3d. Anti-Pattern Mining (rework signals)
+
+Mine "what NOT to do" instincts from rework signals. Per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule, fix-engineer is dispatched on every CHANGES_REQUESTED, so `phases.review.rounds >= 2` is a perfect proxy for "fix-engineer ran on this pipeline" — that gate is the iron law for anti-pattern emission. False positives are worse than misses; legacy observations missing the rounds field are SKIPPED, never coerced to 0.
+
+The mining algorithm clusters flat-string `scratchpad_findings` by `sha1(category + ":" + summary_normalised)[:8]` and emits one anti-pattern instinct file per cluster recurring across at least three distinct pipelines. Domain is derived from the parsed category prefix via the lookup `{"warning":"workflow", "fragility":"architecture", "discovery":"workflow", "decision":"architecture", "pattern":"workflow"}` (default `"workflow"`). Confidence formula: `min(0.85, 0.5 + 0.05 * (N - 3))` where `N` is the distinct pipeline count.
+
+```bash
+python3 - "$HOME/.claude/learning/$PROJECT_HASH/observations.jsonl" \
+         "$HOME/.claude/learning/$PROJECT_HASH/instincts" <<'PY'
+import os, sys
+sys.path.insert(0, f"{os.environ['HOME']}/.claude/hooks/_lib")
+from learn_anti_pattern_mining import mine_anti_patterns
+from pathlib import Path
+written = mine_anti_patterns(observations_path=Path(sys.argv[1]),
+                             instincts_dir=Path(sys.argv[2]))
+for p in written:
+    print(f"[anti-pattern] emitted {p.name}")
+PY
+```
+
+Emitted files carry `category: anti-pattern` in the YAML frontmatter; the renderer prefixes their bullets with `AVOID: ` when injected into agent prompts. The `+0.1` floor boost (see `rules/_detail/autonomous-intelligence.md` § Instinct Injection) ensures anti-pattern signals do not crowd out positive guidance — weak positives evaporate when an anti-pattern fires, while the anti-patterns themselves are immune to the boost they trigger (they ship at confidence >= 0.5 by construction).
+
 ### 4. Classify Review Findings (Backward Feedback)
 
 For each review finding from the current pipeline, classify:
