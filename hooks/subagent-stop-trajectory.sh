@@ -3,7 +3,7 @@
 # Appends a structured record to the active pipeline trajectory file when an agent stops.
 # Auto-detects the active pipeline from pipeline-state files, or uses CLAUDE_PIPELINE_TASK_ID if set.
 
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SubagentStop"
 trap 'log_hook_event $?' EXIT

@@ -12,7 +12,7 @@
 #
 # Never blocks the tool call — exits 0 on every failure path.
 
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Agent"
 trap 'log_hook_event $?' EXIT

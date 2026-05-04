@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Worktree-cwd-check — SubagentStop diagnostic. Never blocks (always exit 0).
 # Pairs prevented→post-confirmed via per-task cursor; drift-detected if HEAD!=main.
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SubagentStop"
 trap 'log_hook_event $?' EXIT
 
 set -uo pipefail
-source ~/.claude/hooks/hook-profile.sh && check_hook_profile "minimal" || exit 0
-source ~/.claude/hooks/_lib/main-branch-detect.sh
-source ~/.claude/hooks/_lib/worktree-cwd-pairing.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "minimal" || exit 0
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/main-branch-detect.sh"
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/worktree-cwd-pairing.sh"
 
 _wcc_resolve_task_id() {
   local id="${CLAUDE_PIPELINE_TASK_ID:-}" f

@@ -3,12 +3,12 @@
 # Exit 0 = proceed, stdout added to Claude's context
 
 # Hook profile
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SubagentStop"
 trap 'log_hook_event $?' EXIT
 
-source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)
 AGENT_TYPE=$(echo "$INPUT" | jq -r '.subagent_type // .agent_type // "unknown"' 2>/dev/null)

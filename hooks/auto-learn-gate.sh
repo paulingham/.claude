@@ -3,13 +3,13 @@
 # to invoke /learn when thresholds are met. Never invokes /learn directly.
 # Test override: CLAUDE_LEARN_TEST_HASH sets the learning/<hash> dir explicitly.
 
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "Stop"
 trap 'log_hook_event $?' EXIT    # set BEFORE any early exits so they get logged
 
 [[ "${CLAUDE_DISABLE_AUTO_LEARN:-0}" == "1" ]] && exit 0
-source ~/.claude/hooks/hook-profile.sh && check_hook_profile "standard" || exit 0
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 LIB="$(dirname "${BASH_SOURCE[0]}")/_lib"
 # shellcheck source=_lib/project-hash.sh

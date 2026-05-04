@@ -5,7 +5,7 @@
 # Detached: hook exits <1s; worker runs in background (nohup & disown) unless
 #           CLAUDE_EVAL_CAPTURE_NOFORK=1 (test hook) runs worker synchronously.
 # Writes candidates to eval/cases/.candidates/ ONLY — never promotes.
-source ~/.claude/hooks/_lib/log.sh
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PostToolUse:${TOOL_NAME:-Bash}"
 trap 'log_hook_event $?' EXIT
