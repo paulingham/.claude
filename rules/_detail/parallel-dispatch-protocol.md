@@ -54,9 +54,9 @@ A long-lived Sonnet 4.6 `planning-agent` teammate is spawned **alongside** Build
 |----------|------|---------|
 | code-reviewer | Always | executor: sonnet, advisor: opus (intended default — currently advisory) |
 | security-engineer | Always | executor: sonnet, advisor: opus (intended default — currently advisory) |
-| fix-engineer | Spawned into team on CHANGES_REQUESTED, shut down after fix | inherits from role |
+| fix-engineer | Spawned into team on CHANGES_REQUESTED, shut down after fix | executor: opus, advisor: none (see `agents/fix-engineer.md`) |
 
-Key advantage: reviewer **remembers the codebase** on re-review -- no context reconstruction. On CHANGES_REQUESTED, spawn fix-engineer into the same team, then re-assign review task to the raising reviewer (still alive, still has context).
+Key advantage: reviewer **remembers the codebase** on re-review -- no context reconstruction. On CHANGES_REQUESTED, spawn `fix-engineer` (see `agents/fix-engineer.md`) into the same team — fix-engineer reuses the prior build's worktree (NOT a fresh one) and operates with fix-cycle-specific guidance (verify finding validity first, no scope creep, no compliance commit messages). Then re-assign the review task to the raising reviewer (still alive, still has context).
 
 **Advisor-mode cost** (PROVISIONAL pending advisor-baseline run; see `eval/baselines/{latest}-advisor-baseline.md`): Sonnet+Opus-advisor pairing is roughly ~40% cheaper per review than naive Opus-solo, with quality-equivalence (≥95% verdict-agreement) targeted but not yet measured. Hook (`pre-agent-advisor.sh`) is log-only today — see `rules/thinking-defaults.md` for the parallel Path B status.
 
@@ -71,7 +71,7 @@ Four phases run simultaneously instead of sequentially. All four are read-only a
 | product-reviewer | `/product-acceptance` | APPROVED |
 | patch-critic | `/patch-critique` | PATCH_APPROVED |
 
-`patch-critic` evaluates the candidate patch by **test results + diff** — NOT SOLID/DRY (that is the code-reviewer's job, gated upstream). Inspired by SWE-bench top scaffolds (Agentless, AutoCodeRover, MarsCode-Agent) where a critic step distinguishes high-scoring patches from regressions. Rubric: tests cover the change, diff minimal vs spec, no obvious regressions visible from diff, no incidental refactor. PATCH_REJECTED returns to fix-engineer per `rules/pipeline-protocol.md` § In-Cycle Fix Rule — never escalates to the user.
+`patch-critic` evaluates the candidate patch by **test results + diff** — NOT SOLID/DRY (that is the code-reviewer's job, gated upstream). Inspired by SWE-bench top scaffolds (Agentless, AutoCodeRover, MarsCode-Agent) where a critic step distinguishes high-scoring patches from regressions. Rubric: tests cover the change, diff minimal vs spec, no obvious regressions visible from diff, no incidental refactor. PATCH_REJECTED returns to fix-engineer per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule — never escalates to the user.
 
 All four assess the same final state independently.
 

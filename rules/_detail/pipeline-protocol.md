@@ -131,6 +131,8 @@ Both reviewers use the same threshold: CRITICAL, HIGH, or MEDIUM findings trigge
 
 This applies to findings from code-reviewer, security-engineer, product-reviewer, qa-engineer, verify phase, AND build-phase scratchpad warnings that indicate the shipped change is incomplete or leaves adjacent documented behavior broken.
 
+The orchestrator dispatches a dedicated `fix-engineer` (see `agents/fix-engineer.md`) on every CHANGES_REQUESTED, GAPS_FOUND, REJECTED, PATCH_REJECTED, or UNVERIFIED return. fix-engineer reuses the prior build's worktree (NOT a fresh one) and operates with fix-cycle-specific guidance: verify finding validity first, no scope creep, no compliance commit messages, no source-code apology comments.
+
 - **No follow-up tickets** for defects the current change exposes, leaves broken, or makes misleading. Follow-ups are ONLY for genuinely orthogonal work (different module, different contract, different user journey).
 - **No "ship as-is + file ticket"** compromises. The pipeline does not ship known-incomplete fixes.
 - **No questions to the user** asking whether to expand scope. The pipeline decides autonomously: dispatch fix-engineer, roll the fix into the current branch family, re-run targeted review, then ship.
