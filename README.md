@@ -505,6 +505,35 @@ bash "$HOME/.claude/scripts/install-tools.sh" --yes
 bash "$HOME/.claude/tests/shell/run.sh" --require-bats  # verifies install
 ```
 
+## Web sandbox bootstrap
+
+Claude Code on the web mounts the harness at `/home/user/.claude` but runs the session as `HOME=/root`, so `~/.claude` resolves to a near-empty runtime config dir and the harness silently degrades (1 hook, 1 skill registered instead of the full chain). `scripts/web-session-bootstrap.sh` makes a sandbox session use the source tree:
+
+```bash
+bash /home/user/.claude/scripts/web-session-bootstrap.sh
+```
+
+Place this in whatever pre-session env mechanism the sandbox provides (a SessionStart hook, container entrypoint, or shell init file). The session must restart afterwards — `CLAUDE_CONFIG_DIR` is read at session start, mid-session changes don't take effect.
+
+What it does:
+
+1. Exports `CLAUDE_CONFIG_DIR=/home/user/.claude` (the official Claude Code env var for relocating config).
+2. Exports `CLAUDE_INSTINCTS_DIR`, `CLAUDE_AGENTS_DIR`, `CLAUDE_PIPELINE_STATE_DIR` so seed instincts, agent frontmatter, and in-progress pipeline state read from the source tree.
+3. Symlinks shipped directories (`hooks/`, `skills/`, `rules/`, `agents/`, etc.) from the source tree into `$HOME/.claude/` as a belt-and-braces fallback for any code path that still hardcodes `$HOME/.claude/...`. Pure-runtime dirs (`metrics/`, `db/`, `sessions/`, `state/`, etc.) stay in `$HOME/.claude` where Claude Code's runtime puts them.
+4. Verifies the layout (skills/hooks/agents counts) and fails fast if anything is missing.
+
+Idempotent — safe to re-run. Refuses to clobber non-symlink files in `$HOME/.claude` (warns and skips).
+
+Source-tree path is configurable via `CLAUDE_SRC=...`:
+
+```bash
+CLAUDE_SRC=/srv/claude-harness bash scripts/web-session-bootstrap.sh
+```
+
+After the bootstrap runs and the session restarts, verify in Claude Code: `/intake "test"` should resolve (was "Unknown skill" before), and any Edit on a 51-line `.py` file should fire `code-shape-check.sh`.
+
+The portable-config-dir convention this bootstrap depends on is documented in `rules/_detail/agent-protocol.md` § Portable Config Dir.
+
 ## Internal Evaluation
 
 The internal-eval harness runs a fixed suite of real Claude Code cases against the current harness, captures pass/fail + tier per case, compares to a stored baseline, and surfaces regressions before they ship. It is how the 80% adoption claim is produced and re-validated.
