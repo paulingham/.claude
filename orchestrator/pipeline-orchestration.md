@@ -276,10 +276,11 @@ At pre-flight Step 1b:
 1. Resolve the project hash; read `.learn-state.json`.
 2. Compute the predicate via `learn_status.is_in_flight(state)`.
 3. If `"in-flight"`:
-   - **Defer**: do NOT invoke `/learn` for the previous pipeline at this pre-flight. Record `learn_deferred_to_next: true` in this pipeline's state file (`pipeline-state/{task-id}/pipeline.md` frontmatter) so the deferral is auditable.
+   - **Defer**: do NOT invoke `/learn` for the previous pipeline at this pre-flight. The deferral is implicit in the predicate — `.learn-state.json` carries the only signal the queue needs, so no extra pipeline-state frontmatter field is written.
    - The next pre-flight (the pipeline AFTER this one) reads the same predicate; once `last_learn_run >= last_learn_started`, the deferred `/learn` runs at that pre-flight as a background spawn.
-4. If `"idle"`:
-   - Inspect `last_fired_pipeline_id` against the prior pipeline's `task_id`. If the prior pipeline's Reflect § 6b banner fired but `last_learn_started` was not advanced (the spawn never started, e.g. agent crashed), invoke `/learn` now as a background spawn — same shape as Reflect § 6b. Otherwise no action.
+4. If `"idle"`, decide by `last_fired_pipeline_id`:
+   - **(a) Prior pipeline's banner fired but `/learn` never started** (`last_fired_pipeline_id == prior_task_id` AND `last_learn_started <= last_learn_run`, i.e. the sentinel was never advanced): the prior spawn either never launched or crashed before Step 1b. Invoke `/learn` now as a background spawn — same shape as Reflect § 6b.
+   - **(b) Otherwise** (no recent banner, or the prior `/learn` completed cleanly): no action at this pre-flight.
 
 This converts Reflect § 6b ("invoke /learn next turn") and pre-flight into a queue: at most one `/learn` runs per project at a time, and overlapping firings are absorbed by deferral. The trade-off is at most one pipeline of latency before instincts are refreshed — acceptable because instincts are advisory, not gate-bearing.
 

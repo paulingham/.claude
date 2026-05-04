@@ -13,8 +13,10 @@ Asserts the lifecycle of the new ``last_learn_started`` field on
 Also asserts the AC1/AC2/AC3 documentation contracts via structural
 grep — markdown is the deliverable for those ACs.
 """
+import contextlib
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -148,9 +150,6 @@ class DocsRecordSkillStartedWriter(unittest.TestCase):
 
 
 # --- helpers ---------------------------------------------------------------
-
-import contextlib  # noqa: E402  (helper section follows class definitions)
-import tempfile  # noqa: E402
 
 
 @contextlib.contextmanager

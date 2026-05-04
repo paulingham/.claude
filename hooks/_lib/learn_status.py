@@ -79,7 +79,18 @@ def _read(state_path: str | Path) -> dict:
 
 
 def _merge_write(state_path: str | Path, patch: Mapping[str, object]) -> None:
-    """Atomic read-merge-write so concurrent writers cannot truncate fields."""
+    """Read-merge-write via os.replace so a single write is atomic at the
+    filesystem layer.
+
+    Scope of the guarantee: this helper is atomic against ITSELF (two
+    Python callers cannot interleave to produce a half-written file).
+    It does NOT lock against ``hooks/auto-learn-gate.sh``, which is an
+    independent bash writer holding its own ``flock``-based lock
+    (``hooks/_lib/learning-flock.sh``). Coordination across the
+    Python/bash boundary relies on the bash writer reading and
+    preserving every field this helper may have written — see the
+    ``LAST_STARTED`` read/write pair in ``hooks/auto-learn-gate.sh``.
+    """
     path = Path(state_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     merged = {**_read(path), **patch}
