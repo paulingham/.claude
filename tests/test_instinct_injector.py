@@ -220,5 +220,43 @@ class AntiPatternFloorBoost(unittest.TestCase):
         self.assertIn("AVOID: trigger", out)
 
 
+class AntiPatternFloorBoostMultipleAntiPatterns(unittest.TestCase):
+    """Risk-Register regression: when N>1 anti-patterns survive the
+    base filters, every anti-pattern must remain in the survivor set
+    (the boost-preserve clause must not drop any of them) AND the
+    +0.1 boost must still be applied exactly once to non-anti-pattern
+    confidence.
+    """
+
+    def test_two_anti_patterns_both_survive_and_weak_positive_drops(self):
+        # Two anti-patterns at 0.50 and 0.55 — both BELOW the boosted
+        # floor of 0.5 (base 0.4 + 0.1). They must both survive via
+        # the self-immunity clause. The weak positive at 0.45 must
+        # drop.
+        ap1 = _ap("ap1", 0.50, "first-danger")
+        ap2 = _ap("ap2", 0.55, "second-danger")
+        weak = _instinct(iid="weak", confidence=0.45,
+                         pattern_summary="weak-positive")
+        out = resolve_for_agent("any", ["software-engineer"],
+                                [ap1, ap2, weak], min_confidence=0.4)
+        self.assertIn("AVOID: first-danger", out)
+        self.assertIn("AVOID: second-danger", out)
+        self.assertNotIn("weak-positive", out)
+
+    def test_three_anti_patterns_all_survive_under_boosted_floor(self):
+        # Three anti-patterns all under the boosted floor — confirms
+        # the self-immunity clause is `or`, not exclusive of multiples.
+        ap1 = _ap("ap1", 0.51, "alpha-avoid")
+        ap2 = _ap("ap2", 0.52, "beta-avoid")
+        ap3 = _ap("ap3", 0.53, "gamma-avoid")
+        out = resolve_for_agent("any", ["software-engineer"],
+                                [ap1, ap2, ap3], min_confidence=0.5)
+        # Boosted floor would be 0.6; all three at 0.51-0.53 survive
+        # only because anti-patterns are immune to their own boost.
+        self.assertIn("AVOID: alpha-avoid", out)
+        self.assertIn("AVOID: beta-avoid", out)
+        self.assertIn("AVOID: gamma-avoid", out)
+
+
 if __name__ == "__main__":
     unittest.main()

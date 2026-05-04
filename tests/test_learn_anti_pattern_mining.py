@@ -254,5 +254,60 @@ class EmittedFileLoadsThroughProductionLoaderPipeline(unittest.TestCase):
             self.assertIn("AVOID:", out)
 
 
+class MiningSilentlySkipsMalformedFindings(unittest.TestCase):
+    """Risk-Register regression: a flat scratchpad finding lacking the
+    `": "` separator is malformed (e.g. `"warning"` with no body, or
+    `"some narration text"` written by a build agent that ignored the
+    scratchpad format). `_parse_finding` returns None and the cluster
+    is skipped. The mining loop MUST NOT crash, MUST NOT emit a
+    cluster keyed off the malformed string, and MUST still emit the
+    cluster for any well-formed sibling findings present in the same
+    observation.
+    """
+
+    def test_malformed_finding_skipped_loop_continues_well_formed_emits(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            # Each pipeline carries TWO findings: one malformed (no
+            # ": " separator), one well-formed. The malformed one MUST
+            # be silently skipped; the well-formed one MUST still
+            # trigger emission on the third pipeline.
+            findings = ["malformed-no-separator-ever",
+                        "warning: real signal here"]
+            obs = _write_observations(tmp_path, [
+                _make_pipeline_obs(f"pipe-{n}", rounds=2,
+                                   scratchpad_findings=findings)
+                for n in (1, 2, 3)
+            ])
+            # The mining call MUST NOT raise on the malformed entry.
+            files = mine_anti_patterns(observations_path=obs,
+                                       instincts_dir=tmp_path / "instincts")
+            # Exactly one cluster — from the well-formed finding.
+            # (Malformed findings are silently skipped, NOT clustered
+            # under a synthetic key.)
+            self.assertEqual(len(files), 1)
+            text = files[0].read_text()
+            self.assertIn("real signal here", text)
+            # And the malformed string did NOT leak into the file.
+            self.assertNotIn("malformed-no-separator-ever", text)
+
+    def test_only_malformed_findings_produces_zero_files(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            # 3 pipelines whose ONLY findings are malformed strings.
+            obs = _write_observations(tmp_path, [
+                _make_pipeline_obs(f"pipe-{n}", rounds=2,
+                                   scratchpad_findings=["just-narration",
+                                                        "no colon present"])
+                for n in (1, 2, 3)
+            ])
+            files = mine_anti_patterns(observations_path=obs,
+                                       instincts_dir=tmp_path / "instincts")
+            # Zero — no cluster has a real category key.
+            self.assertEqual(files, [])
+
+
 if __name__ == "__main__":
     unittest.main()
