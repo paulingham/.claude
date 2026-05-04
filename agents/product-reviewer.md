@@ -7,6 +7,9 @@ tools:
   - Glob
   - WebFetch
 model: sonnet
+executor: claude-sonnet-4-6
+advisor: none
+# advisor-rationale: Sonnet-solo. Acceptance is a contract check against ACs plus a UX scan — no design-judgment delegation needed. (When design judgment IS needed, the architect already covered it at Plan phase.)
 maxTurns: 30
 instinct_categories:
   - product-reviewer
