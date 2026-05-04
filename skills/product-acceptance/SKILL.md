@@ -27,35 +27,48 @@ Automates the Accept phase. Spawns a read-only product-reviewer to validate the 
 
 Collect acceptance criteria, test results, verification report, and any design specs.
 
-### 2. Spawn Product Reviewer
+### 2. Spawn Product Reviewer (per-AC verdicts)
 
 ```
 Agent({
   subagent_type: "product-reviewer",
-  prompt: "Product acceptance review for this feature:
-    Acceptance Criteria: [list ACs]
+  prompt: "Product acceptance review for this feature.
+    Acceptance Criteria: [list ACs, numbered AC1, AC2, ...]
     Test Results: [summary]
     Verification Report: [VERIFIED/UNVERIFIED]
 
-    Validate:
-    1. Each AC is demonstrably met (trace to passing test or evidence)
-    2. UX quality: is the user experience acceptable? Any rough edges?
-    3. Business value: does this deliver what was promised?
-    4. Edge cases: are error states handled gracefully?
-    5. Accessibility: WCAG 2.1 AA compliance where applicable
-    6. E2E status: review Tier 4 from the verification report
+    Validate EACH AC INDEPENDENTLY. For every AC produce one of:
+      - APPROVED        (AC fully met, evidence cited)
+      - REJECTED        (AC not met or behavior is wrong)
+    For each rejected AC, state which condition failed and what evidence is missing.
+
+    Then assess cross-AC concerns:
+    - UX quality: is the user experience acceptable? Any rough edges?
+    - Business value: does this deliver what was promised?
+    - Edge cases: are error states handled gracefully?
+    - Accessibility: WCAG 2.1 AA compliance where applicable
+    - E2E status: review Tier 4 from the verification report
        - If VERIFIED_WITH_SKIP: acknowledge the skip reason and assess risk
        - If E2E flows ran (PASS): confirm they cover the changed behavior
        - If E2E flows failed: this should have been caught in Verify -- flag if it wasn't
 
     If Design QC screenshots are available (from /design-qc):
-    7. Visual review: check screenshots against design system compliance
+    - Visual review: check screenshots against design system compliance
        - No hardcoded colors, spacing follows scale, type scale respected
        - Empty/error states have proper treatment
        - Mobile layout is usable, animations respect prefers-reduced-motion
 
-    Produce verdict: APPROVED, APPROVED WITH CONDITIONS, or REJECTED.
-    If conditions exist, list them explicitly."
+    Output format:
+    ## Per-AC Verdicts
+    | AC | Verdict | Evidence / Failure |
+    |----|---------|---------------------|
+    | AC1 | APPROVED | tests/test_X.py::test_Y passes |
+    | AC2 | REJECTED | Error path returns 500 instead of structured 400 |
+
+    ## Story-Level Verdict (derived)
+    - APPROVED            — all per-AC verdicts are APPROVED
+    - APPROVED_WITH_CONDITIONS — UX/cross-cutting concerns exist but every AC is APPROVED; conditions listed
+    - REJECTED            — at least one per-AC verdict is REJECTED"
 })
 ```
 

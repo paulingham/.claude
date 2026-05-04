@@ -98,15 +98,15 @@ timestamp: {ISO 8601}
 Before advancing to any phase, verify the previous gate passed AND invoke the required skill.
 
 - **Plan**: Design validation is a HARD GATE (ALL pipelines). No implementation begins without:
-  1. Architect produces plan with `## Alternatives Considered` (minimum 2 genuine approaches)
-  2. Interactive mode: user approves the plan
+  1. Architect produces plan with one chosen approach + a one-line "rejected: X because Y" note for any obvious alternative they considered. **Full `## Alternatives Considered` table is required ONLY for**: (a) interactive mode, (b) `critical == true`, (c) `Budget >= 7`. In autonomous low-budget runs, the architect evaluates alternatives internally and writes only the chosen approach plus the brief rejection note. The visible alternatives table existed primarily for human consensus-building; AI architects can reason through alternatives without rendering them in the plan file every time.
+  2. Interactive mode: user approves the plan.
   3. Autonomous mode dispatch (chosen by criticality + budget):
-     - **Heavy** (`critical == true OR Budget >= 7`): spawn product-reviewer + software-engineer challengers as a team — both must APPROVE the plan. Maximum 2 rounds of revision before escalation.
-     - **Light** (everything else): invoke `/plan-self-validation` — architect re-reads its own plan against a structured holes-finding rubric. One-shot, no team. Verdict: `PLAN_APPROVED` continues; `PLAN_HOLES` returns to architect with the hole list (max 1 revision; if still holes, escalate to heavy challengers).
+     - **Heavy** (`critical == true OR Budget >= 7`): full alternatives table required (per step 1). Spawn product-reviewer + software-engineer challengers — both must APPROVE the plan. Maximum 2 rounds of revision before escalation.
+     - **Light** (everything else): invoke `/plan-self-validation` — architect re-reads its own plan against a structured holes-finding rubric. One-shot, no team. The rubric explicitly asks "did the architect miss an obvious alternative for this pattern?" so plan quality is checked even when the alternatives table is absent. Verdict: `PLAN_APPROVED` continues; `PLAN_HOLES` returns to architect with the hole list (max 1 revision; if still holes, escalate to heavy challengers).
   4. Gate tracked in pipeline state as `Plan Validation` phase. Pipeline state records the dispatch mode (`heavy` or `light`) for forensic visibility.
   Use `/epic-breakdown`, `/estimation`, `/story-writing`, `/tech-spike` as needed
-- **Build**: `/build-implementation` or `/refactor` or `/bug-fix` -- TDD, shape self-check
-- **Review**: `/code-review` + `/security-review` as team (tmux visible) -- both must APPROVE
+- **Build**: `/build-implementation` or `/refactor` or `/bug-fix` — ATDD, shape self-check, **then `/code-review` as the final step inside Build**. Code-review is no longer a separate phase boundary — it runs inside Build because the value-add is "different model run with different priors", not "different phase". CHANGES_REQUESTED dispatches fix-engineer in-line and re-runs code-review (max 2 rounds). Build's `BUILD_COMPLETE` verdict requires both ATDD audit trail AND code-reviewer APPROVE.
+- **Review (Security)**: `/security-review` — security audit with own gate (different concern from code quality, justifies own phase). Must APPROVE.
 - **Final Gate** (Verify + Test + Accept + Patch Critique as team, parallel):
   - `/verify` -- check E2E trigger matrix (`rules/e2e-protocol.md`)
   - `/qa-test-strategy` -- all ACs covered, no gaps
@@ -120,10 +120,13 @@ Direct `gh pr create` invocations via Bash bypass the `/pr-creation` skill and t
 
 ## Review Protocol
 
-### First Review
-Spawn code-reviewer + security-engineer as teammates in the pipeline team (per parallel dispatch protocol). Both work simultaneously, visible in tmux panes.
+### Code Review (inside Build phase)
+Code-review runs as the final step of `/build-implementation` — see the build-implementation skill for the inline dispatch. Build does not emit `BUILD_COMPLETE` until code-reviewer APPROVES. CHANGES_REQUESTED inside Build spawns fix-engineer, re-runs the suite, and re-dispatches code-reviewer with the original finding + fix diff (max 2 rounds, then escalate).
 
-Both reviewers use the same threshold: CRITICAL, HIGH, or MEDIUM findings trigger CHANGES_REQUESTED. LOW and INFO findings are included in the review output for the PR narrative but do not gate advancement.
+### Security Review (separate phase)
+After Build emits `BUILD_COMPLETE`, dispatch `/security-review` as its own phase. Security review uses a separate gate from code review because the concern is orthogonal — a security finding is not "another category of code quality issue".
+
+Both reviewers use the same severity threshold: CRITICAL, HIGH, or MEDIUM findings trigger CHANGES_REQUESTED. LOW and INFO findings are included in the review output for the PR narrative but do not gate advancement.
 
 ### In-Cycle Fix Rule (IRON LAW)
 

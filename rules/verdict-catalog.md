@@ -35,8 +35,10 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `TOOL_UNNECESSARY` | info | `tool-synthesis` | build | Build agent proceeds with standard tools |
 | `PLAN_REFINED` | info | `continuous-planning` | build | Build agents re-read plan; never gates Build completion |
 | `PLAN_UNCHANGED` | info | `continuous-planning` | build | No effect; Build proceeds |
-| `APPROVE` | success | `code-review`, `security-review` | review | Final Gate (verify + test + accept + patch-critique) |
-| `CHANGES_REQUESTED` | failure | `code-review`, `security-review` | review | Spawn fix-engineer; raising reviewer re-reviews; max 2 rounds |
+| `APPROVE` | success | `code-review` | build (final step) | Build emits BUILD_COMPLETE; advance to Security Review |
+| `APPROVE` | success | `security-review` | security-review | Final Gate (verify + test + accept + patch-critique) |
+| `CHANGES_REQUESTED` | failure | `code-review` | build (final step) | Spawn fix-engineer in-line; re-dispatch code-reviewer; max 2 rounds inside Build |
+| `CHANGES_REQUESTED` | failure | `security-review` | security-review | Spawn fix-engineer; security-engineer re-reviews; max 2 rounds |
 | `ORCHESTRATOR_APPLY_REQUIRED` | failure | `fix-engineer` | review | Fix-engineer hit the harness Edit-denial path (≥2 denials, no PreToolUse hook fired) and returned a structured `{file_path, old_string, new_string}` payload. Orchestrator applies each pair via its `.md`-allowed Edit pathway, then re-dispatches the raising reviewer (counts as 1 round). Fix-engineer is NOT spawned again on the same finding after this verdict |
 | `VERIFIED` | success | `verify` | final-gate | Pipeline advances to Test phase |
 | `VERIFIED_WITH_SKIP` | info | `verify` | final-gate | Tier skipped with documented reason; advances |

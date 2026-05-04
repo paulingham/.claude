@@ -2,14 +2,25 @@
 
 Detailed orchestrator procedures: see `~/.claude/orchestrator/parallel-dispatch-details.md`
 
-## Hybrid Dispatch Model
+## Dispatch Model (parallel subagents by default; teams opt-in)
 
-The pipeline uses two dispatch mechanisms:
+The pipeline uses **parallel subagent calls in a single message** as the default for every parallelizable phase. Tmux-visible teams (TeamCreate) are an opt-in mode for human-observable runs only — they are not required for correctness.
 
-| Mechanism | When | Visibility | Cost |
-|-----------|------|-----------|------|
-| **Subagent** (Agent tool) | Plan, Ship, Deploy, single-slice Build | None (background) | Low (ephemeral) |
-| **Team** (TeamCreate) | Plan Validation (autonomous), Multi-slice Build, Review, Final Gate | Tmux split panes | Higher (persistent sessions) |
+| Mechanism | When | Visibility | Activation |
+|-----------|------|-----------|------------|
+| **Subagent** (Agent tool) | All phases by default — parallel calls in a single message for parallelizable phases (Build multi-slice, Review, Final Gate, Plan Validation heavy) | None (background) | Always available |
+| **Team** (TeamCreate) | Same phases when human visibility is desired | Tmux split panes | Opt-in via `CLAUDE_VISIBLE_TEAMS=1` env var, `/pipeline --visible` flag, or interactive mode where the user requested it |
+
+The dispatch matrix below describes *which roles run in parallel*; the *mechanism* is parallel subagents unless the visible-teams flag is set. Persistent reviewer context across re-review rounds (the historical reason teams were the default) is preserved by re-dispatching the same `subagent_type` with the original finding + fix diff in the prompt — context is in the spawn prompt, not in a long-lived process.
+
+### When teams ARE worth it (visible mode only)
+
+Tmux-visible teams remain the right choice when ANY of these is true:
+- A human user is actively watching the run and wants to inspect mid-flight
+- The pipeline is in interactive mode AND the user requested visibility
+- Long-running multi-slice Build where a human wants to drop into a pane
+
+In every other case (including all autonomous runs), parallel subagent calls are equivalent in correctness and cheaper in tokens because no idle teammates burn context between assignments.
 
 > **Main-branch invariant.** All teammates and subagents commit to feature branches via worktrees, never to `main` in REPO_ROOT. Every HEAD-mutating git command MUST be expressed as `git -C "$WORKTREE" ...` or `(cd "$WORKTREE" && ...)`. Bare forms like `git checkout foo` and `gh pr create` are blocked by the `main-branch-guard.sh` PreToolUse hook regardless of caller cwd. REPO_ROOT HEAD must read `main` at every observation point. See `rules/agent-protocol.md > ## Main-Branch Invariant` for the canonical forbidden/allowed surface and the enforcement hooks.
 
@@ -178,11 +189,12 @@ Emit `[CHECKPOINT] <marker>` lines on stdout at key milestones so the orchestrat
 - **NOT a reason to keep teammates alive across phases.** Shut down after phase completes.
 - **NOT a shortcut.** Spawning teammates without skill file references is an anti-pattern.
 
-## Why Hybrid
+## Why Subagents-by-Default
 
-- **Teams** where parallelism or visibility adds value: Build (multi-slice), Review (parallel + re-review memory), Final Gate (3 phases at once)
-- **Subagents** where fire-and-return is sufficient: Plan (quick), Ship (simple), Deploy (sequential)
-- **Cost-conscious**: Idle teammates burn tokens. Only team up where it pays off.
+- **Subagents** are sufficient for correctness in every parallelizable phase. Parallel calls in a single message produce the same fan-out as a team without persistent processes.
+- **Teams** add only one thing: human-observable parallelism via tmux panes. Useful when a person is watching, irrelevant when no one is.
+- **Cost-conscious**: idle teammates burn context tokens between assignments. Default-off team mode reclaims that cost on every autonomous run.
+- **Re-review memory** (the original reason teams were default) is reconstructed by re-dispatching the same `subagent_type` with the original finding plus the fix diff in the prompt. Context lives in the spawn prompt, not in a long-lived process — this works for both subagents and teammates.
 
 ## Batch Execution
 

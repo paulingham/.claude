@@ -16,13 +16,15 @@ Score each dimension 1-3:
 
 ### Thresholds
 
-| Budget | Action | Fibonacci |
-|--------|--------|-----------|
-| 5-6 | Single task, execute directly | 1-2 pts |
-| 7-8 | Compound task, plan first | 3-5 pts |
-| 9-10 | Compound task, plan first | 8 pts |
-| 11-12 | Multi-session, break into sub-tasks | 13 pts |
-| 13-15 | Must decompose before starting | 21+ pts (must split) |
+| Budget | Action |
+|--------|--------|
+| 5-6 | Single task, execute directly |
+| 7-8 | Compound task, plan first |
+| 9-10 | Compound task, plan first |
+| 11-12 | Multi-session, break into sub-tasks |
+| 13-15 | Must decompose before starting |
+
+The Fibonacci/story-points mapping was removed in May 2026. The budget number IS the routing signal — no second translation is needed for AI work, and the harness consumes the raw budget directly (`bestofn`, `critical`, decompose-or-execute thresholds).
 
 ## Error Recovery Principles
 
@@ -52,4 +54,4 @@ Scoring a "biometric settings screen" feature:
 - **Context Pressure**: Cross-module (components + hooks + routing) → 2
 - **Novelty**: No settings screen exists yet, but patterns available → 2
 - **Coordination**: UI + storage + navigation → 2
-- **Total**: 9 → Compound task, plan first → 8 Fibonacci points
+- **Total**: 9 → Compound task, plan first

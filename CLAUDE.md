@@ -80,47 +80,50 @@ Every agent's `instinct_categories:` frontmatter (YAML list of role-name tokens)
 
 **Model-efficiency recommendations (advisory)**: `/eval-model-effectiveness` produces a recommendation report at `~/.claude/learning/{project-hash}/model-recommendations.md` by analysing observations + cost records per `(agent_role, task-classification)`. It is **advisory only** — it never modifies agent configs and never routes models at runtime. A human operator reviews the report and decides whether to edit an agent's `model:` frontmatter. `architect` and `security-engineer` are hard-locked out of recommendations.
 
-### Agent Teams (Hybrid Model)
+### Dispatch (parallel subagents by default; teams opt-in)
 
-One team per pipeline (`TeamCreate("pipeline-{task-id}")`). Teammates spawned just-in-time, shut down after phase.
+Parallelizable phases dispatch as **parallel subagent calls in a single message** — equivalent fan-out, no idle teammates burning context. Teams (`TeamCreate`) are opt-in via `CLAUDE_VISIBLE_TEAMS=1` or `/pipeline --visible` for human-observable runs.
 
-| Phase | Dispatch | Visible in tmux? |
-|-------|----------|-------------------|
-| Plan | Subagent | No |
-| Build (single) | Subagent + worktree | No |
-| Build (multi) | **Team** | Yes -- parallel engineers |
-| Review | **Team** | Yes -- reviewers with persistent context |
-| Final Gate | **Team** | Yes -- verify + test + accept + patch-critique in parallel |
-| Ship / Deploy | Subagent | No |
+| Phase | Default Dispatch | Visible-mode (opt-in) |
+|-------|------------------|------------------------|
+| Plan | Subagent | Subagent |
+| Build (single) | Subagent + worktree | Subagent + worktree |
+| Build (multi) | Parallel subagents (1 message, N calls) | Team in tmux panes |
+| Review | Parallel subagents (1 message, 2 calls) | Team in tmux panes |
+| Final Gate | Parallel subagents (1 message, 4 calls) | Team in tmux panes |
+| Ship / Deploy | Subagent | Subagent |
 
-**Role selection**: Pick teammates from the Agent Team table above. Every teammate's spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format."
+**Role selection**: Pick agents from the Agent Team table above. Every spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format."
 
-**Interact**: Click tmux pane (split mode) or `Shift+Down` (in-process). See `rules/_detail/agent-protocol.md`.
+**Re-review context**: re-dispatching the same `subagent_type` with the original finding + fix diff in the prompt preserves context. No long-lived teammate process is required for context continuity.
 
 ### How the System Works
 
 The orchestrator (Claude) coordinates work. It never writes code, reads source files, or runs tests.
 
-**Flow (hybrid dispatch):**
+**Flow (parallel-subagents default):**
 ```
 User → /intake (classify + score) → /pipeline (drive phases)
-  → TeamCreate("pipeline-{task-id}")
-  → Subagent phases (Plan, single-slice Build, Ship, Deploy):
+  → Sequential subagent phases (Plan, single-slice Build, Ship, Deploy):
     → Skill tool or Agent tool → agent works → returns verdict
-  → Team phases (multi-slice Build, Review, Final Gate):
-    → Spawn teammates into pipeline team (visible in tmux panes)
-    → TaskCreate → assign to teammates → teammates work in parallel
-    → Teammates read skill files, work, mark complete, go idle
-    → Orchestrator collects verdicts, shuts down teammates
+  → Parallelizable phases (multi-slice Build, Review, Final Gate):
+    → Single message with N parallel Agent calls
+    → Each agent reads its skill file, works, returns verdict
+    → Orchestrator collects all verdicts before advancing
+
+  Visible mode (opt-in: CLAUDE_VISIBLE_TEAMS=1 or /pipeline --visible):
+    → TeamCreate("pipeline-{task-id}") + spawn teammates into team
+    → Tmux panes show parallel work in real time
+    → Teammates shut down after phase
 ```
 
-**Three dispatch mechanisms:**
+**Dispatch mechanisms:**
 
 | Mechanism | When | Visible? |
 |-----------|------|----------|
 | **Skill tool** | Sequential read-only phases | No |
-| **Subagent** (Agent + worktree) | Single-slice build, plan | No |
-| **Team** (TeamCreate + teammates) | Build (multi), Review, Final Gate | Yes (tmux) |
+| **Subagent** (Agent + worktree) | Default for every phase, including parallel fan-outs | No |
+| **Team** (TeamCreate + teammates) | Opt-in for human-observable runs only | Yes (tmux) |
 
 **Orchestrator boundaries:**
 
@@ -133,12 +136,11 @@ User → /intake (classify + score) → /pipeline (drive phases)
 
 ### Delivery Pipeline
 
-1. **Plan** → Architect designs slices (subagent). Gate: alternatives documented.
-2. **Plan Validation** → Interactive: user approves. Autonomous: heavy challenger **team** (product-reviewer + software-engineer) when `critical OR Budget >= 7`; otherwise lightweight `/plan-self-validation` (architect re-reads its own plan against a structured rubric). Gate: PLAN_APPROVED.
-3. **Build** → `/build-implementation` (subagent for single-slice, **team for multi-slice**). Gate: tests green, shape met.
-4. **Review** → `/code-review` + `/security-review` (**team** -- tmux visible, persistent context). Gate: both APPROVE.
-   - Review is 1-2 rounds max. Re-review uses same reviewer (context preserved). Async when possible.
-5. **Final Gate** → **team** running verify + test + accept + patch-critique in parallel:
+1. **Plan** → Architect designs slices (subagent). Gate: chosen approach documented (full alternatives table only when critical/Budget ≥7/interactive).
+2. **Plan Validation** → Interactive: user approves. Autonomous: heavy challengers (product-reviewer + software-engineer in parallel) when `critical OR Budget >= 7`; otherwise lightweight `/plan-self-validation` (architect re-reads its own plan against a structured rubric). Gate: PLAN_APPROVED.
+3. **Build** → `/build-implementation` (subagent for single-slice, parallel subagents for multi-slice). Gate: tests green, cohesion met, AND `/code-review` APPROVE (code-review runs as the final step of Build, no longer a separate phase).
+4. **Security Review** → `/security-review` (parallel subagent). Gate: APPROVE. Security is a separate phase from code-review — orthogonal concern.
+5. **Final Gate** → parallel subagents running verify + test + accept + patch-critique:
    - `/verify` (contract + smoke + mutation). Gate: VERIFIED.
    - `/qa-test-strategy`. Gate: all ACs covered, no gaps.
    - `/product-acceptance`. Gate: APPROVED.

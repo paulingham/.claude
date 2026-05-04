@@ -4,11 +4,22 @@ Always-loaded engineering baseline: code shape, naming, error handling, dependen
 
 ## Code Shape
 
-- Methods/functions: 8 lines max (configurable per project via `CLAUDE_FUNCTION_LINE_LIMIT`), CC <= 5, nesting <= 2
-- Classes/files: 50 lines max (configurable per project via `CLAUDE_FILE_LINE_LIMIT`)
-- Project overrides: place a `shape-overrides.json` in the project's `.claude/` directory with per-glob limits (e.g., `{"*.rb": 80, "*.go": 100}`)
-- Classes: single public entry point (`.call`/`.run`/`.execute`)
-- DRY: 2nd occurrence -> extract immediately
+Code shape is judged by **cohesion**, not by line count. AI agents can hold and reason about much larger units than humans can; mechanical line caps fragmented logic across many call sites with weak names and hurt review-time comprehension.
+
+Hard rules (every code-touching agent enforces continuously):
+
+- **One thing per function.** If you can describe a function as "X *and* Y", split it. The name is the test — if you cannot name it without a conjunction, it does not have a single responsibility.
+- **Cyclomatic complexity ≤ 5.** Branching past this point obscures intent regardless of length.
+- **Nesting ≤ 2.** Use guard clauses, polymorphism, or extraction instead of nesting deeper.
+- **DRY on 2nd occurrence.** Extract immediately when logic recurs — duplication propagates bugs in any codebase.
+- **Single public entry point per class** (`.call`/`.run`/`.execute`). Internal helpers stay private.
+
+Soft warnings (advisory, surface in review but do not block):
+
+- Function bodies past **30 lines** — usually a smell, sometimes legitimate (e.g., a large switch with no extractable cohesion).
+- Files past **150 lines** — usually a smell, sometimes legitimate (e.g., a self-contained module with no fan-out).
+
+The hook layer enforces a generous cap to catch genuinely runaway files (`CLAUDE_FILE_LINE_LIMIT`, default 300) — this is a safety net for clearly-broken output, not the design rule. The design rule is cohesion. Project overrides via `.claude/shape-overrides.json` still apply.
 
 ## When to Use a Class vs Standalone Function
 
@@ -63,10 +74,19 @@ When importing a new package:
 
 > The full ATDD cycle (batched RED, mutation gate, anti-patterns, audit trail) is in `rules/atdd-procedure.md`. The standards below are universal and always apply.
 
-### Pyramid
-- **70% Unit** -- isolated, mocked deps, milliseconds
-- **20% Integration** -- real DB, service boundaries, seconds
-- **10% E2E** -- critical user workflows only; Maestro for mobile (see `rules/e2e-protocol.md`)
+### Test Mix (behavior-driven, not ratio-driven)
+
+The 70/20/10 pyramid was a human-cost heuristic — unit tests cheap to author, E2E expensive to author and maintain. AI authoring cost is roughly equal across tiers; the binding constraint is *runtime cost*, not authoring cost. Test mix is therefore determined by the shape of the behavior, not by a fixed ratio.
+
+For each behavior on the changed lines, write the assertion at the **cheapest tier that can falsify it**:
+
+- **Unit** — pure logic, isolated transformations, single-module behavior. Mocked deps. Milliseconds. Use when the behavior does not cross a module port.
+- **Integration** — anything crossing a module port, a real DB, or a service boundary. Real collaborators on critical paths; mocks only at the system edge.
+- **E2E** — full user journey, triggered by `rules/_detail/e2e-protocol.md` (URL / auth / nav / WebView / cross-domain changes). Maestro for mobile, Playwright/Cypress for web.
+
+The full proof-of-correctness tier stack (Tier 0 contracts, Tier 1 unit, Tier 1.5 property-based, Tier 2 integration, Tier 3 mutation, Tier 4 E2E) is below — the *mix* is per-behavior, but the *gates* are absolute.
+
+The mutation gate (≥70% kill rate on changed lines) is the actual oracle for "are the tests strong enough" — not a tier ratio.
 
 ### Gates
 - 80% coverage on critical paths
@@ -82,9 +102,9 @@ When importing a new package:
 Tests passing is necessary but not sufficient. For every feature, six tiers stack from in-source contracts up through full E2E:
 
 - **Tier 0 — Contracts** (in-source, run as `contract.spec.*`): schema validators, type guards, runtime invariant checks at module ports. Required for changes touching public function signatures, JSON schemas, OpenAPI paths, DB schemas, or invariants. Authored at the start of the ATDD cycle (`skills/build-implementation/SKILL.md` § Write Contract Assertions) and seen RED before any production code is written. Source: GS-TDD lift / Spec-as-Contract — A7.
-- **Tier 1 — Unit**: isolated, mocked deps, milliseconds (the 70% layer of the test pyramid).
+- **Tier 1 — Unit**: isolated, mocked deps, milliseconds.
 - **Tier 1.5 — Property-Based Tests** (Hypothesis / fast-check / PropEr / equivalent): for every public function on changed lines with typed signatures, ≥1 property covering idempotence / inverse / oracle / metamorphic relations, OR a documented justification why a property is impossible. Time-boxed at 60s per function. Frozen counterexamples promote into Tier 1 as deterministic regression tests. Procedure: `skills/qa-test-strategy/SKILL.md` § Property-Based Coverage. Source: A2.
-- **Tier 2 — Integration**: real boundaries, real DB, contract tests against LIVE collaborators (no mocks for critical paths), smoke tests that exercise the feature end-to-end (the 20% layer of the test pyramid).
+- **Tier 2 — Integration**: real boundaries, real DB, contract tests against LIVE collaborators (no mocks for critical paths), smoke tests that exercise the feature end-to-end.
 - **Tier 3 — Mutation**: targeted mutation testing on changed files (Stryker / Mutant / mutmut). HARD GATE at ≥70% kill rate per `rules/_detail/atdd-procedure.md`.
 - **Tier 4 — E2E**: full user-journey tests (Maestro for mobile, Playwright/Cypress for web) for URL / auth / nav / WebView / cross-domain changes (conditional per `rules/e2e-protocol.md` trigger matrix).
 
