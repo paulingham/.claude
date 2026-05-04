@@ -37,6 +37,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `PLAN_UNCHANGED` | info | `continuous-planning` | build | No effect; Build proceeds |
 | `APPROVE` | success | `code-review`, `security-review` | review | Final Gate (verify + test + accept + patch-critique) |
 | `CHANGES_REQUESTED` | failure | `code-review`, `security-review` | review | Spawn fix-engineer; raising reviewer re-reviews; max 2 rounds |
+| `ORCHESTRATOR_APPLY_REQUIRED` | failure | `fix-engineer` | review | Fix-engineer hit the harness Edit-denial path (≥2 denials, no PreToolUse hook fired) and returned a structured `{file_path, old_string, new_string}` payload. Orchestrator applies each pair via its `.md`-allowed Edit pathway, then re-dispatches the raising reviewer (counts as 1 round). Fix-engineer is NOT spawned again on the same finding after this verdict |
 | `VERIFIED` | success | `verify` | final-gate | Pipeline advances to Test phase |
 | `VERIFIED_WITH_SKIP` | info | `verify` | final-gate | Tier skipped with documented reason; advances |
 | `UNVERIFIED` | failure | `verify` | final-gate | Halt; back to Build to address tier failures |
@@ -122,5 +123,6 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 ## Notes
 
 - `WRONG_SKILL` and `EXTRACTION_BLOCKED` appear in two emitters each (microservices-scaffold + module-extraction; module-extraction + service-extraction). The audit step accepts a verdict shared across multiple emitters as long as every entry's emitter list resolves to a real skill.
+- `ORCHESTRATOR_APPLY_REQUIRED` is emitted by the `fix-engineer` agent (via its spawn output), not a skill — agents emit verdicts through their structured output rather than a `verdict:` frontmatter field. The catalog tracks it for forensic completeness; the verdict-consistency audit step skips reverse-direction enforcement for agent-emitted entries (`Emitter skill` does not need to resolve to a `skills/<name>/SKILL.md` when it names an agent).
 - Skills that act as pure utilities or pattern references and emit no verdict (e.g., `react-native-patterns`, `web-frontend-patterns` referenced as knowledge), or skills that are infrastructure for other systems (`capture`, `embedder`, `mcp_memory`, `recall`, `skill-builder`), are deliberately absent. The audit step's "every skill emits a verdict declared in catalog" check applies to skills WITH a `verdict:` field in their frontmatter — not to skills without one.
 - The catalog is alphabetically loose but grouped roughly by phase (intake → plan → build → review → final-gate → ship → deploy → reflect → utility) for human reading. The audit step parses the table by row, not by section.
