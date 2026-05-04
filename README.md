@@ -11,7 +11,7 @@ You describe what you want. The system:
 3. **Scaffolds** infrastructure, APIs, databases, design systems — whatever the task needs
 4. **Builds** via incremental TDD with mechanical code quality enforcement
 5. **Reviews** with parallel code + security review (OWASP Top 10, SAST)
-6. **Verifies** with contract tests, smoke tests, and mutation testing
+6. **Verifies** with contract tests, smoke tests, mutation testing, and multi-target E2E (mobile via Maestro, web E2E via Playwright/Cypress) — Tier 4 verification dispatched per `rules/_detail/e2e-protocol.md`
 7. **Tests** for coverage gaps and writes missing tests
 8. **Accepts** against UX heuristics and acceptance criteria
 9. **Ships** a PR with quality gate enforcement
@@ -37,7 +37,7 @@ You describe what you want. The system:
     multi-repo-protocol.md     #   Project manifests, multi-repo pipelines
     reflection-protocol.md     #   Post-pipeline reflection, auto-learn trigger
     autonomous-intelligence.md #   Scratchpad, session memory, continuous learning
-    e2e-protocol.md            #   Maestro E2E trigger matrix
+    e2e-protocol.md            #   Multi-target E2E trigger matrix (mobile + web)
   orchestrator/                # Orchestrator-only detailed procedures (4 files)
   agents/                      # 9 specialized agent definitions
   skills/                      # 44 skills (procedural workflows)
