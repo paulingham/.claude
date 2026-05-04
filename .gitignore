@@ -25,6 +25,7 @@
 !setup.sh
 !statusline-command.sh
 !statusline-robbyrussell.sh
+!version-pin
 !agent-memory/
 !agent-memory/**
 !memory/
