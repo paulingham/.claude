@@ -4,7 +4,7 @@ _Reference: which agents own which skills, and which skills each agent reads occ
 
 ## Layout note
 
-A strict 13-row x 59-column table is unreadable on any monitor and impossible to maintain. This file uses a hybrid layout: per-agent sections (primary view) listing each agent's primary and secondary skills, plus a skill-keyed reverse index (lookup view) showing which agent each skill spawns.
+A strict 13-row x 58-column table is unreadable on any monitor and impossible to maintain. This file uses a hybrid layout: per-agent sections (primary view) listing each agent's primary and secondary skills, plus a skill-keyed reverse index (lookup view) showing which agent each skill spawns.
 
 Cell semantics:
 
