@@ -240,6 +240,7 @@ The orchestrator does not need to count observations, check dates, or evaluate c
 ## Pre-flight Protocol (MANDATORY before any work begins)
 
 1. **Check `pipeline-state/`** for in-progress pipelines before starting new work. If found, invoke `/pipeline-resume`
+1b. **Learn-status check** (see § Learn-Status Pre-flight Check below): consult `~/.claude/learning/{project-hash}/.learn-state.json` and either invoke a deferred `/learn` or skip it for this pipeline.
 2. **Classify the work**: feature, refactor, bug fix, or tech spike
 3. **Map to entry skill**: `/build-implementation`, `/refactor`, `/bug-fix`, or `/tech-spike`
 3b. **Check for scaffolding needs**: if the task requires new API endpoints, schema changes, infrastructure, or observability, flag the appropriate utility skill (see pipeline SKILL.md Step 2b)
@@ -250,6 +251,37 @@ The orchestrator does not need to count observations, check dates, or evaluate c
 6c. **Load session memory**: Read `session-memory/{project-hash}/notes.md` if it exists. Create from template if first pipeline in this project
 7. **Write the phase plan** as a visible message to the user
 8. **Execute phases in order**, spawning teammates for team phases, subagents for subagent phases. Inject session memory + scratchpad findings into every agent prompt (see `rules/_detail/autonomous-intelligence.md` § Agent Spawn)
+
+## Learn-Status Pre-flight Check
+
+The learn-status check (Step 1b above) reads `~/.claude/learning/{project-hash}/.learn-state.json` and decides whether the prior pipeline's deferred `/learn` invocation can run now or must defer one more pipeline.
+
+Reflect § 6b spawns `/learn` in the background (`run_in_background: true`) so the prior pipeline does not block on instinct extraction. The next pipeline's pre-flight is the queue point: if a `/learn` run is still in flight, this pipeline's own Reflect § 6b invocation is **deferred** to the following pre-flight rather than overlapping.
+
+### Signals (state file)
+
+The signal lives in `~/.claude/learning/{project-hash}/.learn-state.json`:
+
+- `last_learn_started` (ISO 8601 string, nullable) — stamped by `skills/learn/SKILL.md` Step 1 BEFORE any expensive work.
+- `last_learn_run` (ISO 8601 string, nullable) — stamped by `skills/learn/SKILL.md` Step 10 on completion.
+
+**Predicate**: a `/learn` run is in flight ⇔ `last_learn_started > last_learn_run` OR `last_learn_run is null AND last_learn_started is not null`. Otherwise the system is idle.
+
+The Python helper `hooks/_lib/learn_status.py` exposes `is_in_flight(state)` and `status_for_path(state_path)` returning `"in-flight" | "idle"` for any consumer that needs the predicate (orchestrator, hook, skill).
+
+### Queue behaviour
+
+At pre-flight Step 1b:
+
+1. Resolve the project hash; read `.learn-state.json`.
+2. Compute the predicate via `learn_status.is_in_flight(state)`.
+3. If `"in-flight"`:
+   - **Defer**: do NOT invoke `/learn` for the previous pipeline at this pre-flight. Record `learn_deferred_to_next: true` in this pipeline's state file (`pipeline-state/{task-id}/pipeline.md` frontmatter) so the deferral is auditable.
+   - The next pre-flight (the pipeline AFTER this one) reads the same predicate; once `last_learn_run >= last_learn_started`, the deferred `/learn` runs at that pre-flight as a background spawn.
+4. If `"idle"`:
+   - Inspect `last_fired_pipeline_id` against the prior pipeline's `task_id`. If the prior pipeline's Reflect § 6b banner fired but `last_learn_started` was not advanced (the spawn never started, e.g. agent crashed), invoke `/learn` now as a background spawn — same shape as Reflect § 6b. Otherwise no action.
+
+This converts Reflect § 6b ("invoke /learn next turn") and pre-flight into a queue: at most one `/learn` runs per project at a time, and overlapping firings are absorbed by deferral. The trade-off is at most one pipeline of latency before instincts are refreshed — acceptable because instincts are advisory, not gate-bearing.
 
 ## After CHANGES_REQUESTED (Review Loop Dispatch)
 
