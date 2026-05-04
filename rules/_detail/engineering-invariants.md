@@ -79,13 +79,16 @@ When importing a new package:
 
 ### Proof of Correctness (Beyond Tests)
 
-Tests passing is necessary but not sufficient. For every feature:
-- **Tier 1**: Contract tests against real boundaries (not mocks for critical paths)
-- **Tier 2**: Smoke tests that exercise the actual feature end-to-end
-- **Tier 3**: Targeted mutation testing on changed files (verify tests catch real bugs)
-- **Tier 4**: E2E tests via Maestro for URL/auth/nav/WebView changes (conditional per `rules/e2e-protocol.md`)
+Tests passing is necessary but not sufficient. For every feature, six tiers stack from in-source contracts up through full E2E:
 
-Feature is VERIFIED when applicable tiers pass. Tiers 1-3 are always required. Tier 4 is conditional -- see `rules/e2e-protocol.md` for trigger criteria.
+- **Tier 0 — Contracts** (in-source, run as `contract.spec.*`): schema validators, type guards, runtime invariant checks at module ports. Required for changes touching public function signatures, JSON schemas, OpenAPI paths, DB schemas, or invariants. Authored at the start of the ATDD cycle (`skills/build-implementation/SKILL.md` § Write Contract Assertions) and seen RED before any production code is written. Source: GS-TDD lift / Spec-as-Contract — A7.
+- **Tier 1 — Unit**: isolated, mocked deps, milliseconds (the 70% layer of the test pyramid).
+- **Tier 1.5 — Property-Based Tests** (Hypothesis / fast-check / PropEr / equivalent): for every public function on changed lines with typed signatures, ≥1 property covering idempotence / inverse / oracle / metamorphic relations, OR a documented justification why a property is impossible. Time-boxed at 60s per function. Frozen counterexamples promote into Tier 1 as deterministic regression tests. Procedure: `skills/qa-test-strategy/SKILL.md` § Property-Based Coverage. Source: A2.
+- **Tier 2 — Integration**: real boundaries, real DB, contract tests against LIVE collaborators (no mocks for critical paths), smoke tests that exercise the feature end-to-end (the 20% layer of the test pyramid).
+- **Tier 3 — Mutation**: targeted mutation testing on changed files (Stryker / Mutant / mutmut). HARD GATE at ≥70% kill rate per `rules/_detail/atdd-procedure.md`.
+- **Tier 4 — E2E**: full user-journey tests (Maestro for mobile, Playwright/Cypress for web) for URL / auth / nav / WebView / cross-domain changes (conditional per `rules/e2e-protocol.md` trigger matrix).
+
+Feature is VERIFIED when applicable tiers pass. Tiers 0-3 are always required. Tier 4 is conditional. Tier 0 is required only for changes touching public function signatures, schemas, or invariants — pure UI copy or log-format tweaks may skip with documented rationale. Tier 1.5 is required for changes touching public functions with typed signatures (same gate as the qa-engineer checklist).
 
 ### Known Deprecations (append-only)
 - `:unprocessable_entity` -> `:unprocessable_content` (Rack 3.x, HTTP 422)

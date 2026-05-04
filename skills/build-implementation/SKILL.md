@@ -36,11 +36,32 @@ If the implementation requires new packages not yet in `package.json`:
 
 If the orchestrator's prompt specifies dependencies, install them here. If you discover a needed dependency during implementation, install it at that point.
 
+### Step 1c: Write Contract Assertions (Tier 0 — Spec-as-Contract)
+
+Inserted between "Read AC Test Stubs" and "Batched RED". Required for every slice that touches a contract listed in `pipeline-state/{task-id}/intake.md` § Contracts Touched. If `(none)` was recorded at intake, skip this step (no public surface changed).
+
+For each contract in the list:
+
+1. Author a **runtime assertion** at the module port that encodes the contract:
+   - **Public function signatures** → input/output type guards (e.g., `assertSchema(Input, x)` at the start, `assertSchema(Output, y)` before returning).
+   - **JSON schemas** → schema validators (`zod`, `pydantic`, `ajv`, `cerberus`) at the boundary; reject malformed input with structured errors.
+   - **OpenAPI paths** → request/response validation middleware (`openapi-validator`, `dredd`, `Pact`) wired into the route handler.
+   - **DB schemas** → constraints declared in the migration (NOT NULL, FOREIGN KEY, CHECK) AND mirrored in the ORM/data-access layer for fail-fast at write time.
+   - **Invariants** → a runtime check at the place the invariant must hold (`invariant(predicate, message)`), authored as a re-usable helper not a one-off `if`/`throw`.
+
+2. Author a **failing contract test** for each assertion in a `*.contract.spec.{ts,js,py,rb,go}` file (Tier 0 in `rules/_detail/engineering-invariants.md` § Proof of Correctness):
+   - The test feeds a *deliberately invalid* input and asserts the contract rejects it with the structured error.
+   - The test feeds a *valid* input and asserts the contract accepts it and the downstream behavior runs.
+
+3. Run the suite ONCE before any implementation. Capture the **Tier-0 RED output** — the contract assertions must fail because the production code that wires them is not yet written. This is the audit artifact for Tier 0.
+
+The Tier-0 RED output is a separate capture from the Step-2 BATCHED RED output. Both are required as audit artifacts for the slice (per `rules/_detail/atdd-procedure.md` § Audit Trail).
+
 ### Step 2: Implement Slice via ATDD (Three test invocations per slice)
 
 Follow the ATDD Protocol in `rules/_detail/atdd-procedure.md`:
 
-1. **BATCHED RED**: Write every AC test as one batch (the architect's stubs verbatim). Run the suite ONCE. Capture the RED output. Verify each test fails for the right reason — the named behavior is absent.
+1. **BATCHED RED**: Write every AC test as one batch (the architect's stubs verbatim). Run the suite ONCE. Capture the RED output. Verify each test fails for the right reason — the named behavior is absent. The Tier-0 contract tests authored in Step 1c are also part of this batch (they are still RED unless the contract assertion was implementable in isolation in Step 1c).
 2. **IMPLEMENT FREELY**: Write production code until every batched test passes. Shape constraints apply continuously: 8-line method cap, CC <= 5, nesting <= 2, 50-line file cap. Fix as you go, not at the end. Run the suite ONCE. Capture the GREEN output.
 3. **REFACTOR WHILE GREEN**: Tighten names, extract duplication (DRY on 2nd occurrence), confirm shape on every touched file. Run the suite ONCE more. Capture the post-refactor GREEN output.
 4. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% required. If <70%, add tests targeting the surviving mutations and return to step 2 — the slice is NOT complete.

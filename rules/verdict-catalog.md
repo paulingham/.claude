@@ -31,6 +31,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `BUG_FIXED` | success | `bug-fix` | build | `/code-review` + `/security-review` |
 | `BUG_UNRESOLVED` | failure | `bug-fix` | build | Halt; user escalation with hypothesis log |
 | `TOOL_SYNTHESISED` | info | `tool-synthesis` | build | Build agent uses the scratch tool, deletes after use |
+| `TOOL_SYNTHESISED_PROMOTABLE` | info | `tool-synthesis` | build | Same as TOOL_SYNTHESISED + flagged as reusable across pipelines; `/learn` counts cross-pipeline recurrences and scaffolds a permanent skill on the third hit (human review gate) |
 | `TOOL_UNNECESSARY` | info | `tool-synthesis` | build | Build agent proceeds with standard tools |
 | `PLAN_REFINED` | info | `continuous-planning` | build | Build agents re-read plan; never gates Build completion |
 | `PLAN_UNCHANGED` | info | `continuous-planning` | build | No effect; Build proceeds |
