@@ -17,7 +17,7 @@ Cell semantics:
 - **Agents (13)**: architect, code-reviewer, database-engineer, fix-engineer, frontend-engineer, infrastructure-engineer, patch-critic, planning-agent, product-reviewer, qa-engineer, security-engineer, session-memory-updater, software-engineer.
 - **Skills (58 with SKILL.md)** — alphabetised:
   - api-scaffold, batch-pipeline, bff-scaffold, bug-fix, build-implementation, capture, code-review, continuous-planning, creative-direction, cross-service-pipeline, db-migration, debug, debug-trace, deploy, deployment-verification, design-qc, design-system-init, embedder, epic-breakdown, estimation, eval-model-effectiveness, forensics, greenfield-scaffold, harness-audit, harness-config, health-scan, infra-scaffold, intake, internal-eval, learn, load-test, mcp_memory, microservices-scaffold, module-extraction, observability-setup, patch-critique, pipeline, pipeline-resume, plan-self-validation, polish, pr-creation, product-acceptance, project-setup, qa-test-strategy, react-native-patterns, recall, refactor, reindex-memory, security-review, service-extraction, skill-builder, story-writing, tech-spike, tool-synthesis, verify, voice-scaffold, web-frontend-patterns, workstream.
-  - **Note**: `skills/_deferred/` is currently empty. A sibling slice (C2) is moving 5 skills into `_deferred/` — the move is organisational only. If a skill listed here later appears under `_deferred/`, the matrix entry stays valid (still invokable).
+  - **Note**: `skills/_deferred/` now contains 5 forcing-function-only or channel-gated skills moved by slice C2 of the wave5-hygiene batch: `voice-scaffold`, `bff-scaffold`, `service-extraction`, `microservices-scaffold`, `cross-service-pipeline`. The move is organisational only — these skills remain fully invokable through the routing paths described in CLAUDE.md (forcing functions FF1-FF5 for service/extraction skills; channel selection for `voice-scaffold` and `bff-scaffold`). If a skill listed here later appears under `_deferred/`, the matrix entry stays valid (still invokable).
   - `skills/best-of-n/` exists but has NO SKILL.md (config + helpers only). Not a skill — a dispatch helper consumed by orchestrator code. Excluded from the count.
   - `skills/_template/` is the scaffold template, not a real skill. Excluded.
 
@@ -119,7 +119,7 @@ Cell semantics:
 
 - **Primary**:
   - `qa-test-strategy` (`agent: qa-engineer`; `subagent_type: "qa-engineer"` in skill body and orchestrator dispatch)
-  - `verify` (orchestrator spawns `qa-engineer` for `/verify` per `parallel-dispatch-details.md` line 484, even though the skill frontmatter still reads `agent: software-engineer` — see Validation Notes)
+  - `verify` (orchestrator spawns `qa-engineer` for `/verify` per `parallel-dispatch-details.md` line 484, even though the skill frontmatter still reads `agent: software-engineer` — see Validation Note 1)
   - `load-test` (`agent: qa-engineer`)
   - `design-qc` (`agent: qa-engineer`)
 - **Secondary**:
@@ -225,7 +225,7 @@ For each skill, the agent the orchestrator dispatches (PRIMARY column) and the a
 | story-writing | architect | — |
 | tech-spike | architect | — |
 | tool-synthesis | software-engineer | frontend-engineer |
-| verify | qa-engineer (orchestrator dispatch) — see Validation Notes | software-engineer (reads for evidence), patch-critic (reads mutation report), product-reviewer (acknowledges SKIP) |
+| verify | qa-engineer (orchestrator dispatch) — see Validation Note 1 | software-engineer (reads for evidence), patch-critic (reads mutation report), product-reviewer (acknowledges SKIP) |
 | voice-scaffold | software-engineer | — |
 | web-frontend-patterns | (pattern reference, no agent) | software-engineer, frontend-engineer, code-reviewer, security-engineer |
 | workstream | (orchestrator-only utility) | — |
