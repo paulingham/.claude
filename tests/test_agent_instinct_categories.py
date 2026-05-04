@@ -10,7 +10,7 @@ AGENTS_DIR = Path(__file__).resolve().parents[1] / "agents"
 EXPECTED = {
     "software-engineer": [
         "software-engineer", "frontend-engineer", "database-engineer"],
-    "frontend-engineer": ["frontend-engineer", "software-engineer"],
+    "frontend-engineer": ["frontend-engineer"],
     "database-engineer": ["database-engineer", "software-engineer"],
     "infrastructure-engineer": ["infrastructure-engineer"],
     "architect": ["architect", "software-engineer", "security-engineer"],

@@ -171,10 +171,10 @@ Before invoking `Agent(...)`, the orchestrator MUST resolve and splice the `## L
    sys.path.insert(0, "hooks/_lib")
    from instinct_loader import load_instincts
    from instinct_injector import resolve_for_agent
-   from agent_instinct_categories_loader import load_agent_instinct_categories
+   from agent_parent_chain import load_expanded_instinct_categories
 
    instincts = load_instincts(PROJECT_HASH)
-   cats = load_agent_instinct_categories(subagent_type) or []
+   cats = load_expanded_instinct_categories(subagent_type) or []
    block = resolve_for_agent(subagent_type, cats, instincts)
    ```
 

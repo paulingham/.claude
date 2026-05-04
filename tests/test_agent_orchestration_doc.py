@@ -38,5 +38,20 @@ class ExecutorResolutionDocumentsPrecedenceAndScope(unittest.TestCase):
                         "prefer_opus must precede frontmatter executor")
 
 
+
+
+class OrchestrationDocSnippetUsesExpandedLoader(unittest.TestCase):
+    def test_canonical_python_snippet_imports_expanded_loader(self):
+        text = DOC.read_text()
+        self.assertIn(
+            "from agent_parent_chain import load_expanded_instinct_categories",
+            text,
+            "canonical Python snippet must import expanded loader")
+        self.assertIn(
+            "load_expanded_instinct_categories(subagent_type)",
+            text,
+            "canonical Python snippet must call expanded loader")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -240,7 +240,20 @@ The actionable summary in each rendered bullet comes from the `## Pattern` body 
 
 #### Per-agent `instinct_categories:` contract
 
-Every file in `agents/*.md` declares an `instinct_categories:` YAML list of role-name tokens. An instinct matches an agent IFF `set(instinct.roles) ∩ set(agent.instinct_categories) != ∅`. The full per-role mapping lives in `tests/test_agent_instinct_categories.py` as a snapshot — any frontmatter drift fails CI. The list MUST be a YAML list (not a comma-separated string); regression test `tests/test_learn_roles_enforcement.py` locks the contract in both directions.
+Every file in `agents/*.md` declares an `instinct_categories:` YAML list of role-name tokens. An instinct matches an agent IFF `set(instinct.roles) ∩ set(agent.expanded_instinct_categories) != ∅`, where the expanded set is the union of the agent's own flat declaration and every ancestor's flat declaration walked transitively via the optional `parent:` field (see Parent inheritance below). The full per-role flat mapping lives in `tests/test_agent_instinct_categories.py` as a snapshot — any frontmatter drift fails CI. The list MUST be a YAML list (not a comma-separated string); regression test `tests/test_learn_roles_enforcement.py` locks the contract in both directions.
+
+##### Parent inheritance
+
+An agent may declare an optional `parent: <role>` field pointing to another agent in `agents/*.md`. The instinct-injection caller resolves the agent's effective categories by walking the parent chain transitively: own flat categories ∪ parent's flat ∪ parent's parent's flat ∪ … until `parent:` is absent (root) or the walk would revisit a name already in the visited-set (cycle).
+
+Resolution lives in `hooks/_lib/agent_parent_chain.py`:
+
+- `resolve_parent_chain(subagent_type)` — returns the ordered ancestor list, terminating at root or cycle. Visited-set guards against `A→B→A` loops.
+- `load_expanded_instinct_categories(subagent_type)` — returns the sorted union of own + ancestor flat categories. The production caller `hooks/_lib/resolve-instincts.py` invokes this; the orchestrator's canonical Python snippet in `agent-orchestration.md` § Instinct Injection mirrors the call.
+
+Missing-parent handling: when `parent: <name>` resolves to a path that does not exist (e.g. `<name>.md` was renamed without updating descendants), the resolver emits a one-line warning to **stderr** AND appends a JSONL forensic record to `metrics/{session-id}/parent-chain-warnings.jsonl` (`{source: "missing-parent", agent: <child>, missing: <name>}`). The chain returns the partial accumulation up to the missing link; the resolver does NOT raise. Operators see degradation in their terminal output (stderr) without the pipeline crashing.
+
+Today only `frontend-engineer` declares a `parent:` (→ `software-engineer`). The mechanism is one-deep in the current agent set; the transitive walk and cycle protection are forward-looking for deeper chains (e.g. a future `security-architect.parent → architect`).
 
 #### JSONL forensic format
 
