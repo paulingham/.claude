@@ -67,9 +67,10 @@ Agent({
   subagent_type: "code-reviewer",
   prompt: "Review the changes on this branch against main. Check for:
     - SOLID/DRY violations
+    - Cohesion violations: functions doing more than one thing (name has a conjunction), missing single-responsibility, duplicated logic
     - Test quality (coverage, meaningful assertions, edge cases)
     - Performance red flags (N+1 queries, unnecessary re-renders, memory leaks)
-    - Complexity (CC > 5, nesting > 2, methods > 8 lines, files > 50 lines)
+    - Complexity (CC > 5, nesting > 2). Function/file size is advisory — flag only if size correlates with a cohesion failure.
     - Naming clarity and code readability
     Produce a verdict: APPROVE or CHANGES_REQUESTED with specific findings."
 })

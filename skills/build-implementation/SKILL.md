@@ -1,6 +1,6 @@
 ---
 name: "build-implementation"
-description: "Use when user wants to Structured build phase: read per-AC failing-test stubs from the architect, implement via the ATDD protocol (batched RED, implement, refactor, mutation gate), enforce shape constraints. Use at the start of any Build phase."
+description: "Use when user wants to Structured build phase: read per-AC failing-test stubs from the architect, implement via the ATDD protocol (batched RED, implement cleanly, mutation gate), enforce cohesion-based shape rules. Use at the start of any Build phase."
 context: fork
 agent: software-engineer
 argument-hint: "Acceptance criteria or story to implement"
@@ -10,7 +10,7 @@ argument-hint: "Acceptance criteria or story to implement"
 
 ## What This Skill Does
 
-Prescribes the exact procedure for the Build phase of the delivery pipeline. Engineers consume the architect's per-AC failing-test stub list, implement each slice via the ATDD cycle (three test invocations per slice plus a mutation gate), and enforce shape constraints continuously.
+Prescribes the exact procedure for the Build phase of the delivery pipeline. Engineers consume the architect's per-AC failing-test stub list, implement each slice via the ATDD cycle (two test invocations per slice plus a mutation gate), and enforce cohesion-based shape rules continuously.
 
 ## Dispatch Mode
 
@@ -57,23 +57,29 @@ For each contract in the list:
 
 The Tier-0 RED output is a separate capture from the Step-2 BATCHED RED output. Both are required as audit artifacts for the slice (per `rules/_detail/atdd-procedure.md` § Audit Trail).
 
-### Step 2: Implement Slice via ATDD (Three test invocations per slice)
+### Step 2: Implement Slice via ATDD (Two test invocations per slice)
 
 Follow the ATDD Protocol in `rules/_detail/atdd-procedure.md`:
 
 1. **BATCHED RED**: Write every AC test as one batch (the architect's stubs verbatim). Run the suite ONCE. Capture the RED output. Verify each test fails for the right reason — the named behavior is absent. The Tier-0 contract tests authored in Step 1c are also part of this batch (they are still RED unless the contract assertion was implementable in isolation in Step 1c).
-2. **IMPLEMENT FREELY**: Write production code until every batched test passes. Shape constraints apply continuously: 8-line method cap, CC <= 5, nesting <= 2, 50-line file cap. Fix as you go, not at the end. Run the suite ONCE. Capture the GREEN output.
-3. **REFACTOR WHILE GREEN**: Tighten names, extract duplication (DRY on 2nd occurrence), confirm shape on every touched file. Run the suite ONCE more. Capture the post-refactor GREEN output.
-4. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% required. If <70%, add tests targeting the surviving mutations and return to step 2 — the slice is NOT complete.
-5. **COMMIT** with the four audit artifacts: batched RED output, post-implementation GREEN output, post-refactor GREEN output, mutation report.
+2. **IMPLEMENT CLEANLY**: Write production code that is correct AND well-shaped on the first pass. Cohesion rules (one-thing-per-function, CC ≤ 5, nesting ≤ 2, DRY on 2nd occurrence) apply *as you write*, not in a separate cleanup pass. Choose intent-revealing names from the start; extract duplication on the 2nd occurrence as it appears. Run the suite ONCE when done. Capture the GREEN output.
+3. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% required. If <70%, add tests targeting the surviving mutations and return to step 2 — the slice is NOT complete.
+4. **COMMIT** with the three audit artifacts: batched RED output, GREEN output, mutation report.
 
-**Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN-REFACTOR. See `rules/_detail/atdd-procedure.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
+**Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN. See `rules/_detail/atdd-procedure.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
 
 ### Step 3: Shape Check After Every File
 
-After completing or modifying ANY file, verify all metrics in `rules/_detail/engineering-invariants.md` (8-line functions, 50-line files, CC <= 5, nesting <= 2, DRY).
+After completing or modifying ANY file, verify the cohesion-based shape rules in `rules/_detail/engineering-invariants.md` § Code Shape:
 
-If any metric is violated, refactor BEFORE moving to the next test case.
+- One thing per function (name has no conjunction)
+- CC ≤ 5, nesting ≤ 2
+- DRY on 2nd occurrence
+- Single public entry point per class
+
+Soft warnings (function > 30 lines, file > 150 lines) are smell signals — refactor when extraction has a real seam, leave alone when the unit is genuinely cohesive. The hook's 300-line safety net catches runaway output only.
+
+If any hard rule is violated, refactor BEFORE moving to the next test case.
 
 ### Step 3b: Optional Tool Synthesis Escalation
 
@@ -91,12 +97,12 @@ If a built-in tool covers it, USE IT — do not synthesise.
 
 Before declaring the build complete:
 - [ ] Every AC has at least one passing test
-- [ ] Every function body ≤ 8 lines (counted, not estimated)
-- [ ] Every file ≤ 50 lines (counted, not estimated)
-- [ ] No nesting > 2 levels
+- [ ] Every function does one thing (name has no conjunction)
+- [ ] Cyclomatic complexity ≤ 5; nesting ≤ 2
 - [ ] No DRY violations (no logic duplicated 2+ times)
+- [ ] Functions > 30 lines or files > 150 lines: justified or refactored (advisory smell signals, not hard caps)
 - [ ] All tests pass
-- [ ] ATDD audit trail visible (batched RED + post-implementation GREEN + post-refactor GREEN + mutation report >= 70%)
+- [ ] ATDD audit trail visible (batched RED + GREEN + mutation report ≥ 70%)
 - [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `rules/_detail/e2e-protocol.md` trigger matrix)
 - [ ] If `/tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries
 
@@ -161,11 +167,22 @@ For small tasks (Complexity Budget 5-8), the build agent performs its own verifi
 
 This reduces the need for separate Verify and QA phases on small tasks. For Budget 9+ tasks, separate Verify and QA phases still apply.
 
+## Step 5: Inline Code Review (mandatory before BUILD_COMPLETE)
+
+After the self-review checklist passes, the build agent (or orchestrator on its behalf) dispatches `/code-review` inline. Code-review is no longer a separate phase boundary — it runs as the final step of Build because the value-add is "second model with different priors", not a phase gate.
+
+Procedure:
+1. Dispatch `code-reviewer` agent (read-only, no worktree) per `skills/code-review/SKILL.md`.
+2. If APPROVE → emit `BUILD_COMPLETE`.
+3. If CHANGES_REQUESTED → spawn `fix-engineer` on the same worktree, re-run the suite, re-dispatch `code-reviewer` with the original finding + fix diff. Max 2 rounds total. If still CHANGES_REQUESTED after 2 rounds, escalate to user.
+
+Security review is a separate phase that runs after `BUILD_COMPLETE` — do NOT dispatch `/security-review` from inside Build.
+
 ## Verdict
 
-After the self-review checklist passes, produce:
-- **BUILD_COMPLETE**: All ACs have passing tests, all shape constraints met, TDD audit trail visible.
-- **BUILD_FAILED**: Checklist items remain unresolved. List which items failed.
+After Step 5 completes:
+- **BUILD_COMPLETE**: All ACs have passing tests, cohesion-based shape rules met, ATDD audit trail visible (RED + GREEN + mutation), AND code-reviewer APPROVED.
+- **BUILD_FAILED**: Checklist items remain unresolved OR code-review never APPROVED after 2 rounds. List which items failed.
 
 ## Phase Output
 

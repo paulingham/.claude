@@ -40,7 +40,7 @@ For each rubric item, write a one-line verdict (`OK` / `HOLE: {what is missing}`
 | 3 | **Types are defined at the seam** | The plan calls a function/method that has no defined input or output type, or references a domain object that is never structurally specified |
 | 4 | **Edges are explicit** | Boundary cases (empty list, null, unauthorized, network failure, timeout) are not named — only the happy path is mentioned |
 | 5 | **Error paths are tested** | The plan describes error handling but the test stubs do not cover any error path |
-| 6 | **Alternatives are real** | `## Alternatives Considered` exists but contains fewer than 2 genuine approaches (e.g. "Option B: don't do it" is not an alternative) |
+| 6 | **Obvious alternative considered** | The architect picked one approach and either (a) named the obvious alternative with a one-line rejection note, OR (b) included a full `## Alternatives Considered` table. A HOLE fires only when neither (a) nor (b) is present AND the chosen approach has a genuinely obvious alternative the rubric would expect (e.g. "use a queue" when the chosen approach is synchronous and latency is unbounded). Light-mode plans skip the full table by design — that is not a hole. |
 | 7 | **Slice ordering is dependency-correct** | A composed AC (depends on another AC) is listed before the foundational AC it depends on |
 | 8 | **Module boundaries respect the contract** | The plan reaches across an existing module's public port into its internals, OR proposes a new boundary without defining its `interface.{ext}` artifact |
 
