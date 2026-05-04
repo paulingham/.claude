@@ -10,7 +10,10 @@ _qg_read_cursor() { cat "$(_qg_cursor_path "$1")" 2>/dev/null || echo "0"; }
 _qg_write_cursor() { mkdir -p "$(_qg_state_dir)"; echo "$2" > "$(_qg_cursor_path "$1")"; }
 
 _qg_write_snapshot() {
-  local task_id=$1 ts; ts=$(date +%s)
+  local task_id=$1
   mkdir -p "$(_qg_state_dir)"
-  python3 -c "import json; print(json.dumps({'ts':$ts,'tests_ok':True,'lint_ok':True,'shape_ok':True}))" > "$(_qg_snapshot_path "$task_id")"
+  python3 - > "$(_qg_snapshot_path "$task_id")" <<'PY'
+import json, time
+print(json.dumps({"ts": int(time.time()), "tests_ok": True, "lint_ok": True, "shape_ok": True}))
+PY
 }

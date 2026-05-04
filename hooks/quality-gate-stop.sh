@@ -13,11 +13,13 @@ set -uo pipefail
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/quality-gate-checks.sh" 2>/dev/null
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/quality-gate-pairing.sh" 2>/dev/null
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/jsonl-emit.sh" 2>/dev/null
 
 TASK_ID="${CLAUDE_PIPELINE_TASK_ID:-}"
 if [[ -z "$TASK_ID" ]]; then
   TASK_ID=$(grep -rh "^task_id:" "${HOME}/.claude/pipeline-state" 2>/dev/null | head -1 | awk '{print $2}')
 fi
+TASK_ID="${TASK_ID//[^a-zA-Z0-9_.-]/}"
 [[ -z "$TASK_ID" ]] && exit 0
 
 EVENTS=$(_qg_events_path)
@@ -36,7 +38,7 @@ while IFS= read -r line; do
   if [[ "$SOURCE" == "passed" ]]; then
     RT=$(_qg_detect_runtime)
     _qg_check_tests "$RT" >/dev/null 2>&1 && RESULT="post-confirmed" || RESULT="drift-detected"
-    python3 -c "import json,time; print(json.dumps({'source':'$RESULT','task_id':'$TASK_ID','ts':int(time.time()),'hook':'quality-gate-stop'}))" >> "$METRICS"
+    _jsonl_emit "$METRICS" source "$RESULT" task_id "$TASK_ID" hook quality-gate-stop
   fi
 done < <(tail -n +"$((CURSOR+1))" "$EVENTS")
 

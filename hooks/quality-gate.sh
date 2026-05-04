@@ -24,6 +24,7 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 echo "QUALITY GATE: Running pre-PR checks..." >&2
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/quality-gate-checks.sh"
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/quality-gate-pairing.sh"
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/jsonl-emit.sh"
 
 RT=$(_qg_detect_runtime)
 ANY_FAILED=0
@@ -38,11 +39,11 @@ EVENTS=$(_qg_events_path)
 mkdir -p "$(dirname "$EVENTS")"
 if [[ $ANY_FAILED -eq 0 ]]; then
   _qg_write_snapshot "$TASK_ID"
-  python3 -c "import json,time; print(json.dumps({'source':'passed','task_id':'$TASK_ID','ts':int(time.time())}))" >> "$EVENTS"
+  _jsonl_emit "$EVENTS" source passed task_id "$TASK_ID"
   echo "QUALITY GATE PASSED" >&2
   exit 0
 else
-  python3 -c "import json,time; print(json.dumps({'source':'prevented','task_id':'$TASK_ID','ts':int(time.time())}))" >> "$EVENTS"
+  _jsonl_emit "$EVENTS" source prevented task_id "$TASK_ID"
   echo "QUALITY GATE FAILED: Fix issues before creating PR" >&2
   exit 2
 fi
