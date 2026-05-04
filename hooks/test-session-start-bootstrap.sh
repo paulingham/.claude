@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Test script for session-start-bootstrap.sh
 # Validates: syntax, output structure, non-git safety, section ordering
+#
+# enforces: rules/core.md:Iron Laws
+# protects: pipeline
 
 HOOK="$HOME/.claude/hooks/session-start-bootstrap.sh"
 PASS=0

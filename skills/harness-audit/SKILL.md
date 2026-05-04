@@ -79,6 +79,33 @@ Agents whose descriptions include "read-only", "reviewer", "auditor":
 - `code-reviewer`, `security-engineer`, `product-reviewer`, `architect`
 - Must have `Write`, `Edit`, `MultiEdit` in `disallowedTools`
 
+### 3b. Tool Catalog Validation
+
+Validate every tool declared in agent frontmatter against a known catalog (Claude Code built-ins + configured MCP servers).
+
+**3-step algorithm:**
+
+1. **Parse `settings.json`**: extract `KNOWN_SERVERS = set(mcpServers.keys())` (e.g. `{memory, gh-cache, lsp-typescript, lsp-pyright}`).
+
+2. **For each agent file in `agents/*.md`**, for each entry in the `tools:` frontmatter list:
+   - If tool matches the regex `^mcp__([^_-]+(?:-[^_-]+)*)__.+$`, extract the server slug from the capture group.
+     - If `server_slug ∉ KNOWN_SERVERS` → flag: `(agent, tool, "unknown MCP server slug '<slug>'")`
+   - Otherwise (non-MCP tool): validate against `hooks/_lib/known-tools.txt` (Claude Code built-in catalog).
+     - If tool not in catalog → flag: `(agent, tool, "not in built-in catalog")`
+
+3. **Emit verdict**: `TOOLS_VALID` if zero flags; otherwise list every flagged `(agent, tool, reason)` tuple.
+
+**Worked negative example**: An agent declares `tools: [Read, mcp__notexist__store]`. `settings.json` has `mcpServers: {memory, gh-cache}` so `KNOWN_SERVERS = {memory, gh-cache}`. The regex extracts `server_slug = "notexist"`. Since `notexist ∉ KNOWN_SERVERS`, the audit flags `(<agent-file>, mcp__notexist__store, "unknown MCP server slug 'notexist'")`.
+
+**Why the regex `^mcp__([^_-]+(?:-[^_-]+)*)__.+$`**:
+- `mcp__` is the Claude Code MCP naming prefix
+- `([^_-]+(?:-[^_-]+)*)` captures the server slug; allows internal hyphens (e.g. `gh-cache`) but not underscores (the `__` is the separator)
+- `__.+$` requires the second `__` and a non-empty tool name
+
+**Fast-lib note**: `_haf_check_agents_frontmatter()` in `hooks/_lib/harness-audit-fast.sh` performs a lightweight frontmatter-presence check that the SessionStart `harness-audit-advisory.sh` hook reuses. This Step 3b provides the full catalog-validation procedure for the complete `/harness-audit` run.
+
+Verdict for this step: `TOOLS_VALID` if every tool resolves; otherwise list every flagged `(agent, tool, reason)` tuple.
+
 ### 4. settings.json Validity
 
 ```bash
@@ -140,6 +167,8 @@ Verdict for this step: `PIPELINE_STATE_HEALTHY` if the detector exits 0; otherwi
 | Verdict Catalog | Catalog and skill verdicts agree both directions | ✅ |
 | Verdict Catalog | Forward or reverse drift, or invalid polarity | ⚠️ |
 | Verdict Catalog | Catalog file absent | ⚠️ |
+| Tool Catalog | All agent tools resolve to built-in catalog or known MCP servers | ✅ |
+| Tool Catalog | Unknown tool or MCP server slug | ⚠️ |
 | Agents | None | ✅ |
 | Agents | Missing frontmatter | ⚠️ |
 | Agents | Write tools not disallowed on read-only agents | ❌ |
@@ -177,6 +206,11 @@ Date: [timestamp]
 - ⚠️ /custom-skill — emits CUSTOM_VERDICT, not in `rules/verdict-catalog.md`
 - ⚠️ catalog row `LEGACY_VERDICT` has no emitter (dead entry)
 - ⚠️ catalog row `BUILD_COMPLETE` has invalid polarity `done` (must be success/failure/info)
+
+### Tool Catalog (N/N tools resolve)
+- ✅ software-engineer — all tools resolve to built-in catalog or known MCP servers
+- ⚠️ some-agent — `mcp__notexist__store` references unknown MCP server slug `notexist`
+- ⚠️ another-agent — `FakeTool` not in built-in catalog (`hooks/_lib/known-tools.txt`)
 
 ### Agent Definitions (N/N passing)
 - ✅ software-engineer — all frontmatter present

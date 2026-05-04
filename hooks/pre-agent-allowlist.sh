@@ -5,6 +5,9 @@
 # Does NOT block: the Agent tool input schema does not currently expose
 # `allowed_tools`, so enforcement is deferred until the schema lands. Mirrors
 # pre-agent-thinking.sh / pre-agent-advisor.sh shape.
+#
+# enforces: rules/_detail/agent-protocol.md:Per-Agent Tool Scoping
+# protects: all-agent-spawning-skills
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null

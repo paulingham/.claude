@@ -2,6 +2,9 @@
 # Learning GC — SessionStart. Archives old observations.jsonl entries and
 # VACUUMs memory.sqlite. Runs at most once every 30 days per project hash.
 # Escape hatch: CLAUDE_DISABLE_LEARNING_GC=1. Never blocks session start.
+#
+# enforces: rules/_detail/autonomous-intelligence.md:Learning DB Hygiene
+# protects: learn, recall
 
 set -uo pipefail
 

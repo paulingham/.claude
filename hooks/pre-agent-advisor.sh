@@ -4,6 +4,9 @@
 # ~/.claude/metrics/{session}/advisor-dispatch.jsonl. Does NOT block: the Agent
 # tool input schema does not currently expose `advisor`, so enforcement is
 # deferred until the schema lands. Mirrors pre-agent-thinking.sh shape.
+#
+# enforces: rules/_detail/thinking-defaults.md:Advisor-Mode Reviews
+# protects: code-review, security-review
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null

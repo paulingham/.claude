@@ -3,6 +3,9 @@
 # Captures tool usage observations for the continuous learning system.
 # Appends to ~/.claude/learning/{project-hash}/observations.jsonl
 # Passive (exit 0).
+#
+# enforces: rules/_detail/reflection-protocol.md:Capture Pipeline Observation
+# protects: learn, pipeline
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
