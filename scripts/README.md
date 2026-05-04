@@ -44,6 +44,46 @@ Tests and CI override any of the following to keep runs hermetic:
 `--dry-run` automatically sets `INSTALL_PKG_CMD_PRINTER=echo`, `PIP_CMD=echo pip install`,
 and `CLAUDE_VENV_DRY_RUN=1` so no side effects occur.
 
+## `web-session-bootstrap.sh`
+
+Sandbox bootstrap for Claude Code on the web. Makes a sandbox session use the harness source tree at `/home/user/.claude` instead of the near-empty runtime config dir at `/root/.claude`.
+
+### Usage
+
+```bash
+bash scripts/web-session-bootstrap.sh                       # default source path
+CLAUDE_SRC=/srv/claude bash scripts/web-session-bootstrap.sh  # custom path
+```
+
+Place this in whatever pre-session env mechanism the sandbox provides (a SessionStart hook, container entrypoint, or shell init file). **The session must restart after this runs** — `CLAUDE_CONFIG_DIR` is read at session start; mid-session changes are ignored.
+
+### What it does
+
+1. Exports `CLAUDE_CONFIG_DIR=$CLAUDE_SRC` so Claude Code reads `settings.json` and the full hook chain from the source tree.
+2. Exports `CLAUDE_INSTINCTS_DIR`, `CLAUDE_AGENTS_DIR`, `CLAUDE_PIPELINE_STATE_DIR` so seed instincts, agent frontmatter, and in-progress pipeline state read from the source tree.
+3. Symlinks shipped directories (`hooks/`, `skills/`, `rules/`, `agents/`, `knowledge/`, `orchestrator/`, `scripts/`, `learning/`, `agent-memory/`, `session-memory/`, `pipeline-state/`, `memory/`, `automation/`, `eval/`, `CLAUDE.md`, `README.md`, `settings.json`) from the source tree into `$HOME/.claude/` as a belt-and-braces fallback. Pure-runtime dirs (`metrics/`, `db/`, `sessions/`, `state/`, etc.) are left alone.
+4. Verifies the layout (skills/hooks/agents counts) and fails fast if anything is missing.
+
+### Idempotency
+
+Safe to re-run. Already-correct symlinks are left in place. Real (non-symlink) files in `$HOME/.claude` are NOT clobbered — the script warns and skips them. To force replacement, remove the offending entry first:
+
+```bash
+rm -rf "$HOME/.claude/skills"  # then re-run the bootstrap
+```
+
+### Verification (post-restart)
+
+Inside Claude Code:
+
+- `/status` should show config sources from `/home/user/.claude/...`
+- `/intake "test request"` should resolve (was "Unknown skill" before)
+- A `Write` or `Edit` that creates a 51-line Python file should trigger `code-shape-check.sh` and block
+
+### Convention
+
+The bootstrap depends on the portable-config-dir convention documented in `rules/_detail/agent-protocol.md` § Portable Config Dir — every config-loading reference inside the harness routes through `${CLAUDE_CONFIG_DIR:-$HOME/.claude}`. The drift gate at `tests/test_portable_config_dir.py` enforces this in CI.
+
 ## Module layout
 
 ```
