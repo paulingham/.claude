@@ -6,16 +6,11 @@ must NOT inherit the xhigh fallback. Drift vs `agents/<role>.md` frontmatter
 is locked in by the AC7 snapshot test in `tests/test_thinking_defaults.py`.
 """
 
-# Sonnet executors per agents/<role>.md frontmatter:
-#   code-reviewer     — model: opus,   executor: claude-sonnet-4-6 (advisor)
-#   qa-engineer       — model: sonnet
-#   product-reviewer  — model: sonnet
-#   patch-critic      — model: sonnet, executor: claude-sonnet-4-6 (advisor)
-#   database-engineer — model: sonnet
-#   security-engineer — model: opus,   executor: claude-sonnet-4-6 (advisor)
+# Sonnet executors per agents/<role>.md frontmatter (incl. Wave 5/B6 SE+FE flip).
 _DOWNGRADE_TO_HIGH = frozenset({
     "code-reviewer", "qa-engineer", "product-reviewer",
     "patch-critic", "database-engineer", "security-engineer",
+    "software-engineer", "frontend-engineer",
 })
 
 # planning-agent runs a long-poll loop on Sonnet — xhigh per cycle is

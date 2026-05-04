@@ -77,8 +77,10 @@ class ResolverDocumentsRuntimeUnavailabilityFutureState(unittest.TestCase):
 
 class ResolverIgnoresNonReviewerAgents(unittest.TestCase):
     def test_resolver_ignores_non_reviewer_agents(self):
-        # software-engineer frontmatter only has model: opus, no executor/advisor
-        tool_input = {"subagent_type": "software-engineer"}
+        # Test scenario: subagent_type provided but mocked frontmatter lacks
+        # executor/advisor pairing — resolver must fall through. infrastructure-
+        # engineer chosen as a write-capable role outside the reviewer set.
+        tool_input = {"subagent_type": "infrastructure-engineer"}
         env = {"ANTHROPIC_API_KEY": "sk-test"}
         frontmatter = {"model": "opus"}
         result = resolve(tool_input=tool_input, env=env, frontmatter=frontmatter)

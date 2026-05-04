@@ -171,10 +171,10 @@ Before invoking `Agent(...)`, the orchestrator MUST resolve and splice the `## L
    sys.path.insert(0, "hooks/_lib")
    from instinct_loader import load_instincts
    from instinct_injector import resolve_for_agent
-   from agent_instinct_categories_loader import load_agent_instinct_categories
+   from agent_parent_chain import load_expanded_instinct_categories
 
    instincts = load_instincts(PROJECT_HASH)
-   cats = load_agent_instinct_categories(subagent_type) or []
+   cats = load_expanded_instinct_categories(subagent_type) or []
    block = resolve_for_agent(subagent_type, cats, instincts)
    ```
 
@@ -354,6 +354,50 @@ Bounds` for caps, env overrides, and refusal semantics. The mechanism mirrors
 the Path-B precedent in `pre-agent-thinking.sh`: documentation-first
 discipline today, automatic injection when the Agent tool input schema
 exposes env-var passing.
+
+### Executor Resolution
+
+The executor model that backs each Agent spawn is no longer a flat per-agent
+constant. The orchestrator resolves it at spawn time by walking three
+precedence layers, top-down — the first match wins:
+
+1. **`CLAUDE_FORCE_OPUS=1` env override** — if the env var is set to `"1"`
+   in the orchestrator shell, the resolver returns `claude-opus-4-7`
+   regardless of the agent's declared `executor:` field. This is the
+   operator escape hatch for spawns requiring monolithic Opus reasoning
+   (architecturally complex slices, ambiguous spec interpretation, recovery
+   from a problematic Sonnet build). `CLAUDE_FORCE_OPUS=1` is session-scoped, not pipeline-scoped — operators must re-export the env var per session. It does not persist across `/exit` and does not narrow to a specific pipeline run; every spawn in the session that follows the export sees the override.
+2. **`prefer_opus: true` instinct match** — when an instinct file in
+   `learning/{project-hash}/instincts/*.md` carries `prefer_opus: true` and
+   the instinct's `roles:` set intersects the spawning agent's expanded
+   `instinct_categories`, the resolver returns `claude-opus-4-7` for that
+   spawn. Trigger: `/learn` is expected to set `prefer_opus: true` when ≥3
+   pipelines in the same project show a Sonnet executor requiring ≥2 review
+   rounds. **Not yet implemented — orchestrator reader deferred to the next learning slice. Manually-authored instincts may set the flag, but the orchestrator does not yet consume it.**
+3. **Frontmatter `executor:` field** — the default. After Wave 5/B6 the
+   `software-engineer` and `frontend-engineer` agents resolve to
+   `claude-sonnet-4-6`; reviewer/QA roles already resolved this way prior
+   to the wave. The frontmatter is the floor, not a ceiling.
+
+The resolver lives at `hooks/_lib/executor_resolver.py::resolve_executor`.
+It is called by orchestrator-side spawn code, not by a PreToolUse hook —
+the Agent input schema does not currently expose `modified_tool_input`, so
+a hook today would be log-only (Path-B precedent of `pre-agent-thinking.sh`).
+A `pre-agent-executor.sh` hook is reserved for promotion when the schema
+lands.
+
+### Model Self-Tuning Notes
+
+After Wave 5/B6, `software-engineer` and `frontend-engineer` are
+**Sonnet-default with Opus advisor**. Routine ATDD-cycle build work runs on
+Sonnet; the advisor is consulted on judgement calls (architectural choices,
+ambiguous spec interpretation, accessibility tradeoffs for FE). Opus is
+available via two routes: (a) `CLAUDE_FORCE_OPUS=1` for one-off operator
+escalation; (b) a `prefer_opus: true` instinct for data-driven escalation
+once `/learn` writes the flag (deferred). The other tunable agents
+(`database-engineer`, `infrastructure-engineer`, `qa-engineer`) keep their
+prior model selection — see the Agent Team table in `CLAUDE.md` for the
+canonical per-role default.
 
 ## Dynamic Agent Generation
 
