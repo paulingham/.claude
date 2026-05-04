@@ -18,7 +18,7 @@ EXPECTED = {
         "code-reviewer", "software-engineer",
         "frontend-engineer", "database-engineer"],
     "security-engineer": ["security-engineer"],
-    "qa-engineer": ["qa-engineer", "software-engineer"],
+    "qa-engineer": ["qa-engineer", "software-engineer", "property-testing"],
     "product-reviewer": ["product-reviewer", "architect"],
     "patch-critic": ["patch-critic", "code-reviewer"],
     "planning-agent": ["planning-agent", "architect"],

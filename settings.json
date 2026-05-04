@@ -704,6 +704,20 @@
         "-lc",
         "exec python3 \"$HOME/.claude/hooks/_lib/github-cache-server.py\""
       ]
+    },
+    "lsp-typescript": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec python3 \"$HOME/.claude/hooks/_lib/lsp-bridge-server.py\" --language ts"
+      ]
+    },
+    "lsp-pyright": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "exec python3 \"$HOME/.claude/hooks/_lib/lsp-bridge-server.py\" --language py"
+      ]
     }
   }
 }

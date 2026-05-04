@@ -44,6 +44,13 @@
 !session-memory/
 !session-memory/**
 
+# Global seed instincts — tracked so they ship with the harness.
+# Per-project accumulated instincts under learning/{project-hash}/ stay ignored
+# (those are local observation-derived state, not source).
+!learning/
+!learning/instincts/
+!learning/instincts/**
+
 # Internal eval harness — runtime + candidate cases are local-only.
 # Ignore directory contents but persist the directories themselves via tracked .gitkeep.
 # Pattern uses `dir/*` (not `dir/`) so git descends and honours the .gitkeep negation.

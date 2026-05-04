@@ -16,6 +16,7 @@ maxTurns: 100
 instinct_categories:
   - qa-engineer
   - software-engineer
+  - property-testing
 disallowedTools:
   - Agent
   - Skill
@@ -128,8 +129,9 @@ Before signaling build complete, review your own work. All verification must be 
    - No duplication (same logic in 2+ places → extract)
    - Functions have single responsibility
    - No dead code, unused imports, commented-out blocks
-4. Fix any issues found — do not leave them for the reviewer
-5. The code-reviewer should find only design-level concerns, never mechanical issues
+4. **PBT run produced ≥ 1 property per public function on changed lines, OR a documented justification why a property is impossible.** See `skills/qa-test-strategy/SKILL.md` § Property-Based Coverage for the procedure (Hypothesis / fast-check / PropEr; idempotence / inverse / oracle / metamorphic relations; 60s time-box per function; frozen counterexamples become unit tests). Justification format: one line per skipped function citing the impossibility class (I/O-only, pure SDK pass-through, single-call dispatcher).
+5. Fix any issues found — do not leave them for the reviewer
+6. The code-reviewer should find only design-level concerns, never mechanical issues
 
 ## Commit Cadence
 
