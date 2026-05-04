@@ -15,7 +15,7 @@ Cell semantics:
 ## Inventory
 
 - **Agents (13)**: architect, code-reviewer, database-engineer, fix-engineer, frontend-engineer, infrastructure-engineer, patch-critic, planning-agent, product-reviewer, qa-engineer, security-engineer, session-memory-updater, software-engineer.
-- **Skills (59 with SKILL.md)** — alphabetised:
+- **Skills (58 with SKILL.md)** — alphabetised:
   - api-scaffold, batch-pipeline, bff-scaffold, bug-fix, build-implementation, capture, code-review, continuous-planning, creative-direction, cross-service-pipeline, db-migration, debug, debug-trace, deploy, deployment-verification, design-qc, design-system-init, embedder, epic-breakdown, estimation, eval-model-effectiveness, forensics, greenfield-scaffold, harness-audit, harness-config, health-scan, infra-scaffold, intake, internal-eval, learn, load-test, mcp_memory, microservices-scaffold, module-extraction, observability-setup, patch-critique, pipeline, pipeline-resume, plan-self-validation, polish, pr-creation, product-acceptance, project-setup, qa-test-strategy, react-native-patterns, recall, refactor, reindex-memory, security-review, service-extraction, skill-builder, story-writing, tech-spike, tool-synthesis, verify, voice-scaffold, web-frontend-patterns, workstream.
   - **Note**: `skills/_deferred/` is currently empty. A sibling slice (C2) is moving 5 skills into `_deferred/` — the move is organisational only. If a skill listed here later appears under `_deferred/`, the matrix entry stays valid (still invokable).
   - `skills/best-of-n/` exists but has NO SKILL.md (config + helpers only). Not a skill — a dispatch helper consumed by orchestrator code. Excluded from the count.
