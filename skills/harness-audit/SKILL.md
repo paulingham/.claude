@@ -47,9 +47,18 @@ For every `skills/*/SKILL.md` (excluding `_template/`), validate against the can
 - **Dispatch enum**: `dispatch` MUST be one of: `skill-tool`, `subagent`, `team`. Flag any skill with a value outside this list.
 - **Required sections**: every skill body MUST contain `## When to Invoke`, `## Procedure`, `## Output`, `## Verdict`. Flag any skill missing one or more headings (case-sensitive match on `^## `).
 - **Tests directory**: every skill SHOULD have `skills/{name}/tests/` (a directory or at minimum a `.gitkeep`). Skills without a `tests/` directory are flagged at WARNING severity (not CRITICAL — older skills may lack tests). New skills created from `_template/` automatically inherit it.
-- **Verdict catalog cross-reference**: the `verdict` value (or each value if a list) MUST appear in `rules/verdict-catalog.md` *if it exists*. Skip this check when the catalog file is absent. (The reverse-direction catalog audit lives in a separate `verdict-consistency` step added by C3.)
 
 Verdict for this step: `STRUCTURE_OK` if every skill conforms; otherwise list the drift findings (one bullet per skill, naming the missing fields/headings).
+
+**d. Verdict consistency (canonical catalog = `rules/verdict-catalog.md`):**
+Cross-reference `skills/*/SKILL.md` verdict declarations against the catalog in both directions:
+
+- **Forward direction**: every `verdict` value declared in any skill's frontmatter (or in any `Verdict: X / Y` line in the body for legacy skills) MUST appear in `rules/verdict-catalog.md`. Flag any skill emitting a verdict the catalog does not list.
+- **Reverse direction**: every entry in `rules/verdict-catalog.md` MUST be emitted by at least one skill. Flag catalog rows whose `Emitter skill` column resolves to a non-existent `skills/<name>/SKILL.md`, or whose listed emitter does not actually emit that verdict.
+- **Polarity column**: every catalog row MUST have a `Polarity` value of `success`, `failure`, or `info`. Flag rows with missing or invalid polarity.
+- **Catalog absent**: if `rules/verdict-catalog.md` is missing entirely, this step reports `VERDICTS_NO_CATALOG` and no findings — running the audit before C3 lands is acceptable.
+
+Verdict for this step: `VERDICTS_CONSISTENT` if both directions match; otherwise list drift findings (catalog entries with no emitter, skills with verdicts not in catalog, polarity violations).
 
 ### 3. Agent Definitions Health
 
@@ -116,6 +125,9 @@ If agnix is installed, run it and incorporate findings into the audit report. Fl
 | Skills | Missing skill files | ❌ |
 | Skill Structure | All skills match `_template/SKILL.md` (frontmatter + sections) | ✅ |
 | Skill Structure | Frontmatter or required-section drift on one or more skills | ⚠️ |
+| Verdict Catalog | Catalog and skill verdicts agree both directions | ✅ |
+| Verdict Catalog | Forward or reverse drift, or invalid polarity | ⚠️ |
+| Verdict Catalog | Catalog file absent | ⚠️ |
 | Agents | None | ✅ |
 | Agents | Missing frontmatter | ⚠️ |
 | Agents | Write tools not disallowed on read-only agents | ❌ |
@@ -145,6 +157,12 @@ Date: [timestamp]
 - ✅ /verify — frontmatter + required sections present
 - ⚠️ /old-skill — missing `verdict` frontmatter field, missing `## When to Invoke` heading
 - ⚠️ /another-skill — no `tests/` directory
+
+### Verdict Catalog (N/N consistent both directions)
+- ✅ /code-review — emits APPROVE/CHANGES_REQUESTED, both in catalog
+- ⚠️ /custom-skill — emits CUSTOM_VERDICT, not in `rules/verdict-catalog.md`
+- ⚠️ catalog row `LEGACY_VERDICT` has no emitter (dead entry)
+- ⚠️ catalog row `BUILD_COMPLETE` has invalid polarity `done` (must be success/failure/info)
 
 ### Agent Definitions (N/N passing)
 - ✅ software-engineer — all frontmatter present
