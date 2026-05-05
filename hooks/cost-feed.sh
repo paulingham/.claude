@@ -22,6 +22,8 @@ source "${HOOK_DIR}/_lib/cost-helpers.sh" 2>/dev/null || exit 0
 INPUT=$(cat 2>/dev/null) || exit 0
 [ -z "$INPUT" ] && exit 0
 echo "$INPUT" | jq -e . >/dev/null 2>&1 || exit 0
+STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
+[ "$STOP_HOOK_ACTIVE" = "true" ] && exit 0
 
 I_TOK=$(_cf_token "$INPUT" "input_tokens")
 O_TOK=$(_cf_token "$INPUT" "output_tokens")

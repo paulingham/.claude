@@ -14,6 +14,8 @@ trap 'log_hook_event $?' EXIT
 set -uo pipefail
 
 INPUT=$(cat)
+STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
+[ "$STOP_HOOK_ACTIVE" = "true" ] && exit 0
 AGENT_TYPE=$(echo "$INPUT" | jq -r '.subagent_type // .agent_type // "unknown"' 2>/dev/null || echo "unknown")
 SUBAGENT_ID=$(echo "$INPUT" | jq -r '.subagent_id // empty' 2>/dev/null || echo "")
 [[ -z "$SUBAGENT_ID" ]] && SUBAGENT_ID="${CLAUDE_SESSION_ID:-sess}-${RANDOM}-$$"

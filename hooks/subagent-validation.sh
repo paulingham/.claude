@@ -14,6 +14,8 @@ trap 'log_hook_event $?' EXIT
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)
+STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
+[ "$STOP_HOOK_ACTIVE" = "true" ] && exit 0
 AGENT_TYPE=$(echo "$INPUT" | jq -r '.subagent_type // .agent_type // "unknown"' 2>/dev/null)
 
 # Write-capable agents may have worktree changes to merge
