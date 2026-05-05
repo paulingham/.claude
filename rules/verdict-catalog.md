@@ -35,6 +35,9 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `TOOL_UNNECESSARY` | info | `tool-synthesis` | build | Build agent proceeds with standard tools |
 | `PLAN_REFINED` | info | `continuous-planning` | build | Build agents re-read plan; never gates Build completion |
 | `PLAN_UNCHANGED` | info | `continuous-planning` | build | No effect; Build proceeds |
+| `BoN_WINNER_SELECTED` | success | `best-of-n` | build | `/code-review` + `/security-review` |
+| `BoN_FALLBACK_TO_SINGLE` | info | `best-of-n` | build | Single-candidate Build dispatch on the same slice |
+| `BoN_INSUFFICIENT_RESOURCES` | failure | `best-of-n` | build | Halt; user escalation |
 | `APPROVE` | success | `code-review` | build (final step) | Build emits BUILD_COMPLETE; advance to Security Review |
 | `APPROVE` | success | `security-review` | security-review | Final Gate (verify + test + accept + patch-critique) |
 | `CHANGES_REQUESTED` | failure | `code-review` | build (final step) | Spawn fix-engineer in-line; re-dispatch code-reviewer; max 2 rounds inside Build |
