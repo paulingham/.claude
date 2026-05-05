@@ -98,6 +98,30 @@ Update the **Anomalies table** schema to include a `Rule Protected` column:
 
 This traceability lets forensics readers immediately see which rule and which skill the hook was guarding when it fired — eliminating the "what does this hook protect?" question.
 
+### Step 3c: Tool Output Size Warnings
+
+Auto-compact thrash precursor: a single tool result returning enough tokens to push the buffer past compaction threshold. The `tool-output-bytes.sh` PostToolUse hook records `char_count` and `estimated_tokens` per call, so this regression class is detectable in forensics.
+
+```bash
+# Top-N largest tool outputs (descending) for the session
+jq -s 'sort_by(-.estimated_tokens) | .[:10]' \
+  ~/.claude/metrics/{session-id}/tool-output-bytes.jsonl 2>/dev/null
+
+# All threshold breaches (estimated_tokens > 20000)
+jq -c 'select(.estimated_tokens > 20000)' \
+  ~/.claude/metrics/{session-id}/tool-output-bytes.jsonl 2>/dev/null
+```
+
+If breaches exist, render in the forensic report under Anomalies:
+
+```markdown
+| # | Type | Description | Root Cause | Rule Protected |
+|---|------|------------|------------|----------------|
+| N | Large tool output | `Bash` returned 95k chars (~23750 tokens) at T+12m | Unscoped log fetch — needs `head`/`tail` | `tool-output-bytes.sh` (forensics) |
+```
+
+Cross-reference the `ts` of the largest outputs against timeline gaps from Step 2 — a >20k-token output immediately before a gap is a strong compaction signal.
+
 ### Step 4: Artifact Integrity
 
 Cross-reference pipeline state with git:
