@@ -245,6 +245,7 @@ Scratchpad findings that recur across 3+ pipelines should be promoted to instinc
 - Same fragility appearing in 3+ pipelines → create instinct with confidence 0.5 (fragilities are high-value)
 - Same pattern validated across 3+ pipelines → create instinct with confidence 0.4
 - ≥3 pipelines in the same project where a Sonnet executor required ≥2 review rounds for the same role → set `prefer_opus: true` on the relevant instinct so subsequent spawns escalate to Opus (deferred — see § Instinct Injection)
+- Same scratchpad finding recurring across 3+ pipelines that ALSO carry `phases.review.rounds >= 2` → emit an **anti-pattern** instinct (`category: anti-pattern`) at confidence `min(0.85, 0.5 + 0.05 * (N - 3))` where `N` is the distinct pipeline count. Mining is iron-law-gated on `rounds >= 2` because fix-engineer is dispatched on every CHANGES_REQUESTED (per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule), so `rounds >= 2` is a perfect proxy for "fix-engineer ran". Legacy observations missing the rounds field are SKIPPED, NEVER coerced to 0. Anti-pattern instincts surface in agent prompts with the `AVOID:` prefix and trigger the +0.1 floor boost described in § Instinct Injection. Anti-patterns are excluded from the Step 7b auto-scaffold scan — they are guidance, not promotable verdicts.
 
 ### Instinct Injection (Path-B advisory)
 
@@ -259,6 +260,10 @@ The PreAgent hook `hooks/instinct-injector.sh` (registered on the `Agent` matche
 5. **Sort and cap**: sort by `confidence` DESC, secondary sort by `id` ASC for stability, then keep the top `CLAUDE_INSTINCT_TOP_N` (default `5`; `0` produces an empty block).
 
 The actionable summary in each rendered bullet comes from the `## Pattern` body of the instinct file (first non-empty line, truncated at 200 chars), NOT from a frontmatter field.
+
+#### Anti-pattern floor boost (+0.1)
+
+When at least one **anti-pattern** instinct (`category: anti-pattern`) survives the base role+confidence filter, the resolver re-filters non-anti-pattern instincts at `floor + 0.1`. The boost prevents weak positive guidance from crowding out the anti-pattern signal — a 0.45-confidence positive evaporates when an anti-pattern fires, while a 0.65-confidence positive survives. Anti-patterns are explicitly preserved through the boosted-floor pass (they would otherwise self-evict at boundary cases like a 0.51-confidence anti-pattern against a 0.5 base floor); they ship at confidence ≥ 0.5 by construction so the boost is rarely consequential for them. Anti-pattern bullets render with the `AVOID:` prefix added AFTER `_truncate`, so they may be ~210 visible chars (the prefix sits OUTSIDE the 200-char truncation budget).
 
 #### Per-agent `instinct_categories:` contract
 
