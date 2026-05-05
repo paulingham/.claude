@@ -9,6 +9,9 @@ _FM = re.compile(r"^---\n(.*?)\n---\n?(.*)$", re.DOTALL)
 _BODY = re.compile(r"^## Pattern[ \t]*\n(.*?)(?=\n##|\Z)",
                    re.MULTILINE | re.DOTALL)
 _REQUIRED = ("id", "confidence", "roles")
+_VALID_CATEGORIES = frozenset({
+    "discovery", "warning", "pattern", "fragility", "decision", "anti-pattern",
+})
 
 
 def parse_file(path):
@@ -32,6 +35,8 @@ def validate(fm, body):
         return f"missing-{missing}-field"
     if "prefer_opus" in fm and not isinstance(fm["prefer_opus"], bool):
         return "non-bool-prefer-opus"
+    if "category" in fm and fm["category"] not in _VALID_CATEGORIES:
+        return "invalid-category"
     return None if extract_summary(body) else "missing-or-empty-pattern-body"
 
 
@@ -40,6 +45,7 @@ def normalize(fm, body, scope):
     return {"id": fm["id"], "confidence": float(fm["confidence"]),
             "roles": list(fm["roles"]), "domain": fm.get("domain", ""),
             "scope": scope, "pattern_summary": extract_summary(body),
-            "prefer_opus": raw if isinstance(raw, bool) else False}
+            "prefer_opus": raw if isinstance(raw, bool) else False,
+            "category": fm.get("category", "")}
 
 

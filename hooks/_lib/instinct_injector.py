@@ -3,6 +3,13 @@
 Filters by role + confidence, dedups by id (instinct_dedup), sorts
 confidence-desc then id-asc, caps at top_n, formats via instinct_format.
 Returns "" when nothing survives.
+
+C8 extension: when at least one anti-pattern survives the base filters,
+the floor is boosted by +0.1 for non-anti-patterns. Anti-patterns
+themselves are immune to the boost they trigger — they remain in the
+survivor set regardless of confidence vs the boosted floor. Boost is
+inline (no helper extraction); function stays small enough to read
+top-to-bottom.
 """
 from instinct_dedup import dedup_by_id
 from instinct_env import resolve_min_confidence, resolve_top_n
@@ -36,7 +43,11 @@ def resolve_for_agent(agent_role, agent_instinct_categories, instincts,
     cap = resolve_top_n(top_n)
     if cap == 0 or not agent_instinct_categories:
         return ""
+    floor = resolve_min_confidence(min_confidence)
     after = _filter_by_role(instincts, agent_instinct_categories)
-    after = _filter_by_confidence(after, resolve_min_confidence(min_confidence))
+    after = _filter_by_confidence(after, floor)
+    if any(i.get("category") == "anti-pattern" for i in after):
+        after = [i for i in after if i.get("category") == "anti-pattern"
+                 or i["confidence"] >= floor + 0.1]
     survivors = _sort_and_top(dedup_by_id(after), cap)
     return render(survivors) if survivors else ""
