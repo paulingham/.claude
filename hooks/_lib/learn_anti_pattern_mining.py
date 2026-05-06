@@ -12,11 +12,16 @@ Cluster key normalisation strips digits and whitespace from the first
 stable cluster identifier without depending on producer-side
 file-glob metadata that does not yet exist.
 
-Confidence formula: `min(0.85, 0.5 + 0.05 * (N - 3))` where N is
-the number of distinct pipelines exhibiting the cluster. Three
-pipelines → 0.5 (the floor anti-patterns ship at). The cap (0.85)
-matches the highest confidence the existing `/learn` writer assigns
-to any auto-generated instinct.
+Confidence formula: `min(0.85, floor + 0.05 * (N - 3))` where N is
+the number of distinct pipelines exhibiting the cluster and `floor`
+is resolved from the domain-weighted `_DOMAIN_FLOOR` map (workflow=0.5,
+testing=0.6, code-style=0.6, architecture=0.7, security=0.7;
+unknown→`_DEFAULT_FLOOR=0.5`). Three pipelines at the workflow floor →
+0.5 (lowest confidence anti-patterns ship at); architecture/security
+domains start at 0.7 because failures there are higher-stakes. The cap
+(0.85) is uniform across domains — higher-floor domains reach it with
+fewer recurrences (architecture caps at N=6, testing/code-style at
+N=8, workflow at N=10).
 """
 from __future__ import annotations
 
@@ -39,7 +44,21 @@ _DOMAIN_BY_CATEGORY = {
 }
 _DEFAULT_DOMAIN = "workflow"
 _RECURRENCE_THRESHOLD = 3
-_CONFIDENCE_FLOOR = 0.5
+# Per-domain confidence floor for anti-pattern instincts. Higher floors
+# encode "higher-stakes domain" — architecture and security failures
+# should ship at confidence 0.7 from the first qualifying recurrence,
+# while workflow noise starts at the conservative 0.5. Cap is uniform
+# at 0.85 across all domains; higher-floor domains reach it sooner.
+_DOMAIN_FLOOR = {
+    "workflow": 0.5,
+    "testing": 0.6,
+    "code-style": 0.6,
+    "architecture": 0.7,
+    "security": 0.7,
+}
+# Fallback when a domain is absent from `_DOMAIN_FLOOR` (defensive
+# default for forward-compatibility with future category additions).
+_DEFAULT_FLOOR = 0.5
 _CONFIDENCE_STEP = 0.05
 _CONFIDENCE_CAP = 0.85
 _BODY_CAP_CHARS = 200
@@ -85,8 +104,9 @@ def _domain_for(category: str) -> str:
     return _DOMAIN_BY_CATEGORY.get(category, _DEFAULT_DOMAIN)
 
 
-def _confidence_for(distinct_pipeline_count: int) -> float:
-    raw = _CONFIDENCE_FLOOR + _CONFIDENCE_STEP * (
+def _confidence_for(distinct_pipeline_count: int, domain: str) -> float:
+    floor = _DOMAIN_FLOOR.get(domain, _DEFAULT_FLOOR)
+    raw = floor + _CONFIDENCE_STEP * (
         distinct_pipeline_count - _RECURRENCE_THRESHOLD)
     return min(_CONFIDENCE_CAP, raw)
 
@@ -139,8 +159,10 @@ def _format_body(summary: str) -> str:
 
 def _render_instinct(key: str, cluster: dict) -> str:
     distinct = len(cluster["pipeline_ids"])
-    confidence = _confidence_for(distinct)
+    # Resolve domain BEFORE computing confidence — confidence depends on
+    # the domain-weighted floor, so the order is load-bearing.
     domain = _domain_for(cluster["category"])
+    confidence = _confidence_for(distinct, domain)
     body = _format_body(cluster["summary"])
     return (
         "---\n"
