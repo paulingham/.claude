@@ -133,6 +133,11 @@
             "type": "command",
             "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/tool-timing-capture.sh\"",
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/tool-output-bytes.sh\"",
+            "timeout": 5000
           }
         ]
       },
@@ -231,6 +236,11 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/tool-timing-capture.sh\"",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/tool-output-bytes.sh\"",
             "timeout": 5000
           }
         ]
