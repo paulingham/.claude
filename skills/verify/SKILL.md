@@ -18,14 +18,14 @@ Proves a feature works correctly beyond just passing tests. Runs three verificat
 
 ## Verification Tiers
 
-| Feature Type | Tier 1 (Contract) | Tier 2 (Smoke) | Tier 3 (Mutation) | Tier 4 (E2E) |
-|-------------|-------------------|----------------|-------------------|--------------|
-| Backend API | Hit real endpoint, verify response shape | curl + DB state check + log check | Mutate handler logic | N/A |
-| Frontend | Props match API response shape | Playwright/browser screenshot | Mutate component logic | N/A |
-| Mobile/WebView | Hook/service contract tests | Component render + prop verification | Mutation testing on lib/ business logic | Maestro (mobile) AND/OR Playwright/Cypress (web) — multi-target dispatch per `rules/_detail/e2e-protocol.md` |
-| Web (browser) | API contract tests against real endpoint | Curl + DOM snapshot + log check | Mutate handler/component logic | Playwright/Cypress against deployed preview / docker-compose / cloud ephemeral env (conditional per `rules/_detail/e2e-protocol.md`) |
-| Database | Schema constraint tests | Migrate up+down, verify integrity | N/A | N/A |
-| Infrastructure | Health endpoint responds | Readiness probe passes | N/A | N/A |
+| Feature Type | Tier 1 (Contract) | Tier 2 (Smoke) | Tier 3 (Rule-Based Mutation) | Tier 3.5 (LLM-Mutant) | Tier 4 (E2E) |
+|-------------|-------------------|----------------|------------------------------|------------------------|--------------|
+| Backend API | Hit real endpoint, verify response shape | curl + DB state check + log check | Mutate handler logic | ≥60% kill rate | N/A |
+| Frontend | Props match API response shape | Playwright/browser screenshot | Mutate component logic | ≥60% kill rate | N/A |
+| Mobile/WebView | Hook/service contract tests | Component render + prop verification | Mutation testing on lib/ business logic | ≥60% kill rate | Maestro (mobile) AND/OR Playwright/Cypress (web) — multi-target dispatch per `rules/_detail/e2e-protocol.md` |
+| Web (browser) | API contract tests against real endpoint | Curl + DOM snapshot + log check | Mutate handler/component logic | ≥60% kill rate | Playwright/Cypress against deployed preview / docker-compose / cloud ephemeral env (conditional per `rules/_detail/e2e-protocol.md`) |
+| Database | Schema constraint tests | Migrate up+down, verify integrity | N/A | N/A | N/A |
+| Infrastructure | Health endpoint responds | Readiness probe passes | N/A | N/A | N/A |
 
 ## Process
 
@@ -73,6 +73,58 @@ Read the project's tech stack pattern file if one exists at `~/.claude/skills/[s
 4. Report manual-fallback methodology, total mutations checked, and surviving-mutation list.
 
 The manual fallback is approved as a gate-passing methodology — but the >= 70% threshold still applies. "Tooling unavailable" is not an exemption from the gate.
+
+### 4.25. Run Tier 3.5: LLM-Mutant Pass (HARD GATE — ≥60% kill rate)
+
+> **Tier 3.5 is ADDITIVE to Tier 3, NOT a replacement.** Tier 3 retains its ≥70% rule-based mutation gate. Tier 3.5 layers a Claude-driven semantic-mutant pass on top: rule-based catches operator-shape bugs (5x cheaper); LLM-based catches intent-shape bugs (Wang et al.'s 46.3 pp lift on fault detection). Both gates must pass for VERIFIED. Iron Law 1's 70% mutation requirement on changed lines refers to Tier 3 — Tier 3.5 ships its own per-tier gate at 60%.
+
+**Prerequisite**: Tier 3 has produced a mutation report. Read its surviving-mutation list to dedup — Tier 3.5 does not re-propose mutations Tier 3 already covered.
+
+**Operator categories (5 fixed, no others):**
+- `off-by-one` — boundary mutations (`<` ↔ `<=`, `i + 1` ↔ `i`, range/slice endpoints).
+- `wrong-comparator` — comparator swaps (`==` ↔ `!=`, `>` ↔ `<`, `&&` ↔ `||`).
+- `swapped-args` — same-typed arguments transposed at call sites.
+- `null-vs-empty` — `null`/`undefined`/`None` ↔ empty collection (`[]`, `""`, `{}`).
+- `async-without-await` — dropped `await` on a Promise/Future, dropped `.catch`/error path on async work.
+
+**Mutant generation (ONE Claude call per slice — NO retry):**
+
+1. Issue ONE call to Claude with the changed-line diff, the 5 operator categories above, and the Tier 3 surviving-mutation list (for dedup). Request 5–10 mutants — fewer is acceptable, more must be truncated to 10.
+2. Each mutant in the response carries the schema:
+   ```
+   {
+     file:        <relative path>,
+     line_range:  <"start-end" or "line">,
+     original:    <verbatim source snippet>,
+     mutated:     <verbatim mutated snippet>,
+     category:    <one of the 5 above>,
+     rationale:   <why this is a plausible bug>,
+     equivalent:  <yes | no | unsure>
+   }
+   ```
+3. **Equivalence filter**: drop any mutant with `equivalent: yes` from the kill-rate denominator. `unsure` defaults to inclusion (conservative — counts against kill rate unless killed). `equivalent: yes` requires a one-line rationale; code-reviewer + patch-critic spot-check.
+4. **Cost guardrail**: ONE call per slice, max 10 mutants per response. NO retry. If the call times out, returns malformed output (parse failure), or returns zero non-equivalent mutants → Tier 3.5 = **SKIP** with documented reason → composite verdict becomes **VERIFIED_WITH_SKIP**. Product-reviewer must acknowledge the skip in the Accept phase.
+
+**Per-mutant apply-test-revert loop:**
+
+1. Apply the mutant in a scratch worktree (`git stash` snapshot or temporary branch — NEVER in-place edits to the active worktree).
+2. Run the test suite.
+3. **Killed**: a test fails on the mutated code (the mutation was caught).
+4. **Survived**: the suite stays green on the mutated code (the mutation slipped past tests).
+5. **Timed-out**: treat as **killed** (Stryker semantics — runaway tests indicate the mutation broke a tight loop).
+6. Revert the mutant before applying the next one.
+
+**Per-tier gate:**
+```
+kill_rate = killed / (killed + survived)
+```
+where the denominator excludes `equivalent: yes` mutants. **kill_rate ≥ 0.60 required.** Below threshold → Tier 3.5 = **FAIL** → composite verdict becomes **UNVERIFIED**, slice returns to Build with the surviving-mutant list as targeted test gaps.
+
+**Audit-trail invariant**: Tier 3.5 results **APPEND to the existing mutation report** produced by Tier 3 — they do NOT generate a new report file. The audit-trail count locked by `rules/_detail/atdd-procedure.md` (3 artifacts: batched RED, GREEN, mutation-report) is preserved.
+
+**Citations:**
+- arXiv 2406.09843 (Wang et al., 2024) — LLM-generated mutants achieve 87.98% fault detection vs 41.64% rule-based (46.3 pp lift) on a comprehensive benchmark; motivates Tier 3.5 as additive to Tier 3.
+- arXiv 2404.09952 (LLMorpheus, 2024) — measured ~18.2% structurally equivalent / near-equivalent mutant rate (8.5% equivalent + 9.7% near-equivalent), capping achievable kill rate at ~80–82% for LLM-mutant suites; motivates the 60% per-tier gate (headroom for tooling variance below the structural ceiling).
 
 ### 4.5. Run Tier 4: E2E Tests (Conditional, multi-target)
 
@@ -142,6 +194,13 @@ Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mob
 - **Score**: [X/Y mutations caught]
 - **Uncaught**: [list of surviving mutations]
 
+### Tier 3.5: LLM-Mutant Pass
+- **Status**: PASS / FAIL / SKIP / N/A
+- **Score**: [X/Y mutants killed (excluding equivalent)]
+- **Equivalent excluded**: [N]
+- **Uncaught**: [list of surviving non-equivalent mutants with category + rationale]
+- **Skip reason** (if SKIP): [reason — call timeout, parse failure, zero non-equivalent mutants returned]
+
 ### Tier 4: E2E (multi-target — mobile + web)
 - **Per-target status**:
   - Mobile (Maestro): PASS / FAIL / SKIP / N/A
@@ -155,7 +214,13 @@ Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mob
 - **Evidence**: [pass/fail per flow + per-spec, retry attempts, skip reason if applicable]
 
 ### Verdict: VERIFIED / VERIFIED_WITH_SKIP / UNVERIFIED
-[If VERIFIED_WITH_SKIP: Tier 4 was SKIP -- product-reviewer must acknowledge]
+
+**Verdict semantics**:
+- **VERIFIED** — Tier 3 (≥70% rule-based) AND Tier 3.5 (≥60% LLM-mutant) both PASS (or both N/A per the tier matrix). Tier 4 fired and PASSED (or all N/A).
+- **VERIFIED_WITH_SKIP** — at least one tier was SKIP (Tier 3.5 SKIP on Claude-call failure; Tier 4 SKIP per E2E protocol prerequisites unmet) AND no tier FAILED. Product-reviewer must acknowledge the skip in the Accept phase.
+- **UNVERIFIED** — any tier FAILED. Slice returns to Build with the failing tier's evidence (surviving-mutant list, failing E2E flows) as targeted gaps.
+
+[If VERIFIED_WITH_SKIP: name which tier was SKIP and why -- product-reviewer must acknowledge]
 [If UNVERIFIED: which tier failed and why]
 ```
 
@@ -170,6 +235,6 @@ Verdict: VERIFIED / VERIFIED_WITH_SKIP / UNVERIFIED
 Next: If VERIFIED → /qa-test-strategy
       If VERIFIED_WITH_SKIP → /qa-test-strategy (product-reviewer must acknowledge skip in Accept phase)
       If UNVERIFIED → return to Build phase to fix failing tiers, then re-review
-Tier results: [PASS/FAIL/SKIP/N/A per tier with evidence]
+Tier results: Tier 1: [PASS/FAIL] | Tier 2: [PASS/FAIL] | Tier 3: [PASS/FAIL/N/A] | Tier 3.5: [PASS/FAIL/SKIP/N/A] | Tier 4: [PASS/FAIL/SKIP/N/A]
 Agent summaries: [verification summary]
 ```
