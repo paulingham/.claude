@@ -99,12 +99,23 @@ class StopHookActiveShortCircuit(unittest.TestCase):
             with self.subTest(hook=name, event="SubagentStop"):
                 self._assert_short_circuit(name)
 
+    # Subdirectories under $HOME/.claude/ that ANY in-repo hook may write to
+    # post-guard. If a hook regresses and writes to one of these under
+    # stop_hook_active=true, the assertion below catches it. Sourced from a
+    # full audit of `\$HOME/.claude/` write paths across every Stop and
+    # SubagentStop hook (metrics, pipeline-state, learning, state — extend
+    # this list when a new write surface is added to any hook).
+    GUARDED_SIDE_EFFECT_DIRS = (
+        "metrics",
+        "pipeline-state",
+        "learning",
+        "state",
+    )
+
     def _assert_short_circuit(self, hook_basename: str) -> None:
         with _hermetic_home() as home:
             home_path = Path(home)
             (home_path / ".claude").mkdir(parents=True, exist_ok=True)
-            metrics_dir = home_path / ".claude" / "metrics"
-            pipeline_dir = home_path / ".claude" / "pipeline-state"
             env = os.environ.copy()
             env["HOME"] = home
             # Force standard profile so check_hook_profile gates do not mask
@@ -128,12 +139,11 @@ class StopHookActiveShortCircuit(unittest.TestCase):
                              f"stderr={result.stderr!r}")
             self.assertEqual(result.stdout, "",
                              f"{hook_basename} emitted stdout: {result.stdout!r}")
-            self.assertFalse(metrics_dir.exists(),
-                             f"{hook_basename} wrote to {metrics_dir} "
-                             f"(stop_hook_active guard missed)")
-            self.assertFalse(pipeline_dir.exists(),
-                             f"{hook_basename} wrote to {pipeline_dir} "
-                             f"(stop_hook_active guard missed)")
+            for sub in self.GUARDED_SIDE_EFFECT_DIRS:
+                target = home_path / ".claude" / sub
+                self.assertFalse(target.exists(),
+                                 f"{hook_basename} wrote to {target} "
+                                 f"(stop_hook_active guard missed)")
 
 
 class TrapRegistrationOrdering(unittest.TestCase):
@@ -150,12 +160,14 @@ class TrapRegistrationOrdering(unittest.TestCase):
             for name in _resolve_hook_basenames(event):
                 with self.subTest(hook=name, event=event):
                     body = (HOOKS_DIR / name).read_text()
-                    trap_idx = self._line_of(body, r"^\s*trap\s")
+                    trap_idx = self._first_module_scope_trap(body)
                     exit_idx = self._first_early_exit(body)
                     self.assertIsNotNone(trap_idx,
-                                         f"{name} has no `trap` line — add "
-                                         "`trap 'log_hook_event $?' EXIT` "
-                                         "before any early exit")
+                                         f"{name} has no module-scope `trap` "
+                                         "line — add `trap 'log_hook_event "
+                                         "$?' EXIT` before any early exit "
+                                         "(in-function traps do not satisfy "
+                                         "this gate)")
                     self.assertIsNotNone(exit_idx,
                                          f"{name} has no early-exit line — "
                                          "expected at least the "
@@ -166,21 +178,30 @@ class TrapRegistrationOrdering(unittest.TestCase):
                                     f"{exit_idx}")
 
     @staticmethod
-    def _line_of(body: str, pattern: str) -> int | None:
+    def _first_module_scope_trap(body: str) -> int | None:
+        # Require the trap to start at column 0 (no leading whitespace) so an
+        # in-function `trap '...' EXIT` does not satisfy the gate. Comments
+        # are stripped before the match so a future `# trap ...` note does
+        # not produce a false positive.
         for i, line in enumerate(body.splitlines(), start=1):
-            if re.search(pattern, line):
+            if line.lstrip().startswith("#"):
+                continue
+            if re.match(r"^trap\s+", line):
                 return i
         return None
 
     @staticmethod
     def _first_early_exit(body: str) -> int | None:
-        # First line that can short-circuit the hook: explicit `exit 0`,
-        # `exit ${var:-0}`, or a chained `|| exit 0` (e.g. from a sourced
-        # check_hook_profile guard).
+        # First line that can short-circuit the hook. Covers explicit
+        # `exit 0`/`exit 1`, chained `&& exit` / `|| exit` (e.g. from a
+        # sourced check_hook_profile guard), and `return 0`/`return 1`
+        # from a sourced function. Comment lines are skipped so a stray
+        # `# always exit 0` cannot trip the heuristic.
         patterns = (
-            r"\bexit\s+0\b",
+            r"\bexit\s+[01]\b",
             r"\|\|\s*exit\b",
             r"&&\s*exit\b",
+            r"\breturn\s+[01]\b",
         )
         for i, line in enumerate(body.splitlines(), start=1):
             stripped = line.strip()
