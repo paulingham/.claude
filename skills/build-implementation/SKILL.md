@@ -63,10 +63,37 @@ Follow the ATDD Protocol in `rules/_detail/atdd-procedure.md`:
 
 1. **BATCHED RED**: Write every AC test as one batch (the architect's stubs verbatim). Run the suite ONCE. Capture the RED output. Verify each test fails for the right reason — the named behavior is absent. The Tier-0 contract tests authored in Step 1c are also part of this batch (they are still RED unless the contract assertion was implementable in isolation in Step 1c).
 2. **IMPLEMENT CLEANLY**: Write production code that is correct AND well-shaped on the first pass. Cohesion rules (one-thing-per-function, CC ≤ 5, nesting ≤ 2, DRY on 2nd occurrence) apply *as you write*, not in a separate cleanup pass. Choose intent-revealing names from the start; extract duplication on the 2nd occurrence as it appears. Run the suite ONCE when done. Capture the GREEN output.
-3. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% required. If <70%, add tests targeting the surviving mutations and return to step 2 — the slice is NOT complete.
+3. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% required against the **union suite** (architect stubs + adversarials from Step 2b). If <70%, add tests targeting the surviving mutations and return to step 2 — the slice is NOT complete.
 4. **COMMIT** with the three audit artifacts: batched RED output, GREEN output, mutation report.
 
 **Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN. See `rules/_detail/atdd-procedure.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
+
+### Step 2b: Adversarial Test Categories (greenfield ACs only)
+
+After Step 2's IMPLEMENT step lands GREEN and BEFORE the MUTATION GATE finalises, generate adversarial tests that probe edge cases the architect's stubs do not cover. Adversarials are AC-adjacent edge probes — they belong AFTER architect stubs are GREEN, not before. Inspired by AlphaCodium (arXiv 2401.08500) test-iteration loop.
+
+**Bug-fix slices SKIP this step entirely.** For bug-fix work, the repro test IS the contract — adversarial probing belongs in greenfield AC implementation, not regression closure. See `skills/bug-fix/SKILL.md` for the per-behaviour cycle that applies instead.
+
+**Escape hatch.** Set `CLAUDE_ADVERSARIAL_TESTS=0` in the environment to disable Step 2b — this skips Step 2b entirely. The hatch exists for the soak window (default-on) so cycle-time impact can be measured before flipping to mandatory; it is the one-line revert path if adversarial generation introduces unexpected runtime cost.
+
+**Procedure.** Generate **3-5 adversarial tests** (HARD CAP at 5 — bound the cycle time). Walk the categories below in order, stop at 5 once the cap is reached even if later categories were not exercised. Each adversarial follows **RED-then-GREEN** — write the test, run the suite, confirm it fails for the right reason, then implement (or correct production code) until it passes. This is the same audit-trail contract as the architect's stubs; a captured RED is the audit artifact.
+
+Walk these 5 categories IN ORDER:
+
+1. **Boundary values** — off-by-one (`n-1`, `n`, `n+1`), empty collection, single-element, max int / max string length where the language allows.
+2. **Null / empty / undefined** — every input where the type allows. Skip if the type forbids (e.g., a non-nullable `int` parameter in Kotlin needs no null adversarial).
+3. **Malformed input (parser-level only)** — malformed JSON, malformed dates, encoding edge cases (BOM, mixed UTF-16, lone surrogates). Only when changed code parses external input — skip for code that receives already-parsed structures.
+4. **Error-path coverage** — for every catch / rescue / except block on changed lines, write one test that triggers it and asserts the block's claimed behavior. The catch block exists to do something — assert it does that thing.
+5. **Concurrency races** — ONLY when changed code touches shared mutable state (module-level mutable, singleton instance state, file lock, DB row write without transaction). Skip for pure / per-request / per-instance code.
+
+**Discipline rules.**
+
+- **passes immediately = delete.** An adversarial that goes GREEN on its first run without any production-code change has no diagnostic value — the existing tests already cover the case, or the named edge does not actually exist on the changed lines. Delete it; do not keep it as a vanity test.
+- **HALT if adversarial reveals contract gap.** If an adversarial surfaces a behavior the AC does not specify (e.g., what should happen on negative input when the AC is silent), HALT and surface to the architect. Do not invent the contract — the architect owns the spec, the engineer owns the implementation.
+
+**PBT overlap.** When a function has **Tier 1.5** property-based tests covering it (per `rules/_detail/engineering-invariants.md` § Proof of Correctness), **cap reduces from 5 to 3** for that function. PBTs already exercise boundary values and null/empty cases at the property level; adversarials should focus on **error-path + concurrency** which PBTs cover poorly. Detection is mechanical — file glob `tests/**/*.property.{spec,test}.*` next to the changed file → cap=3.
+
+After adversarials are GREEN, return to Step 2's MUTATION GATE on the **union suite** (architect stubs + adversarials).
 
 ### Step 3: Shape Check After Every File
 
@@ -103,6 +130,7 @@ Before declaring the build complete:
 - [ ] Functions > 30 lines or files > 150 lines: justified or refactored (advisory smell signals, not hard caps)
 - [ ] All tests pass
 - [ ] ATDD audit trail visible (batched RED + GREEN + mutation report ≥ 70%)
+- [ ] Step 2b ran (3-5 adversarial tests, each RED-then-GREEN), OR was skipped per `CLAUDE_ADVERSARIAL_TESTS=0`, OR is N/A for a bug-fix slice
 - [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `rules/_detail/e2e-protocol.md` trigger matrix)
 - [ ] If `/tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries
 
