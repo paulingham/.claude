@@ -7,9 +7,11 @@ Args (positional, all required, may be empty string):
 Field order: ts, tool, duration_ms, success, agent_role, task_id.
 agent_role/task_id are OMITTED when empty (omit-not-null contract).
 """
-import json
-import os
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from jsonl_append import append_jsonl
 
 
 def _build_record(ts, tool, duration_ms, success, agent_role, task_id):
@@ -22,13 +24,6 @@ def _build_record(ts, tool, duration_ms, success, agent_role, task_id):
     return rec
 
 
-def _append_line(metrics_dir, rec):
-    os.makedirs(metrics_dir, exist_ok=True)
-    out = os.path.join(metrics_dir, "tool-timings.jsonl")
-    with open(out, "a", encoding="utf-8") as f:
-        f.write(json.dumps(rec) + "\n")
-
-
 def main(argv):
     if len(argv) != 8:
         return 0
@@ -36,7 +31,7 @@ def main(argv):
         rec = _build_record(*argv[2:])
     except (TypeError, ValueError):
         return 0
-    _append_line(argv[1], rec)
+    append_jsonl(argv[1], "tool-timings.jsonl", rec)
     return 0
 
 

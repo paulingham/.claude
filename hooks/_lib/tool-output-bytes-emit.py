@@ -12,8 +12,11 @@ Non-string output (binary, dict, list) records char_count: 0 with
 reason: "non-string-output" rather than skipping (negative-case observability).
 """
 import json
-import os
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from jsonl_append import append_jsonl
 
 THRESHOLD_TOKENS = 20_000
 
@@ -50,13 +53,6 @@ def _build_record(ts, tool, output, reason, agent_role, task_id):
     return rec
 
 
-def _append_line(metrics_dir, rec):
-    os.makedirs(metrics_dir, exist_ok=True)
-    out = os.path.join(metrics_dir, "tool-output-bytes.jsonl")
-    with open(out, "a", encoding="utf-8") as f:
-        f.write(json.dumps(rec) + "\n")
-
-
 def main(argv):
     if len(argv) != 4:
         return 0
@@ -74,7 +70,7 @@ def main(argv):
     tool_input = payload.get("tool_input") or {}
     agent_role = tool_input.get("subagent_type", "") if isinstance(tool_input, dict) else ""
     rec = _build_record(ts, tool, output, reason, agent_role, task_id)
-    _append_line(metrics_dir, rec)
+    append_jsonl(metrics_dir, "tool-output-bytes.jsonl", rec)
     if rec["estimated_tokens"] > THRESHOLD_TOKENS:
         sys.stderr.write(
             f"tool-output-bytes: large output detected — tool={tool} "
