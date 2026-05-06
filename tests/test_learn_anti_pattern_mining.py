@@ -118,7 +118,13 @@ class MiningConfidenceFormula(unittest.TestCase):
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
-            finding = ["fragility: config parser unchecked"]
+            # Rewritten from "fragility:" → "warning:" under domain-weighted
+            # floor (NEW-1): preserves original N=5 → 0.6 intent because
+            # warning maps to workflow domain (floor=0.5) so 0.5 + 0.05*2 = 0.6.
+            # Under fragility (architecture floor=0.7), N=5 would yield 0.8
+            # and break this test's intent. The cap-test at N=20 below still
+            # uses workflow and remains valid.
+            finding = ["warning: config parser unchecked"]
             obs = _write_observations(tmp_path, [
                 _make_pipeline_obs(f"pipe-{n}", rounds=2,
                                    scratchpad_findings=finding)
@@ -307,6 +313,150 @@ class MiningSilentlySkipsMalformedFindings(unittest.TestCase):
                                        instincts_dir=tmp_path / "instincts")
             # Zero — no cluster has a real category key.
             self.assertEqual(files, [])
+
+
+class MiningDomainFloorMap(unittest.TestCase):
+    """AC1: `_DOMAIN_FLOOR` map exposes five domain→floor entries plus
+    `_DEFAULT_FLOOR == 0.5`. Replaces the prior flat `_CONFIDENCE_FLOOR`."""
+
+    def test_domain_floor_map_has_five_entries_plus_default(self):
+        from learn_anti_pattern_mining import _DEFAULT_FLOOR, _DOMAIN_FLOOR
+        self.assertEqual(_DOMAIN_FLOOR, {
+            "workflow": 0.5,
+            "testing": 0.6,
+            "code-style": 0.6,
+            "architecture": 0.7,
+            "security": 0.7,
+        })
+        self.assertEqual(_DEFAULT_FLOOR, 0.5)
+
+
+class MiningConfidenceForSignature(unittest.TestCase):
+    """AC2: `_confidence_for(distinct_pipeline_count, domain)` resolves the
+    domain-weighted floor and clamps to the uniform 0.85 cap. Unknown domain
+    falls back to `_DEFAULT_FLOOR` (workflow floor)."""
+
+    def test_confidence_for_returns_domain_resolved_floor_capped_at_085(self):
+        from learn_anti_pattern_mining import _confidence_for
+        # Workflow floor at threshold N=3 → 0.5 (no boost yet).
+        self.assertEqual(_confidence_for(3, "workflow"), 0.5)
+        # Architecture floor (0.7) reaches cap exactly at N=6:
+        # 0.7 + 0.05 * (6 - 3) = 0.85.
+        self.assertEqual(_confidence_for(6, "architecture"), 0.85)
+        # Workflow at N=20 must still cap at 0.85 (cap monotonic).
+        self.assertEqual(_confidence_for(20, "workflow"), 0.85)
+        # Unknown domain → default floor (0.5) at threshold yields 0.5.
+        self.assertEqual(_confidence_for(3, "unknown-domain"), 0.5)
+
+
+class MiningRenderInstinctResolvesDomainBeforeConfidence(unittest.TestCase):
+    """AC3: `_render_instinct` must resolve `domain` BEFORE computing
+    confidence, because confidence depends on the floor for that domain.
+    Joint observation of domain + confidence in the emitted file proves
+    the call ordering — if domain were resolved AFTER, the confidence
+    would still be the workflow-default value (0.5 at N=3) instead of
+    the architecture-floor value (0.7 at N=3)."""
+
+    def test_architecture_domain_at_n3_emits_confidence_07_proves_ordering(
+            self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            # `fragility:` prefix → architecture domain (floor 0.7).
+            finding = ["fragility: cross-module shared state mutated"]
+            obs = _write_observations(tmp_path, [
+                _make_pipeline_obs(f"pipe-{n}", rounds=2,
+                                   scratchpad_findings=finding)
+                for n in (1, 2, 3)
+            ])
+            mine_anti_patterns(observations_path=obs,
+                               instincts_dir=tmp_path / "instincts")
+            files = _emitted(tmp_path)
+            self.assertEqual(len(files), 1)
+            text = files[0].read_text()
+            self.assertIn("domain: architecture", text)
+            self.assertIn("confidence: 0.7", text)
+
+
+class MiningDomainWeightedFloors(unittest.TestCase):
+    """AC5: end-to-end domain-weighted floor coverage via `mine_anti_patterns`.
+    Each test asserts the emitted file's `confidence:` value for a chosen
+    domain and recurrence count. Workflow caps at N=10, architecture at N=6.
+    """
+
+    def _emit_and_read(self, tmp_path, finding, pipeline_count):
+        obs = _write_observations(tmp_path, [
+            _make_pipeline_obs(f"pipe-{n}", rounds=2,
+                               scratchpad_findings=finding)
+            for n in range(pipeline_count)
+        ])
+        mine_anti_patterns(observations_path=obs,
+                           instincts_dir=tmp_path / "instincts")
+        files = _emitted(tmp_path)
+        self.assertEqual(len(files), 1)
+        return files[0].read_text()
+
+    def test_workflow_n3_yields_confidence_05(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            text = self._emit_and_read(
+                Path(tmp), ["warning: ci flake on slow fixture"], 3)
+            self.assertIn("confidence: 0.5", text)
+            self.assertIn("domain: workflow", text)
+
+    def test_workflow_n10_caps_exactly_at_085(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            # 0.5 + 0.05 * (10 - 3) = 0.85 exact cap.
+            text = self._emit_and_read(
+                Path(tmp), ["warning: workflow drift across pipelines"], 10)
+            self.assertIn("confidence: 0.85", text)
+
+    def test_workflow_n20_cap_holds_at_085(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            # Past-cap recurrence must NOT exceed 0.85 (cap is monotonic).
+            text = self._emit_and_read(
+                Path(tmp), ["warning: persistent workflow noise"], 20)
+            self.assertIn("confidence: 0.85", text)
+
+    def test_architecture_n3_yields_confidence_07(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            text = self._emit_and_read(
+                Path(tmp), ["fragility: ports leak across modules"], 3)
+            self.assertIn("confidence: 0.7", text)
+            self.assertIn("domain: architecture", text)
+
+    def test_architecture_n4_yields_confidence_075(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            # Mid-ramp: 0.7 + 0.05 * (4 - 3) = 0.75.
+            text = self._emit_and_read(
+                Path(tmp), ["fragility: contract drift in adapter"], 4)
+            self.assertIn("confidence: 0.75", text)
+
+    def test_architecture_n6_caps_exactly_at_085(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            # 0.7 + 0.05 * (6 - 3) = 0.85 exact cap.
+            text = self._emit_and_read(
+                Path(tmp), ["fragility: shared singleton state"], 6)
+            self.assertIn("confidence: 0.85", text)
+
+    def test_unknown_domain_uses_default_floor_05(self):
+        import tempfile
+        # Direct call: an unknown domain string must yield the default floor.
+        from learn_anti_pattern_mining import _confidence_for
+        self.assertEqual(_confidence_for(3, "totally-made-up-domain"), 0.5)
+        # End-to-end: a `pattern:` prefix maps via `_DOMAIN_BY_CATEGORY`
+        # to "workflow" — which IS in `_DOMAIN_FLOOR`. To exercise the
+        # `.get(domain, _DEFAULT_FLOOR)` fallback path through mining, we
+        # rely on the direct call above (the production map currently has
+        # no category whose resolved domain is absent from `_DOMAIN_FLOOR`,
+        # which is itself a desirable invariant — every documented domain
+        # has an explicit floor entry). The fallback exists for future
+        # category additions whose domain may not yet have a floor entry.
 
 
 if __name__ == "__main__":
