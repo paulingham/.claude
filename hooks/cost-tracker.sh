@@ -8,7 +8,7 @@
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start
-_log_hook_trigger "SubagentStop"
+_log_hook_trigger "Stop"
 trap 'log_hook_event $?' EXIT
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
