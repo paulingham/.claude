@@ -142,6 +142,42 @@ class TestToolOutputBytesHook(unittest.TestCase):
         rec = json.loads(lines[0])
         self.assertEqual(rec["task_id"], "my-task")
 
+    def test_threshold_boundary_no_warning_at_exactly_20000_tokens(self):
+        """80000-char output → estimated_tokens == 20000 == THRESHOLD: NO stderr warn.
+
+        Pins the strict-greater-than boundary on THRESHOLD_TOKENS — mutating `>`
+        to `>=` would emit a warning at exactly 20000 tokens, failing this test.
+        """
+        payload = _payload(tool="Bash", output="x" * 80_000)
+        proc = self._run(payload)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        lines = _read_lines(self.tmp, self.session)
+        self.assertEqual(len(lines), 1)
+        rec = json.loads(lines[0])
+        self.assertEqual(rec["estimated_tokens"], 20_000)
+        self.assertEqual(proc.stderr.strip(), "",
+                         f"expected no warning at exact threshold, got: {proc.stderr!r}")
+
+    def test_tool_response_dict_without_output_key_skips_silently(self):
+        """tool_response is a dict but lacks `output` key → exit 0, no line, no traceback.
+
+        Pins the `"output" not in response` guard — removing it would attempt
+        `response["output"]` and raise KeyError, surfacing a Python traceback.
+        """
+        payload = {
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Bash",
+            "tool_response": {"exit_code": 0, "stderr": ""},
+        }
+        proc = self._run(payload)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        lines = _read_lines(self.tmp, self.session)
+        self.assertEqual(lines, [])
+        self.assertNotIn("Traceback", proc.stderr,
+                         f"expected no Python traceback, got: {proc.stderr!r}")
+        self.assertNotIn("KeyError", proc.stderr,
+                         f"expected no KeyError, got: {proc.stderr!r}")
+
 
 if __name__ == "__main__":
     unittest.main()
