@@ -128,6 +128,54 @@ await browser.close();
 
 **If capture fails** (browser crash, navigation error) → log the failing route but continue with remaining routes. Report partial results.
 
+### Step 6.25: A11y Tree Capture (Dual-Output)
+
+After Step 6 screenshots, while the dev server is still running and Playwright is still in-process, capture an accessibility-tree snapshot per (route, viewport). The output is owned by `patch-critic` (machine-checkable rubric § 5). Product-reviewer continues to consume only the screenshots — see `agents/product-reviewer.md`.
+
+**Index file** (canonical artifact for downstream consumers):
+- Path: `pipeline-state/{task-id}/design-qc/index.json`
+- Schema: `{schema_version: 1, task_id, captured_at, build_status, server_started, routes: [...], a11y_global: {...}}`
+- Per-route entry: `{route, screenshots: [...], a11y: {captured, capture_path?, reason?, snapshots: [{viewport, path}]}}`
+- Per-snapshot file: `pipeline-state/{task-id}/design-qc/a11y/{route-slug}-{viewport}.json` with `schema_version: 1` and a normalised tree shape
+
+**Capture strategy** (probe → fallback):
+
+```
+Probe Playwright MCP (one inert call, 2s timeout):
+  ok        -> use MCP for the rest of this design-qc run; capture_path = "mcp"
+  error     -> fall back to library API (page.accessibility.snapshot())
+  timeout   -> fall back to library API
+For each captured (route, viewport):
+  Normalise the result via hooks/_lib/a11y_normalize.js
+  Write to pipeline-state/{task-id}/design-qc/a11y/{slug}-{viewport}.json
+```
+
+**Failure handling:**
+
+| Condition | a11y_global | Per-route entry | Scratchpad warning |
+|-----------|-------------|------------------|--------------------|
+| MCP probe + library both fail | `{captured: false, reason: "mcp-unavailable", capture_path: null}` | `snapshots: []` | Yes — category `warning`, body contains literal token `mcp-unavailable` |
+| Per-route capture errored (other routes ok) | `{captured: true, capture_path: ...}` | `{captured: false, reason: "capture-error", error_snippet: <first 200 chars>}` | No — partial-capture is normal |
+| Project CLAUDE.md `## Dev Server` declares `target: native` | `{captured: false, reason: "non-web-target", capture_path: null}` | omitted | No |
+
+**Dependency-injected probe** (`hooks/_lib/a11y_probe.js`):
+- `probe_mcp_availability(invoker, timeout_ms = 2000)` accepts an injected callable. Production binds `invoker` to the active MCP client's send method; tests substitute success/timeout/error stubs. No real MCP needed for unit tests.
+
+**Adapter byte-equivalence**:
+- `normalize_mcp_yaml(yamlStr, viewport, route, captured_at)` and `normalize_library_json(node, viewport, route, captured_at)` produce byte-equal JSON (sorted keys, identical null-fields) for the same DOM. This is a contract test (AC15) — adapter drift fails CI.
+
+**SKIP warning (when capture unavailable)** — written to `pipeline-state/{task-id}/scratchpad/design-qc-build.md`:
+
+```
+---
+category: warning
+---
+
+A11y capture unavailable: mcp-unavailable.
+```
+
+**Iron law for this step**: capture failure does NOT change the design-qc verdict. SCREENSHOTS_CAPTURED still emits. The verdict surface for design-qc is unchanged from Slice 1; capture state is communicated via the index file alone.
+
 ### Step 6.5: Automated Design Evaluation
 
 While the browser is still open, evaluate each captured page programmatically:

@@ -33,12 +33,13 @@ The orchestrator MUST provide all three in the spawn prompt:
 | Candidate diff | `git diff main...HEAD` (full unified diff) |
 | Test output | Most recent fresh test-suite run (PASS/FAIL counts, failed test names) |
 | Intake spec | Task description from `/intake` — what the patch is supposed to do |
+| A11y index (optional) | `pipeline-state/{task-id}/design-qc/index.json` produced by `/design-qc` § 6.25. Drives rubric § 5. Absent → § 5 omitted from output (silent SKIP). |
 
-If any input is missing, the critic returns PATCH_REJECTED with reason `missing input: {name}`. Do NOT guess at missing inputs.
+If any of the three required inputs is missing, the critic returns PATCH_REJECTED with reason `missing input: {name}`. Do NOT guess at missing inputs. The a11y index is optional; absence triggers § 5 SKIP semantics, not PATCH_REJECTED.
 
 ## Rubric
 
-Four dimensions, each PASS / FAIL with a one-line justification. Any FAIL → PATCH_REJECTED.
+Five dimensions, each PASS / SKIP / FAIL with a one-line justification. Any FAIL → PATCH_REJECTED. SKIP counts as PASS for `PATCH_APPROVED` aggregation.
 
 | Dimension | What it checks | Cite |
 |-----------|---------------|------|
@@ -46,8 +47,11 @@ Four dimensions, each PASS / FAIL with a one-line justification. Any FAIL → PA
 | Diff minimal vs spec | Diff touches only what the intake spec implies | unrelated `file:line` |
 | No obvious regressions | No removed guards, weakened validation, swallowed errors | regression `file:line` |
 | No incidental refactor | No rename/move/extract not requested by spec | refactor `file:line` |
+| § 5 A11y (assertions A1–A6) | Six accessibility assertions over `index.json` snapshots | route + viewport + assertion id |
 
 The rubric is deliberately mechanical — judgement at the boundaries goes to the Opus advisor.
+
+§ 5 SKIP semantics: index-absent → section omitted entirely; `a11y_global.captured == false` with reason `mcp-unavailable` → row rendered with operator-facing remediation pointer to `skills/design-qc/SKILL.md` § 6.25; other reasons → row rendered as `SKIP: <reason>`. See `agents/patch-critic.md` § 5 for the full rubric and the six assertions.
 
 ## What This Skill Is NOT
 

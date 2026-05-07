@@ -1,0 +1,22 @@
+- role: WebArea
+  name: Dashboard
+  level: null
+  hidden: false
+  tag: html
+  ref: ref-1
+  children:
+    - role: heading
+      name: Welcome back
+      level: 1
+      hidden: false
+      tag: h1
+      ref: ref-2
+      children: []
+    - role: button
+      name: Open menu
+      level: null
+      hidden: false
+      tag: button
+      ref: ref-3
+      interactive: true
+      children: []

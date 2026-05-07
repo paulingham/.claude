@@ -48,8 +48,11 @@ The orchestrator hands you, in the spawn prompt:
 - **Candidate diff**: `git diff main...HEAD` (full unified diff)
 - **Test output**: the most recent fresh test-suite run (PASS/FAIL counts, failed test names)
 - **Intake spec**: the task description from `/intake` — what the patch is supposed to do
+- **A11y index** (optional): `pipeline-state/{task-id}/design-qc/index.json` produced by the Design QC step. When present and `a11y_global.captured == true`, the per-snapshot JSON files referenced from `routes[].a11y.snapshots[].path` are inputs to rubric § 5 below.
 
-If any input is missing, return PATCH_REJECTED with reason `missing input: {name}`. Do NOT guess.
+You consume the a11y JSON only. Pixel-level inspection of captured imagery is product-reviewer's domain — out-of-scope here.
+
+If any required input (diff, tests, spec) is missing, return PATCH_REJECTED with reason `missing input: {name}`. Do NOT guess. The a11y index is optional; absence triggers rubric § 5 SKIP semantics, not PATCH_REJECTED.
 
 ## Rubric (the four dimensions you score)
 
@@ -82,6 +85,32 @@ Refactors not requested by the spec do not belong in this patch. They expand rev
 
 - PASS: every non-spec refactor is justified by a directly-blocking dependency
 - FAIL: rename/move/extract/reorganise hunks unrelated to the spec — cite `file:line`
+
+### § 5. Accessibility (machine-checkable)
+
+When the Design QC step produced `pipeline-state/{task-id}/design-qc/index.json`, evaluate the six accessibility assertions below against every per-route a11y snapshot referenced from the index. Tri-state outcome: PASS / SKIP / FAIL. PASS and SKIP both contribute toward `PATCH_APPROVED`; any FAIL triggers `PATCH_REJECTED`.
+
+The six assertions:
+
+| ID | Assertion |
+|----|-----------|
+| **A1** | Every interactive element has a non-empty accessible name (excluding aria-hidden nodes — those are A4) |
+| **A2** | Every `<img>` has alt text unless `role == "presentation"` |
+| **A3** | Form controls (`textbox`, `combobox`, `checkbox`, `radio`, `switch`, `slider`, `spinbutton`, `listbox`) have an accessible name |
+| **A4** | No interactive element has `aria.hidden == true` |
+| **A5** | Heading levels do not skip downward by more than 1 (DFS pre-order traversal); upward jumps are allowed |
+| **A6** | Buttons and links do not use anti-pattern names (denylist: "click here", "here", "link", "button", "read more", "more", "...") — project-overridable via `<project-root>/.claude/a11y-overrides.json` |
+
+SKIP semantics (silent vs operator-facing):
+
+- **index-absent**: when `index.json` does not exist or fails to parse, § 5 is **omitted entirely** from the rubric output (silent SKIP, no row rendered).
+- **`a11y_global.captured == false` reason `mcp-unavailable`**: § 5 row IS rendered with operator-facing remediation text — `SKIP: mcp-unavailable. Remediation: install Playwright MCP or verify dev-server browser launch; see skills/design-qc/SKILL.md § 6.25.`
+- **`a11y_global.captured == false` other reason** (e.g. `non-web-target`, `schema-incompatible`): § 5 row rendered as `SKIP: <reason>.`
+- **Per-route partial capture** (`a11y_global.captured == true` but a subset of routes have `a11y.captured == false`): assertions are evaluated on the captured routes only; failed routes contribute `SKIP: capture-error`. The dimension does NOT FAIL on capture failures alone.
+
+### 5. PATCH_APPROVED aggregation
+
+`PATCH_APPROVED` requires every dimension in `{PASS, SKIP}`; any FAIL on §§ 1–5 → `PATCH_REJECTED`. SKIP is therefore a first-class outcome equivalent to PASS for aggregation purposes.
 
 ## What You Do NOT Do
 
