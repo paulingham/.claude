@@ -1,23 +1,37 @@
-# Session: Untitled
-_A short, distinctive title describing the current engineering work_
+# Session Memory Index
 
-# Active Work
-_Current pipeline phase, task ID, branch name. What's in progress. Immediate next steps._
+_This directory holds engineering context for ONE project. Each project hash gets a sub-directory with five sub-files; the orchestrator selects sub-files by filename and concatenates them under `## Session Context` when spawning agents._
 
-# Codebase Map
-_Key directories and files. What they contain. How they connect. Where to start reading. Entry points for the main flows._
+## Layout
 
-# Build & Test
-_Commands that work: build, test, lint, type-check. Environment setup (env vars, services, databases). Test runner config and quirks. Package manager specifics._
+```
+session-memory/
+├── config/
+│   ├── template.md                # this index
+│   └── templates/                 # seed templates copied per project
+│       ├── codebase-map.md
+│       ├── build-test.md
+│       ├── patterns.md
+│       ├── fragility.md
+│       └── active-work.md
+└── {project-hash}/
+    ├── codebase-map.md            # Key dirs, files, entry points
+    ├── build-test.md              # Build / test commands, env quirks
+    ├── patterns.md                # Patterns, conventions, discoveries, agent effectiveness
+    ├── fragility.md               # Critical paths, timing sensitivities, fragile areas
+    └── active-work.md             # Orchestrator-only — NEVER injected into agent prompts
+```
 
-# Critical Paths
-_Files and modules that are fragile or have complex dependencies. Things that break easily. Areas needing special care. Known timing sensitivities._
+## Sub-file Roles
 
-# Patterns & Conventions
-_Code patterns in use (service objects, barrel exports, hook composition). Naming conventions. Architecture decisions observed. Framework-specific idioms._
+- **codebase-map.md** — orientation map for new spawns: which file does what, how the modules connect.
+- **build-test.md** — commands, env vars, test-runner quirks, package-manager specifics.
+- **patterns.md** — code patterns in use, framework idioms, session discoveries, agent effectiveness notes.
+- **fragility.md** — fragile files, complex dependencies, timing sensitivities, areas needing care.
+- **active-work.md** — current pipeline phase, task id, branch, immediate next steps. Orchestrator state, not engineering knowledge.
 
-# Session Discoveries
-_What was learned this session. Gotchas encountered. Surprising behavior. Solutions to problems. Error messages and their fixes._
+## Injection Rule
 
-# Agent Effectiveness
-_What approaches worked well. What wasted time. Which agent types were most effective for which tasks. Optimal configurations for this project._
+`active-work.md` is NEVER injected into agent prompts (encoded in `hooks/_lib/session_memory_role_resolver.py` — every role's sub-file list excludes it). The orchestrator reads it directly via `session_store_get $hash active-work` for its own state tracking.
+
+The other four sub-files are injected per the role × sub-file mapping in `rules/_detail/autonomous-intelligence.md` § Injection Priority. Empty bodies (< 50 chars after stripping headers + italic descriptions) are omitted from the rendered block — no role sees a header with no content.
