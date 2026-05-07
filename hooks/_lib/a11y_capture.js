@@ -42,8 +42,7 @@ function parse_args(argv) {
 
 function write_snapshot(out_path, normalised) {
   fs.mkdirSync(path.dirname(out_path), { recursive: true });
-  fs.writeFileSync(out_path, JSON.stringify(normalised, Object.keys(
-    normalised).sort()));
+  fs.writeFileSync(out_path, JSON.stringify(normalised));
 }
 
 function run_main(argv, deps) {

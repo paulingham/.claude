@@ -158,6 +158,17 @@ class A3FormControlsNamed(unittest.TestCase):
         a3 = [f for f in findings if f["assertion_id"] == "A3"]
         self.assertEqual(a3, [])
 
+    def test_a3_edge_aria_hidden_textbox_does_not_trigger_a3(self):
+        # aria.hidden interactive form control is excluded from A3
+        # (handled by A4); avoids overlapping findings on the same node.
+        snapshot = _load("a3/edge-aria-hidden.json")
+        findings = evaluate(snapshot, DEFAULT_A6_DENYLIST)
+        a3 = [f for f in findings if f["assertion_id"] == "A3"]
+        self.assertEqual(a3, [])
+        # A4 still fires for aria-hidden interactive node — sanity check.
+        a4 = [f for f in findings if f["assertion_id"] == "A4"]
+        self.assertEqual(len(a4), 1)
+
 
 class A4InteractiveNotAriaHidden(unittest.TestCase):
     """A4 (revised) — no interactive element is aria-hidden."""
@@ -468,6 +479,34 @@ class RunUsesProjectOverrides(unittest.TestCase):
             a6 = [f for f in result.get("findings", [])
                   if f.get("assertion_id") == "A6"]
             self.assertEqual(a6, [])
+
+
+class MalformedOverridesEmitsWarning(unittest.TestCase):
+    """Malformed overrides JSON: warn on stderr, fall back to default denylist."""
+
+    def test_malformed_overrides_warns_to_stderr_and_uses_default(self):
+        import io
+        import tempfile
+        from contextlib import redirect_stderr
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            project = tmp_path / "proj"
+            (project / ".claude").mkdir(parents=True)
+            (project / ".claude" / "a11y-overrides.json").write_text(
+                "{not valid json")
+            index_path = _write_index_and_snapshot(
+                tmp_path, _load("a6/positive.json"))
+            buf = io.StringIO()
+            with redirect_stderr(buf):
+                result = run(str(index_path), project_root=str(project))
+            # Default denylist still in effect — A6 fires for "click here".
+            a6_ids = {f.get("assertion_id") for f in result.get("findings", [])}
+            self.assertIn("A6", a6_ids)
+            # Warning surfaced on stderr with the offending path.
+            err = buf.getvalue()
+            self.assertIn("a11y_assertions", err)
+            self.assertIn("a11y-overrides.json", err)
+            self.assertIn("falling back", err)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ file on disk; this module is the Python side.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Callable
 
@@ -122,6 +123,8 @@ class _Visitor:
 
     def _check_a3(self, node, ancestors, path):
         if not node.get("interactive"):
+            return
+        if _aria_hidden(node):  # A4 covers hidden+interactive
             return
         if (node.get("role") or "") not in FORM_CONTROL_ROLES:
             return
@@ -269,6 +272,9 @@ def _resolve_denylist(project_root: str | None) -> list[str]:
         return list(DEFAULT_A6_DENYLIST)
     try:
         overrides = json.loads(overrides_path.read_text())
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        sys.stderr.write(
+            f"[a11y_assertions] malformed overrides at {overrides_path}: "
+            f"{exc.msg}; falling back to default denylist\n")
         return list(DEFAULT_A6_DENYLIST)
     return effective_a6_denylist(DEFAULT_A6_DENYLIST, overrides)

@@ -27,10 +27,37 @@ test('normalize_mcp_yaml and normalize_library_json byte-equal for same DOM', ()
   const fromLib = normalize_library_json(libRoot, viewport, route, capturedAt);
 
   // Adapter must zero out path-divergent fields (e.g., MCP `ref`) so the
-  // byte serialization is identical regardless of capture path.
-  const a = JSON.stringify(fromMcp, Object.keys(fromMcp).sort());
-  const b = JSON.stringify(fromLib, Object.keys(fromLib).sort());
+  // byte serialization is identical regardless of capture path. Both
+  // _canon and _canonAria emit keys in fixed order, so plain
+  // JSON.stringify is sufficient — no replacer required.
+  const a = JSON.stringify(fromMcp);
+  const b = JSON.stringify(fromLib);
   assert.strictEqual(a, b, 'mcp and library normalised JSON must be byte-equal');
+});
+
+test('byte-equality assertion catches divergent adapter output', () => {
+  // Sanity check on the byte-equality contract itself: if one adapter
+  // omits a field that the other emits (e.g., a future bug regresses
+  // the `hidden` default), JSON.stringify equality must report the
+  // mismatch. Without this, a buggy adapter would silently pass AC15.
+  const fixturesDir = path.join(repoRoot, 'tests', 'fixtures', 'a11y', 'normalize');
+  const yamlStr = fs.readFileSync(
+    path.join(fixturesDir, 'mcp_payload.yaml'), 'utf8');
+  const libRoot = JSON.parse(fs.readFileSync(
+    path.join(fixturesDir, 'library_payload.json'), 'utf8'));
+
+  const fromMcp = normalize_mcp_yaml(yamlStr, 'desktop', '/dashboard',
+    '2026-05-07T11:30:00Z');
+  const fromLib = normalize_library_json(libRoot, 'desktop', '/dashboard',
+    '2026-05-07T11:30:00Z');
+
+  // Mutate one adapter's output to simulate divergence.
+  const divergent = JSON.parse(JSON.stringify(fromLib));
+  divergent.tree.role = 'document';  // any single-byte difference
+
+  assert.notStrictEqual(
+    JSON.stringify(fromMcp), JSON.stringify(divergent),
+    'byte-equality must surface divergent adapter output');
 });
 
 test('normalised snapshot has required top-level keys', () => {
