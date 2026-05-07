@@ -248,7 +248,7 @@ The orchestrator does not need to count observations, check dates, or evaluate c
 5. **Determine dispatch mode**: single-slice (subagents) or multi-slice/multi-domain (team)
 6. **Create pipeline team**: `TeamCreate("pipeline-{task-id}")` -- always, even for single-slice (the team hosts review + final gate teammates)
 6b. **Create pipeline scratchpad**: `mkdir -p pipeline-state/{task-id}/scratchpad/` (see `rules/_detail/autonomous-intelligence.md`)
-6c. **Load session memory**: Read `session-memory/{project-hash}/notes.md` if it exists. Create from template if first pipeline in this project
+6c. **Load session memory**: Read `session-memory/{project-hash}/` sub-files (`codebase-map.md`, `build-test.md`, `patterns.md`, `fragility.md` — `active-work.md` is orchestrator-only, never injected). Use `session_memory_read_split $hash $sub` so legacy single-file content is still tolerated during the 30-day DUAL_PATH soak. Seed from `session-memory/config/templates/{sub}.md` if first pipeline in this project.
 7. **Write the phase plan** as a visible message to the user
 8. **Execute phases in order**, spawning teammates for team phases, subagents for subagent phases. Inject session memory + scratchpad findings into every agent prompt (see `rules/_detail/autonomous-intelligence.md` § Agent Spawn)
 

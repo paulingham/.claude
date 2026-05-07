@@ -166,13 +166,20 @@ fi
 # shellcheck source=_lib/project-hash.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
 PROJECT_HASH=$(_project_hash --fallback "local")
-SESSION_NOTES="$HOME/.claude/session-memory/$PROJECT_HASH/notes.md"
-if [[ -f "$SESSION_NOTES" ]]; then
-    # Check if notes have actual content (not just template)
-    CONTENT_LINES=$(grep -cvE '^\s*(#|_|$)' "$SESSION_NOTES" 2>/dev/null || echo "0")
-    if [[ "$CONTENT_LINES" -gt 3 ]]; then
+SESSION_DIR="$HOME/.claude/session-memory/$PROJECT_HASH"
+if [[ -d "$SESSION_DIR" ]]; then
+    # Any of the 4 injectable sub-files with content (not just header + italic
+    # description + blanks) means session memory is live for this project.
+    HAS_CONTENT=0
+    for SUB in codebase-map build-test patterns fragility; do
+        FILE="$SESSION_DIR/$SUB.md"
+        [[ -f "$FILE" ]] || continue
+        LINES=$(grep -cvE '^\s*(#|_|$)' "$FILE" 2>/dev/null || echo "0")
+        [[ "$LINES" -gt 0 ]] && { HAS_CONTENT=1; break; }
+    done
+    if [[ "$HAS_CONTENT" -eq 1 ]]; then
         echo ""
-        echo "SESSION MEMORY: Engineering notes exist for this project at $SESSION_NOTES — read on resume or after compaction."
+        echo "SESSION MEMORY: Engineering notes exist for this project at $SESSION_DIR — read on resume or after compaction."
     fi
 fi
 
