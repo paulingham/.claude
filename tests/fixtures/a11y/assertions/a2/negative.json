@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "route": "/landing",
+  "viewport": "desktop",
+  "captured_at": "2026-05-07T11:30:00Z",
+  "tree": {
+    "role": "WebArea",
+    "name": "Landing",
+    "interactive": false,
+    "disabled": false,
+    "aria": {"level": null, "checked": null, "expanded": null, "pressed": null, "selected": null, "hidden": false},
+    "ref": null,
+    "tag": "html",
+    "children": [
+      {
+        "role": "img",
+        "name": "Smiling team photo",
+        "interactive": false,
+        "disabled": false,
+        "aria": {"level": null, "checked": null, "expanded": null, "pressed": null, "selected": null, "hidden": false},
+        "ref": null,
+        "tag": "img",
+        "children": []
+      }
+    ]
+  }
+}

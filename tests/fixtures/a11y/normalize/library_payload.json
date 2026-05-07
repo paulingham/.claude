@@ -1,0 +1,24 @@
+{
+  "role": "WebArea",
+  "name": "Dashboard",
+  "tag": "html",
+  "hidden": false,
+  "children": [
+    {
+      "role": "heading",
+      "name": "Welcome back",
+      "level": 1,
+      "tag": "h1",
+      "hidden": false,
+      "children": []
+    },
+    {
+      "role": "button",
+      "name": "Open menu",
+      "tag": "button",
+      "hidden": false,
+      "interactive": true,
+      "children": []
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "route": "/article",
+  "viewport": "desktop",
+  "captured_at": "2026-05-07T11:30:00Z",
+  "tree": {
+    "role": "WebArea",
+    "name": "Article",
+    "interactive": false,
+    "disabled": false,
+    "aria": {"level": null, "checked": null, "expanded": null, "pressed": null, "selected": null, "hidden": false},
+    "ref": null,
+    "tag": "html",
+    "children": [
+      {
+        "role": "heading",
+        "name": "Title",
+        "interactive": false,
+        "disabled": false,
+        "aria": {"level": 1, "checked": null, "expanded": null, "pressed": null, "selected": null, "hidden": false},
+        "ref": null,
+        "tag": "h1",
+        "children": []
+      },
+      {
+        "role": "heading",
+        "name": "Bad jump",
+        "interactive": false,
+        "disabled": false,
+        "aria": {"level": 3, "checked": null, "expanded": null, "pressed": null, "selected": null, "hidden": false},
+        "ref": null,
+        "tag": "h3",
+        "children": []
+      },
+      {
+        "role": "heading",
+        "name": "Up jump (allowed)",
+        "interactive": false,
+        "disabled": false,
+        "aria": {"level": 2, "checked": null, "expanded": null, "pressed": null, "selected": null, "hidden": false},
+        "ref": null,
+        "tag": "h2",
+        "children": []
+      }
+    ]
+  }
+}

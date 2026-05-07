@@ -1,0 +1,12 @@
+{
+  "_comment": "Project-level overrides for the A6 anti-pattern denylist. Place this file at <project-root>/.claude/a11y-overrides.json. Names are normalised to lower-cased + trimmed before comparison.",
+
+  "a6_denylist_additions": [
+    "tap to continue",
+    "press here"
+  ],
+
+  "a6_denylist_removals": [
+    "more"
+  ]
+}
