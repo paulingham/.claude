@@ -15,6 +15,8 @@ source "$_SESSION_STORE_ROOT/session-memory/adapters/s3.sh"
 source "$_SESSION_STORE_ROOT/session-memory/adapters/redis.sh"
 # shellcheck source=/dev/null
 source "$_SESSION_STORE_LIB/session-store-sync.sh"
+# shellcheck source=/dev/null
+source "$_SESSION_STORE_LIB/session-memory-read-split.sh"
 
 _session_store_validate_key() {
   local k

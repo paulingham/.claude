@@ -67,11 +67,12 @@ Before spawning any agents:
    ```bash
    source "$HOME/.claude/hooks/_lib/project-hash.sh"
    PROJECT_HASH=$(_project_hash)
-   NOTES="$HOME/.claude/session-memory/$PROJECT_HASH/notes.md"
-   if [[ ! -f "$NOTES" ]]; then
-     mkdir -p "$(dirname "$NOTES")"
-     cp ~/.claude/session-memory/config/template.md "$NOTES"
-   fi
+   PROJ_DIR="$HOME/.claude/session-memory/$PROJECT_HASH"
+   mkdir -p "$PROJ_DIR"
+   for SUB in codebase-map build-test patterns fragility active-work; do
+     [[ -f "$PROJ_DIR/$SUB.md" ]] && continue
+     cp "$HOME/.claude/session-memory/config/templates/$SUB.md" "$PROJ_DIR/$SUB.md"
+   done
    ```
 
 4. **Load instincts** (if any exist):

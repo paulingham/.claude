@@ -230,29 +230,48 @@ Write-capable agents and reviewers MAY append to their memory file at completion
 
 ### Session Memory Injection (Automatic)
 
-Before spawning any agent, the orchestrator reads the session memory file:
+Before spawning any agent, the orchestrator resolves the role's sub-file list from `hooks/_lib/session_memory_role_resolver.py` (`resolve_subfiles_for_role(role)`) and reads each via `session_memory_read_split` so legacy single-file content is still tolerated during the 30-day DUAL_PATH soak:
 
-1. **Check**: `~/.claude/session-memory/{project-hash}/notes.md`
-2. **If exists and under 2000 chars**: Include full content under `## Session Context`
-3. **If exists and over 2000 chars**: Include only priority sections for the agent's role (see `rules/_detail/autonomous-intelligence.md` § Injection Priority)
-4. **If not exists**: Skip silently
+1. **Resolve**: `subs = resolve_subfiles_for_role("$AGENT_ROLE")` — returns an ordered list of basenames (`active-work` is NEVER in the list — orchestrator-only).
+2. **For each sub-file**: read via `session_memory_read_split $PROJECT_HASH $sub`. New layout wins; legacy section extracted from the single-file fallback otherwise.
+3. **Empty-body skip**: when `should_inject_subfile(text)` returns False (body < 50 chars after stripping header + italic description + blank lines), omit that sub-file from the rendered block.
+4. **Concatenate** under `## Session Context (engineering notes for this project)`, each sub-file preceded by a `### {sub-file}` heading.
+5. **If not exists for any sub-file**: skip silently.
 
 Session memory is engineering context — build commands, fragile files, patterns, discoveries. It survives context compaction and gives agents immediate orientation.
 
 ### Session Memory Update (Backend Sync Wrap)
 
-When dispatching a `session-memory-updater` agent (per `rules/_detail/autonomous-intelligence.md` § Update Mechanism), the orchestrator wraps the spawn with backend round-trip helpers from `hooks/_lib/session-store.sh`. This keeps the agent Edit-only (no `Bash` tool grant), preserving the Path B per-agent tool-allowlist invariant.
+When session memory needs updating after a pipeline phase, the orchestrator dispatches **N parallel `session-memory-updater` agents in a single message**, one per affected sub-file (max N = 4 — `active-work.md` is excluded; the orchestrator writes that file directly via `session_store_put`). Each updater agent is Edit-only (no `Bash` tool grant), preserving the Path B per-agent tool-allowlist invariant. The orchestrator wraps the parallel spawn with backend round-trip helpers from `hooks/_lib/session-store.sh`.
 
-Canonical wrap template (orchestrator-side bash):
+Per the C3 split, each spawn receives `targetFile` (path to ONE sub-file) and `targetSection` (the basename: `codebase-map`, `build-test`, `patterns`, or `fragility`). Sub-files NOT mentioned in this pipeline's facts remain untouched — no Edit lock contention, no spurious version-bumps. The dispatch helper at `hooks/_lib/session-memory-updater-dispatch.sh` enforces the input contract: `targetFile` and `targetSection` MUST both be non-blank, otherwise the spawn is refused with a structured `{error,...}` JSONL line on stderr.
+
+Canonical wrap template (orchestrator-side bash) — note the parallel spawns in a single message and the directory-scoped sync wrap:
 
 ```bash
 source "$HOME/.claude/hooks/_lib/session-store.sh"
-session_memory_sync_in "$PROJECT_HASH" "$NOTES_PATH"   # backend → file (no-op for local)
-# ... spawn session-memory-updater agent here, agent edits $NOTES_PATH ...
-session_memory_sync_out "$PROJECT_HASH" "$NOTES_PATH"  # file → backend (no-op for local)
+PROJ_DIR="$HOME/.claude/session-memory/$PROJECT_HASH"
+session_memory_sync_in "$PROJECT_HASH" "$PROJ_DIR"   # backend → directory (no-op for local)
+
+# active-work.md: orchestrator writes directly, no updater spawn.
+printf '%s\n' "$active_work_body" | session_store_put "$PROJECT_HASH" active-work -
+
+# Spawn N parallel updaters in a single message (one per affected sub-file).
+# Each spawn carries its own targetFile + targetSection. The orchestrator's
+# dispatch loop calls session-memory-updater-dispatch.sh as a guard before
+# emitting each Agent call.
+# Example for two affected sub-files:
+#   Agent({ subagent_type: "session-memory-updater",
+#           prompt: "targetFile=$PROJ_DIR/build-test.md  targetSection=build-test ..." })
+#   Agent({ subagent_type: "session-memory-updater",
+#           prompt: "targetFile=$PROJ_DIR/patterns.md    targetSection=patterns ..." })
+
+session_memory_sync_out "$PROJECT_HASH" "$PROJ_DIR"  # directory → backend (no-op for local)
 ```
 
-`sync_in` materialises the remote blob (or template stamp on first-run miss) into `$NOTES_PATH`. `sync_out` mirrors the file back. For `BACKEND=local` (default), both helpers are byte-no-ops — zero behaviour change. For `BACKEND=s3` / `BACKEND=redis`, the helpers do the round-trip; PUT failures emit a JSONL forensic line via `log-injection.sh` and exit 0 so the workflow never blocks on durability. See `rules/_detail/autonomous-intelligence.md` § Adapters and `session-memory/adapters/README.md` for the full contract.
+`sync_in` materialises remote blobs (one per canonical sub-file, or template stamp on first-run miss) into the project directory. `sync_out` mirrors each sub-file back. For `BACKEND=local` (default), both helpers are byte-no-ops — zero behaviour change. For `BACKEND=s3` / `BACKEND=redis`, the helpers loop over the 5 canonical basenames (`codebase-map`, `build-test`, `patterns`, `fragility`, `active-work`); each sub-file is stored under `subkey == basename`. PUT failures emit a JSONL forensic line via `log-injection.sh` and exit 0 so the workflow never blocks on durability. See `rules/_detail/autonomous-intelligence.md` § Adapters and § Sub-file Layout & Soak, plus `session-memory/adapters/README.md` for the full contract.
+
+**Reader-fallback during the 30-day DUAL_PATH soak**: the injection path uses `session_memory_read_split $hash $sub` (defined in `hooks/_lib/session-memory-read-split.sh`). For each sub-file the helper returns the new-layout file when present, falling back to the canonical section of the legacy single-file otherwise. Each fallback hit appends a forensic JSONL line at `metrics/{session-id}/session-store-mirror.jsonl` with `source: "session-memory-read-fallback"` so soak-window misses are observable.
 
 ### Pipeline Scratchpad Injection (Automatic)
 

@@ -122,17 +122,47 @@ The legacy prompt template at `~/.claude/session-memory/config/prompt.md` remain
 
 ### Injection Priority
 
-When injecting session memory into agent prompts, prioritize sections by agent role:
+When injecting session memory into agent prompts, the orchestrator selects sub-files by **filename** (not by section header inside one file). The role × sub-file mapping is encoded as the SOURCE OF TRUTH in `hooks/_lib/session_memory_role_resolver.py` — `resolve_subfiles_for_role(role) -> list[str]`. The table below mirrors that module; both directions are pinned by `tests/test_session_memory_role_resolver.py`:
 
-| Agent Role | Priority Sections |
+| Agent Role | Sub-files Injected (in order) |
 |---|---|
-| software-engineer, frontend-engineer | Build & Test, Critical Paths, Patterns |
-| code-reviewer, security-engineer | Critical Paths, Patterns, Session Discoveries |
-| qa-engineer | Build & Test, Critical Paths, Active Work |
-| infrastructure-engineer | Build & Test, Environment |
-| architect | Codebase Map, Patterns, Critical Paths |
+| `architect` | `codebase-map.md`, `patterns.md`, `fragility.md` |
+| `software-engineer` | `build-test.md`, `patterns.md`, `fragility.md` |
+| `frontend-engineer` | `build-test.md`, `patterns.md`, `fragility.md` |
+| `database-engineer` | `build-test.md`, `patterns.md`, `fragility.md` |
+| `infrastructure-engineer` | `build-test.md`, `fragility.md` |
+| `qa-engineer` | `build-test.md`, `fragility.md` |
+| `code-reviewer` | `patterns.md`, `fragility.md` |
+| `security-engineer` | `patterns.md`, `fragility.md` |
+| `product-reviewer` | (none — product UX content not in engineering memory) |
+| `patch-critic` | `fragility.md` |
+| `session-memory-updater` | (writes only, no injection) |
+| **(any role)** | **`active-work.md` is NEVER injected** |
 
-If the full notes file is under 2000 chars, inject it all. If larger, inject only priority sections for the role.
+Sections are concatenated under `## Session Context (engineering notes for this project)`. Each sub-file is preceded by a `### {sub-file}` heading inside the block.
+
+**Empty-body skip rule.** When a sub-file's body (after stripping the `# `-header line, the `_…_` italic-description line, and blank lines) is < 50 chars, the orchestrator omits that sub-file from the rendered block. Helper: `should_inject_subfile(text)` in the resolver module. Fresh projects with all-empty templates inject nothing — same observable behaviour as today's "skip injection if no real content".
+
+**`active-work.md` is orchestrator-only.** It carries current pipeline phase, task-id, branch, and immediate next steps — operational state owned by the orchestrator, not engineering knowledge. It is never read by the injection path; the resolver has no entry point that resolves to it. The orchestrator reads/writes it directly via `session_store_get|put $hash active-work` for its own state tracking.
+
+### Sub-file Layout & Soak
+
+Session memory is stored as a 5-file directory shape per project hash (the C3 split) instead of one monolithic `notes.md`:
+
+```
+session-memory/{project-hash}/
+  codebase-map.md   # Key dirs, files, entry points
+  build-test.md     # Build / test commands, env quirks
+  patterns.md       # Patterns, conventions, discoveries, agent effectiveness
+  fragility.md      # Critical paths, timing sensitivities, fragile areas
+  active-work.md    # Orchestrator-only — never injected
+```
+
+Templates seeded from `session-memory/config/templates/{sub-file}.md`. The legacy single-file is migrated by `scripts/migrate-session-memory-split.sh` (idempotent, non-destructive — renames the legacy file to its `.legacy` sibling, supports `--dry-run`). The migration script refuses to operate on symlink targets that resolve outside `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/session-memory/` and archives any pre-existing `.legacy` artifact to `.legacy.{unix_ts}` before writing a fresh one.
+
+**30-day DUAL_PATH soak.** Writers emit only the new layout; readers tolerate both forms via `session_memory_read_split` in `hooks/_lib/session-memory-read-split.sh`. The helper returns the new-layout file when present, falling back to the matching canonical section of the legacy single-file otherwise; each fallback hit appends a forensic JSONL line at `metrics/{session-id}/session-store-mirror.jsonl` with `source: "session-memory-read-fallback"`. The soak ends 30 days after merge, gated by the placeholder `pipeline-state/wave2a-c3-soak-end/pipeline.md` (frontmatter `not_before` carries the calendar anchor; SessionStart's active-pipeline scan surfaces it once the date passes). The follow-up cleanup pipeline removes the reader-fallback code path and any remaining legacy artifacts.
+
+**Updater dispatch.** `session-memory-updater` accepts `targetFile` + `targetSection` inputs and writes exactly one sub-file per spawn. The orchestrator dispatches N parallel updaters (one per affected sub-file, max N=4; `active-work.md` is updated directly by the orchestrator without an updater spawn) — see `orchestrator/agent-orchestration.md` § Session Memory Update for the canonical bash wrap.
 
 ### Adapters
 

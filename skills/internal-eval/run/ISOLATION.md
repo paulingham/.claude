@@ -27,7 +27,7 @@ Without this contract, inner and outer pipelines collide on:
 3. **trajectory** — `pipeline-state/{task-id}/trajectory.jsonl` (canonical; legacy: `pipeline-state/{task-id}-trajectory.jsonl`). `CLAUDE_PIPELINE_TASK_ID` forces the namespace.
 4. **observations** — `learning/{project-hash}/observations.jsonl`. `CLAUDE_PROJECT_HASH` redirects.
 5. **learning/instincts** — `learning/{project-hash}/instincts/`. Same as (4).
-6. **session-memory** — `session-memory/{project-hash}/notes.md`. Respects `HOME` + `CLAUDE_PROJECT_HASH`.
+6. **session-memory** — `session-memory/{project-hash}/{sub-file}.md` (5 sub-files: `codebase-map`, `build-test`, `patterns`, `fragility`, `active-work`). Respects `HOME` + `CLAUDE_PROJECT_HASH`. Legacy single-file form still readable via `session_memory_read_split` during the 30-day DUAL_PATH soak.
 7. **cost records** — `metrics/costs.jsonl`. `EVAL_RUN_ID` + `EVAL_CASE_ID` let a post-run aggregator filter records belonging to one eval run.
 8. **TeamCreate naming** — orchestrator-side concern; consumers of `CLAUDE_PIPELINE_TASK_ID` derive their team name from it.
 9. **pipeline-state-guard enforcement** — `CLAUDE_PIPELINE_BYPASS=1` opts out.
