@@ -25,7 +25,7 @@ See `~/.claude/orchestrator/parallel-dispatch-details.md` § Best-of-N Build Tea
 ## Output
 
 - Pipeline state: `pipeline-state/{task-id}/best-of-n.md` (frontmatter `verdict`, sections: Candidates Run, Winner SHA, Per-Candidate Scores, Selection Rationale, Total Cost USD via `cost_estimator`, Cluster Sizes — `N/A` until FMV is wired).
-- Scratchpad: `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` with `category: decision`.
+- Scratchpad: `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` (`category: decision`) — always carries the verbatim Selection Rationale; additionally carries a divergence record with diff-stat + Jaccard when the top two candidates clear the Step 5 tie-breaker boundary AND have changed-files Jaccard < 0.5 (mining path: `observations.jsonl` → `/learn` Step 3d, never direct scratchpad → anti-pattern). Tie-breaker source + spec: see orchestrator details § Best-of-N Step 5.
 - Winner branch merged into the pipeline working branch; loser worktrees + branches removed.
 
 ## Verdict
