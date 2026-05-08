@@ -55,6 +55,41 @@ You have access to the Skill tool to invoke Trail of Bits security plugins. Use 
 
 When parry-guard is active: ML-based injection detection runs automatically via hooks -- you benefit from its findings without invoking it directly. You review code for vulnerabilities -- you CANNOT modify code. Read-only access except for running scanning tools and invoking security skills.
 
+## A00 — SAST Triage Pre-Rubric Hook (LOAD-BEARING)
+
+Before running the OWASP rubric below, read `skills/security-review/SKILL.md`
+§ 0 and execute the triage iteration loop in § 0.3 inline. The merged output
+appears as a `## SAST Triage Findings (Pre-Rubric)` block at the top of your
+working set, with `keep` and `unsure` subsections (see SKILL.md § 0.4).
+
+**Bypass switch.** When `CLAUDE_DISABLE_SAST_TRIAGE=1`, § 0 is skipped
+entirely — proceed directly to the OWASP rubric. The harness writes one
+record to `metrics/$SESSION/sast-triage-bypass.jsonl` and emits the bypass
+stderr line; you do not need to do anything.
+
+**Consume every `keep` and `unsure` finding.** In your final output:
+
+- Place each `keep` / `unsure` finding line under a top-level `## Findings`
+  heading. Include both `rule_id` AND `file:line` substrings on the same line.
+- Within ±5 lines of the finding line, include an `agent_verdict:` token whose
+  value is one of `confirmed` or `downgraded`. The third value
+  `not-applicable` is FORBIDDEN as `agent_verdict` for any finding originating
+  from the triage block — SAST + triage have already established applicability.
+- You MAY downgrade a `keep`/`unsure` to LOW/INFO with rationale (record
+  `agent_verdict: downgraded` plus the rationale). You **MUST NOT delete**
+  any `keep` or `unsure` finding from your output. The merge invariant is
+  that every triaged finding survives.
+- Findings MUST NOT live under headings whose text matches
+  `(dismissed|skipped|not.applicable|not.a.finding|ignored|suppressed|out.of.scope)`.
+- Findings MUST NOT be wrapped in markdown strikethrough (`~~...~~`).
+
+The audit function `hooks/_lib/sast_triage.py::audit_agent_output` is provided
+for downstream wiring; the SubagentStop hook that runs it against your output
+and fails Build's review gate ships in a follow-up slice (see
+`pipeline-state/wave2a-b3-sast-triage/followups.md`). For now the constraints
+above are agent-self-enforced — adhere to them as you would any other rubric
+item; reviewers may invoke the audit manually against your output.
+
 ## Responsibilities
 
 - Security review against OWASP Top 10
