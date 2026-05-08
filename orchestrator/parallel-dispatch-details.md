@@ -520,6 +520,114 @@ Agent({
 
 After all three return verdicts: shut down teammates.
 
+## Multi-Persona Patch Critic Dispatch (critical OR Budget >= 7)
+
+The patch-critic role in the Final Gate Team has two dispatch modes selected by criticality + budget. The other three Final Gate roles (verify + test + accept) are unchanged.
+
+| Mode | Gate condition | Spawn shape |
+|---|---|---|
+| single-critic (default) | `!critical AND Budget < 7` | one `patch-critic` Agent call alongside verifier/test-analyst/product-reviewer |
+| multi-persona variant | `critical == true OR Budget >= 7` | three parallel `patch-critic` Agent calls, one per persona, alongside verifier/test-analyst/product-reviewer |
+
+Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) where multiple persona-critics escape single-agent confirmation bias. Cost is ~3x patch-critic spend; the gate already runs in parallel with verify+test+accept and is a rounding error vs build/review spend on critical work.
+
+**Composition with C8 anti-pattern mining (#80)**: complementary, not redundant. Multi-persona catches in-cycle (during this gate); C8 mines cross-pipeline patterns from observation rounds-counts after pipelines close. The schema extension in `rules/_detail/autonomous-intelligence.md` § Observation Capture (`phases.patch_critic.rounds`) wires the variant's rejections into C8's mining gate so consistently-caught-but-not-by-code-review patterns become anti-pattern instincts over time. They cover different time horizons.
+
+**Procedure (variant mode):**
+
+1. **Gate check**: read pipeline state. If `critical != true AND Budget < 7`, dispatch single-critic and skip the rest of this procedure.
+
+2. **Spawn three personas in a single message** (parallel — no persona sees another persona's output):
+
+   ```
+   Agent({
+     name: "patch-critic-correctness",
+     team_name: "pipeline-{task-id}",
+     subagent_type: "patch-critic",
+     prompt: "Read ~/.claude/agents/patch-critic.md for your role definition.
+
+       Persona: correctness
+       Weight § 1 (Tests cover the change) and § 5 (Accessibility) heaviest.
+       Search emphasis: 'Did the diff actually solve the spec? Are tests load-bearing
+       for the behavior change?'
+
+       You score every rubric dimension regardless of specialty. You do NOT see the
+       other personas' outputs. Independent context is the design.
+
+       Context: branch feature/X, base main.
+       Candidate diff: [git diff main...HEAD]
+       Test output: [most recent fresh test-suite run]
+       Intake spec: [task description]
+       A11y index (if present): pipeline-state/{task-id}/design-qc/index.json"
+   })
+
+   Agent({
+     name: "patch-critic-regression-risk",
+     team_name: "pipeline-{task-id}",
+     subagent_type: "patch-critic",
+     prompt: "Read ~/.claude/agents/patch-critic.md for your role definition.
+
+       Persona: regression-risk
+       Weight § 3 (No obvious regressions visible from diff) heaviest.
+       Search emphasis: 'What worked before this diff that could break now?
+       Removed null guards, weakened validation, broadened catches that swallow
+       errors, lost edge-case branches, removed tests, changed defaults that
+       callers rely on.'
+
+       You score every rubric dimension regardless of specialty. You do NOT see the
+       other personas' outputs. Independent context is the design.
+
+       Context: branch feature/X, base main.
+       Candidate diff: [git diff main...HEAD]
+       Test output: [most recent fresh test-suite run]
+       Intake spec: [task description]"
+   })
+
+   Agent({
+     name: "patch-critic-scope-creep",
+     team_name: "pipeline-{task-id}",
+     subagent_type: "patch-critic",
+     prompt: "Read ~/.claude/agents/patch-critic.md for your role definition.
+
+       Persona: scope-creep
+       Weight § 2 (Diff minimal vs spec) and § 4 (No incidental refactor) heaviest.
+       Search emphasis: 'What is in this diff that the spec did NOT ask for?
+       Renames, moves, reorgs, drive-by cleanups, opportunistic typing tweaks.'
+
+       You score every rubric dimension regardless of specialty. You do NOT see the
+       other personas' outputs. Independent context is the design.
+
+       Context: branch feature/X, base main.
+       Candidate diff: [git diff main...HEAD]
+       Test output: [most recent fresh test-suite run]
+       Intake spec: [task description]"
+   })
+   ```
+
+3. **Aggregation rule (OR)**:
+   - All three personas return `PATCH_APPROVED` → gate verdict `PATCH_APPROVED`.
+   - Any persona returns `PATCH_REJECTED` (any MEDIUM+ severity finding on any dimension) → gate verdict `PATCH_REJECTED`. Forward findings from ALL rejecting personas to fix-engineer.
+   - The orchestrator MUST NOT silently override a single-persona MEDIUM+ rejection because the other two passed. OR-aggregation is the design, not a soft hint.
+
+4. **Audit artifact**: write `pipeline-state/{task-id}/patch-critic.md` with frontmatter (`task_id, phase=final-gate, verdict, timestamp, mode=multi-persona`) and three sections (one per persona). Include each persona's full Rubric table + Findings list verbatim. The orchestrator-aggregated verdict appears in frontmatter and at the top of the file.
+
+5. **Divergence record on split votes** (one persona REJECTs, others PASS — i.e., not unanimous): append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/patch-critic-divergence.md`. Pattern matches Best-of-N's divergence record. Body includes: rejecting persona, dimension, severity, finding text, file:line. `/learn` mines split-vote dimensions over time; consistently-split dimensions are calibration targets (rubric clarity issue, not a persona problem).
+
+6. **PATCH_REJECTED → fix → re-critique ALL personas** (NOT just the rejecting persona). Differs from existing Review pattern (re-dispatch only the rejecting reviewer). The fix may have introduced a new issue in another persona's territory. Cost is acceptable on critical/Budget>=7 work. Maximum 2 total rounds (initial + 1 re-critique), matching the existing Review cap. After 2 rounds with persistent rejection → escalate to user. Should be rare under the In-Cycle Fix Rule.
+
+7. **Partial completion contract**: if a persona fails to return within timeout (`CLAUDE_SUBAGENT_MAX_RUNTIME`, default 1800s), treat as `PATCH_REJECTED` with reason `persona-timeout`. Re-dispatch only the missing persona (1 retry). After 2 timeouts on the same persona → escalate per retry-twice-then-escalate. Do NOT silently skip a timed-out persona — a missing verdict is not an approval.
+
+8. **Observation capture** (Reflect step): record per-persona verdicts and rejecting findings in `phases.patch_critic` per `rules/_detail/autonomous-intelligence.md` § Observation Capture. The `rounds` count and `persona_rejections` array feed C8 anti-pattern mining on subsequent pipelines.
+
+**Why no debate round (vs the paper)**: patch-critique is closed-form (fixed rubric, fixed dimensions, binary-per-finding-after-severity). The paper's debate coordinator targets open-ended reflexion (HotPotQA answers, HumanEval code generation). Three independent strict scorers + OR-aggregation captures the "different priors → different blind spots" lift without the 2x debate-round overhead.
+
+**Hedges (PROVISIONAL until baseline run)**:
+
+- Variant gated on `critical OR Budget >= 7`. Single-critic remains the default for routine work — DO NOT enable for `!critical AND Budget < 7`.
+- OR-aggregation is intentionally conservative (biased toward false positives). Fix-engineer absorbs the rework cost; a missed regression at Final Gate costs more than an extra fix-engineer round.
+- Disagreement rate is the kill-switch metric. If `/forensics` reports < 5% persona disagreement over a 30-pipeline window, drop back to single critic — the variant is no longer earning its 3x spend. If disagreement is > 30%, the personas are catching distinct things — variant justified. The 5–30% band is the working range.
+- Empirical baseline is REQUIRED before promoting from PROVISIONAL. Baseline establishes false-positive rate vs single-critic on the harness regression suite (`/internal-eval`). The paper's HumanEval lift (76% → 82% Pass@1) does NOT directly translate to patch-critique acceptance/rejection — different domain, different decision shape.
+
 ## Teammate Shutdown
 
 After each team phase completes:
