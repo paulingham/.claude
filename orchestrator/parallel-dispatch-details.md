@@ -295,10 +295,14 @@ The previous threshold (`task_class=="feature" AND Budget>=5`) was tightened to 
    - `test_pass`: 1 if all tests green else 0 (dominant — broken code cannot win)
    - `shape_compliance`: `max(0, 1 - violations/10)`
    - `subjective_quality`: reviewer's 1-5 score on clarity + correctness, with written justification
-   - `diff_size`: tie-breaker only
+   - `diff_size`: tie-breaker term — captured per-candidate in Step 4 via `git diff --stat main..<branch>` (records both `changed_files` and `changed_lines`). Spec for tie-break ordering: `(changed_files, changed_lines)` ascending — fewer files first, fewer lines second. Today `score.sh::pick_winner` collapses this to a single `diff_size` value (the lines column) and `skills/best-of-n/config.json::tie_breaker_order` encodes only `["diff_size_asc", "cost_asc"]`; the file-count split (in both the script and the config array) is a follow-up code change, tracked separately and out of scope for this slice.
    - Composite: `test_pass*1000 + shape_compliance*100 + subjective_quality*20 - (diff_size/100)`
-   - Ties break by smaller diff, then cheaper tier (sonnet < opus < external-frontier, integer ranks 1/2/3)
-   - Reviewer MUST write a `## Selection Rationale` section — copied verbatim to the scratchpad for future `/learn` runs.
+   - **Tie-breaker order** (fires when `subjective_quality` AND `shape_compliance` are equal across the test-passing candidates — among test-passers, the integer-stepped 20× subjective term dominates the composite, so equal subjective+shape is the principled "near-tie" boundary):
+     1. Fewer changed files; then
+     2. Fewer changed lines; then
+     3. Cheaper executor tier (sonnet < opus < external-frontier, integer ranks 1/2/3).
+   - **Divergence record (advisory, no gate, no new verdict)**: when the top two candidates clear the tie-breaker boundary above AND their changed-files sets have Jaccard < 0.5 (non-overlapping work on the same slice), append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` with winner/runner-up SHAs, per-candidate diff-stat, and the verbatim `## Selection Rationale`. The dispatch never writes `category: anti-pattern` — recurring divergence is mined into anti-pattern instincts only by `/learn` Step 3d via the standard observations.jsonl path (see `skills/learn/SKILL.md` § 3d), gated on `recurrence>=3 AND phases.review.rounds>=2`. `category: decision` is in the scratchpad enum at `rules/_detail/autonomous-intelligence.md` § Pipeline Scratchpad and is forwarded to reviewers and Final Gate roles by the existing injection matrix.
+   - Reviewer MUST write a `## Selection Rationale` section — copied verbatim to the scratchpad for future `/learn` runs. The diff-stat and the Jaccard value (when the divergence record fires) are quoted in the rationale.
 6. **Merge & cleanup**:
    - `git merge --no-ff build/{task-id}-boN-{winner-slug}` into the pipeline's working branch
    - For every loser: `git worktree remove --force <path>` then `git branch -D build/{task-id}-boN-{slug}`
