@@ -7,6 +7,148 @@ agent: security-engineer
 
 # Security Review
 
+## § 0 — SAST Triage Layer (Pre-Rubric)
+
+> **Runs BEFORE the OWASP rubric below.** Triage is purely additive: it ingests
+> SAST output (Semgrep, CodeQL, others producing SARIF), assigns each finding
+> a `keep | drop | unsure` verdict with mandatory rationale, merges
+> `keep`+`unsure` into the agent's working set, and logs every decision to a
+> forensic JSONL stream. The OWASP rubric is unchanged and runs INDEPENDENTLY
+> alongside the triage block.
+
+### § 0 — Bypass switch
+
+When `CLAUDE_DISABLE_SAST_TRIAGE=1`, § 0 exits early with `TRIAGE_BYPASSED`
+BEFORE detection (rung 1 is never inspected). The main `metrics/$SESSION/sast-triage.jsonl`
+is NOT touched. A single bypass record is written to a DISTINCT ledger
+`metrics/$SESSION/sast-triage-bypass.jsonl` (verdict: `BYPASSED`,
+reason: `CLAUDE_DISABLE_SAST_TRIAGE=1`). Stderr emits
+`SAST triage bypassed via CLAUDE_DISABLE_SAST_TRIAGE`. OWASP rubric proceeds
+unchanged.
+
+### § 0.1 — Detection ladder (4 rungs, first hit wins)
+
+| Rung | Source | When |
+|---|---|---|
+| rung 1 | `$CLAUDE_SAST_SARIF_PATH` (operator override) | CI providing pre-computed SARIF |
+| rung 2 | `pipeline-state/{task_id}/scratchpad/sast-*.sarif` | Earlier pipeline phase staged SARIF |
+| rung 3 | direct semgrep subprocess (`semgrep --sarif --json --quiet -- <changed>`) on `git diff main...HEAD` files | On-demand fallback when rungs 1-2 absent. Bounded by `CLAUDE_SAST_SEMGREP_TIMEOUT_SEC` (default 60s). `shutil.which("semgrep") is None` → rung skipped silently. |
+| rung 4 | None | Tool not installed and no staged SARIF — emit `TRIAGE_NO_INPUT`, OWASP rubric proceeds |
+
+If any rung resolves to a file/source but parsing fails (corrupt JSON, SARIF
+shape error, semgrep crash), the runner logs the rung that fired plus the
+parse error class (`json-decode-error | sarif-shape-error | semgrep-shape-error
+| subprocess-failed`) and falls through. If ALL rungs that resolved produced
+parse failures, § 0 emits `TRIAGE_PARSE_FAILED` (DISTINCT from
+`TRIAGE_NO_INPUT`) and OWASP rubric proceeds.
+
+### § 0.2 — Parsing & severity normalization
+
+Findings filtered to changed-files-only at parse time (NOT triaged, NOT logged
+for unchanged files).
+
+| Tool | Raw | Normalized |
+|---|---|---|
+| Semgrep | `ERROR` | `CRITICAL` |
+| Semgrep | `WARNING` | `HIGH` |
+| Semgrep | `INFO` | `LOW` |
+| SARIF (CodeQL etc.) | `error` | `HIGH` |
+| SARIF | `warning` | `MEDIUM` |
+| SARIF | `note` | `LOW` |
+| SARIF | `none` | `INFO` |
+
+Unknown severities → `INFO` + stderr warning.
+
+### § 0.3 — Triage iteration (the agent runs this loop)
+
+> **The security-engineer agent IS the LLM caller.** This section contains the
+> iteration template the agent executes inline — `for each finding`,
+> render the prompt below, parse the strict-JSON response, validate it via
+> `hooks/_lib/sast_triage.py::triage_finding(parsed, finding)`, and append
+> the result to the merged working set.
+
+For each finding produced by § 0.2, render this prompt and call the model
+once (per-finding for v1; batching is a v2 follow-up):
+
+```
+You are triaging a SAST finding for inclusion in a security review.
+
+Finding:
+  Tool: {tool}
+  Rule: {rule_id}
+  Severity: {sast_severity}
+  File: {file}:{line}
+  Message: {message}
+  Code:
+    {snippet}
+
+Decision rules:
+- keep:   This is a real vulnerability or potential vulnerability.
+- drop:   This is a confirmed false positive. Provide a 1–2 sentence rationale.
+- unsure: You cannot determine with confidence. Default here when in doubt.
+
+Output (strict JSON, no prose):
+{
+  "verdict": "keep" | "drop" | "unsure",
+  "rationale": "1–2 sentence explanation. MUST NOT be empty. MUST NOT be 'N/A' or similar."
+}
+
+Conservatism rule: When in doubt, choose `unsure`. A wrong `drop` ships a vulnerability.
+```
+
+Strict-JSON output contract: `verdict ∈ {keep, drop, unsure}`. Rationale must
+be non-empty, non-`N/A`, ≥ 8 tokens, and not in the parser's stop-list. The
+parser force-rewrites bad outputs to `unsure` with a system rationale.
+
+### § 0.4 — Merge into working set
+
+`keep` + `unsure` findings render into a `## SAST Triage Findings (Pre-Rubric)`
+block PREPENDED to the agent's review. `drop` findings are excluded from the
+merge block but ARE recorded in the JSONL ledger.
+
+```markdown
+## SAST Triage Findings (Pre-Rubric)
+
+### keep (N findings)
+- **{rule_id}** `{file}:{line}` (sast={sast_severity}) — {message}
+  - Triage rationale: {rationale}
+
+### unsure (M findings)
+- **{rule_id}** `{file}:{line}` (sast={sast_severity}) — {message}
+  - Triage uncertainty: {rationale}
+```
+
+### § 0.5 — Telemetry JSONL
+
+Every triage decision (incl. `drop`) appends one record to
+`metrics/$SESSION/sast-triage.jsonl`:
+
+| field | description |
+|---|---|
+| `ts` | unix seconds |
+| `session_id` | `$CLAUDE_SESSION_ID` |
+| `task_id` | pipeline task-id |
+| `rule_id` | tool rule identifier |
+| `tool` | `semgrep` / `codeql` / `other` |
+| `file` | changed file path |
+| `line` | line number |
+| `sast_severity` | normalized severity |
+| `verdict` | `keep` / `drop` / `unsure` |
+| `rationale_excerpt` | first 200 chars of rationale, single-line |
+| `rationale_full_hash` | `sha1:` + sha1 of full rationale |
+
+Telemetry write failure logs to stderr but does NOT block triage.
+
+### § 0.6 — Operator-surface env vars
+
+| Env var | Effect |
+|---|---|
+| `CLAUDE_DISABLE_SAST_TRIAGE=1` | Skip § 0 entirely; write one record to bypass ledger |
+| `CLAUDE_SAST_SARIF_PATH` | Pre-staged SARIF — operator override; rung 1 wins |
+| `CLAUDE_SAST_SEMGREP_TIMEOUT_SEC` | Override 60s default for rung-3 subprocess |
+
+---
+
 ## Advisor Mode (Sonnet executor + Opus advisor)
 
 **Pairing**: security-engineer ships with `executor: claude-sonnet-4-6` and `advisor: claude-opus-4-7` in its frontmatter. Sonnet drives the OWASP/secrets sweep, Opus is consulted for threat-model and severity-classification calls.
