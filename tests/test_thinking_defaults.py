@@ -17,8 +17,23 @@ HOOK = Path(__file__).resolve().parents[1] / "hooks" / "pre-agent-thinking.sh"
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+# Env vars the resolver consumes. _run_hook scrubs these from the inherited
+# os.environ before applying the test's explicit env overrides, so a test
+# running with an ambient `CLAUDE_EFFORT=xhigh` (or similar) cannot leak into
+# subprocess invocations and confound deterministic assertions. Tests that
+# WANT to set these vars pass them explicitly via the `env` arg.
+_RESOLVER_ENV_VARS = (
+    "CLAUDE_THINKING_EFFORT",
+    "CLAUDE_THINKING_DISPLAY",
+    "CLAUDE_EFFORT",
+    "CLAUDE_DEBUG_DISPLAY_TTL",
+)
+
+
 def _run_hook(payload, env=None):
-    proc_env = {**os.environ, **(env or {})}
+    proc_env = {k: v for k, v in os.environ.items()
+                if k not in _RESOLVER_ENV_VARS}
+    proc_env.update(env or {})
     return subprocess.run(
         ["bash", str(HOOK)], input=json.dumps(payload),
         capture_output=True, text=True, timeout=10, env=proc_env)
@@ -648,6 +663,221 @@ class CustomTtlEnvOverridesDefault(unittest.TestCase):
         env = {"CLAUDE_DEBUG_DISPLAY_TTL": "60"}
         result = resolve(tool_input={}, env=env, state=state, now=now)
         self.assertEqual(result["display"], "omitted")
+
+
+# ---------------- C-AC1..C-AC8: $CLAUDE_EFFORT precedence tier 2a ----------------
+
+
+class ClaudeEffortEnvLowWinsWhenNoHigherTier(unittest.TestCase):
+    """C-AC1: bare CLAUDE_EFFORT=low resolves to effort=low when no rule 1 / 2
+    fires."""
+
+    def test_claude_effort_env_low_wins_when_no_higher_tier(self):
+        result = resolve(tool_input={}, env={"CLAUDE_EFFORT": "low"}, state={})
+        self.assertEqual(result["effort"], "low")
+        self.assertEqual(result["source"], "claude-effort-env")
+
+
+class ClaudeEffortEnvInvalidValueFallsThroughToRole(unittest.TestCase):
+    """C-AC1: invalid CLAUDE_EFFORT value MUST be rejected by `_valid_env`,
+    falling through to rule 3 (role rules). Mutation-kill coverage on the
+    validation path: a mutant skipping `_valid_env` would yield
+    source='claude-effort-env' instead of 'role'."""
+
+    def test_claude_effort_env_invalid_value_falls_through_to_role(self):
+        result = resolve(
+            tool_input={"subagent_type": "code-reviewer"},
+            env={"CLAUDE_EFFORT": "banana"},
+            state={},
+        )
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "role")
+
+
+class ClaudeEffortEnvXhighAcceptedForHarnessConsistency(unittest.TestCase):
+    """C-AC1: harness `_EFFORTS` set includes `xhigh`; the new tier reuses the
+    same enum, so `CLAUDE_EFFORT=xhigh` is accepted. Documents the
+    harness-vs-Anthropic enum divergence (Anthropic API exposes
+    low|medium|high; harness adds xhigh for stakes-bearing promotions)."""
+
+    def test_claude_effort_env_xhigh_accepted_for_harness_consistency(self):
+        result = resolve(
+            tool_input={}, env={"CLAUDE_EFFORT": "xhigh"}, state={})
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "claude-effort-env")
+
+
+class ClaudeEffortEnvReportsDistinctSource(unittest.TestCase):
+    """C-AC2: source field value MUST be `claude-effort-env` (NOT `env`).
+    The existing `env` token is reserved for `CLAUDE_THINKING_EFFORT` (rule 1)
+    so prior observations remain interpretable."""
+
+    def test_claude_effort_env_reports_distinct_source(self):
+        result = resolve(tool_input={}, env={"CLAUDE_EFFORT": "low"}, state={})
+        self.assertEqual(result["source"], "claude-effort-env")
+        self.assertNotEqual(result["source"], "env")
+
+
+class DocCarriesNamingRationaleClause(unittest.TestCase):
+    """C-AC2: the doc note carries a naming-rationale clause explaining why
+    the new tier uses `claude-effort-env` rather than reusing `env`. The clause
+    must mention that the existing `env` source name predates Claude Code's
+    session-level env var, AND that `claude-effort-env` is name-prefixed to
+    disambiguate. Location is unconstrained (precedence rule 2a OR forensic
+    block OR Slice-B subsection); test pins substring presence anywhere in the
+    file."""
+
+    def test_doc_carries_naming_rationale_clause(self):
+        path = (REPO_ROOT / "rules" / "_detail" / "thinking-defaults.md")
+        body = path.read_text()
+        self.assertRegex(
+            body,
+            r"existing\s+`?env`?\s+source\s+name.*predates",
+            "Naming-rationale clause: 'existing env source name ... predates' "
+            "phrase missing from rules/_detail/thinking-defaults.md",
+        )
+        self.assertRegex(
+            body,
+            r"`?claude-effort-env`?.*name-prefixed.*disambiguate",
+            "Naming-rationale clause: 'claude-effort-env ... name-prefixed "
+            "... disambiguate' phrase missing",
+        )
+
+
+class ClaudeThinkingEffortOverridesClaudeEffortEnv(unittest.TestCase):
+    """C-AC3: `CLAUDE_THINKING_EFFORT` (rule 1) wins over `CLAUDE_EFFORT`
+    (rule 2a). Source reports `env`, not `claude-effort-env`."""
+
+    def test_claude_thinking_effort_overrides_claude_effort_env(self):
+        env = {"CLAUDE_THINKING_EFFORT": "xhigh", "CLAUDE_EFFORT": "low"}
+        result = resolve(tool_input={}, env=env, state={})
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "env")
+
+
+class ExplicitThinkingFieldOverridesClaudeEffortEnv(unittest.TestCase):
+    """C-AC4: explicit `thinking.effort` field on `tool_input` (rule 2) wins
+    over `CLAUDE_EFFORT` (rule 2a). Source reports `explicit`."""
+
+    def test_explicit_thinking_field_overrides_claude_effort_env(self):
+        result = resolve(
+            tool_input={"thinking": {"effort": "low"}},
+            env={"CLAUDE_EFFORT": "high"},
+            state={},
+        )
+        self.assertEqual(result["effort"], "low")
+        self.assertEqual(result["source"], "explicit")
+
+
+class ClaudeEffortEnvSuppressesArchitectXhighPromotion(unittest.TestCase):
+    """C-AC5: when `CLAUDE_EFFORT=high` is set, an `architect` spawn that
+    would otherwise promote to xhigh via rule 3a is suppressed. Operator
+    override wins over role auto-promotion. Source reports
+    `claude-effort-env`."""
+
+    def test_claude_effort_env_suppresses_architect_xhigh_promotion(self):
+        result = resolve(
+            tool_input={"subagent_type": "architect"},
+            env={"CLAUDE_EFFORT": "high"},
+            state={"critical": True, "budget": 12},
+        )
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "claude-effort-env")
+
+
+class ThinkingDefaultsDocListsRule2aClaudeEffortEnv(unittest.TestCase):
+    """C-AC6: `## Precedence` numbered list contains rule 2a entry naming
+    `CLAUDE_EFFORT` env override AND the `CLAUDE_HOOK_PROFILE=minimal`
+    interaction note. The new tier slots between current rule 2 and current
+    rule 3; subsequent rules do NOT renumber (still 3, 4)."""
+
+    def test_thinking_defaults_doc_lists_rule_2a_claude_effort_env(self):
+        path = (REPO_ROOT / "rules" / "_detail" / "thinking-defaults.md")
+        body = path.read_text()
+        # Rule 2a entry header. List items in markdown begin at column 0
+        # (no leading whitespace).
+        self.assertRegex(
+            body,
+            r"(?m)^2a\.\s+\*\*Claude Code effort env override\*\*",
+            "Precedence list missing rule 2a header "
+            "'2a. **Claude Code effort env override**'",
+        )
+        # CLAUDE_HOOK_PROFILE=minimal interaction note must appear in the
+        # same rule-2a entry. We assert both substrings are present in the
+        # doc body and that the rule-2a header appears before the note.
+        rule_2a_idx = re.search(
+            r"(?m)^2a\.\s+\*\*Claude Code effort env override\*\*",
+            body,
+        )
+        rule_3_idx = re.search(
+            r"(?m)^3\.\s+\*\*Role-based rules\*\*",
+            body,
+        )
+        self.assertIsNotNone(rule_2a_idx, "rule-2a header not found")
+        self.assertIsNotNone(rule_3_idx, "rule-3 header not found")
+        rule_2a_block = body[rule_2a_idx.start():rule_3_idx.start()]
+        self.assertIn(
+            "CLAUDE_HOOK_PROFILE=minimal",
+            rule_2a_block,
+            "Rule 2a entry missing CLAUDE_HOOK_PROFILE=minimal interaction "
+            "note",
+        )
+
+
+class ForensicCatalogIncludesClaudeEffortEnvBullet(unittest.TestCase):
+    """C-AC7: `### Forensic / Source-Field Integration Note` subsection
+    contains a bullet matching `source=="claude-effort-env"`. The bullet
+    documents that the new value indicates rule 2a fired."""
+
+    def test_forensic_catalog_includes_claude_effort_env_bullet(self):
+        path = (REPO_ROOT / "rules" / "_detail" / "thinking-defaults.md")
+        body = path.read_text()
+        # Locate the forensic subsection.
+        section_match = re.search(
+            r"### Forensic / Source-Field Integration Note(.*?)(?=\n## |\Z)",
+            body,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(
+            section_match,
+            "Forensic / Source-Field Integration Note subsection missing",
+        )
+        section = section_match.group(1)
+        self.assertRegex(
+            section,
+            r'source=="claude-effort-env"',
+            "Forensic subsection missing claude-effort-env bullet",
+        )
+
+
+class HookLogsClaudeEffortEnvSourceToJsonl(unittest.TestCase):
+    """C-AC8: end-to-end hook test. Following precedent at
+    HookLogsOnlyDoesNotBlock.test_missing_thinking_writes_log_line, we use
+    `_run_hook(payload, env={...})`, generate the session ID via
+    `f"test-{uuid.uuid4()}"`, and clean up via `_cleanup_metric_session` in
+    `try/finally`. Asserts the JSONL record's `resolved.source ==
+    'claude-effort-env'` AND `resolved.effort == 'low'`."""
+
+    def test_hook_logs_claude_effort_env_source_to_jsonl(self):
+        session = f"test-{uuid.uuid4()}"
+        log_path = (Path.home() / ".claude" / "metrics" / session
+                    / "hook-injections.jsonl")
+        try:
+            result = _run_hook(
+                {"tool_name": "Agent",
+                 "tool_input": {"subagent_type": "architect"}},
+                env={"CLAUDE_SESSION_ID": session,
+                     "CLAUDE_EFFORT": "low"},
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue(log_path.exists(),
+                            f"expected log at {log_path}")
+            line = log_path.read_text().strip().splitlines()[-1]
+            entry = json.loads(line)
+            self.assertEqual(entry["resolved"]["source"], "claude-effort-env")
+            self.assertEqual(entry["resolved"]["effort"], "low")
+        finally:
+            _cleanup_metric_session(session)
 
 
 if __name__ == "__main__":

@@ -51,6 +51,7 @@ existing observation record.
 
 1. **Environment override**: `CLAUDE_THINKING_EFFORT` / `CLAUDE_THINKING_DISPLAY` (must be a valid enum value; invalid values are ignored, not raised)
 2. **Explicit `thinking` field** on the Agent spawn's `tool_input`
+2a. **Claude Code effort env override**: `CLAUDE_EFFORT` (must be a valid enum value drawn from the harness `{low, medium, high, xhigh}` set; invalid values fall through to the next tier). When this tier wins, `source="claude-effort-env"` — distinct from rule 1's `source="env"` so prior observation records remain interpretable. Naming rationale: the existing `env` source name predates Claude Code's session-level env var; `claude-effort-env` is name-prefixed to disambiguate which env var fired. Renaming `env` → `claude-thinking-env` would invalidate every existing observation record. Note: when `CLAUDE_HOOK_PROFILE=minimal` the hook is suppressed, but resolver-direct callers still observe this tier — for hook-independent enforcement use `CLAUDE_THINKING_EFFORT` (rule 1).
 3. **Role-based rules** (combined layer; reports `source="role"` regardless of which sub-rule fires):
    - **3a. Promotions to xhigh**:
      - `architect` + (`critical=true` OR `budget>=7`) → `effort=xhigh`
@@ -178,5 +179,6 @@ Downstream tooling reads `result["source"]` from the resolver — namely `/foren
 - `source=="role" AND effort=="xhigh"` ⇒ promotion (3a fired)
 - `source=="role" AND effort in {"high","low"}` ⇒ downgrade (3b fired)
 - `source=="default" AND effort=="high"` ⇒ rule 4 fallback (no role rule applied)
+- `source=="claude-effort-env" AND effort in {"low","medium","high","xhigh"}` ⇒ Claude Code session effort env-var override (rule 2a fired). The `claude-effort-env` token is name-prefixed to disambiguate from rule 1's `env` token (`CLAUDE_THINKING_EFFORT`). See rule 2a in `## Precedence` for the naming rationale.
 
 The source field is intentionally NOT split into a fifth token (`role-promote` / `role-downgrade`) — adding one would invalidate every existing observation record without behavioural payoff. Future refactors may revisit if forensics needs the distinction at scale.
