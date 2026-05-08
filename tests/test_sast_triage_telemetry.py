@@ -95,6 +95,37 @@ def test_rationale_excerpt_single_line_truncated_to_200(tmp_path, monkeypatch):
     assert record["rationale_full_hash"] == expected_hash
 
 
+def test_excerpt_strips_leading_and_trailing_whitespace(tmp_path, monkeypatch):
+    """LLM-mutant L5 — `_excerpt` must strip leading/trailing whitespace.
+
+    Guards against a missing-`.strip()` mutant: dropping the call would
+    leak operator-irrelevant whitespace (often pasted in from formatted
+    LLM output) into the JSONL `rationale_excerpt` field, hurting forensic
+    hygiene for downstream readers that key/group on the excerpt.
+    """
+    monkeypatch.setenv("CLAUDE_SESSION_ID", "test-strip")
+    monkeypatch.setenv("CLAUDE_METRICS_DIR", str(tmp_path / "metrics"))
+
+    leading = "   "
+    trailing = "   "
+    body = "Real finding rationale long enough to clear the validator threshold."
+    rationale = leading + body + trailing
+    write_decision_jsonl(
+        task_id="task-strip",
+        finding=_finding(),
+        verdict="keep",
+        rationale=rationale,
+    )
+    jsonl = tmp_path / "metrics" / "test-strip" / "sast-triage.jsonl"
+    record = json.loads(jsonl.read_text().splitlines()[0])
+
+    excerpt = record["rationale_excerpt"]
+    # Must NOT start or end with whitespace — strip is load-bearing.
+    assert excerpt == excerpt.lstrip(), f"excerpt has leading whitespace: {excerpt!r}"
+    assert excerpt == excerpt.rstrip(), f"excerpt has trailing whitespace: {excerpt!r}"
+    assert excerpt.startswith("Real finding")
+
+
 def test_unwritable_metrics_dir_warns_and_continues(tmp_path, monkeypatch, capsys):
     """AC15 — unwritable metrics dir → stderr warning, no exception raised."""
     bad_dir = tmp_path / "metrics_root"
