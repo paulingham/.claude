@@ -22,8 +22,6 @@ Routed by `/pipeline` only when `/intake` set `bestofn: true` (`critical OR [bes
 
 See `~/.claude/orchestrator/parallel-dispatch-details.md` § Best-of-N Build Team Dispatch.
 
-Tie-breaker source: candidate diff cohesion — `(changed_files, changed_lines)` from the Step 4 `git diff --stat main..<branch>` capture, ordered ascending. Fires only when `subjective_quality` and `shape_compliance` are equal; falls through to executor-tier rank otherwise. Composite-tied candidates with non-overlapping file sets (Jaccard < 0.5) get a `category: decision` divergence finding written to `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` for downstream `/learn` Step 3d mining via the standard observations.jsonl path — never a direct scratchpad → anti-pattern shortcut.
-
 ## Output
 
 - Pipeline state: `pipeline-state/{task-id}/best-of-n.md` (frontmatter `verdict`, sections: Candidates Run, Winner SHA, Per-Candidate Scores, Selection Rationale, Total Cost USD via `cost_estimator`, Cluster Sizes — `N/A` until FMV is wired).
