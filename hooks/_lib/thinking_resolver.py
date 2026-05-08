@@ -1,8 +1,11 @@
 """Pure precedence engine for resolving thinking defaults. No I/O.
 
 Returns {"effort", "display", "source"} where `source` names the layer that
-determined the EFFORT value: "env", "explicit", "role", or "default".
-Display layer may differ but is not separately reported.
+determined the EFFORT value: "env", "explicit", "claude-effort-env", "role",
+or "default". Display layer may differ but is not separately reported.
+See rules/_detail/thinking-defaults.md § Precedence for the ordering
+contract; the contract test in tests/contract_thinking_source_enum.py pins
+the enum to exactly five values.
 """
 import time
 
@@ -34,6 +37,7 @@ def resolve(tool_input, env, state, now=None):
     effort, source = _pick([
         ("env", _valid_env(env, "CLAUDE_THINKING_EFFORT", _EFFORTS)),
         ("explicit", explicit.get("effort")),
+        ("claude-effort-env", _valid_env(env, "CLAUDE_EFFORT", _EFFORTS)),
         ("role", role_effort(tool_input, state)),
     ], "high")
     display, _ = _pick([
