@@ -40,12 +40,13 @@ from sast_triage_render import (  # noqa: F401
 )
 
 
-def triage_finding(parsed_model_output: dict, finding: dict) -> dict:
+def triage_finding(parsed_model_output: dict) -> dict:
     """AC8 — validate a model's triage output for one finding.
 
     NOT an LLM call. The agent invokes this AFTER getting the model's
-    response. `finding` is part of the signature so the caller binds
-    finding metadata into the decision record at the call site.
+    response. Finding metadata is bound to the decision record by the
+    caller via `write_decision_jsonl` — this validator is concerned only
+    with the model output's verdict + rationale.
     """
     return validate_triage_output(parsed_model_output)
 

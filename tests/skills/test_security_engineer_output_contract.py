@@ -143,3 +143,90 @@ def test_walker_detects_dismissal_headings():
     text = FIXTURE_BYPASS.read_text()
     matches = lines_under_any_heading_matching(text, DISMISS_RE)
     assert any("rules.py.security.weak-hash" in line for _idx, line in matches)
+
+
+def test_audit_rejects_fenced_fake_findings_heading():
+    """Fenced ## Findings inside a ``` block must not pop the Dismissed stack."""
+    md = """# Review
+
+## Findings
+
+(no real findings)
+
+## Dismissed
+
+```
+## Findings
+```
+- **rule.x** `src/y.py:10` — agent_verdict: confirmed
+"""
+    result = audit_agent_output(
+        md, [{"rule_id": "rule.x", "file": "src/y.py", "line": 10}]
+    )
+    assert result["ok"] is False, "fenced fake heading must not launder Dismissed"
+
+
+def test_audit_rejects_tilde_fenced_fake_findings_heading():
+    """Same attack via ~~~-fenced block."""
+    md = """# Review
+
+## Findings
+
+(no real findings)
+
+## Suppressed
+
+~~~
+## Findings
+~~~
+- **rule.y** `src/z.py:5` — agent_verdict: confirmed
+"""
+    result = audit_agent_output(
+        md, [{"rule_id": "rule.y", "file": "src/z.py", "line": 5}]
+    )
+    assert result["ok"] is False, "tilde-fenced fake heading must not launder Suppressed"
+
+
+def test_walker_does_not_treat_fenced_lines_as_headings():
+    """tests/_helpers/markdown_section_walker.walk must skip fenced content."""
+    from _helpers.markdown_section_walker import walk
+
+    md = """# Top
+
+## Real
+
+```
+## Fake
+```
+target line
+"""
+    walked = list(walk(md))
+    target = next(
+        (stack for stack, _idx, line in walked if line == "target line"),
+        None,
+    )
+    assert target is not None
+    # Stack must reflect ## Real, NOT ## Fake.
+    assert target == ((1, "Top"), (2, "Real"))
+
+
+def test_audit_rejects_two_findings_sharing_one_verdict_token():
+    """Each finding must claim its own agent_verdict token."""
+    md = """# Review
+
+## Findings
+
+- **rule.a** `src/x.py:1`
+- **rule.b** `src/y.py:2`
+- agent_verdict: confirmed
+"""
+    result = audit_agent_output(
+        md,
+        [
+            {"rule_id": "rule.a", "file": "src/x.py", "line": 1},
+            {"rule_id": "rule.b", "file": "src/y.py", "line": 2},
+        ],
+    )
+    assert result["ok"] is False, (
+        "two findings must not share one verdict token; second must fail audit"
+    )

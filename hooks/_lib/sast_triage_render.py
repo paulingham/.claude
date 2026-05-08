@@ -56,18 +56,26 @@ def render_merge_block(triaged: list[dict]) -> str:
 # ---- AC18 audit ------------------------------------------------------------
 
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+_FENCE_RE = re.compile(r"^(```|~~~)")
+
+
+def _push_heading(stack: list[tuple[int, str]], level: int, text: str) -> None:
+    while stack and stack[-1][0] >= level:
+        stack.pop()
+    stack.append((level, text))
 
 
 def _walk_headings(text: str) -> Iterable[tuple[tuple, int, str]]:
     stack: list[tuple[int, str]] = []
+    in_fence = False
     for index, line in enumerate(text.splitlines()):
-        match = _HEADING_RE.match(line)
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            yield tuple(stack), index, line
+            continue
+        match = None if in_fence else _HEADING_RE.match(line)
         if match:
-            level = len(match.group(1))
-            heading_text = match.group(2)
-            while stack and stack[-1][0] >= level:
-                stack.pop()
-            stack.append((level, heading_text))
+            _push_heading(stack, len(match.group(1)), match.group(2))
             continue
         yield tuple(stack), index, line
 
@@ -88,23 +96,31 @@ def _strikethrough_contains(line: str, rule_id: str) -> bool:
     return any(rule_id in m.group(1) for m in re.finditer(r"~~(.+?)~~", line))
 
 
-def _verdict_within(lines: list[str], target_idx: int, radius: int = 5) -> tuple[bool, str | None]:
+def _verdict_within(
+    lines: list[str], target_idx: int, *,
+    radius: int = 5, claimed: set[int] | None = None,
+) -> tuple[bool, str | None, int | None]:
+    """Find an unclaimed `agent_verdict:` token within ±radius of target_idx."""
+    claimed = claimed or set()
     lo = max(0, target_idx - radius)
     hi = min(len(lines), target_idx + radius + 1)
     for i in range(lo, hi):
+        if i in claimed:
+            continue
         match = _AGENT_VERDICT_RE.search(lines[i])
         if match:
-            return True, match.group(1).strip().lower()
-    return False, None
+            return True, match.group(1).strip().lower(), i
+    return False, None, None
 
 
 def _check_candidate(
     cand_idx: int, cand_line: str, *,
     rule_id: str, walked: list, lines: list[str],
-) -> str | None:
-    """Return reason string if candidate fails any rubric check, else None."""
+    claimed: set[int],
+) -> tuple[str | None, int | None]:
+    """Return (reason, verdict_idx). reason None ⇒ candidate passes."""
     if _strikethrough_contains(cand_line, rule_id):
-        return "wrapped-in-strikethrough"
+        return "wrapped-in-strikethrough", None
     stack = _stack_at_index(walked, cand_idx)
     under_findings = any(
         level == 2 and heading_text == "Findings"
@@ -115,17 +131,19 @@ def _check_candidate(
         for _level, heading_text in stack
     )
     if not under_findings:
-        return "not-under-findings-heading"
+        return "not-under-findings-heading", None
     if under_dismissal:
-        return "under-dismissal-heading"
-    has_token, verdict_value = _verdict_within(lines, cand_idx, radius=5)
+        return "under-dismissal-heading", None
+    has_token, verdict_value, verdict_idx = _verdict_within(
+        lines, cand_idx, radius=5, claimed=claimed,
+    )
     if not has_token:
-        return "missing-agent-verdict-within-5-lines"
+        return "missing-agent-verdict-within-5-lines", None
     if verdict_value == _FORBIDDEN_AGENT_VERDICT:
-        return "agent-verdict-not-applicable-forbidden"
+        return "agent-verdict-not-applicable-forbidden", None
     if verdict_value not in _VALID_AGENT_VERDICTS:
-        return f"invalid-agent-verdict-{verdict_value}"
-    return None
+        return f"invalid-agent-verdict-{verdict_value}", None
+    return None, verdict_idx
 
 
 def audit_agent_output(text: str, triage_findings: list[dict]) -> dict:
@@ -133,6 +151,7 @@ def audit_agent_output(text: str, triage_findings: list[dict]) -> dict:
     lines = text.splitlines()
     walked = list(_walk_headings(text))
     violations: list[dict] = []
+    claimed_verdicts: set[int] = set()
 
     for finding in triage_findings:
         rule_id = finding["rule_id"]
@@ -145,17 +164,21 @@ def audit_agent_output(text: str, triage_findings: list[dict]) -> dict:
             violations.append(_violation(finding, "missing-from-output"))
             continue
         last_reason = "no-valid-occurrence"
-        ok_any = False
+        ok_idx: int | None = None
         for cand_idx, cand_line in candidates:
-            reason = _check_candidate(
-                cand_idx, cand_line, rule_id=rule_id, walked=walked, lines=lines,
+            reason, verdict_idx = _check_candidate(
+                cand_idx, cand_line,
+                rule_id=rule_id, walked=walked, lines=lines,
+                claimed=claimed_verdicts,
             )
             if reason is None:
-                ok_any = True
+                ok_idx = verdict_idx
                 break
             last_reason = reason
-        if not ok_any:
+        if ok_idx is None:
             violations.append(_violation(finding, last_reason))
+        else:
+            claimed_verdicts.add(ok_idx)
 
     return {"ok": not violations, "violations": violations}
 

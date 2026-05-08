@@ -12,6 +12,13 @@ suppression/dismissal heading.
 import re
 
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+_FENCE_RE = re.compile(r"^(```|~~~)")
+
+
+def _push_heading(stack, level, text):
+    while stack and stack[-1][0] >= level:
+        stack.pop()
+    stack.append((level, text))
 
 
 def walk(markdown_text):
@@ -20,16 +27,21 @@ def walk(markdown_text):
     heading_stack is a tuple of (level, text) pairs in document order.
     Each subsequent heading at level L pops the stack until the top is
     strictly shallower (level < L), then pushes the new heading.
+
+    Lines inside fenced code blocks (``` or ~~~) are yielded with the
+    enclosing heading stack but never mutate it — fenced markdown is
+    content, not structure.
     """
     stack = []
+    in_fence = False
     for index, line in enumerate(markdown_text.splitlines()):
-        match = _HEADING_RE.match(line)
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            yield tuple(stack), index, line
+            continue
+        match = None if in_fence else _HEADING_RE.match(line)
         if match:
-            level = len(match.group(1))
-            text = match.group(2)
-            while stack and stack[-1][0] >= level:
-                stack.pop()
-            stack.append((level, text))
+            _push_heading(stack, len(match.group(1)), match.group(2))
             continue
         yield tuple(stack), index, line
 

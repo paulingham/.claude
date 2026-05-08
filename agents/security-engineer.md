@@ -83,8 +83,12 @@ stderr line; you do not need to do anything.
   `(dismissed|skipped|not.applicable|not.a.finding|ignored|suppressed|out.of.scope)`.
 - Findings MUST NOT be wrapped in markdown strikethrough (`~~...~~`).
 
-These constraints are enforced by `hooks/_lib/sast_triage.py::audit_agent_output`.
-Failing the audit fails Build's review gate.
+The audit function `hooks/_lib/sast_triage.py::audit_agent_output` is provided
+for downstream wiring; the SubagentStop hook that runs it against your output
+and fails Build's review gate ships in a follow-up slice (see
+`pipeline-state/wave2a-b3-sast-triage/followups.md`). For now the constraints
+above are agent-self-enforced — adhere to them as you would any other rubric
+item; reviewers may invoke the audit manually against your output.
 
 ## Responsibilities
 

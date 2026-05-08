@@ -64,7 +64,7 @@ Unknown severities → `INFO` + stderr warning.
 > **The security-engineer agent IS the LLM caller.** This section contains the
 > iteration template the agent executes inline — `for each finding`,
 > render the prompt below, parse the strict-JSON response, validate it via
-> `hooks/_lib/sast_triage.py::triage_finding(parsed, finding)`, and append
+> `hooks/_lib/sast_triage.py::triage_finding(parsed)`, and append
 > the result to the merged working set.
 
 For each finding produced by § 0.2, render this prompt and call the model
