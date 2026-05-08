@@ -7,6 +7,46 @@ Opus 4.7 introduces a `thinking` field on Agent spawns that controls reasoning e
 - `effort`: `low` | `medium` | `high` | `xhigh` — reasoning depth
 - `display`: `omitted` | `text` — whether thinking content is shown to the user
 
+## Adaptive Thinking (Opus 4.7+)
+
+Claude Opus 4.7 and later models reject manual extended thinking
+(`thinking: {type: "enabled", budget_tokens: N}`) at the Anthropic API
+layer, returning HTTP 400. Adaptive thinking
+(`thinking: {type: "adaptive"}`) is the only supported configuration on
+those models. The harness MUST NOT introduce `budget_tokens` into any
+hook, skill, agent, script, or `settings.json` payload — the rejection
+is enforced upstream and any such config will fail every Opus 4.7+
+spawn.
+
+Source (verified 2026-05-08): Anthropic Extended Thinking docs at
+[`platform.claude.com/docs/en/build-with-claude/extended-thinking`](https://platform.claude.com/docs/en/build-with-claude/extended-thinking)
+state, verbatim, that for Claude Opus 4.7 and later models *manual extended thinking is no longer supported*
+and that callers should "use adaptive thinking
+(`thinking: {type: "adaptive"}`) with the effort parameter instead."
+The docs also state that manual `budget_tokens` is "no longer accepted
+and returns a 400 error" on Opus 4.7+.
+
+**Do not introduce `budget_tokens` into hooks, skills, agents,
+scripts, or `settings.json`.** Do not set it on Agent spawn payloads.
+Use the `effort` field on `thinking` (resolved by
+`hooks/_lib/thinking_resolver.py` and the precedence list below)
+instead — adaptive thinking allocates budget at the API layer.
+
+**`CLAUDE_HOOK_PROFILE=minimal` interaction.** When the
+`pre-agent-thinking.sh` hook is suppressed (because
+`CLAUDE_HOOK_PROFILE=minimal` is set), this guidance still applies —
+the rejection happens at the Anthropic API layer regardless of harness
+instrumentation. The hook only logs the resolved `effort`/`display`
+values for forensic visibility; it never injects `budget_tokens`, and
+suppressing it does not unlock manual extended thinking.
+
+**Naming rationale for the `claude-effort-env` source value (forward
+reference to rule 2a in the precedence list below).** The existing
+`env` source name predates Claude Code's session-level env var;
+`claude-effort-env` is name-prefixed to disambiguate which env var
+fired. Renaming `env` → `claude-thinking-env` would invalidate every
+existing observation record.
+
 ## Precedence (highest wins)
 
 1. **Environment override**: `CLAUDE_THINKING_EFFORT` / `CLAUDE_THINKING_DISPLAY` (must be a valid enum value; invalid values are ignored, not raised)
