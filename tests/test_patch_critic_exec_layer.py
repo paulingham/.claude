@@ -38,6 +38,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DISPATCH_DOC = REPO_ROOT / "orchestrator" / "parallel-dispatch-details.md"
 OBSERVATION_DOC = REPO_ROOT / "rules" / "_detail" / "autonomous-intelligence.md"
 PATCH_CRITIC_DOC = REPO_ROOT / "agents" / "patch-critic.md"
+VERIFY_SKILL_DOC = REPO_ROOT / "skills" / "verify" / "SKILL.md"
 
 
 def _section(text, header_pattern, until_pattern):
@@ -392,6 +393,274 @@ class ExecutionEvidenceSubsectionIsPurelyAdditiveWhenFlagOff(
             "Sub-section must state the flag-unset path dispatches "
             "personas exactly as #93 / falls through to the existing "
             "dispatch")
+
+
+class GeneratorStepDocumentsTier35CostDiscipline(unittest.TestCase):
+    """AC2.1 — the Step 1 generator clause inside the Execution
+    Evidence sub-section documents the Tier 3.5 cost-guardrail
+    pattern verbatim: ONE call, NO retry, max-N-items, silent skip,
+    diff-only fallback.
+    """
+
+    def test_generator_step_documents_tier_35_cost_discipline(self):
+        text = DISPATCH_DOC.read_text()
+        sub = _section(
+            text,
+            r"^### Execution Evidence \(optional, default off\)",
+            r"^### |^## ")
+        self.assertIsNotNone(
+            sub,
+            "Could not locate the Execution Evidence sub-section")
+
+        # Step 1 heading must exist within the sub-section.
+        self.assertRegex(
+            sub,
+            r"\*\*Step 1 [—-] Generate discriminative test inputs\*\*",
+            "Sub-section must contain a 'Step 1 — Generate "
+            "discriminative test inputs' heading")
+
+        # Slice the Step 1 body for tighter assertions.
+        step1 = _section(
+            sub,
+            r"\*\*Step 1 [—-] Generate discriminative test inputs\*\*",
+            r"^\*\*Step \d|^### |^## ")
+        self.assertIsNotNone(step1, "Could not slice Step 1 body")
+
+        # Verbatim cost-guardrail phrases inherited from Tier 3.5
+        # § 4.25:
+        #   - "ONE call"
+        self.assertIn(
+            "ONE call",
+            step1,
+            "Step 1 must use the verbatim phrase 'ONE call' "
+            "(inherited from Tier 3.5 § 4.25 cost-guardrail)")
+
+        #   - "NO retry"
+        self.assertIn(
+            "NO retry",
+            step1,
+            "Step 1 must use the verbatim phrase 'NO retry' "
+            "(inherited from Tier 3.5 § 4.25 cost-guardrail)")
+
+        #   - max-N-items pattern: "max 3 inputs" or equivalent regex
+        self.assertRegex(
+            step1,
+            r"max\s+\d+\s+inputs",
+            "Step 1 must document a 'max N inputs' cap "
+            "(per-response upper bound; Tier 3.5 § 4.25 cost-guardrail)")
+
+        #   - "silent skip" / "silently skip"
+        lower = step1.lower()
+        self.assertTrue(
+            "silent skip" in lower or "silently skip" in lower,
+            "Step 1 must use 'silent skip' / 'silently skip' "
+            "wording for the failure-fallthrough semantics")
+
+        #   - "diff-only" fallback name
+        self.assertIn(
+            "diff-only",
+            step1,
+            "Step 1 must reference the 'diff-only' fallback path")
+
+
+class GeneratorJsonSchemaDocumented(unittest.TestCase):
+    """AC2.2 — the Step 1 generator clause documents the JSON schema
+    with three required fields per input: description, input,
+    expected_distinction; with their types named.
+    """
+
+    def test_generator_json_schema_documented(self):
+        text = DISPATCH_DOC.read_text()
+        sub = _section(
+            text,
+            r"^### Execution Evidence \(optional, default off\)",
+            r"^### |^## ")
+        self.assertIsNotNone(sub)
+
+        step1 = _section(
+            sub,
+            r"\*\*Step 1 [—-] Generate discriminative test inputs\*\*",
+            r"^\*\*Step \d|^### |^## ")
+        self.assertIsNotNone(step1, "Could not slice Step 1 body")
+
+        # All three required field names must appear in the schema.
+        for field in ("description", "input", "expected_distinction"):
+            with self.subTest(field=field):
+                self.assertIn(
+                    field, step1,
+                    f"Step 1 JSON schema must document the required "
+                    f"field '{field}'")
+
+        # Types must be documented. The plan calls for:
+        #   description: string
+        #   input: string|object  (any of: "string|object", "string or
+        #                          object", "string/object")
+        #   expected_distinction: string
+        # We assert "string" appears (covers description +
+        # expected_distinction) AND a marker for the input field's
+        # union type appears.
+        self.assertIn(
+            "string", step1,
+            "Step 1 JSON schema must name the 'string' type for "
+            "description / expected_distinction fields")
+        self.assertRegex(
+            step1,
+            r"string\s*[|/]\s*object|string or object",
+            "Step 1 JSON schema must document the 'input' field as "
+            "'string|object' (or 'string or object' / 'string/object')")
+
+
+class GeneratorFailureFallsThroughToDiffOnly(unittest.TestCase):
+    """AC2.3 — Step 1 failure paths (timeout / parse-failure /
+    zero-non-equivalent / output-over-cap / control-char-strip) all
+    fall through to diff-only dispatch via the silent-skip semantics.
+    The "output-over-cap" and "control-char-strip" clauses encode the
+    sanitization guidance from the security-engineer scratchpad
+    warning (LLM output untrusted; cap byte length, strip control
+    chars, refuse oversized JSON).
+
+    The test enforces at least 4 of the 5 listed sanitization /
+    failure clauses (treating output-over-cap + control-char-strip
+    together as the sanitization concern).
+    """
+
+    def test_generator_failure_falls_through_to_diff_only(self):
+        text = DISPATCH_DOC.read_text()
+        sub = _section(
+            text,
+            r"^### Execution Evidence \(optional, default off\)",
+            r"^### |^## ")
+        self.assertIsNotNone(sub)
+
+        step1 = _section(
+            sub,
+            r"\*\*Step 1 [—-] Generate discriminative test inputs\*\*",
+            r"^\*\*Step \d|^### |^## ")
+        self.assertIsNotNone(step1, "Could not slice Step 1 body")
+
+        lower = step1.lower()
+
+        # Five failure / sanitization clauses (≥4 of 5 required).
+        clauses = {
+            "timeout": "timeout" in lower or "times out" in lower,
+            "parse-failure": (
+                "parse failure" in lower
+                or "parse-failure" in lower
+                or "malformed" in lower),
+            "zero-non-equivalent": (
+                "zero non-equivalent" in lower
+                or "zero non-equivalent inputs" in lower
+                or "no non-equivalent" in lower
+                or "zero inputs" in lower),
+            "output-over-cap": (
+                "over cap" in lower
+                or "over-cap" in lower
+                or "oversized" in lower
+                or "exceeds" in lower
+                or "byte cap" in lower
+                or "size cap" in lower),
+            "control-char-strip": (
+                "control char" in lower
+                or "control-char" in lower
+                or "control character" in lower
+                or "0x20" in lower),
+        }
+        present_count = sum(1 for v in clauses.values() if v)
+        missing = [k for k, v in clauses.items() if not v]
+        self.assertGreaterEqual(
+            present_count, 4,
+            f"Step 1 must document at least 4 of 5 failure / "
+            f"sanitization clauses. Missing: {missing}")
+
+        # "silent skip" / "silently skip" must be present (links the
+        # failure clauses to the documented fallback semantics).
+        self.assertTrue(
+            "silent skip" in lower or "silently skip" in lower,
+            "Step 1 must say the failure path triggers a silent skip")
+
+        # Documented behavior on each failure → fall through to
+        # diff-only dispatch. Cross-reference to AC1.5's flag-off
+        # path is the wording: "diff-only" appears alongside the
+        # fallback semantics and either "fall through" / "fall-through"
+        # / "as #93" / "Step 0" / "flag off" / "flag-off" appears
+        # nearby (showing the equivalence to Slice 1's flag-off
+        # silent path).
+        self.assertIn(
+            "diff-only",
+            step1,
+            "Step 1 must document the fallback path as 'diff-only'")
+        cross_ref_present = (
+            "fall through" in lower
+            or "fall-through" in lower
+            or "as #93" in lower
+            or "step 0" in lower
+            or "flag off" in lower
+            or "flag-off" in lower
+            or "same path" in lower
+            or "same fallback" in lower
+            or "same as" in lower)
+        self.assertTrue(
+            cross_ref_present,
+            "Step 1 must cross-reference AC1.5's flag-off path "
+            "(via 'fall through' / 'as #93' / 'same as Step 0' / "
+            "'same fallback' wording)")
+
+
+class VerifySkillCrossReferencesPatchCriticExecLayer(unittest.TestCase):
+    """AC2.4 — `skills/verify/SKILL.md` § Tier 3.5 contains a one-line
+    cross-reference to `orchestrator/parallel-dispatch-details.md`
+    § Multi-Persona Patch Critic Dispatch / Execution Evidence reusing
+    the same call-shape pattern. The Tier 3.5 procedure body itself
+    MUST remain unchanged — only the appended cross-reference line is
+    new (canonical Tier 3.5 phrases must still be present).
+    """
+
+    def test_verify_skill_cross_references_patch_critic_exec_layer(self):
+        text = VERIFY_SKILL_DOC.read_text()
+        # Slice § Tier 3.5 (the LLM-Mutant Pass section, anchored at
+        # the "### 4.25." heading).
+        section = _section(
+            text,
+            r"^### 4\.25\. Run Tier 3\.5",
+            r"^### 4\.5\.|^### 5\.|^## ")
+        self.assertIsNotNone(
+            section,
+            "Could not locate § Tier 3.5 (### 4.25.) in "
+            "skills/verify/SKILL.md")
+
+        # The cross-reference must name the target file path AND the
+        # target sub-section. Both substrings must appear.
+        self.assertIn(
+            "orchestrator/parallel-dispatch-details.md",
+            section,
+            "Tier 3.5 must contain a cross-reference to "
+            "'orchestrator/parallel-dispatch-details.md'")
+        self.assertIn(
+            "Multi-Persona Patch Critic",
+            section,
+            "Tier 3.5 cross-reference must name § Multi-Persona "
+            "Patch Critic (Dispatch / Execution Evidence)")
+        self.assertIn(
+            "Execution Evidence",
+            section,
+            "Tier 3.5 cross-reference must name the Execution "
+            "Evidence sub-section explicitly")
+
+        # The canonical Tier 3.5 procedure phrases MUST still be
+        # present (procedure body unchanged besides the appended
+        # cross-reference line).
+        for phrase in (
+                "ONE Claude call per slice",
+                "NO retry",
+                "max 10 mutants per response",
+                "Equivalence filter",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(
+                    phrase, section,
+                    f"Tier 3.5 procedure must still contain the "
+                    f"canonical phrase '{phrase}' "
+                    "(procedure body unchanged besides cross-reference)")
 
 
 if __name__ == "__main__":
