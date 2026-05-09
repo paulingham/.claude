@@ -3,7 +3,6 @@ name: "estimation"
 description: "Use when sizing stories with the Complexity Budget. Scores 5 dimensions (scope, ambiguity, context pressure, novelty, coordination) 1-3 each. Output is the raw budget total and the routing action — no Fibonacci/story-points translation."
 context: fork
 agent: architect
-model: sonnet
 ---
 
 # Complexity Budget Estimation
