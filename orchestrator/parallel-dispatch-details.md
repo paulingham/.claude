@@ -630,6 +630,34 @@ OPTIONAL enrichment that prepends a short `## Execution Evidence` block to every
 - Read `CLAUDE_PATCH_CRITIC_EXEC_LAYER` from the orchestrator-side env. Defaults unset / off. Only the literal value `1` enables the path; any other value (including empty, `0`, `true`, `yes`) coerces to off — the same conservative pattern used by other harness opt-in flags.
 - When unset / off → SKIP the entire sub-section. Dispatch personas exactly as #93 specifies (Step 1 onward in this section). This is the default and the path THIS pipeline's own Final Gate runs against; the env var is operator-set, never harness-set (enforced as a committed invariant by the AC3.7 grep guard shipping in Slice 3).
 
+**Step 1 — Generate discriminative test inputs**: ONCE per slice, the orchestrator issues ONE Claude call asking for 2–3 discriminative inputs that "would behave differently before vs after this candidate diff". The call shape mirrors Tier 3.5's cost-guardrail clause from `skills/verify/SKILL.md` § 4.25 verbatim — ONE call, NO retry, max 3 inputs per response (any extras are truncated to 3 by the orchestrator before splicing).
+
+- **JSON schema (response shape — three required fields per input)**:
+  ```
+  {
+    description:          string,
+    input:                string|object,
+    expected_distinction: string
+  }
+  ```
+  - `description`: a one-line plain-English summary of the input's intent (string).
+  - `input`: the actual input value passed to the candidate at run time. May be a `string` (e.g. a CLI argument, stdin payload) or an `object` (e.g. a structured request body).
+  - `expected_distinction`: a one-line description of how the candidate's behavior is expected to differ between the pre-patch and post-patch revisions on this input (string). The generator's hypothesis about WHY the input is discriminative — used by personas as additional reasoning context, not as a pass/fail oracle.
+
+- **Output sanitization (LLM output is untrusted, even from an internal call — prompt-injection embedded in the diff or downstream-fetched files can propagate through)**:
+  - Per-field byte cap: each input's `description`, `input` (when serialized), and `expected_distinction` MUST NOT exceed 2KB (2048 bytes). Fields exceeding the cap → silent skip (treat the entire generator response as a failure).
+  - Control-character strip: ASCII control characters below `0x20` (except newline `0x0A` and tab `0x09`) MUST NOT appear in any field. Any control-char detection → silent skip.
+  - Total response cap: the entire JSON response payload MUST NOT exceed 8KB (8192 bytes). Oversized payloads → silent skip (never spliced into persona prompts).
+
+- **Failure modes (each triggers a silent skip → fall through to diff-only dispatch, the same path as Step 0's flag-off fallback)**:
+  - Call timeout — the LLM call exceeds the orchestrator-side timeout budget.
+  - Parse failure — the response is malformed JSON or fails schema validation.
+  - Zero non-equivalent inputs — the generator returns no inputs that distinguish pre- vs post-patch behavior.
+  - Output over cap — any per-field byte cap or the total response cap is exceeded (sanitization failure).
+  - Control-char strip — any field contains ASCII control characters below `0x20` (except newline / tab).
+
+  Any one of the above → silent skip → fall through to diff-only dispatch (same fallback as Step 0's flag-off path; personas never observe the difference). No retry, no error log surfaced to the operator beyond the standard `phases.patch_critic.evidence_mode = "diff-only"` forensic record.
+
 **Once-per-slice contract**: when the flag is on AND the path proceeds, the orchestrator generates discriminative test inputs ONCE per slice, runs them ONCE, formats the result into a single `## Execution Evidence` block, and APPENDS the SAME block VERBATIM to each of the three persona spawn prompts. Evidence is shared across personas because (a) inputs are derived from the diff and the diff is identical across personas, so per-persona inputs would be identical too, and (b) persona differentiation already lives in the existing search-emphasis prompts (rubric-dimension weighting), not in raw evidence. The once-per-slice scope is both 3x cheaper and signal-equivalent — per-persona generation would produce identical inputs (the diff is identical), wasting the spend.
 
 **Three silent skip points** — any one collapses to identical diff-only dispatch (no error surfaced, no log noise, persona spawns unchanged):
