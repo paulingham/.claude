@@ -663,5 +663,461 @@ class VerifySkillCrossReferencesPatchCriticExecLayer(unittest.TestCase):
                     "(procedure body unchanged besides cross-reference)")
 
 
+class SandboxedRunDocumentsApplyTestRevertLoop(unittest.TestCase):
+    """AC3.1 — the Step 2 run clause inside the Execution Evidence
+    sub-section documents the apply-test-revert loop pattern (scratch
+    worktree OR git stash, apply diff, execute against input, capture
+    output, revert) AND references Tier 3.5's apply-test-revert
+    pattern.
+    """
+
+    def test_sandboxed_run_documents_apply_test_revert_loop(self):
+        text = DISPATCH_DOC.read_text()
+        sub = _section(
+            text,
+            r"^### Execution Evidence \(optional, default off\)",
+            r"^### |^## ")
+        self.assertIsNotNone(
+            sub,
+            "Could not locate the Execution Evidence sub-section")
+
+        # Step 2 heading must exist within the sub-section.
+        self.assertRegex(
+            sub,
+            r"\*\*Step 2 [—-] Run candidate against discriminative inputs\*\*",
+            "Sub-section must contain a 'Step 2 — Run candidate "
+            "against discriminative inputs' heading")
+
+        # Slice the Step 2 body for tighter assertions.
+        step2 = _section(
+            sub,
+            r"\*\*Step 2 [—-] Run candidate against discriminative inputs\*\*",
+            r"^\*\*Step \d|^### |^## ")
+        self.assertIsNotNone(step2, "Could not slice Step 2 body")
+        lower = step2.lower()
+
+        # Apply-test-revert loop phrases. The plan AC3.1 stub names
+        # five distinct phrases; each must be present.
+        self.assertTrue(
+            "scratch worktree" in lower or "git stash" in lower,
+            "Step 2 must mention either a scratch worktree or "
+            "git stash snapshot mechanism")
+        self.assertTrue(
+            "apply" in lower and ("diff" in lower or "patch" in lower
+                                  or "candidate" in lower),
+            "Step 2 must describe applying the diff / patch / "
+            "candidate")
+        self.assertTrue(
+            "execute" in lower or "run" in lower,
+            "Step 2 must describe executing / running against the "
+            "discriminative input")
+        self.assertTrue(
+            "capture" in lower
+            and ("stdout" in lower or "stderr" in lower
+                 or "output" in lower),
+            "Step 2 must describe capturing output (stdout/stderr)")
+        self.assertTrue(
+            "revert" in lower,
+            "Step 2 must describe reverting before the next input")
+
+        # Tier 3.5 cross-reference: must point back to Tier 3.5's
+        # apply-test-revert loop. The canonical reference shape is
+        # § 4.25 in skills/verify/SKILL.md.
+        self.assertTrue(
+            "tier 3.5" in lower or "4.25" in lower,
+            "Step 2 must reference Tier 3.5 (or § 4.25) as the source "
+            "of the apply-test-revert pattern")
+
+
+class PerInputTimeoutDocumented(unittest.TestCase):
+    """AC3.2 — Step 2 documents a per-input timeout integer (regex
+    `\\b\\d+(?:s|ms| seconds)\\b`) AND uses the phrase "orchestrator-
+    side" or "no new env var" to make clear the timeout is a
+    documented value rather than a configurable env var.
+    """
+
+    def test_per_input_timeout_documented(self):
+        text = DISPATCH_DOC.read_text()
+        sub = _section(
+            text,
+            r"^### Execution Evidence \(optional, default off\)",
+            r"^### |^## ")
+        self.assertIsNotNone(sub)
+
+        step2 = _section(
+            sub,
+            r"\*\*Step 2 [—-] Run candidate against discriminative inputs\*\*",
+            r"^\*\*Step \d|^### |^## ")
+        self.assertIsNotNone(step2, "Could not slice Step 2 body")
+
+        # Per-input timeout integer present.
+        self.assertRegex(
+            step2,
+            r"\b\d+(?:s|ms| seconds)\b",
+            "Step 2 must document a per-input timeout integer "
+            "(e.g. '30s', '500ms', '60 seconds')")
+
+        # Documented-value, not env-var, wording.
+        lower = step2.lower()
+        self.assertTrue(
+            "orchestrator-side" in lower or "no new env var" in lower,
+            "Step 2 must use the phrase 'orchestrator-side' or "
+            "'no new env var' to mark the timeout as a documented "
+            "value (NOT a new operator-tunable env var)")
+
+
+class RunFailureFallsThroughToDiffOnly(unittest.TestCase):
+    """AC3.3 — Step 2 enumerates at least three run-failure modes
+    (sandbox unavailable, no inferable entry point, all inputs time
+    out) AND each falls through to diff-only dispatch. The slice 2
+    security scratchpad pattern requires that the new failures roll
+    up into the existing "Run / execution failure" skip point —
+    verified separately by absence of any NEW top-level skip-point
+    heading (the "Three silent skip points" enumeration must remain
+    Flag off / Generator failure / Run failure).
+    """
+
+    def test_run_failure_falls_through_to_diff_only(self):
+        text = DISPATCH_DOC.read_text()
+        sub = _section(
+            text,
+            r"^### Execution Evidence \(optional, default off\)",
+            r"^### |^## ")
+        self.assertIsNotNone(sub)
+
+        step2 = _section(
+            sub,
+            r"\*\*Step 2 [—-] Run candidate against discriminative inputs\*\*",
+            r"^\*\*Step \d|^### |^## ")
+        self.assertIsNotNone(step2, "Could not slice Step 2 body")
+        lower = step2.lower()
+
+        # Three run-failure modes (sandbox unavailable, no entry point,
+        # all inputs timeout) — all three must be present.
+        self.assertTrue(
+            "sandbox" in lower
+            and ("unavailable" in lower or "missing" in lower
+                 or "absent" in lower),
+            "Step 2 must list 'sandbox unavailable' as a run-failure "
+            "mode")
+        self.assertTrue(
+            ("entry point" in lower or "entrypoint" in lower)
+            and ("no inferable" in lower or "cannot infer" in lower
+                 or "not inferable" in lower or "no entry" in lower),
+            "Step 2 must list 'no inferable entry point' as a "
+            "run-failure mode")
+        self.assertTrue(
+            ("all inputs" in lower and ("time out" in lower
+                                         or "timeout" in lower
+                                         or "timed out" in lower))
+            or "all inputs time out" in lower,
+            "Step 2 must list 'all inputs time out' as a run-failure "
+            "mode")
+
+        # Documented behavior: silent skip → diff-only.
+        self.assertTrue(
+            "silent skip" in lower or "silently skip" in lower,
+            "Step 2 must say run-failure triggers a silent skip")
+        self.assertIn(
+            "diff-only",
+            step2,
+            "Step 2 must document the fallback as 'diff-only'")
+
+        # The "Three silent skip points" enumeration must NOT have
+        # been expanded — verify the SUB-section's three-skip-point
+        # list still has exactly three top-level entries, and the
+        # third entry still names "Run / execution failure" (the
+        # roll-up the security scratchpad mandates).
+        skip_points_re = (
+            r"\*\*Three silent skip points\*\*[\s\S]*?"
+            r"\n1\.\s.*?\n2\.\s.*?\n3\.\s[^\n]*?(\n[\n#]|$)")
+        m = re.search(skip_points_re, sub)
+        self.assertIsNotNone(
+            m,
+            "Sub-section must contain the 'Three silent skip points' "
+            "enumeration with exactly three top-level entries")
+        # Third entry must still mention 'run' / 'execution'.
+        skip_block = m.group(0).lower()
+        self.assertTrue(
+            "run" in skip_block or "execution" in skip_block,
+            "Third skip point must still name 'Run' or 'execution' "
+            "failure — new run-failures roll up there, do NOT "
+            "introduce a 4th top-level skip point")
+
+
+class EvidenceBlockFormatDocumented(unittest.TestCase):
+    """AC3.4 — Step 3 documents the `## Execution Evidence` block
+    format with five fields per input (input description, input value,
+    run output stdout/stderr, exit code, elapsed-ms). Block is
+    identical across personas (once-per-slice contract).
+    """
+
+    def test_evidence_block_format_documented(self):
+        text = DISPATCH_DOC.read_text()
+        sub = _section(
+            text,
+            r"^### Execution Evidence \(optional, default off\)",
+            r"^### |^## ")
+        self.assertIsNotNone(sub)
+
+        # Step 3 heading must exist within the sub-section.
+        self.assertRegex(
+            sub,
+            r"\*\*Step 3 [—-] Format and append evidence\*\*",
+            "Sub-section must contain a 'Step 3 — Format and append "
+            "evidence' heading")
+
+        step3 = _section(
+            sub,
+            r"\*\*Step 3 [—-] Format and append evidence\*\*",
+            r"^\*\*Step \d|^### |^## ")
+        self.assertIsNotNone(step3, "Could not slice Step 3 body")
+        lower = step3.lower()
+
+        # Five fields per input.
+        self.assertTrue(
+            "description" in lower,
+            "Step 3 must document the 'description' field")
+        self.assertTrue(
+            "input" in lower,
+            "Step 3 must document the 'input' value field")
+        self.assertTrue(
+            "stdout" in lower or "stderr" in lower or "output" in lower,
+            "Step 3 must document the run output (stdout / stderr) "
+            "field")
+        self.assertTrue(
+            "exit" in lower
+            and ("code" in lower or "marker" in lower or "status" in lower),
+            "Step 3 must document the 'exit code' field")
+        self.assertTrue(
+            "elapsed" in lower
+            and ("ms" in lower or "millisecond" in lower or "time" in lower),
+            "Step 3 must document the 'elapsed-ms' / elapsed-time "
+            "field")
+
+        # Identical-across-personas wording.
+        self.assertTrue(
+            "identical across" in lower
+            or "identical across personas" in lower
+            or "once-per-slice" in lower,
+            "Step 3 must state the block is identical across personas "
+            "or use the 'once-per-slice' contract phrasing")
+
+
+class PersonaSpawnExamplesShowOptionalEvidencePlaceholder(
+        unittest.TestCase):
+    """AC3.5 — each of the three persona Agent example blocks
+    (`patch-critic-correctness`, `patch-critic-regression-risk`,
+    `patch-critic-scope-creep`) shows the optional `## Execution
+    Evidence` placeholder line inside the prompt template, with a
+    comment marking it conditionally injected.
+    """
+
+    def test_persona_spawn_examples_show_optional_evidence_placeholder(
+            self):
+        text = DISPATCH_DOC.read_text()
+        # Slice § Multi-Persona Patch Critic Dispatch (the parent
+        # section that contains all three persona examples).
+        section = _section(
+            text,
+            r"^## Multi-Persona Patch Critic Dispatch",
+            r"^## ")
+        self.assertIsNotNone(
+            section,
+            "Could not locate § Multi-Persona Patch Critic Dispatch")
+
+        for persona in (
+                "patch-critic-correctness",
+                "patch-critic-regression-risk",
+                "patch-critic-scope-creep",
+        ):
+            with self.subTest(persona=persona):
+                # Slice each persona Agent block. The block begins at
+                # the `name: "<persona>"` line and ends at the next
+                # `})` (closing of the Agent call).
+                pattern = (
+                    r'name:\s*"' + re.escape(persona)
+                    + r'"[\s\S]*?\}\)')
+                m = re.search(pattern, section)
+                self.assertIsNotNone(
+                    m,
+                    f"Could not slice the Agent block for "
+                    f"persona '{persona}'")
+                block = m.group(0)
+                lower = block.lower()
+
+                # The placeholder line must appear inside the prompt.
+                self.assertIn(
+                    "## Execution Evidence",
+                    block,
+                    f"Persona '{persona}' spawn example must contain "
+                    "the optional '## Execution Evidence' placeholder "
+                    "line inside its prompt template")
+
+                # A comment marking it conditionally injected must be
+                # present — accept any of these substrings.
+                self.assertTrue(
+                    "conditionally injected" in lower
+                    or "conditional injection" in lower
+                    or "injected only when" in lower,
+                    f"Persona '{persona}' must mark the placeholder "
+                    "with a 'conditionally injected' (or equivalent) "
+                    "comment")
+
+
+class RubricUnchangedWhenEvidencePresent(unittest.TestCase):
+    """AC3.6 — re-asserts the AC1.4 invariant under post-Slice-3
+    state: the rubric dimension headings + severity scheme heading in
+    `agents/patch-critic.md` are unchanged from #93.
+
+    The presence of the optional `## Execution Evidence` block in
+    Slice 3 does not alter the rubric section bytes — this test
+    re-verifies the rubric contract holds after Slice 3 lands.
+    """
+
+    def test_rubric_unchanged_when_evidence_present(self):
+        text = PATCH_CRITIC_DOC.read_text()
+        rubric = _section(
+            text,
+            r"^## Rubric \(the four dimensions you score\)",
+            r"^## ")
+        self.assertIsNotNone(
+            rubric,
+            "Could not locate § Rubric in agents/patch-critic.md")
+
+        for heading in (
+                "### 1. Tests cover the change",
+                "### 2. Diff is minimal vs intake spec",
+                "### 3. No obvious regressions visible from the diff",
+                "### 4. No incidental refactor",
+                "### § 5. Accessibility",
+        ):
+            with self.subTest(heading=heading):
+                self.assertIn(
+                    heading, rubric,
+                    f"§ Rubric must still contain '{heading}' after "
+                    "Slice 3 lands (rubric unchanged from #93)")
+
+        # § Severity Scheme heading must still exist as its own
+        # ## section.
+        sev = _section(
+            text,
+            r"^## Severity Scheme$",
+            r"^## ")
+        self.assertIsNotNone(
+            sev,
+            "agents/patch-critic.md must still contain the "
+            "## Severity Scheme heading from #93 after Slice 3")
+
+
+class NoCommittedFileExportsPatchCriticExecLayerFlag(unittest.TestCase):
+    """AC3.7 — committed-invariant grep guard. No file under
+    `hooks/`, `tests/`, `skills/`, `agents/`, or `orchestrator/` may
+    contain a line that exports `CLAUDE_PATCH_CRITIC_EXEC_LAYER=1` —
+    either via shell `export` or as a `VAR=val command` env-prefix.
+
+    Code spans containing the literal `` `CLAUDE_PATCH_CRITIC_EXEC_LAYER=1` ``
+    (markdown backticks) are NOT exports — exclude lines whose match
+    is fully contained inside backticks.
+
+    Excluded include-roots: `pipeline-state/**`, top-level
+    CHANGELOG-style files. Self-test fixtures embedded in the test
+    body verify the regex doesn't false-positive on backticked code
+    spans and DOES catch unquoted exports.
+    """
+
+    INCLUDE_ROOTS = ("hooks", "tests", "skills", "agents", "orchestrator")
+    EXPORT_RE = re.compile(
+        r"export\s+CLAUDE_PATCH_CRITIC_EXEC_LAYER\s*=\s*1")
+    PREFIX_RE = re.compile(
+        r"^\s*CLAUDE_PATCH_CRITIC_EXEC_LAYER\s*=\s*1\s+"
+        r"(?:bash|sh|exec|\S+\.(?:sh|bash))")
+
+    def _line_matches_outside_quotes(self, line):
+        """Return True iff a forbidden export pattern matches AND the
+        match is NOT fully contained inside a quoted span on the same
+        line. Quoted spans are: backtick code spans (`...`),
+        Python/shell single-quoted strings ('...'), or Python/shell
+        double-quoted strings ("...").
+
+        The security-engineer scratchpad's pattern note pins
+        "test-assertion string literals" as non-exports alongside
+        documentation prose and code spans. Pairing each quote
+        character independently captures all three forms.
+        """
+        spans_for_char = {}
+        for ch in ("`", '"', "'"):
+            positions = [i for i, c in enumerate(line) if c == ch]
+            spans_for_char[ch] = list(zip(
+                positions[0::2], positions[1::2]))
+
+        def inside_any_quote(start, end):
+            for spans in spans_for_char.values():
+                for s, e in spans:
+                    if s < start and end <= e + 1:
+                        return True
+            return False
+
+        for pattern in (self.EXPORT_RE, self.PREFIX_RE):
+            for m in pattern.finditer(line):
+                if not inside_any_quote(m.start(), m.end()):
+                    return True
+        return False
+
+    def test_self_fixture_backticked_code_span_does_not_match(self):
+        # A backtick-enclosed reference is NOT an export.
+        line = "    - Operators may opt in via `CLAUDE_PATCH_CRITIC_EXEC_LAYER=1` in their session."
+        self.assertFalse(
+            self._line_matches_outside_quotes(line),
+            "Backticked code span must NOT trigger the AC3.7 grep "
+            "guard (false-positive control)")
+
+    def test_self_fixture_unquoted_export_does_match(self):
+        # An unquoted shell export DOES trigger the guard.
+        line = "export CLAUDE_PATCH_CRITIC_EXEC_LAYER=1"
+        self.assertTrue(
+            self._line_matches_outside_quotes(line),
+            "Unquoted shell export MUST trigger the AC3.7 grep "
+            "guard")
+
+    def test_self_fixture_env_prefix_command_does_match(self):
+        # Env-prefix-then-command form (e.g.
+        # `CLAUDE_PATCH_CRITIC_EXEC_LAYER=1 bash run.sh`).
+        line = "CLAUDE_PATCH_CRITIC_EXEC_LAYER=1 bash run.sh"
+        self.assertTrue(
+            self._line_matches_outside_quotes(line),
+            "Env-prefix-then-command form MUST trigger the AC3.7 "
+            "grep guard")
+
+    def test_no_committed_file_exports_patch_critic_exec_layer_flag(
+            self):
+        violations = []
+        for root in self.INCLUDE_ROOTS:
+            base = REPO_ROOT / root
+            if not base.exists():
+                continue
+            for path in base.rglob("*"):
+                if not path.is_file():
+                    continue
+                # Skip non-text files defensively.
+                try:
+                    content = path.read_text(encoding="utf-8")
+                except (UnicodeDecodeError, OSError):
+                    continue
+                for lineno, line in enumerate(content.splitlines(),
+                                              start=1):
+                    if self._line_matches_outside_quotes(line):
+                        rel = path.relative_to(REPO_ROOT)
+                        violations.append(
+                            f"{rel}:{lineno}: {line.strip()}")
+
+        self.assertEqual(
+            violations, [],
+            "Found committed file(s) exporting "
+            "CLAUDE_PATCH_CRITIC_EXEC_LAYER=1 outside allowed zones "
+            "(self-reference shield violation):\n"
+            + "\n".join(violations))
+
+
 if __name__ == "__main__":
     unittest.main()
