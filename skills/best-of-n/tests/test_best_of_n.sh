@@ -50,8 +50,65 @@ make_candidate_branch bad "broken"
 good_score="$(score_candidate 1 0 4 20)"
 bad_score="$(score_candidate 0 3 2 50)"
 
-winner="$(printf 'good|%s|20|1\nbad|%s|50|1\n' "$good_score" "$bad_score" | pick_winner)"
+winner="$(printf 'good|%s|3|20|1\nbad|%s|5|50|1\n' "$good_score" "$bad_score" | pick_winner)"
 assert_eq "good" "$winner" "winner selection"
+
+# Slice C — Best-of-N tie-breaker file-count split
+# Records are 5 fields: name|score|changed_files|changed_lines|cost_rank
+# Sort key: score DESC primary, then (changed_files, changed_lines, cost_rank) ASC.
+
+# Tier 0 — sort flags encode the canonical tuple in this exact order.
+# `|| true` keeps `set -e`/pipefail from killing the script on a non-match;
+# the absence of a match is what we assert against, not a script-fatal error.
+sort_flags_match="$(grep -E -o "sort[[:space:]]+-t[\"']\\|[\"'][[:space:]]+-k2,2nr[[:space:]]+-k3,3n[[:space:]]+-k4,4n[[:space:]]+-k5,5n" "$LIB" || true)"
+if [ -n "$sort_flags_match" ]; then
+  echo "PASS: pick_winner sort flags encode the canonical tuple"
+else
+  echo "FAIL: pick_winner sort flags encode the canonical tuple (expected '-k2,2nr -k3,3n -k4,4n -k5,5n' literal in $LIB)" >&2
+  exit 1
+fi
+
+# C1 — pick_winner accepts a single 5-field record.
+single="$(printf 'cand|100|3|50|1\n' | pick_winner)"
+assert_eq "cand" "$single" "pick_winner accepts 5-field record"
+
+# C2 — score DESC remains the primary key.
+score_primary="$(printf 'low|100|3|50|1\nhigh|200|3|50|1\n' | pick_winner)"
+assert_eq "high" "$score_primary" "score DESC primary key"
+
+# C3 — file-count is the FIRST tie-breaker (equal score, equal lines, differ files).
+files_first="$(printf 'a|100|5|100|1\nb|100|3|100|1\n' | pick_winner)"
+assert_eq "b" "$files_first" "file-count tie-breaker first"
+
+# C4 — line-count is the SECOND tie-breaker (equal score, equal files, differ lines).
+lines_second="$(printf 'a|100|3|100|1\nb|100|3|50|1\n' | pick_winner)"
+assert_eq "b" "$lines_second" "line-count tie-breaker second"
+
+# C5 — cost-rank is the THIRD tie-breaker (equal score+files+lines, differ rank).
+cost_third="$(printf 'a|100|3|50|2\nb|100|3|50|1\n' | pick_winner)"
+assert_eq "b" "$cost_third" "cost-rank tie-breaker third"
+
+# C6 — file-count beats line-count when both differ in opposing directions.
+files_beat_lines="$(printf 'a|100|5|100|1\nb|100|3|200|1\n' | pick_winner)"
+assert_eq "b" "$files_beat_lines" "file-count beats line-count when both differ"
+
+# C7 — config.json::tie_breaker_order is the ordered triple.
+CONFIG_JSON="${SCRIPT_DIR}/../config.json"
+tie_breaker_order="$(jq -r '.tie_breaker_order | join(",")' "$CONFIG_JSON")"
+assert_eq "changed_files_asc,changed_lines_asc,cost_asc" "$tie_breaker_order" \
+  "config.json tie_breaker_order is the ordered triple"
+
+# C8 — script-config tie-breaker order consistency.
+# Parse script's tie-breaker fields (excluding the score primary -k2,2nr) and map to
+# the canonical config token list. -k3 -> changed_files_asc; -k4 -> changed_lines_asc;
+# -k5 -> cost_asc. `|| true` so an empty grep does not abort the test under pipefail
+# — we assert on the captured value, not on grep's exit code. xargs collapses
+# whitespace and strips trailing newlines deterministically.
+script_tb_fields="$(grep -E -o "\\-k[3-9],[0-9]+n" "$LIB" || true)"
+script_tb_fields="$(printf '%s' "$script_tb_fields" | xargs)"
+expected_script_tb_fields="-k3,3n -k4,4n -k5,5n"
+assert_eq "$expected_script_tb_fields" "$script_tb_fields" \
+  "script and config tie-breaker order consistency"
 
 git branch -D "build/test-boN-bad" >/dev/null
 if git branch | grep -q "build/test-boN-bad"; then
