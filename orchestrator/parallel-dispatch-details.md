@@ -558,7 +558,8 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
        Candidate diff: [git diff main...HEAD]
        Test output: [most recent fresh test-suite run]
        Intake spec: [task description]
-       A11y index (if present): pipeline-state/{task-id}/design-qc/index.json"
+       A11y index (if present): pipeline-state/{task-id}/design-qc/index.json
+       ## Execution Evidence  # ← optional block — conditionally injected only when CLAUDE_PATCH_CRITIC_EXEC_LAYER=1 AND Steps 1-3 all succeed; absent by default"
    })
 
    Agent({
@@ -580,7 +581,8 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
        Context: branch feature/X, base main.
        Candidate diff: [git diff main...HEAD]
        Test output: [most recent fresh test-suite run]
-       Intake spec: [task description]"
+       Intake spec: [task description]
+       ## Execution Evidence  # ← optional block — conditionally injected only when CLAUDE_PATCH_CRITIC_EXEC_LAYER=1 AND Steps 1-3 all succeed; absent by default"
    })
 
    Agent({
@@ -600,7 +602,8 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
        Context: branch feature/X, base main.
        Candidate diff: [git diff main...HEAD]
        Test output: [most recent fresh test-suite run]
-       Intake spec: [task description]"
+       Intake spec: [task description]
+       ## Execution Evidence  # ← optional block — conditionally injected only when CLAUDE_PATCH_CRITIC_EXEC_LAYER=1 AND Steps 1-3 all succeed; absent by default"
    })
    ```
 
@@ -658,6 +661,72 @@ OPTIONAL enrichment that prepends a short `## Execution Evidence` block to every
 
   Any one of the above → silent skip → fall through to diff-only dispatch (same fallback as Step 0's flag-off path; personas never observe the difference). No retry, no error log surfaced to the operator beyond the standard `phases.patch_critic.evidence_mode = "diff-only"` forensic record.
 
+**Step 2 — Run candidate against discriminative inputs**: ONCE per slice, after the validated generator response from Step 1, the orchestrator applies the candidate diff in an ephemeral sandbox, executes the patched code against each input, captures the output, and reverts before the next input. The loop mirrors Tier 3.5's apply-test-revert pattern in `skills/verify/SKILL.md` § 4.25 verbatim; the verbiage is reused so a single canonical pattern source covers both verify-time mutation testing and patch-critic execution evidence.
+
+- **Apply-test-revert loop (per discriminative input)**:
+  1. Snapshot the worktree state — either via `git stash` push OR by checking out the candidate diff in a fresh scratch worktree under the harness sandbox root. NEVER apply the diff in-place to the active worktree.
+  2. Apply the candidate diff to the snapshot.
+  3. Execute the patched code against the input — the inferred entry point receives the input value (CLI argv for `string` inputs, JSON-decoded stdin for `object` inputs).
+  4. Capture stdout, stderr, exit code, and elapsed-ms wall-clock.
+  5. Revert: pop the stash OR delete the scratch worktree. The orchestrator MUST verify the revert succeeded (worktree is clean, HEAD matches pre-loop SHA) before applying the next input — a partial revert leaks state into the next run.
+
+- **Sandbox isolation requirements (HARD — `chdir` alone is NOT sufficient)**: the run executes in an ephemeral worktree or container, never against the active worktree or REPO_ROOT. Required properties:
+  - **Network egress denied** — no outbound network access from the sandbox (e.g. firewall rule, container network=none, PF block).
+  - **Filesystem write confined to a scratch dir** — writes outside the sandbox tempdir / scratch-worktree fail at the OS level.
+  - **CPU / memory caps** — `ulimit` or container limits prevent runaway resource consumption from a malicious or buggy candidate.
+  - **No inheritance of harness env** — `ANTHROPIC_API_KEY`, git credentials, `GITHUB_PERSONAL_ACCESS_TOKEN`, and any harness-specific env var (including `CLAUDE_*` variables) MUST be unset in the sandbox env. The candidate cannot exfiltrate secrets it never sees.
+  - **JSON-only deserialization at the boundary** — for `object` inputs, the test runner deserializes via JSON only; YAML, pickle, and arbitrary-code deserializers are rejected at the boundary (matching the Slice 2 generator schema's `string|object` typing).
+
+- **Per-input timeout**: 30s per input is the orchestrator-side documented default (no new env var). The value mirrors Tier 3.5's per-mutant timeout convention in `skills/verify/SKILL.md` § 4.25 — the canonical timeout lives in Tier 3.5; this section quotes that value as a default and points back. If the candidate timing requirement diverges, change Tier 3.5's documented value first; do NOT introduce a parallel knob here.
+
+- **Defense-in-depth caps at the execution-input boundary**: the Slice 2 caps (2KB per-field, 8KB total) are RE-VALIDATED here when serializing each input for argv / stdin to the candidate. If a generator-validated input exceeds the caps when serialized for execution, fail-closed → silent skip → diff-only fallback. Defense in depth — if Slice 2 sanitization is ever weakened or bypassed, the execution layer's own caps catch the over-cap input before it reaches a subprocess argv.
+
+- **Run-failure modes (each rolls up under the existing "Run / execution failure" skip point — NOT a new top-level skip point)**:
+  - **Sandbox unavailable** — the harness sandbox root cannot be created, the container runtime is missing, or the scratch-worktree allocation fails.
+  - **No inferable entry point** — the orchestrator cannot identify a runnable surface for the candidate diff (no main module, no exported function, no CLI entry).
+  - **All inputs time out** — every discriminative input from Step 1 hits the per-input 30s timeout; no input produces a usable result.
+
+  Any one of the above → silent skip → fall through to diff-only dispatch (same fallback as Step 0's flag-off path AND Step 1's generator-failure path; personas never observe the difference). No retry, no error log surfaced beyond `phases.patch_critic.evidence_mode = "diff-only"`. The run-failure modes are ADDITIVE to Step 1's generator-failure modes, NOT replacements — both rolls up live in the single "Three silent skip points" enumeration below.
+
+**Step 3 — Format and append evidence**: ONCE per slice, after Step 2 produces a list of `(input, run-result)` pairs, the orchestrator formats them into a single `## Execution Evidence` markdown block and APPENDS the SAME block VERBATIM to each of the three persona spawn prompts before the personas are spawned. The block is identical across all three personas — once-per-slice contract, no per-persona variation.
+
+- **Block format (5 fields per discriminative input)**:
+  1. `description` — the generator's one-line plain-English summary of the input's intent (verbatim from Step 1's validated response).
+  2. `input` — the actual input value passed to the candidate (verbatim from Step 1; serialized as JSON when an `object`, quoted when a `string`).
+  3. `run output (stdout / stderr)` — the captured output from Step 2, fence-wrapped (see sanitization below) so it cannot close the evidence block early.
+  4. `exit code` — the candidate process's integer exit status from Step 2.
+  5. `elapsed-ms` — wall-clock duration of the run from Step 2, in milliseconds.
+
+- **Output sanitization at the execution-output boundary (defense-in-depth — REUSES Slice 2 caps verbatim)**:
+  - **Per-field byte cap**: `stdout`, `stderr`, and the exit-code marker are each independently capped at 2KB (2048 bytes); content exceeding the cap is truncated with a trailing `... [truncated]` marker.
+  - **Total spliced-block cap**: the full `## Execution Evidence` block MUST NOT exceed 8KB (8192 bytes) when assembled; oversized blocks → silent skip → diff-only fallback (treat as a Step 2 run failure, not a separate skip class).
+  - **ANSI escape-sequence strip**: ASCII control sequences matching `\x1b[...m` (CSI / SGR) are stripped from `stdout` and `stderr` before splicing — terminal-injection vector closed at the boundary.
+  - **Markdown fence escape**: literal backtick fences (` ``` `) and `## ` line-start markdown headers in `stdout` / `stderr` are escaped or fence-wrapped (e.g. `<execution-stdout>...</execution-stdout>`-style XML-like wrapper) so candidate output cannot close the evidence block early and inject persona-prompt material. Output that escapes the evidence block reaches persona reasoning context — same severity as a generator-side prompt-injection vector (Slice 2).
+
+- **Block layout (identical across personas — once-per-slice)**: the markdown form below is what the orchestrator splices into each persona's spawn prompt. Personas treat the block as additional reasoning context for the existing rubric dimensions (rubric UNCHANGED — see `agents/patch-critic.md`).
+
+  ```markdown
+  ## Execution Evidence
+
+  Generator + sandboxed run results — once-per-slice, identical across personas.
+
+  ### Input 1
+  - description: <generator description>
+  - input: <input value>
+  - exit code: <int>
+  - elapsed-ms: <int>
+  - run output:
+  <execution-stdout>
+  <captured stdout — sanitized, ANSI-stripped, fence-escaped, truncated to 2KB>
+  </execution-stdout>
+  <execution-stderr>
+  <captured stderr — same sanitization>
+  </execution-stderr>
+
+  ### Input 2
+  ...
+  ```
+
 **Once-per-slice contract**: when the flag is on AND the path proceeds, the orchestrator generates discriminative test inputs ONCE per slice, runs them ONCE, formats the result into a single `## Execution Evidence` block, and APPENDS the SAME block VERBATIM to each of the three persona spawn prompts. Evidence is shared across personas because (a) inputs are derived from the diff and the diff is identical across personas, so per-persona inputs would be identical too, and (b) persona differentiation already lives in the existing search-emphasis prompts (rubric-dimension weighting), not in raw evidence. The once-per-slice scope is both 3x cheaper and signal-equivalent — per-persona generation would produce identical inputs (the diff is identical), wasting the spend.
 
 **Three silent skip points** — any one collapses to identical diff-only dispatch (no error surfaced, no log noise, persona spawns unchanged):
@@ -672,7 +741,7 @@ Each skip point falls through to the existing dispatch exactly as #93 specifies;
 
 **Forensic record**: the observation-schema `phases.patch_critic.evidence_mode` field (see `rules/_detail/autonomous-intelligence.md` § Field reference) records `"diff-only"` when any skip point fires (or when the flag is unset) and `"diff+execution"` only when all three steps complete successfully. Readers MUST tolerate absence of the field as a legacy / pre-exec-layer record.
 
-Slices 2 and 3 fill in Steps 1-3 (input generation, sandboxed run, prompt-append point). This sub-section establishes Step 0 (the gate) and the silent-fallback semantics — when Slices 2-3 land, they extend this sub-section but do NOT alter the gate or the fallback contract.
+Slices 2 and 3 land Steps 1-3 (input generation, sandboxed run, prompt-append point). This sub-section established Step 0 (the gate) and the silent-fallback semantics in Slice 1; subsequent slices extended the sub-section without altering the gate or the fallback contract.
 
 **Hedges (PROVISIONAL until baseline run)**:
 
