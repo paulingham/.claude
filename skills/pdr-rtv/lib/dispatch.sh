@@ -64,7 +64,10 @@ _pdr_list_prior_summary_slugs() {
 
 _pdr_seed_int() {
   # Maps CLAUDE_PDR_SEED (free-form string) + per-candidate sub-key to a
-  # stable integer for awk's srand. Empty seed → 0.
+  # stable integer for awk's srand. Empty seed → 0. The per-candidate
+  # subkey is load-bearing: dropping it collapses all candidates to the
+  # same shuffle, defeating PDR's diversity goal. Defended by
+  # `seed_subkey_drives_per_candidate_divergence` in test_dispatch.bats.
   local raw="${CLAUDE_PDR_SEED:-0}" subkey="${1:-}"
   printf '%s|%s' "$raw" "$subkey" \
     | cksum | awk '{print $1}'

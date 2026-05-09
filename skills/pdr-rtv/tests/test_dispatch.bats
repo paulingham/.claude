@@ -127,6 +127,42 @@ _pdr_current_open_count() {
   ' "$1"
 }
 
+@test "AC4-carryforward: seed_subkey_drives_per_candidate_divergence" {
+  # Slice 1 reviewer INFO-3 (regression-prevention test). The current
+  # `_pdr_seed_int` implementation passes the candidate slug as a sub-key
+  # so each candidate gets a distinct shuffle. AC4's existing test only
+  # asserts same-seed determinism — it does NOT catch a refactor that
+  # drops the subkey, which would silently collapse all N candidates to
+  # the same prior pair, killing the diversity PDR exists to capture.
+  # This test fails IFF the subkey is removed; it passes today (defends
+  # the working behaviour from future mutations).
+
+  # shellcheck source=/dev/null
+  source "$DISPATCH_PATH"
+  command -v dispatch_iteration >/dev/null
+
+  CLAUDE_PDR_SEED=42 dispatch_iteration 1 \
+    --task-id "$TASK_ID" \
+    --state-root "$STATE_ROOT" \
+    --candidates "iter1-a,iter1-b,iter1-c,iter1-d"
+
+  # Extract the prior-attempt slugs from each candidate's prompt and assert
+  # at least 2 distinct candidates have different prior pairs (proves the
+  # subkey is load-bearing). Bash 3.2-compatible (no `declare -A`): emit one
+  # line per candidate and count uniques across all 4 prompts.
+  signatures_file="$TMPROOT/per-candidate-pair-signatures.txt"
+  : > "$signatures_file"
+  while IFS= read -r prompt_file; do
+    sig="$(grep '^### Prior Attempt:' "$prompt_file" | sort | tr '\n' '|')"
+    printf '%s\n' "$sig" >> "$signatures_file"
+  done < <(find "$TMPROOT" -type f -name 'prompt-iter1-*.txt')
+
+  distinct_count="$(sort -u "$signatures_file" | wc -l | tr -d ' ')"
+  # With N=4 candidates and 4 prior summaries, we expect >=2 distinct pairs.
+  # All 4 identical would mean the subkey was dropped — the contract violation.
+  [ "$distinct_count" -ge 2 ]
+}
+
 @test "AC4: seed_makes_summary_sampling_deterministic" {
   # shellcheck source=/dev/null
   source "$DISPATCH_PATH"
