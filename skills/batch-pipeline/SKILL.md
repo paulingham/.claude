@@ -152,7 +152,7 @@ After all tasks shipped:
 3. **Update session memory** — spawn background agent to capture engineering knowledge.
 
 4. **Clean up** (dual-form during 90-day DUAL_PATH soak):
-   - `rm -rf pipeline-state/{batch-id}/` (new layout — single op)
+   - Empty `pipeline-state/{batch-id}/` via `find -delete` — `rm -rf` on directories is sandbox-denied even on orchestrator-writable paths (see `skills/pipeline/SKILL.md` Step 7d for the canonical `find -type f -delete && find -depth -type d -empty -delete` snippet)
    - Remove any legacy phase files via `_psp_phase_list` (see `skills/pipeline/SKILL.md` Step 7d for the canonical cleanup snippet — never bare globs)
    - Remove worktree branches
 

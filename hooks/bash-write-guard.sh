@@ -36,30 +36,53 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 is_caller_in_worktree() {
     local toplevel
+    # Honor explicit CLAUDE_WORKTREE_PATH first — the orchestrator/spawn-prompt
+    # may set this when the agent's PWD has drifted outside the worktree
+    # (e.g. between Bash calls that target $HOME/.claude/learning/...).
+    [[ -n "${CLAUDE_WORKTREE_PATH:-}" && "$CLAUDE_WORKTREE_PATH" == *"/.claude/worktrees/agent-"* ]] && return 0
     toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
     [[ "$toplevel" == *"/.claude/worktrees/agent-"* ]] || [[ "$PWD" == *"/.claude/worktrees/agent-"* ]]
 }
 
 is_caller_in_worktree && exit 0
 
+# Append-only writes to learning/**/*.jsonl are observation/instinct captures
+# from agents whose PWD has reset off the worktree. They are never overwriting,
+# only appending one JSONL line per call. Whitelist them here so agents don't
+# need to fight the guard with os.open(..., O_APPEND) constants.
+is_learning_jsonl_append() {
+    [[ "$1" =~ /learning/[^[:space:]\'\"]*\.jsonl ]] || return 1
+    # Append shapes: `>> path.jsonl`, Python open(..., 'a'/'ab'),
+    # os.open(..., O_APPEND) constants, or `tee -a`.
+    [[ "$1" =~ \>\>[[:space:]] ]] && return 0
+    [[ "$1" =~ open[[:space:]]*\([^\)]*[\'\"](a|ab)[\'\"] ]] && return 0
+    [[ "$1" =~ O_APPEND ]] && return 0
+    [[ "$1" =~ tee[[:space:]]+(-a|--append) ]] && return 0
+    return 1
+}
+
+is_learning_jsonl_append "$COMMAND" && exit 0
+
 # Pattern detectors — each returns 0 if it matches a write-to-protected-file.
-# Protected extensions: .json, .sh, .yaml, .yml.
+# Protected extensions: .json, .sh, .yaml, .yml. The trailing class
+# `([^a-zA-Z0-9]|$)` prevents `.json` from matching as a substring of `.jsonl`,
+# `.shrc`, `.yamlfile`, etc.
 matches_python_open_write() {
     # python ... open(...) ... '.{ext}' ... 'w'|'a'|'wb'|'ab'
     [[ "$1" =~ open[[:space:]]*\( ]] || return 1
-    [[ "$1" =~ \.(json|sh|yaml|yml) ]] || return 1
+    [[ "$1" =~ \.(json|sh|yaml|yml)([^a-zA-Z0-9]|$) ]] || return 1
     [[ "$1" =~ [\'\"](w|a|wb|ab)[\'\"] ]]
 }
 
 matches_json_dump() {
     # json.dump(...) anywhere in the command paired with a .json filename.
-    [[ "$1" =~ json\.dump ]] && [[ "$1" =~ \.json ]]
+    [[ "$1" =~ json\.dump ]] && [[ "$1" =~ \.json([^a-zA-Z0-9]|$) ]]
 }
 
 matches_sed_in_place() {
     # sed -i / --in-place targeting a protected-extension filename.
     [[ "$1" =~ sed[[:space:]]+(-i|--in-place) ]] || return 1
-    [[ "$1" =~ \.(json|sh) ]]
+    [[ "$1" =~ \.(json|sh)([^a-zA-Z0-9]|$) ]]
 }
 
 matches_protected_redirect() {
