@@ -1,27 +1,25 @@
-"""C8 S4 — anti-pattern mining for `/learn` Step 3d.
+"""Anti-pattern mining for `/learn` Step 3d.
 
-Reads pipeline observations, gates on `phases.review.rounds >= 2`
-(legacy/missing field is skipped, NOT coerced to 0), parses each
-flat-string scratchpad finding into `(category, summary)`, clusters
-by `sha1(category + ":" + summary_normalised)[:8]`, and emits one
-anti-pattern instinct file per cluster recurring across at least
-THREE distinct pipelines.
+Gates pipeline observations on
+`phases.review.rounds >= 2 OR phases.patch_critic.rounds >= 2`
+(legacy records missing both fields are skipped, never coerced to 0),
+clusters scratchpad findings by `sha1(category + ":" + summary)[:8]`,
+and emits one anti-pattern instinct file per cluster recurring across
+THREE+ distinct pipelines.
 
-Cluster key normalisation strips digits and whitespace from the first
-80 chars of the lowercased summary — coarsens noisy free-text into a
-stable cluster identifier without depending on producer-side
-file-glob metadata that does not yet exist.
+Confidence formula: `min(0.85, floor + 0.05 * (N - 3))` where `floor`
+is resolved from the domain-weighted `_DOMAIN_FLOOR` map; cap is
+uniform at 0.85 (architecture/security caps at N=6; workflow at N=10).
 
-Confidence formula: `min(0.85, floor + 0.05 * (N - 3))` where N is
-the number of distinct pipelines exhibiting the cluster and `floor`
-is resolved from the domain-weighted `_DOMAIN_FLOOR` map (workflow=0.5,
-testing=0.6, code-style=0.6, architecture=0.7, security=0.7;
-unknown→`_DEFAULT_FLOOR=0.5`). Three pipelines at the workflow floor →
-0.5 (lowest confidence anti-patterns ship at); architecture/security
-domains start at 0.7 because failures there are higher-stakes. The cap
-(0.85) is uniform across domains — higher-floor domains reach it with
-fewer recurrences (architecture caps at N=6, testing/code-style at
-N=8, workflow at N=10).
+Persona-categorical role tagging (Slice B): the emitted instinct's
+`roles:` is the persona-categorical token(s) drawn from
+`phases.patch_critic.persona_rejections[].persona` via
+`_PERSONA_TO_ROLE`, REPLACING the default
+`[software-engineer, frontend-engineer]` (M3). Multi-persona union
+rendered alphabetically (M5). Mixed-path rule: if ANY contributing
+pipeline carries a recognised persona, persona-only roles emit; else
+defaults. Clusters whose gate cleared ONLY via patch-critic AND have
+no recognised persona are dropped (B10-L1).
 """
 from __future__ import annotations
 
@@ -30,6 +28,21 @@ import json
 import re
 from pathlib import Path
 from typing import Iterable, Optional
+
+# Persona → role mapping and helpers live in a sibling module so this
+# file stays under the harness 300-line cap and persona handling can
+# evolve independently. Re-exported here for backward-compat with
+# callers (and tests) that import `_PERSONA_TO_ROLE` directly from this
+# module.
+from learn_persona_roles import (  # noqa: F401
+    _DEFAULT_ROLES,
+    _PERSONA_TO_ROLE,
+    _emits,
+    _empty_cluster,
+    _has_persona_rejections_field,
+    _persona_role_tokens,
+    _resolve_roles,
+)
 
 # Maps the parsed `category:` prefix on a scratchpad finding to the
 # domain field on the emitted anti-pattern instinct. Default "workflow"
@@ -65,16 +78,51 @@ _BODY_CAP_CHARS = 200
 _SUMMARY_PREFIX_CHARS = 80
 _NORMALISE = re.compile(r"[\d\s]+")
 
-
 def _rounds(observation: dict) -> Optional[int]:
     """Return `phases.review.rounds` or None when absent (legacy record)."""
     return observation.get("phases", {}).get("review", {}).get("rounds")
 
 
+def _patch_critic_rounds(observation: dict) -> Optional[int]:
+    """Return `phases.patch_critic.rounds` or None when absent.
+
+    Slice B: an observation predating the patch-critic emitter has the
+    block missing entirely. Absent is NOT zero — only an explicit
+    `rounds == 0` would be coerced.
+    """
+    return (observation.get("phases", {})
+                       .get("patch_critic", {})
+                       .get("rounds"))
+
+
+def _gate_clauses(observation: dict) -> tuple[bool, bool]:
+    """Return (review_clears, patch_critic_clears) for the OR-clause gate.
+
+    Slice B: gate is `phases.review.rounds >= 2 OR
+    phases.patch_critic.rounds >= 2`. Both clauses are tracked
+    separately because emission requires the cluster to ALSO have a
+    derivable role tag — when ALL contributing observations clear
+    only via the patch-critic clause AND no recognised persona is
+    present, the cluster has no role to emit and is dropped (B10-L1).
+    """
+    review_rounds = _rounds(observation)
+    patch_critic_rounds = _patch_critic_rounds(observation)
+    review_clears = review_rounds is not None and review_rounds >= 2
+    patch_critic_clears = (patch_critic_rounds is not None
+                           and patch_critic_rounds >= 2)
+    return review_clears, patch_critic_clears
+
+
 def _passes_gate(observation: dict) -> bool:
-    """Iron-law gate: only mine from rounds >= 2 pipelines."""
-    rounds = _rounds(observation)
-    return rounds is not None and rounds >= 2
+    """Iron-law gate: mine from rounds >= 2 pipelines.
+
+    Slice B extension: gate is the OR clause
+    `phases.review.rounds >= 2 OR phases.patch_critic.rounds >= 2`.
+    Records missing BOTH fields are skipped (legacy invariant — never
+    coerced to 0).
+    """
+    review_clears, patch_critic_clears = _gate_clauses(observation)
+    return review_clears or patch_critic_clears
 
 
 def _parse_finding(finding: str) -> Optional[tuple[str, str]]:
@@ -129,24 +177,41 @@ def _read_observations(observations_path: Path) -> Iterable[dict]:
 
 
 def _collect_clusters(observations: Iterable[dict]) -> dict:
-    """Build {cluster_key: {category, summary, pipeline_ids}} from gated obs."""
+    """Build cluster records from gated observations.
+
+    Returns `{cluster_key: {category, summary, pipeline_ids,
+    persona_tokens, any_review_clear}}`. `persona_tokens` is the
+    union of persona-tagged role tokens contributed by every
+    observation in this cluster (Slice B). `any_review_clear` is
+    True when at least one contributing observation cleared the
+    gate via `phases.review.rounds >= 2` — the caller uses this to
+    decide whether the review-only path falls back to default roles
+    or whether the cluster should be dropped (B10-L1: gate cleared
+    only via patch-critic AND no recognised persona).
+    """
     clusters: dict = {}
     for obs in observations:
-        if not _passes_gate(obs):
+        review_clears, patch_critic_clears = _gate_clauses(obs)
+        if not (review_clears or patch_critic_clears):
             continue
         pipeline_id = obs.get("pipeline_id")
         if pipeline_id is None:
             continue
+        obs_persona_tokens = _persona_role_tokens(obs)
+        obs_has_rejections_field = _has_persona_rejections_field(obs)
         for finding in obs.get("scratchpad_findings") or []:
             parsed = _parse_finding(finding)
             if parsed is None:
                 continue
             category, summary = parsed
             key = _cluster_key(category, summary)
-            entry = clusters.setdefault(
-                key, {"category": category, "summary": summary,
-                      "pipeline_ids": set()})
+            entry = clusters.setdefault(key, _empty_cluster(category, summary))
             entry["pipeline_ids"].add(pipeline_id)
+            entry["persona_tokens"].update(obs_persona_tokens)
+            if review_clears:
+                entry["any_review_clear"] = True
+            if obs_has_rejections_field:
+                entry["any_persona_rejections_field"] = True
     return clusters
 
 
@@ -164,11 +229,17 @@ def _render_instinct(key: str, cluster: dict) -> str:
     domain = _domain_for(cluster["category"])
     confidence = _confidence_for(distinct, domain)
     body = _format_body(cluster["summary"])
+    # Slice B: persona path REPLACES defaults (M3). Multi-persona union
+    # rendered alphabetically (M5 — diff stability). Mixed-path rule:
+    # if ANY contributing pipeline has a recognised persona, persona
+    # roles emit; else defaults.
+    roles = _resolve_roles(cluster.get("persona_tokens", set()))
+    roles_yaml = "[" + ", ".join(roles) + "]"
     return (
         "---\n"
         f"id: anti-pattern-{key}\n"
         f"category: anti-pattern\n"
-        "roles: [software-engineer, frontend-engineer]\n"
+        f"roles: {roles_yaml}\n"
         f"confidence: {confidence}\n"
         f"domain: {domain}\n"
         "---\n"
@@ -195,6 +266,12 @@ def mine_anti_patterns(observations_path: Path,
     clusters = _collect_clusters(_read_observations(Path(observations_path)))
     written: list[Path] = []
     for key, cluster in sorted(clusters.items()):
-        if len(cluster["pipeline_ids"]) >= _RECURRENCE_THRESHOLD:
-            written.append(_write_cluster(Path(instincts_dir), key, cluster))
+        if len(cluster["pipeline_ids"]) < _RECURRENCE_THRESHOLD:
+            continue
+        if not _emits(cluster):
+            # B10-L1: gate cleared only via patch-critic AND every
+            # persona was unknown/malformed — no role tag derivable,
+            # cluster dropped.
+            continue
+        written.append(_write_cluster(Path(instincts_dir), key, cluster))
     return written

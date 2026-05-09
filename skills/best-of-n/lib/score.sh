@@ -13,7 +13,11 @@ score_candidate() {
 }
 
 pick_winner() {
-  sort -t'|' -k2,2nr -k3,3n -k4,4n | head -n1 | cut -d'|' -f1
+  # Consume a 5-field record per line: name|score|changed_files|changed_lines|cost_rank.
+  # Sort key tuple: score DESC primary, then (changed_files, changed_lines, cost_rank) ASC.
+  # cost_rank is an integer ∈ {1=sonnet, 2=opus, 3=external-frontier} per the
+  # Best-of-N dispatch spec at orchestrator/parallel-dispatch-details.md.
+  sort -t'|' -k2,2nr -k3,3n -k4,4n -k5,5n | head -n1 | cut -d'|' -f1
 }
 
 check_budget_gate() {
