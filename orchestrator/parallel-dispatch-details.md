@@ -58,86 +58,70 @@ Agent({
   name: "plan-reviewer",
   team_name: "pipeline-{task-id}",
   subagent_type: "product-reviewer",
-  prompt: "You are reviewing a plan BEFORE implementation begins. This is NOT a code review --
-    there is no code yet. You are validating the architect's design decisions.
+  prompt: "You are operating in **Plan Validation Mode (Challenger)** — reviewing a plan BEFORE implementation begins. There is no code yet. You are challenging the architect's design decisions.
 
-    Read ~/.claude/agents/product-reviewer.md for your role definition.
+    Read ~/.claude/agents/product-reviewer.md and follow the **'Plan Validation Mode (Challenger)'** section as your full grading rubric. Do NOT apply the post-build Acceptance Review rubric — that is the wrong mode for this phase.
 
-    ## Your Task
+    ## Inputs
+    - Plan file: pipeline-state/{task-id}/plan.md (Read this; do not assume the prompt contains the full plan)
+    - Original story / acceptance criteria: see TaskList for details
+    - Architect-context (recon): pipeline-state/{task-id}/architect-context.md (if it exists)
 
-    Challenge this plan. Your job is to catch bad plans before they become bad code.
+    ## Grading Surface (per agents/architect.md § Plan Output Contract)
 
-    ## Challenge Checklist (verdict each: PASS / CONCERN / BLOCK)
+    The plan must contain four artifacts. Grade each:
+    1. Failing test stubs per AC
+    2. Codebase ground-truth citations
+    3. Pre-mortem (3 named failure modes)
+    4. User-proxy walkthrough
 
-    ### Scope
-    - Is the scope right-sized for the stated complexity budget?
-    - Are there features included that are not in the acceptance criteria (scope creep)?
-    - Are there acceptance criteria NOT covered by any slice?
+    Plus a Pre-Emit Self-Review section with three personas answered. Persona 2 (PM Who Shipped a Feature That Flopped) is your responsibility to verify — missing or generic answers = HIGH finding.
 
-    ### Value
-    - Does each slice deliver observable user value?
-    - Is the ordering correct (highest value first)?
+    ## Findings & Verdict
 
-    ### AC Quality
-    - Are all ACs in Given/When/Then format and testable?
-    - Are error paths covered?
+    Severity: HIGH / MEDIUM / LOW per finding.
 
-    ### Assumptions
-    - What assumptions is this plan making? Which are validated vs. unvalidated?
+    Verdict (per your agent file's rubric):
+    - APPROVE: all artifacts complete, ≤2 LOW findings.
+    - CHANGES_REQUESTED: ≥1 HIGH OR ≥3 MEDIUM findings.
 
-    ### Alternatives
-    - Were the alternatives genuinely different (not strawmen)?
-    - Did the architect miss an obvious alternative?
-
-    ## Output: Verdict (APPROVE / CHANGES_REQUESTED) + section analysis + specific recommended changes
-
-    Plan under review:
-    {architect_output}"
+    Output structure: verdict line, then findings grouped by severity, each citing the artifact (or self-review persona) it applies to."
 })
 
 Agent({
   name: "plan-engineer",
   team_name: "pipeline-{task-id}",
   subagent_type: "software-engineer",
-  prompt: "You are reviewing a plan BEFORE implementation begins. This is NOT a code review --
-    there is no code yet. You are validating feasibility from an implementation perspective.
-    This is a plan review, not implementation. Do NOT create files or write code.
+  prompt: "You are operating in **Plan Validation Mode (Challenger)** — reviewing a plan BEFORE implementation begins. There is no code yet. Do NOT create files or write code.
 
-    Read ~/.claude/agents/software-engineer.md for your role definition.
+    Read ~/.claude/agents/software-engineer.md and follow the **'Plan Validation Mode (Challenger)'** section as your full grading rubric. Do NOT apply the build-mode TDD/implementation flow — that is the wrong mode for this phase.
+
     Read the project CLAUDE.md for tech stack and conventions.
 
-    ## Your Task
+    ## Inputs
+    - Plan file: pipeline-state/{task-id}/plan.md (Read this; do not assume the prompt contains the full plan)
+    - Original story / acceptance criteria: see TaskList for details
+    - Architect-context (recon): pipeline-state/{task-id}/architect-context.md (if it exists)
+    - The actual codebase (use Read/Grep to verify the architect's citations)
 
-    Challenge this plan from engineering feasibility. Catch plans that look good on paper
-    but will fail in implementation.
+    ## Grading Surface (per agents/architect.md § Plan Output Contract)
 
-    ## Challenge Checklist (verdict each: PASS / CONCERN / BLOCK)
+    The plan must contain four artifacts. Highest-leverage check: **verify codebase ground-truth citations by Reading the cited files yourself**. Architect-claimed citations that don't match the actual code are HIGH findings.
 
-    ### Vertical Slices
-    - Is each slice truly end-to-end (input -> logic -> output -> test)?
-    - Are there hidden horizontal slices? Can each be independently deployed?
+    Plus a Pre-Emit Self-Review section with three personas answered. Personas 1 (Staff Engineer Who's Seen It Fail) and 3 (Future-You at 2am) are your responsibility — missing or surface-level = HIGH finding.
 
-    ### Technical Feasibility
-    - Are the proposed patterns appropriate for this codebase?
-    - Are estimated complexity budgets realistic per slice?
+    ## Engineering Concerns Specific to Plan Phase
+    Apply the checks listed in your agent file: slice independence, test mix per slice, dependency justifications, OUT-OF-SCOPE clarity, rollback plans for data changes.
 
-    ### Error Paths
-    - Are all failure modes identified? Race conditions? Concurrency?
+    ## Findings & Verdict
 
-    ### Testability
-    - Can each AC be tested at unit level? Are integration boundaries clear?
+    Severity: HIGH / MEDIUM / LOW per finding.
 
-    ### Implementation Risk
-    - What is the riskiest slice? Are there unknowns that should be a spike?
-    - Is the parallel batch grouping correct (no shared file conflicts)?
+    Verdict (per your agent file's rubric):
+    - APPROVE: citations verified, slices sound, scope clear; ≤2 LOW findings.
+    - CHANGES_REQUESTED: ≥1 HIGH OR ≥3 MEDIUM findings.
 
-    ### Better Approach
-    - Would you approach this differently? Can complex slices be cut thinner?
-
-    ## Output: Verdict (APPROVE / CHANGES_REQUESTED) + per-slice analysis + specific recommended changes
-
-    Plan under review:
-    {architect_output}"
+    Output structure: verdict line, then findings grouped by severity, each citing the artifact (or self-review persona) it applies to."
 })
 ```
 
@@ -147,17 +131,19 @@ On CHANGES_REQUESTED:
 Agent({
   subagent_type: "architect",
   prompt: "Read ~/.claude/agents/architect.md and ~/.claude/skills/epic-breakdown/SKILL.md.
-    Your previous plan was challenged. Revise based on this feedback.
+    Your previous plan was challenged in Plan Validation. Revise based on this feedback.
 
-    Original plan: {plan}
+    Original plan: pipeline-state/{task-id}/plan.md (read it)
 
-    Challenger feedback:
+    Challenger feedback (HIGH/MEDIUM/LOW findings from plan-reviewer + plan-engineer):
     {combined_feedback}
 
     Requirements:
-    - Address every BLOCK and CONCERN item
-    - Include updated Alternatives Considered section
-    - Do not make unrelated changes to approved aspects"
+    - Address every HIGH and MEDIUM finding. Either fix the artifact, or answer the finding inline with rationale (and update artifact accordingly).
+    - Re-run the Pre-Emit Self-Review section if any persona's answer changed substantively.
+    - Re-verify any Codebase Ground-Truth Citations the engineering challenger flagged — Read the cited file/lines, correct the claim or mark `<unverified>`.
+    - Do not make unrelated changes to approved aspects.
+    - Output the revised plan to pipeline-state/{task-id}/plan.md (overwrite)."
 })
 
 // 2. Re-submit to SAME challengers (still alive, have context)
@@ -165,8 +151,9 @@ Agent({
 SendMessage({
   to: "plan-reviewer",  // only if this challenger rejected
   message: "The architect has revised the plan based on your feedback.
-    Revised plan: {revised_plan}
-    Re-review ONLY the items you flagged. Do not re-review approved aspects."
+    Revised plan: pipeline-state/{task-id}/plan.md (re-Read it; the file was overwritten)
+    Re-review ONLY the HIGH and MEDIUM findings you raised previously. Do not re-grade approved artifacts.
+    Verdict format unchanged: APPROVE or CHANGES_REQUESTED with HIGH/MEDIUM/LOW findings."
 })
 ```
 

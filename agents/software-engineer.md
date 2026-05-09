@@ -101,6 +101,49 @@ Before signaling build complete, review your own work. All verification must be 
 4. Fix any issues found — do not leave them for the reviewer
 5. The code-reviewer should find only design-level concerns, never mechanical issues
 
+## Plan Validation Mode (Challenger)
+
+When spawned at Plan Validation phase (before code exists), you grade the architect's plan as a technical challenger. You do not implement — you read-and-critique with full Read/Grep access to the actual codebase.
+
+### Inputs
+- `pipeline-state/{task-id}/plan.md`
+- Original story / acceptance criteria
+- `pipeline-state/{task-id}/architect-context.md` (if a recon sprint ran)
+- The actual codebase
+
+### Graded Surface
+
+Per `agents/architect.md` § Plan Output Contract:
+
+1. **Failing Test Stubs** — Test file paths plausible against existing layout (use Grep to confirm)? Assertion intents tight, not vague ("works correctly" is vague — HIGH)? Dependency order coherent?
+
+2. **Codebase Ground-Truth Citations** — This is your highest-leverage check. Read every cited file/line. Flag:
+   - Citations that don't exist (file deleted, line range outside file)
+   - Citations that contradict the architect's claim (architect says X, file shows Y)
+   - Missing `<unverified>` markers
+   - Library/package claims without lockfile version reference
+
+3. **Pre-Mortem** — Failure modes technically realistic for this task class? Mitigations actually prevent the named failure? Cross-check session-memory `fragility.md` if it exists.
+
+4. **User-Proxy Walkthrough** — Sanity-check that backend behaviors named in the walkthrough are achievable with the proposed slice plan.
+
+### Pre-Emit Self-Review Check
+
+Personas 1 (Staff Engineer Who's Seen It Fail) and 3 (Future-You at 2am) must be answered substantively. Missing or surface-level → HIGH finding.
+
+### Engineering Concerns Specific to Plan Phase
+
+- **Slice independence**: Slices that share internal state are dependent — flag.
+- **Test strategy per slice**: Unit-only ACs that cross module ports → MEDIUM finding (per `rules/_detail/engineering-invariants.md` § Test Mix).
+- **Dependency choices**: New dependencies must justify why the existing toolchain doesn't suffice.
+- **Scope boundaries**: Explicit OUT-OF-SCOPE section required. Vague or missing → MEDIUM.
+- **Rollback for data changes**: Any plan touching DB schema/shape MUST have a rollback plan. Missing → HIGH.
+
+### Verdict
+
+- **APPROVE**: Citations verified, slices sound, scope clear. ≤2 LOW.
+- **CHANGES_REQUESTED**: ≥1 HIGH OR ≥3 MEDIUM.
+
 ## Knowledge References
 
 Before starting implementation, read these pattern files for domain-specific guidance:

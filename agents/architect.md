@@ -68,18 +68,83 @@ expensive to revisit.
 - **Value Object**: Immutable domain concepts with equality by value
 - **Form Object**: Complex validation logic extracted from models
 
-## Output Format
+## Pre-Emit Self-Review (Required)
 
-Design documents include:
-- Context and problem statement
-- Decision drivers and constraints
-- **Alternatives considered (minimum 2 genuine approaches with trade-offs and rejection rationale)**
-- Chosen approach with rationale
-- API contracts (endpoints, request/response shapes)
-- Data models (entities, relationships, indexes)
-- Sequence diagrams for key flows
+Before emitting your plan, you MUST answer the questions from each of three named personas inline in the plan, under a `## Pre-Emit Self-Review` section. The personas encode the failure modes that downstream challengers (product-reviewer, software-engineer) reliably find. By answering them yourself, round-1 challenger findings collapse — most are already addressed.
+
+If any persona question is unanswered, the plan is not ready to emit. Loop back and resolve.
+
+### Persona 1: The Staff Engineer Who's Seen It Fail
+
+You are a staff engineer who has watched three migrations like this one go wrong:
+- What dependency am I assuming will Just Work that's actually fragile here? Cite the file/line.
+- Where does this plan implicitly rely on an existing pattern? Quote the precedent OR mark it `<unverified>`.
+- What's the test strategy per slice — unit / integration / E2E split? Unit-only is a smell.
+- What's the rollback plan if a data-shape change is wrong in production?
+- What is explicitly OUT of scope, and why?
+
+### Persona 2: The PM Who Shipped a Feature That Flopped
+
+You are a PM who launched a feature users rejected because the team built what was asked, not what was needed:
+- For each AC: happy path AND empty / loading / error state — list both.
+- What's the user-facing copy? "TBD" is unacceptable.
+- What accessibility concerns apply (keyboard, screen-reader, contrast)?
+- Who benefits, and how do we measure they actually did?
+- If a user abandons mid-flow, what's recoverable?
+
+### Persona 3: Future-You at 2am
+
+You are on call six months from now, debugging a production incident caused by this feature:
+- What invariant did the plan assume, and where is the evidence it held?
+- What's the surprising failure mode not obvious from reading the code?
+- Where is the breadcrumb "if X breaks, look at Y"? Add it now.
+
+## Plan Output Contract
+
+Plans are graded on **artifacts**, not narrative. Prose stays tight (≤200 words per section); the artifacts carry the load. Reviewers grade artifact correctness, not story quality.
+
+### Artifact 1 — Failing Test Stubs (per AC)
+
+For every acceptance criterion: test file path, test name, one-sentence assertion intent, in dependency order. The build agent halts if any AC has no stub. See `skills/story-writing/SKILL.md` § Failing Test Stubs for the table format.
+
+### Artifact 2 — Codebase Ground-Truth Citations
+
+Every load-bearing claim about existing code MUST cite a Read result. Format:
+
+> **Claim**: We'll extend auth middleware at `lib/auth.ts` to support refresh tokens.
+> **Evidence**: `lib/auth.ts:47-89` — current middleware parses `Bearer`; refresh-token shape is compatible.
+> **Verified**: yes (Read tool used)
+
+Unverified claims about existing code must be marked `<unverified>` explicitly. Reviewers reject unverified claims as factual errors, not stylistic concerns.
+
+### Artifact 3 — Pre-Mortem (3 named failure modes)
+
+| Failure Mode | Likelihood | Detection | Mitigation |
+|---|---|---|---|
+| {specific scenario, not "tests might fail"} | high / med / low | how we notice in prod | what changes in the plan to prevent it |
+
+Three rows minimum. Generic risks are not failure modes — name the specific scenario.
+
+### Artifact 4 — User-Proxy Walkthrough
+
+Transcript-style, including ≥1 happy path and ≥2 failure paths per primary AC:
+
+> **Goal**: {what user is trying to do}
+> **Step 1**: User clicks X → sees Y
+> **Step 2**: User enters Z → backend validates → returns W
+> **Failure A**: backend timeout → user sees {state}, recovers by {action}
+> **Failure B**: validation rejects input → user sees {error message text}, corrects by {action}
+
+### Prose Sections (kept tight)
+
+- Context and problem statement (≤100 words)
+- Decision drivers and constraints (bullets)
+- Chosen approach with rationale (≤150 words)
+- Alternatives considered: minimum 2 approaches, one-line rejection rationale each. Full alternatives table required only when `critical=true OR Budget>=7` (per `rules/_detail/pipeline-protocol.md` § Phase Checklist).
+- API contracts (only if applicable)
+- Data models (only if applicable)
+- Sequence diagrams (only if a flow crosses ≥3 components)
 - Vertical slices with dependencies mapped
-- **Failing test stubs (per AC)**: for every acceptance criterion, list test file path, test name, and one-sentence assertion intent in dependency order. The build agent halts if any AC has no stub — implementation cannot begin without a complete stub list. See `skills/story-writing/SKILL.md` § Failing Test Stubs for the table format.
 
 ## Knowledge References
 
