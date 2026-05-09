@@ -44,6 +44,95 @@ default). Subagent-class spawns (`team_name` empty) get a next-tool-call-blocked
 directive — see `rules/_detail/parallel-dispatch-protocol.md > Resource Bounds`
 for the Path-B disclosure.
 
+## Plan Phase Dispatch
+
+Plan phase has two stages when the heavy plan-validation gate applies (`critical == true OR Budget >= 7`). Below the heavy threshold, skip Stage 1 (recon) — the overhead is not justified for small tasks — and dispatch only Stage 2 (architect).
+
+### Stage 1: Pre-Architect Recon (heavy gate only)
+
+Three recon agents run in parallel to seed the architect with hindsight. Each writes its output to a separate file; the orchestrator concatenates them into `pipeline-state/{task-id}/architect-context.md` before architect dispatch.
+
+Spawn all three in a single message:
+
+```
+parent_depth="${CLAUDE_SUBAGENT_DEPTH:-0}"
+child_depth=$((parent_depth + 1))
+
+CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
+  subagent_type: "architect-context-recon",
+  prompt: "You are operating in **code-archaeology** mode. Read ~/.claude/agents/architect-context-recon.md § 'Mode 1: code-archaeology' for your full procedure.
+
+    ## Spawn inputs
+    - Task ID: {task-id}
+    - Acceptance criteria: see TaskList for details
+    - outputPath: pipeline-state/{task-id}/architect-context-archaeology.md
+
+    Write your findings to outputPath, then emit RECON_COMPLETE or RECON_NULL on stdout."
+})
+
+CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
+  subagent_type: "architect-context-recon",
+  prompt: "You are operating in **memory-mining** mode. Read ~/.claude/agents/architect-context-recon.md § 'Mode 2: memory-mining' for your full procedure.
+
+    ## Spawn inputs
+    - Task ID: {task-id}
+    - Acceptance criteria: see TaskList for details
+    - Project hash: {project-hash}
+    - outputPath: pipeline-state/{task-id}/architect-context-memory.md
+
+    Write your findings to outputPath, then emit RECON_COMPLETE or RECON_NULL on stdout."
+})
+
+CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
+  subagent_type: "architect-context-recon",
+  prompt: "You are operating in **domain-analysis** mode. Read ~/.claude/agents/architect-context-recon.md § 'Mode 3: domain-analysis' for your full procedure.
+
+    ## Spawn inputs
+    - Task ID: {task-id}
+    - Acceptance criteria: see TaskList for details
+    - outputPath: pipeline-state/{task-id}/architect-context-domain.md
+
+    Write your findings to outputPath, then emit RECON_COMPLETE or RECON_NULL on stdout."
+})
+```
+
+After all three return, the orchestrator concatenates:
+
+```bash
+cat pipeline-state/{task-id}/architect-context-archaeology.md \
+    pipeline-state/{task-id}/architect-context-memory.md \
+    pipeline-state/{task-id}/architect-context-domain.md \
+    > pipeline-state/{task-id}/architect-context.md
+```
+
+The three intermediate files are kept for forensic visibility (deleted by Reflect cleanup along with the rest of `pipeline-state/{task-id}/`).
+
+`RECON_NULL` from any agent is non-blocking — the agent still wrote a valid file (anti-findings only). Concatenation proceeds normally and the architect sees the gap.
+
+If a recon agent fails (no file written, no verdict emitted), retry once. If it fails twice, proceed to Stage 2 without that mode's findings — recon is advisory; the architect's cold-start fallback path already handles missing context.
+
+### Stage 2: Architect Dispatch
+
+```
+parent_depth="${CLAUDE_SUBAGENT_DEPTH:-0}"
+child_depth=$((parent_depth + 1))
+CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
+  subagent_type: "architect",
+  prompt: "Read ~/.claude/agents/architect.md for your full role definition, including the Pre-Drafting Recon, Pre-Emit Self-Review, and Plan Output Contract sections.
+
+    ## Spawn inputs
+    - Task ID: {task-id}
+    - Acceptance criteria: see TaskList for details
+    - Architect context (recon, heavy gate only): pipeline-state/{task-id}/architect-context.md (Read this BEFORE drafting if it exists)
+    - Project CLAUDE.md: read for tech stack and conventions
+
+    ## Output
+    Write the plan to pipeline-state/{task-id}/plan.md per the Plan Output Contract (4 artifacts + Pre-Emit Self-Review)."
+})
+```
+
+When recon ran, the architect's plan citations should reflect the recon findings — codebase precedents, fragile areas, prior challenger findings the architect now knows about. The Plan Validation challengers will detect a hollow `architect-context.md` (architect did not Read it) by checking whether plan citations align with recon findings; misalignment is a HIGH finding on Artifact 2.
+
 ## Plan Validation Phase Dispatch (Autonomous Mode)
 
 Spawn both challengers in a single message:

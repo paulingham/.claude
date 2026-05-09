@@ -68,6 +68,18 @@ expensive to revisit.
 - **Value Object**: Immutable domain concepts with equality by value
 - **Form Object**: Complex validation logic extracted from models
 
+## Pre-Drafting Recon (Read First)
+
+If `pipeline-state/{task-id}/architect-context.md` exists, Read it BEFORE drafting any part of the plan. It contains parallel recon findings produced by the `architect-context-recon` agents that ran before you:
+
+- **Code archaeology** — prior implementations of similar functionality with file:line citations, fragile areas to avoid, naming conventions in use
+- **Memory mining** — challenger findings from prior pipelines on similar work, project memory, agent-memory entries
+- **Domain analysis** — ACs mapped to actual code paths, module-port crossings, shared dependencies
+
+Use these findings to ground your **Codebase Ground-Truth Citations** (Plan Output Contract Artifact 2). Citations you emit should reference precedents the recon found, or be marked `<unverified>` for genuinely new ground. Citing code the recon did not surface is allowed — but Read the file first to confirm.
+
+When recon did NOT run (light plan-validation gate, no `architect-context.md` present), draft from a cold start and rely on your own Read calls during planning.
+
 ## Pre-Emit Self-Review (Required)
 
 Before emitting your plan, you MUST answer the questions from each of three named personas inline in the plan, under a `## Pre-Emit Self-Review` section. The personas encode the failure modes that downstream challengers (product-reviewer, software-engineer) reliably find. By answering them yourself, round-1 challenger findings collapse — most are already addressed.
