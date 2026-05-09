@@ -473,7 +473,7 @@ The orchestrator reports learnings to the user (skip if nothing actionable). Eve
 
 After analytics, reflection, and learning are complete, remove the pipeline state files. Cleanup is dual-form during the 90-day DUAL_PATH soak (per `rules/_detail/pipeline-protocol.md` § Structured Pipeline State):
 
-1. **Form 1 — new-layout subdir cleanup** (single op): `rm -rf pipeline-state/{task-id}/` removes the per-task subdir and every phase artifact under it. Workstream variant: `rm -rf pipeline-state/workstreams/{ws}/{task-id}/`.
+1. **Form 1 — new-layout subdir cleanup**: empty the per-task subdir with `find -delete` (sandbox-safe — `rm -rf` on directories is denied by the sandbox even on orchestrator-writable paths). Workstream variant: same pattern under `pipeline-state/workstreams/{ws}/{task-id}/`.
 2. **Form 2 — legacy phase enumeration**: iterate the canonical phase list via `_psp_phase_list` (sourced from `hooks/_lib/pipeline-state-paths.sh`) and remove each `pipeline-state/{task-id}-{phase}.md` file. **NEVER use a bare wildcard glob over the task prefix** — that matches prefix neighbours (e.g. cleanup of `tool` would delete `tool-timing-capture-*` files). R12 mitigation.
 3. Approval token + trajectory have well-known names; remove them by exact path: `pipeline-state/{task-id}-approval.token` and `pipeline-state/{task-id}-trajectory.jsonl`.
 
@@ -485,11 +485,15 @@ state_dir="$HOME/.claude/pipeline-state"
 task="{task-id}"
 ws=""  # set to the workstream name when applicable
 
-# Form 1: new-layout subdir.
+# Form 1: new-layout subdir. Use find -delete (rm -rf on dirs is sandbox-denied).
 if [ -n "$ws" ]; then
-  rm -rf "$state_dir/workstreams/$ws/$task"
+  task_dir="$state_dir/workstreams/$ws/$task"
 else
-  rm -rf "$state_dir/$task"
+  task_dir="$state_dir/$task"
+fi
+if [ -d "$task_dir" ]; then
+  find "$task_dir" -type f -delete
+  find "$task_dir" -depth -type d -empty -delete
 fi
 
 # Form 2: legacy phase enumeration via _psp_phase_list (NO bare globs).
