@@ -621,6 +621,31 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
 
 **Why no debate round (vs the paper)**: patch-critique is closed-form (fixed rubric, fixed dimensions, binary-per-finding-after-severity). The paper's debate coordinator targets open-ended reflexion (HotPotQA answers, HumanEval code generation). Three independent strict scorers + OR-aggregation captures the "different priors → different blind spots" lift without the 2x debate-round overhead.
 
+### Execution Evidence (optional, default off)
+
+OPTIONAL enrichment that prepends a short `## Execution Evidence` block to every persona spawn prompt before dispatch. Inspired by Agentic Verifier (arXiv 2602.04254), where giving the verifier execution traces of the candidate against discriminative inputs catches a class of regression that diff-only review misses. The path is purely additive — when the flag is unset OR any of three downstream steps silently skip, the dispatch falls through to the existing #93 procedure exactly (`1. Gate check` → `2. Spawn three personas` → `3. Aggregation rule (OR)` → … unchanged).
+
+**Step 0 — Env-var probe**:
+
+- Read `CLAUDE_PATCH_CRITIC_EXEC_LAYER` from the orchestrator-side env. Defaults unset / off. Only the literal value `1` enables the path; any other value (including empty, `0`, `true`, `yes`) coerces to off — the same conservative pattern used by other harness opt-in flags.
+- When unset / off → SKIP the entire sub-section. Dispatch personas exactly as #93 specifies (Step 1 onward in this section). This is the default and the path THIS pipeline's own Final Gate runs against; the env var is operator-set, never harness-set (enforced as a committed invariant by the AC3.7 grep guard shipping in Slice 3).
+
+**Once-per-slice contract**: when the flag is on AND the path proceeds, the orchestrator generates discriminative test inputs ONCE per slice, runs them ONCE, formats the result into a single `## Execution Evidence` block, and APPENDS the SAME block VERBATIM to each of the three persona spawn prompts. Evidence is shared across personas because (a) inputs are derived from the diff and the diff is identical across personas, so per-persona inputs would be identical too, and (b) persona differentiation already lives in the existing search-emphasis prompts (rubric-dimension weighting), not in raw evidence. The once-per-slice scope is both 3x cheaper and signal-equivalent — per-persona generation would produce identical inputs (the diff is identical), wasting the spend.
+
+**Three silent skip points** — any one collapses to identical diff-only dispatch (no error surfaced, no log noise, persona spawns unchanged):
+
+1. Flag off (Step 0 above) — env var unset or any value other than `1`.
+2. Generator failure — the discriminative-test-input LLM call times out, returns malformed JSON, or returns zero non-equivalent inputs (Slice 2).
+3. Run / execution failure — sandbox unavailable, no inferable entry point, or all inputs time out during the apply-test-revert loop (Slice 3).
+
+Each skip point falls through to the existing dispatch exactly as #93 specifies; the personas never observe the difference, the rubric is unchanged, the verdict semantics are unchanged.
+
+**Re-critique semantics**: when patch-critic returns `PATCH_REJECTED` and fix-engineer produces an updated diff, the orchestrator regenerates the execution-evidence block from scratch on each re-dispatch — the diff has changed, so the discriminative inputs and run output may differ. There is NO caching across rounds; per-dispatch regeneration is the contract.
+
+**Forensic record**: the observation-schema `phases.patch_critic.evidence_mode` field (see `rules/_detail/autonomous-intelligence.md` § Field reference) records `"diff-only"` when any skip point fires (or when the flag is unset) and `"diff+execution"` only when all three steps complete successfully. Readers MUST tolerate absence of the field as a legacy / pre-exec-layer record.
+
+Slices 2 and 3 fill in Steps 1-3 (input generation, sandboxed run, prompt-append point). This sub-section establishes Step 0 (the gate) and the silent-fallback semantics — when Slices 2-3 land, they extend this sub-section but do NOT alter the gate or the fallback contract.
+
 **Hedges (PROVISIONAL until baseline run)**:
 
 - Variant gated on `critical OR Budget >= 7`. Single-critic remains the default for routine work — DO NOT enable for `!critical AND Budget < 7`.
