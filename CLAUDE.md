@@ -213,6 +213,7 @@ Tracing is off by default (`CLAUDE_ENABLE_TRACE=0` in `settings.json`). Enable p
 | `/creative-direction` | Pre-build design thinking: brand brief → fonts, palette, layout, interaction paradigm | CREATIVE_DIRECTION_COMPLETE |
 | `/design-system-init` | Generate design tokens, primitives, dark mode for a project | DESIGN_SYSTEM_READY |
 | `/tool-synthesis` | Build phase: author a one-shot scratch tool inside the worktree (codebase-specific search, AST query, custom lint) when standard tools are insufficient. Tool lives in `.claude-scratch-tools/`, never merged. Inspired by Live-SWE-agent (arXiv 2511.13646) | TOOL_SYNTHESISED / TOOL_UNNECESSARY |
+| `/property-based-test` | Build phase: author Tier 1.5 PBTs for changed-line public functions with typed signatures (auto-invoked from /build-implementation Step 1d). Time-box 60s/function. Frozen counterexamples freeze inline as Tier 1 regressions using harness-native syntax. Inspired by arXiv 2510.09907 | PBT_AUTHORED / PBT_SKIPPED / PBT_BLOCKED |
 
 #### Deferred (forcing-function required)
 
