@@ -298,6 +298,18 @@ This converts Reflect § 6b ("invoke /learn next turn") and pre-flight into a qu
 8. Max 2 total rounds (initial + 1 re-review). If still not resolved, escalate to user
 9. After both APPROVE: shut down both reviewers
 
+### After UNVERIFIED with surviving mutants
+
+**Gate predicate**: `verdict == UNVERIFIED AND surviving_mutants is non-empty`. Surviving mutants are the union of the verify report's `Tier 3 — Uncaught` list (rule-based mutation) and `Tier 3.5 — Uncaught` list (LLM-mutant pass). When verify returns UNVERIFIED but both `Uncaught:` lists are empty, this branch does NOT fire — the standard CHANGES_REQUESTED dispatch handles tier-failure-without-mutants.
+
+When the gate fires, the orchestrator follows the same 9-step flow above (spawn fix-engineer with the prior worktree, fix, shut down, re-assign raising reviewer, max 2 rounds), with TWO additional verbatim sections inserted into the fix-engineer spawn prompt between `Findings to address` and `Build diff`. The role contract for fix-engineer (verify-finding-validity-first, no-scope-creep, no-compliance-commit-messages) lives in `agents/fix-engineer.md` and is unchanged on this branch.
+
+**Surviving Mutants block**. Render one bullet per surviving mutant naming the field triple `file:line`, `category`, and `rationale`. Content is copied verbatim from the verify report's `Tier 3 — Uncaught` and `Tier 3.5 — Uncaught` sections — no field renaming, no schema invention. Tier 3 entries provide `file`, `line` (or `line_range`), and an operator description that maps to `category`. Tier 3.5 entries additionally carry `original`/`mutated` snippet pairs; render those as a parenthetical (e.g., `(mutated: <original> → <mutated>)`). Concatenate both lists; if only one tier produced surviving mutants, render only that tier's entries.
+
+**Test-Authoring Directive block**. Direct fix-engineer to author one test per surviving mutant FIRST and see those tests RED on the unmutated code path BEFORE any production code change, then verify GREEN-after-fix kills the mutant. This inverts the gate from a score check to a test backlog: each mutant is a missing assertion, and the directive forces the fix-engineer to write the assertion before touching the implementation. Production-code edits made without a corresponding RED test are out-of-cycle scope creep and should be rejected at re-review.
+
+**Design rationale**. This dispatch shape follows the Meta ACH (Assured LLM-Based Code-Health) work — see https://dl.acm.org/doi/10.1145/3696630.3728544 — which demonstrates that surfacing surviving mutants as concrete, addressable test gaps (rather than as a single aggregate score) materially improves the strength of the resulting test suite. The verify report already carries the per-mutant payload; this branch wires it into the existing fix-engineer dispatch without inventing new artifacts.
+
 ## Enforcement (Orchestrator Self-Discipline)
 
 > **Iron law: NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.** (Mirrored in `rules/core.md`.)
