@@ -57,6 +57,21 @@ For each contract in the list:
 
 The Tier-0 RED output is a separate capture from the Step-2 BATCHED RED output. Both are required as audit artifacts for the slice (per `rules/_detail/atdd-procedure.md` § Audit Trail).
 
+### Step 1d: Author Property-Based Tests (Tier 1.5)
+
+Inserted between Tier 0 contract assertions (Step 1c) and Step 2 batched RED. Authors Tier 1.5 property-based tests for every public function on changed lines with a typed signature. Auto-invoked on every Build run unless `CLAUDE_PBT=0`. The output files match the existing `tests/**/*.property.{spec,test}.*` glob byte-for-byte so Step 2b cap-detection (5→3) fires automatically against the just-authored properties.
+
+Procedure:
+
+1. Invoke `/property-based-test` (see `skills/property-based-test/SKILL.md`). The skill spawns `pbt-engineer` in your worktree (worktree-reuse, mirrors `fix-engineer`).
+2. The engineer identifies candidate functions from `git diff --name-only` (public, typed signature, on changed lines), picks the harness from the language → framework table, generates ≥1 property per candidate from one of `{idempotence, inverse, oracle, metamorphic}`, time-boxes 60s/function, and freezes any counterexamples inline using harness-native syntax (`@example`, seeded `fc.assert`, frozen `?FORALL`).
+3. Read the verdict and act accordingly:
+   - **`PBT_AUTHORED`** — ≥1 property authored. Proceed to Step 2.
+   - **`PBT_SKIPPED`** with reason `env-hatch` (operator set `CLAUDE_PBT=0`), `no-candidates` (no public-typed-changed-line functions), or `no-framework-for-language` (language has no shipped harness or harness not installed). All three skip reasons are benign — proceed to Step 2.
+   - **`PBT_BLOCKED`** with reason `harness-crash` or `unrecoverable-error` — HALT Build. Surface the verdict payload (function name, 5-line error excerpt, `CLAUDE_PBT=0` recovery action, retry-twice-then-escalate exemption per `rules/_detail/operational-protocol.md`) to the orchestrator.
+
+**Escape hatch.** Set `CLAUDE_PBT=0` in the environment to disable Step 1d — this skips PBT authoring entirely. The hatch exists for the soak window (default-on) so cycle-time impact can be measured before flipping to mandatory; it is the one-line revert path if pbt-engineer introduces unexpected runtime cost.
+
 ### Step 2: Implement Slice via ATDD (Two test invocations per slice)
 
 Follow the ATDD Protocol in `rules/_detail/atdd-procedure.md`:
@@ -91,7 +106,7 @@ Walk these 5 categories IN ORDER:
 - **passes immediately = delete.** An adversarial that goes GREEN on its first run without any production-code change has no diagnostic value — the existing tests already cover the case, or the named edge does not actually exist on the changed lines. Delete it; do not keep it as a vanity test.
 - **HALT if adversarial reveals contract gap.** If an adversarial surfaces a behavior the AC does not specify (e.g., what should happen on negative input when the AC is silent), HALT and surface to the architect. Do not invent the contract — the architect owns the spec, the engineer owns the implementation.
 
-**PBT overlap.** When a function has **Tier 1.5** property-based tests covering it (per `rules/_detail/engineering-invariants.md` § Proof of Correctness), **cap reduces from 5 to 3** for that function. PBTs already exercise boundary values and null/empty cases at the property level; adversarials should focus on **error-path + concurrency** which PBTs cover poorly. Detection is mechanical — file glob `tests/**/*.property.{spec,test}.*` next to the changed file → cap=3.
+**PBT overlap.** When a function has **Tier 1.5** property-based tests covering it (per `rules/_detail/engineering-invariants.md` § Proof of Correctness), **cap reduces from 5 to 3** for that function. PBTs already exercise boundary values and null/empty cases at the property level; adversarials should focus on **error-path + concurrency** which PBTs cover poorly. Detection is mechanical — file glob `tests/**/*.property.{spec,test}.*` next to the changed file → cap=3. Step 1d now produces those PBTs in-pipeline (auto-invoked unless `CLAUDE_PBT=0`), so the cap-reduction fires by default on every PBT-eligible function.
 
 After adversarials are GREEN, return to Step 2's MUTATION GATE on the **union suite** (architect stubs + adversarials).
 
@@ -131,6 +146,7 @@ Before declaring the build complete:
 - [ ] All tests pass
 - [ ] ATDD audit trail visible (batched RED + GREEN + mutation report ≥ 70%)
 - [ ] Step 2b ran (3-5 adversarial tests, each RED-then-GREEN), OR was skipped per `CLAUDE_ADVERSARIAL_TESTS=0`, OR is N/A for a bug-fix slice
+- [ ] Step 1d ran (PBT_AUTHORED or PBT_SKIPPED), OR was skipped per `CLAUDE_PBT=0`
 - [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `rules/_detail/e2e-protocol.md` trigger matrix)
 - [ ] If `/tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries
 
