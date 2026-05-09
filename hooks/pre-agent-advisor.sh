@@ -32,4 +32,19 @@ SESSION="${SESSION_RAW//[^A-Za-z0-9_-]/_}"
 [[ -z "$SESSION" || "$SESSION" =~ ^_+$ ]] && SESSION="local-$$"
 CLAUDE_SESSION_ID="$SESSION" \
   bash "${HOOK_DIR}/_lib/log-injection.sh" "$INPUT" "$RESOLVED" "logged" "advisor-dispatch.jsonl" 2>/dev/null
+
+# AC8b — patch-critic mode-token mutual-exclusivity guard.
+# Classifies the spawn prompt's mode tokens (Mode: tournament vs Persona:).
+# Dual-token spawns emit a forensic JSONL line with source "mode-ambiguous"
+# and the offending token list. Path-B advisory: never blocks the spawn.
+if [[ "$SUBAGENT_TYPE" == "patch-critic" ]]; then
+  MODE_OUT=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/resolve-mode-token.py" 2>/dev/null) || exit 0
+  MODE_DECISION=$(printf '%s\n' "$MODE_OUT" | sed -n '1p')
+  MODE_RESOLVED=$(printf '%s\n' "$MODE_OUT" | sed -n '2p')
+  if [[ "$MODE_DECISION" == "LOG" ]]; then
+    CLAUDE_SESSION_ID="$SESSION" \
+      bash "${HOOK_DIR}/_lib/log-injection.sh" "$INPUT" "$MODE_RESOLVED" "mode-ambiguous" "advisor-dispatch.jsonl" 2>/dev/null
+  fi
+fi
+
 exit 0

@@ -305,7 +305,7 @@ Evaluated at Build phase start, before build engineers are spawned.
 
 **When spawned** (all must be true):
 - `slice_count >= 2` (multi-slice Build)
-- `dispatch_mode != "best-of-n"` (planning-agent is incoherent in Best-of-N races)
+- `dispatch_mode not in ("best-of-n", "pdr-rtv")` (planning-agent is incoherent in Best-of-N and PDR-RTV races — both are parallel candidate races with no shared evolving plan to refine)
 - `phase != "fix"` (fix-engineer scope is narrower than the plan)
 
 **Spawn** (simultaneously with build engineers in a single message):
@@ -393,6 +393,89 @@ The previous threshold (`task_class=="feature" AND Budget>=5`) was tightened to 
 - `skills/best-of-n/lib/score.sh` — sourceable pure-bash `score_candidate`, `pick_winner`, `check_budget_gate`
 - `skills/best-of-n/external-runner.sh` — extension point for non-Anthropic candidates (honest stub today)
 - `skills/best-of-n/tests/test_best_of_n.sh` — deterministic test of scoring, cleanup, and budget gate
+
+### PDR-RTV Build Team Dispatch (conditional — `pdr_rtv:true` from intake)
+
+When `/intake` has tagged the task `pdr_rtv: true` (computed in Step 2d-bis as `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-9} OR critical == true`), the Build phase dispatches as a Team variant that scales test-time compute via T=2 iterations of N parallel rollouts, summary-based refinement, and pairwise tournament selection (arXiv:2604.16529). PDR-RTV is mutually exclusive with Best-of-N — when both flags fire, PDR-RTV wins as the strictly stronger variant (log re-route to pipeline state's `## Re-routes`). The winner still faces the normal Review → Final Gate → Ship gates; tournament selects *which* candidate faces those gates, it does not substitute for them.
+
+The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastructure (`config.json` roster, `external-runner.sh`, `score.sh::check_worktree_capacity`).
+
+**Procedure:**
+
+0. **Pre-flight worktree-capacity check**: source `skills/best-of-n/lib/score.sh` and call `check_worktree_capacity` against the project repo. Default cap is 6 worktrees on workstations, 12 on CI; override via `CLAUDE_BESTOFN_MAX_WORKTREES`. Peak concurrent worktrees for PDR-RTV is N=4 (iter-0 worktrees are reaped before iter-1 spawns; see `skills/pdr-rtv/lib/dispatch.sh::reap_iteration_0_worktrees`). If the cap is exceeded → emit `PDR_NO_CONSENSUS` with `fallback_reason: "worktree-cap-exceeded"`, log the re-route to pipeline state's `## Re-routes`, and silently re-route to Best-of-N → standard. Never halts; never asks the user.
+
+1. **Iteration 0 — fresh rollouts**: source `skills/pdr-rtv/lib/dispatch.sh` and call `dispatch_iteration 0`. The helper spawns N=4 parallel build engineers in a single message, each in its own worktree on branch `build/{task-id}-pdr-iter0-<slug>`. Each engineer's spawn prompt extends `software-engineer` with a `Self-Summarize` directive: at completion, write `pipeline-state/{task-id}/pdr-rtv/rollouts/<slug>/summary.md` with three required H2 sections (`## Hypotheses Tried`, `## Progress Made`, `## Failure Modes`) AND a `pipeline-state/{task-id}/pdr-rtv/rollouts/<slug>/meta` file with `sha:` and `diff_stat:` fields. Summaries persist OUTSIDE the worktree so iteration-0 worktrees can be reaped before iteration-1 spawns.
+
+2. **Reap iteration 0**: call `reap_iteration_0_worktrees` AFTER all iter-0 summaries are persisted to `pipeline-state/`. The helper enumerates iter-0 worktree paths and runs `git worktree remove <path>` on each, releasing inodes/disk before iter-1 spawns. Peak concurrent worktrees stays at N=4 throughout.
+
+   **Slug-validation contract (security, F2)**: before invoking `git worktree remove --force <path>` on any candidate, the orchestrator MUST verify the path appears in `git worktree list --porcelain` output for THIS repository. Slugs that do not resolve to a known worktree path are skipped with a forensic JSONL line at `metrics/{session}/pdr-rtv-events.jsonl` (`source: "reap-skipped-unknown-worktree"`). The lib-level `reap_iteration_0_worktrees` defends one layer up by skipping any directory entry whose slug fails `_pdr_validate_slug` (rejects `..`, leading `.`, slashes, and any non-`[a-zA-Z0-9_.-]` characters). The two-layer defense ensures a malicious or malformed slug cannot target unrelated worktrees outside the iter-0 set.
+
+3. **Iteration 1 — refined rollouts**: call `dispatch_iteration 1`. The helper spawns N=4 parallel build engineers (branch `build/{task-id}-pdr-iter1-<slug>`), each receiving K=2 randomly-sampled iteration-0 summaries injected as a `## Refine From Prior Attempts` section in the spawn prompt. Sampling is deterministic given `CLAUDE_PDR_SEED` (default unset → fresh random). Iter-1 worktrees are reaped inside `dispatch_iteration` after each rollout's summary + meta is persisted.
+
+4. **Tournament — pairwise summary comparison**: source `skills/pdr-rtv/lib/tournament.sh` and call `run_tournament` against the list of green-build slugs (across both iterations, expected 8 if all candidates succeeded). Tournament is single-elimination pairwise (G=2); bracket order is deterministic given seed. Each match invokes `_pdr_pick_winner`, which dispatches `patch-critic` in tournament mode:
+
+   ```
+   Agent({
+     subagent_type: "patch-critic",
+     model: "<advisor-paired sonnet+opus per agent frontmatter>",
+     prompt: "<comparison instructions>
+              Mode: tournament
+              Candidates: <slug-A>,<slug-B>
+              Read ~/.claude/agents/patch-critic.md and execute fully."
+   })
+   ```
+
+   The orchestrator parses `WINNER: A|B` from the agent's stdout. Today the production picker `_pdr_pick_winner` returns a diff-stat heuristic placeholder when no test-seam override is set — this is the documented hand-off surface for the orchestrator-side `Agent` invocation. The diff-stat heuristic remains as a tie-breaker, NOT the primary verdict source. Tournament progresses log2(N×T) rounds (3 for default 8 candidates: 8→4→2→1).
+
+5. **MODE_AMBIGUOUS surfacing (Path-B advisory today)**: when a tournament-mode spawn carries BOTH `Mode: tournament` AND `Persona: <name>` tokens (as a future multi-persona prompt-builder bug could inject), `hooks/pre-agent-advisor.sh` (PreToolUse) logs `source: "mode-ambiguous"` to `metrics/{session}/advisor-dispatch.jsonl` per `agents/patch-critic.md` § Tournament Mode AC8b. The orchestrator MUST parse this forensic line at tournament conclusion and surface the offending match as `PATCH_REJECTED` (per AC8b verbatim) — propagate as `PDR_NO_CONSENSUS` with `fallback_reason: "all-finalists-rejected"` if the rejection eliminates the final pair. The hook is currently log-only because the Agent input schema does not yet expose the relevant fields; promotion to enforcement is a single-line flip in `hooks/pre-agent-advisor.sh` when the schema lands. The orchestrator-side `MODE_AMBIGUOUS → PATCH_REJECTED` surfacing is decoupled from the hook's promotion timeline.
+
+6. **Verdict & merge**: `run_tournament` writes `pipeline-state/{task-id}/pdr-rtv/tournament.md` with the full bracket (N-1 round entries), the `## Winner` section (slug + SHA + verbatim selection rationale), and the cost estimate. The orchestrator merges the winner branch into the pipeline working branch (`git -C "$WORKTREE" merge --no-ff build/{task-id}-pdr-iter<N>-<winner-slug>`) and removes loser worktrees + branches. Emits:
+   - `PDR_WINNER_SELECTED` (success): winner proceeds to standard Review (`/code-review` + `/security-review` per `rules/_detail/pipeline-protocol.md`).
+   - `PDR_NO_CONSENSUS` (failure): silent re-route to Best-of-N → standard. Log to pipeline state's `## Re-routes` with one of three `fallback_reason` enum values:
+     - `worktree-cap-exceeded` (Step 0 above)
+     - `insufficient-green-builds` (<4 candidates produced green builds across both iterations)
+     - `all-finalists-rejected` (tournament verifier rejected every finalist via `PATCH_REJECTED` propagation)
+
+**Pipeline state** (`pipeline-state/{task-id}/pdr-rtv.md`):
+
+```yaml
+---
+task_id: {task-id}
+phase: build
+verdict: PDR_WINNER_SELECTED | PDR_NO_CONSENSUS
+fallback_reason: null | worktree-cap-exceeded | insufficient-green-builds | all-finalists-rejected
+timestamp: {ISO 8601}
+---
+
+## Iterations
+- iter0: {green count}/{N} green builds, {failed count} failures
+- iter1: {green count}/{N} green builds, {failed count} failures
+
+## Tournament Bracket
+{See pipeline-state/{task-id}/pdr-rtv/tournament.md for full match log}
+
+## Winner
+- slug: {winner-slug}
+- sha: {commit SHA}
+- branch: build/{task-id}-pdr-iter1-{winner-slug}
+
+## Total Cost USD
+{cost_estimate_usd from observation}
+
+## Re-routes
+{empty on PDR_WINNER_SELECTED; populated on PDR_NO_CONSENSUS with fallback_reason}
+```
+
+**Cost envelope** at default settings (N=4, T=2): 8 sequential rollouts + 7 tournament comparisons ≈ 4-5× standard Build cost. Justifies the `budget >= 9` trigger floor pending empirical baseline.
+
+**Helpers** (orchestrator-side, not skills):
+- `skills/pdr-rtv/config.json` — N, T, K, max_runtime, seed
+- `skills/pdr-rtv/lib/distill.sh` — sourceable `distill_rollout` (writes summary.md outside the worktree)
+- `skills/pdr-rtv/lib/dispatch.sh` — sourceable `dispatch_iteration`, `reap_iteration_0_worktrees`
+- `skills/pdr-rtv/lib/tournament.sh` — sourceable `run_tournament`, `_pdr_pick_winner` (diff-stat tie-breaker)
+- `skills/best-of-n/lib/score.sh` — reused `check_worktree_capacity` for pre-flight (B11.2 helper)
+
+**Observation schema**: see `rules/_detail/autonomous-intelligence.md` § Observation Capture / `phases.pdr_rtv` for the full field reference (verdict, n_candidates_iter0, n_candidates_iter1, tournament_rounds, winner_slug, cost_estimate_usd, optional fallback_reason).
 
 ## Review Phase Dispatch
 

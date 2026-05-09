@@ -245,15 +245,27 @@ For each phase:
 5. If verdict is a failure/rejection: handle per Step 4 (Recovery)
 6. If verdict is success: update memory file with verdict and artifacts, advance to next
 
-#### Build Phase Dispatch — Best-of-N Check
+#### Build Phase Dispatch — Variant Routing (precedence: `pdr_rtv > bestofn > standard`)
 
-Read `bestofn` from the pipeline state frontmatter (mirrored from `pipeline-state/{task-id}/intake.md` at pipeline creation; computed by intake Step 2d-bis as `critical OR (task_class == "feature" AND budget >= 5)`).
+Read `pdr_rtv` and `bestofn` from the pipeline state frontmatter (mirrored from `pipeline-state/{task-id}/intake.md` at pipeline creation; computed by intake Step 2d / 2d-bis). The **PDR-RTV check runs first** because it is the strictly stronger variant when both flags fire.
 
-- If `bestofn == true`: dispatch via the **Best-of-N Build Team** variant (see `orchestrator/parallel-dispatch-details.md` § Best-of-N Build Team Dispatch). This is not a separate skill — it is a dispatch mode of the Build Team that runs N candidate models in parallel and selects the winner. The winner still proceeds through the normal Review → Final Gate → Ship gates.
+##### PDR-RTV Check (runs first)
+
+- If `pdr_rtv == true` (computed by intake Step 2d-bis as `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-9} OR critical == true`): dispatch via the **PDR-RTV Build Team** variant (see `orchestrator/parallel-dispatch-details.md` § PDR-RTV Build Team Dispatch). PDR-RTV runs T=2 iterations of N parallel rollouts (peak concurrent worktrees = N = 4 due to strict iteration serialisation), summary-based refinement, and pairwise tournament selection. The winner still proceeds through the normal Review → Final Gate → Ship gates.
+- If `pdr_rtv == true AND bestofn == true`: PDR-RTV wins (strictly stronger). Log re-route to `pipeline-state/{task-id}/pipeline.md` § Re-routes.
+- Otherwise: fall through to the Best-of-N Check below.
+
+**PDR-RTV Fallback**: on `PDR_NO_CONSENSUS` (insufficient green builds, all finalists rejected, or worktree-cap exceeded), silently re-route to Best-of-N → standard Build. Log the fallback in pipeline state under `## Re-routes` with `fallback_reason` enum (`worktree-cap-exceeded` | `insufficient-green-builds` | `all-finalists-rejected`). The pipeline never halts on a PDR-RTV failure and never asks the user.
+
+##### Best-of-N Check
+
+Read `bestofn` from the pipeline state frontmatter (mirrored from `pipeline-state/{task-id}/intake.md` at pipeline creation; computed by intake Step 2d-bis as `critical OR user_override`, where `user_override` fires on the literal `[best-of-n]` token in the request text).
+
+- If `pdr_rtv == false AND bestofn == true`: dispatch via the **Best-of-N Build Team** variant (see `orchestrator/parallel-dispatch-details.md` § Best-of-N Build Team Dispatch). This is not a separate skill — it is a dispatch mode of the Build Team that runs N candidate models in parallel and selects the winner. The winner still proceeds through the normal Review → Final Gate → Ship gates.
 - If absent (older pipelines pre-flag): treated as `False` — use standard Build dispatch.
 - Otherwise: use the standard Build dispatch (single-engineer subagent with worktree, or standard Build Team for multi-slice / multi-domain work).
 
-**Fallback**: on `BEST_OF_N_FAILED` (e.g. insufficient candidates after env-var validation, or all candidates failed their own tests), automatically fall back to the standard Build dispatch and log the fallback in pipeline state under `## Re-routes` (e.g. `re-routed from best-of-n to standard build (reason: insufficient candidates)`). The pipeline never halts on a Best-of-N failure and never asks the user.
+**Best-of-N Fallback**: on `BEST_OF_N_FAILED` (e.g. insufficient candidates after env-var validation, or all candidates failed their own tests), automatically fall back to the standard Build dispatch and log the fallback in pipeline state under `## Re-routes` (e.g. `re-routed from best-of-n to standard build (reason: insufficient candidates)`). The pipeline never halts on a Best-of-N failure and never asks the user.
 
 This check fires ONLY at Build dispatch. Scaffolding, Polish, Review, Final Gate, Ship, and Deploy are unaffected.
 

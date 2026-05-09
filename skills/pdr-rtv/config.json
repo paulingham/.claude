@@ -1,0 +1,8 @@
+{
+  "n_per_iteration": 4,
+  "iterations": 2,
+  "k_summaries_per_refine": 2,
+  "max_runtime_seconds": 5400,
+  "default_seed": null,
+  "budget_floor_default": 9
+}
