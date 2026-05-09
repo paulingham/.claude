@@ -47,6 +47,19 @@ cutoff = time.time() - int(hours) * 3600 if hours else None
 
 pattern = os.path.join(log_dir, session if session else "*", "hooks.jsonl")
 files = sorted(glob.glob(pattern))
+# Perf path: when --hours is set, skip files whose mtime is older than the
+# cutoff before opening them. The mtime check is one stat() per candidate,
+# vs. opening + parsing every line. On metrics dirs with thousands of stale
+# session subdirs this is the difference between O(n) opens and O(n) stats.
+if cutoff is not None:
+    fresh_files = []
+    for path in files:
+        try:
+            if os.path.getmtime(path) >= cutoff:
+                fresh_files.append(path)
+        except OSError:
+            continue
+    files = fresh_files
 durations = defaultdict(list)
 exit_codes = defaultdict(list)
 errors = defaultdict(int)              # exit_code not in {0, 2}
