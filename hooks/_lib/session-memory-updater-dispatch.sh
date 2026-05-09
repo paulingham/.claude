@@ -26,7 +26,7 @@ if _blank "$_target_section"; then
 fi
 
 case "$_target_section" in
-  codebase-map|build-test|patterns|fragility) exit 0 ;;
+  codebase-map|build-test|patterns|fragility) ;;
   active-work)
     printf '{"error":"active_work_misroute","field":"targetSection","action":"spawn_refused"}\n' >&2
     exit 1 ;;
@@ -35,3 +35,29 @@ case "$_target_section" in
     # orchestrator catches this before spawn via documented contract.
     exit 0 ;;
 esac
+
+# Seed-on-miss: the updater is Read+Edit-only and cannot create the target
+# file. If targetFile is absent, seed it from the canonical template at
+# session-memory/config/templates/{targetSection}.md so the updater can Read +
+# Edit on first run. Idempotent: if the file already exists, do nothing.
+if [[ ! -e "$_target_file" ]]; then
+  _config_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+  _template="$_config_dir/session-memory/config/templates/${_target_section}.md"
+  if [[ -f "$_template" ]]; then
+    mkdir -p "$(dirname "$_target_file")" 2>/dev/null || true
+    if cp "$_template" "$_target_file" 2>/dev/null; then
+      printf '{"info":"seeded_from_template","targetFile":"%s","template":"%s"}\n' \
+        "$_target_file" "$_template" >&2
+    else
+      printf '{"error":"seed_failed","targetFile":"%s","template":"%s","action":"spawn_refused"}\n' \
+        "$_target_file" "$_template" >&2
+      exit 1
+    fi
+  else
+    printf '{"error":"template_missing","template":"%s","action":"spawn_refused"}\n' \
+      "$_template" >&2
+    exit 1
+  fi
+fi
+
+exit 0
