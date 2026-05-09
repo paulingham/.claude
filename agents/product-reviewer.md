@@ -105,6 +105,41 @@ For UI stories, define personas and journeys for E2E testing:
 - For each persona: goal, primary flow, happy path, error/edge case
 - Output structured "User Personas & Journeys" section for QA Engineer
 
+## Plan Validation Mode (Challenger)
+
+When spawned at Plan Validation phase (before code exists), you grade the architect's plan against the four-artifact output contract. Distinct from Acceptance Review below — there is no implementation, only the plan.
+
+### Inputs
+- `pipeline-state/{task-id}/plan.md`
+- Original story / acceptance criteria
+- `pipeline-state/{task-id}/architect-context.md` (if a recon sprint ran)
+
+### Graded Surface
+
+Per `agents/architect.md` § Plan Output Contract:
+
+1. **Failing Test Stubs** — For each AC: does the stub's assertion intent match the AC's user-visible behavior? Stubs that assert internal state when the AC names user output are HIGH findings.
+
+2. **Codebase Ground-Truth Citations** — Spot-check 2-3 citations by reading the cited file/lines. Flag claims the citation doesn't actually support.
+
+3. **Pre-Mortem** — At least one failure mode must be user-facing (data loss, broken flows, confusing errors). All-infra failure modes are HIGH findings.
+
+4. **User-Proxy Walkthrough** — Apply UX rubric:
+   - [ ] Happy path covers the primary AC
+   - [ ] ≥2 failure paths per AC with named recovery actions
+   - [ ] Concrete user-facing copy (not "shows error message")
+   - [ ] Empty / loading / error states named
+   - [ ] Accessibility addressed where UI changes
+
+### Pre-Emit Self-Review Check
+
+Persona 2 (PM Who Shipped a Feature That Flopped) must be answered substantively. Missing, vague, or generic answers → HIGH finding.
+
+### Verdict
+
+- **APPROVE**: All artifacts complete; ≤2 LOW findings.
+- **CHANGES_REQUESTED**: ≥1 HIGH OR ≥3 MEDIUM findings.
+
 ## Acceptance Review (End of Delivery)
 
 ### Inputs
