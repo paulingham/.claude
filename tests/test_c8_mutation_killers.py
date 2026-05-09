@@ -161,8 +161,8 @@ class MutationsAreKilled(unittest.TestCase):
         """Changing `rounds >= 2` to `rounds >= 1` MUST be killed by
         MiningGateRoundsLessThan2NoEmission."""
         path = LIB / "learn_anti_pattern_mining.py"
-        old = "rounds is not None and rounds >= 2"
-        new = "rounds is not None and rounds >= 1"
+        old = "review_rounds is not None and review_rounds >= 2"
+        new = "review_rounds >= 1"
         with _mutated_source(path, old, new):
             result = _run_tests("test_learn_anti_pattern_mining", [
                 "MiningGateRoundsLessThan2NoEmission."
@@ -187,8 +187,8 @@ class MutationsAreKilled(unittest.TestCase):
         """Treating legacy `rounds is None` as a passing record MUST be
         killed by MiningSkipsLegacyObservationsWithoutRoundsField."""
         path = LIB / "learn_anti_pattern_mining.py"
-        old = "rounds is not None and rounds >= 2"
-        new = "(rounds or 2) >= 2"  # legacy None → 2 → pass gate
+        old = "review_rounds is not None and review_rounds >= 2"
+        new = "(review_rounds or 2) >= 2"  # legacy None → 2 → pass gate
         with _mutated_source(path, old, new):
             result = _run_tests("test_learn_anti_pattern_mining", [
                 "MiningSkipsLegacyObservationsWithoutRoundsField."

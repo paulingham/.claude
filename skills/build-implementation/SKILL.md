@@ -83,13 +83,25 @@ Follow the ATDD Protocol in `rules/_detail/atdd-procedure.md`:
 
 **Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN. See `rules/_detail/atdd-procedure.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
 
-### Step 2b: Adversarial Test Categories (greenfield ACs only)
+### Step 2b: Adversarial Test Categories (greenfield ACs default-on, refactor slices env-gated)
 
 After Step 2's IMPLEMENT step lands GREEN and BEFORE the MUTATION GATE finalises, generate adversarial tests that probe edge cases the architect's stubs do not cover. Adversarials are AC-adjacent edge probes — they belong AFTER architect stubs are GREEN, not before. Inspired by AlphaCodium (arXiv 2401.08500) test-iteration loop.
 
 **Bug-fix slices SKIP this step entirely.** For bug-fix work, the repro test IS the contract — adversarial probing belongs in greenfield AC implementation, not regression closure. See `skills/bug-fix/SKILL.md` for the per-behaviour cycle that applies instead.
 
-**Escape hatch.** Set `CLAUDE_ADVERSARIAL_TESTS=0` in the environment to disable Step 2b — this skips Step 2b entirely. The hatch exists for the soak window (default-on) so cycle-time impact can be measured before flipping to mandatory; it is the one-line revert path if adversarial generation introduces unexpected runtime cost.
+**Refactor slices.** For refactor slices, Step 2b is opt-in (default OFF — soak window). When enabled, generate adversarials with **cap=3** (not the greenfield cap=5) — refactors change implementation, not contract, so a tighter cap bounds cycle time while still surfacing implementation regressions. The 5-category walk and discipline rules below apply unchanged; only the cap differs. Enable per pipeline by exporting `CLAUDE_ADVERSARIAL_TESTS_REFACTOR=1` in the build agent's environment. The flag is additive over the master kill-switch — `CLAUDE_ADVERSARIAL_TESTS=0` overrides any value of `CLAUDE_ADVERSARIAL_TESTS_REFACTOR` and skips Step 2b regardless.
+
+**Precedence truth table.** The two env vars and the slice's task class compose as follows. The master kill-switch wins; the refactor opt-in is additive only when the master is unset/`1`; bug-fix always skips:
+
+| `CLAUDE_ADVERSARIAL_TESTS` | `CLAUDE_ADVERSARIAL_TESTS_REFACTOR` | task class | Step 2b behavior |
+|---|---|---|---|
+| `CLAUDE_ADVERSARIAL_TESTS=0` | any | any | SKIPPED (master kill-switch wins) |
+| unset / `1` | unset / `0` | greenfield | RUNS, cap=5 |
+| unset / `1` | `CLAUDE_ADVERSARIAL_TESTS_REFACTOR=1` | refactor | RUNS, cap=3 |
+| unset / `1` | unset / `0` | refactor | SKIPPED (soak default-off) |
+| any | any | bug-fix | SKIPPED (bug-fix iron law) |
+
+**Escape hatch.** Set `CLAUDE_ADVERSARIAL_TESTS=0` in the environment to disable Step 2b — this skips Step 2b entirely on every task class (greenfield, refactor, bug-fix). The hatch exists for the soak window (default-on for greenfield) so cycle-time impact can be measured before flipping to mandatory; it is the one-line revert path if adversarial generation introduces unexpected runtime cost.
 
 **Procedure.** Generate **3-5 adversarial tests** (HARD CAP at 5 — bound the cycle time). Walk the categories below in order, stop at 5 once the cap is reached even if later categories were not exercised. Each adversarial follows **RED-then-GREEN** — write the test, run the suite, confirm it fails for the right reason, then implement (or correct production code) until it passes. This is the same audit-trail contract as the architect's stubs; a captured RED is the audit artifact.
 
@@ -145,7 +157,7 @@ Before declaring the build complete:
 - [ ] Functions > 30 lines or files > 150 lines: justified or refactored (advisory smell signals, not hard caps)
 - [ ] All tests pass
 - [ ] ATDD audit trail visible (batched RED + GREEN + mutation report ≥ 70%)
-- [ ] Step 2b ran (3-5 adversarial tests, each RED-then-GREEN), OR was skipped per `CLAUDE_ADVERSARIAL_TESTS=0`, OR is N/A for a bug-fix slice
+- [ ] Step 2b ran with the correct cap for the slice's task class (greenfield: default-on, cap=5; refactor: opt-in via `CLAUDE_ADVERSARIAL_TESTS_REFACTOR=1`, cap=3), OR was skipped per `CLAUDE_ADVERSARIAL_TESTS=0` (master kill-switch), OR is N/A for a bug-fix slice
 - [ ] Step 1d ran (PBT_AUTHORED or PBT_SKIPPED), OR was skipped per `CLAUDE_PBT=0`
 - [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `rules/_detail/e2e-protocol.md` trigger matrix)
 - [ ] If `/tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries

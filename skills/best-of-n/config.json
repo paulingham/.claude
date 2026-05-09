@@ -44,5 +44,5 @@
     "subjective_quality_bonus": 20,
     "diff_size_penalty_per_100_lines": 1
   },
-  "tie_breaker_order": ["diff_size_asc", "cost_asc"]
+  "tie_breaker_order": ["changed_files_asc", "changed_lines_asc", "cost_asc"]
 }
