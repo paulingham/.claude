@@ -18,8 +18,18 @@ set -uo pipefail
 METRICS_DIR="${HOME}/.claude/metrics"
 [[ -d "$METRICS_DIR" ]] || exit 0
 
-# Prune files older than 7 days inside any session's trace/ subdir.
-find "$METRICS_DIR" -mindepth 3 -maxdepth 3 -type f -path '*/trace/*' -mtime +7 -delete 2>/dev/null || true
+RETENTION_DAYS="${CLAUDE_TRACE_RETENTION_DAYS:-7}"
+
+# Stale-session shortcut: when a session-dir mtime is past retention, every
+# trace inside it is too. Drop the whole trace/ subtree without per-file stat.
+# This avoids enumerating thousands of stale traces on metrics dirs that
+# accumulated before the metrics-gc.sh hook landed.
+while IFS= read -r -d '' stale_session; do
+  rm -rf -- "$stale_session/trace" 2>/dev/null || true
+done < <(find "$METRICS_DIR" -mindepth 1 -maxdepth 1 -type d -mtime "+${RETENTION_DAYS}" -print0 2>/dev/null)
+
+# Fresh-session pass: prune individual traces older than retention.
+find "$METRICS_DIR" -mindepth 3 -maxdepth 3 -type f -path '*/trace/*' -mtime "+${RETENTION_DAYS}" -delete 2>/dev/null || true
 
 # Remove now-empty trace/ dirs, then empty session dirs.
 find "$METRICS_DIR" -mindepth 2 -maxdepth 2 -type d -name trace -empty -delete 2>/dev/null || true
