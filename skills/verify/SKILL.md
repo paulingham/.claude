@@ -122,6 +122,8 @@ where the denominator excludes `equivalent: yes` mutants. **kill_rate ≥ 0.60 r
 
 **Audit-trail invariant**: Tier 3.5 results **APPEND to the existing mutation report** produced by Tier 3 — they do NOT generate a new report file. The audit-trail count locked by `rules/_detail/atdd-procedure.md` (3 artifacts: batched RED, GREEN, mutation-report) is preserved.
 
+**Cross-reference**: `orchestrator/parallel-dispatch-details.md` § Multi-Persona Patch Critic Dispatch / Execution Evidence reuses the same call-shape pattern documented in this section (ONE call, NO retry, max-N items per response, JSON schema, parse-failure → silent skip). The procedure body above is the canonical wording source; the patch-critic execution-evidence layer inlines + adapts it. Tier 3.5's verify-time semantics are unchanged by that reuse.
+
 **Citations:**
 - arXiv 2406.09843 (Wang et al., 2024) — LLM-generated mutants achieve 87.98% fault detection vs 41.64% rule-based (46.3 pp lift) on a comprehensive benchmark; motivates Tier 3.5 as additive to Tier 3.
 - arXiv 2404.09952 (LLMorpheus, 2024) — measured ~18.2% structurally equivalent / near-equivalent mutant rate (8.5% equivalent + 9.7% near-equivalent), capping achievable kill rate at ~80–82% for LLM-mutant suites; motivates the 60% per-tier gate (headroom for tooling variance below the structural ceiling).
