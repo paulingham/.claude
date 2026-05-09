@@ -513,6 +513,11 @@
           },
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/metrics-gc.sh\"",
+            "timeout": 10000
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-self-test.sh\"",
             "timeout": 10000
           },
