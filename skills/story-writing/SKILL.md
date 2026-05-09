@@ -3,7 +3,6 @@ name: "story-writing"
 description: "Write a single well-formed user story as a value statement plus testable acceptance criteria with failing-test stubs and a Complexity Budget. Use when creating individual stories."
 context: fork
 agent: architect
-model: sonnet
 ---
 
 # Story Writing

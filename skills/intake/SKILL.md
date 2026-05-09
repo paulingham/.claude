@@ -1,7 +1,6 @@
 ---
 name: "intake"
 description: "Entry point for all user requests. Classifies work type (feature, refactor, bug, spike, question), estimates complexity, determines pipeline entry point, and invokes /pipeline. Use when receiving any new task from the user."
-model: sonnet
 argument-hint: "Feature, bug, or task description"
 ---
 
