@@ -41,6 +41,8 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `BoN_WINNER_SELECTED` | success | `best-of-n` | build | `/code-review` + `/security-review` |
 | `BoN_FALLBACK_TO_SINGLE` | info | `best-of-n` | build | Single-candidate Build dispatch on the same slice |
 | `BoN_INSUFFICIENT_RESOURCES` | failure | `best-of-n` | build | Halt; user escalation |
+| `PDR_WINNER_SELECTED` | success | `pdr-rtv` | build | `/code-review` + `/security-review` |
+| `PDR_NO_CONSENSUS` | failure | `pdr-rtv` | build | Silent fallback to Best-of-N → standard Build; logged in `## Re-routes` with `fallback_reason` enum (`worktree-cap-exceeded` / `insufficient-green-builds` / `all-finalists-rejected`) |
 | `APPROVE` | success | `code-review` | build (final step) | Build emits BUILD_COMPLETE; advance to Security Review |
 | `APPROVE` | success | `security-review` | security-review | Final Gate (verify + test + accept + patch-critique) |
 | `CHANGES_REQUESTED` | failure | `code-review` | build (final step) | Spawn fix-engineer in-line; re-dispatch code-reviewer; max 2 rounds inside Build |

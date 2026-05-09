@@ -229,7 +229,7 @@ Evaluated at Build phase start, before build engineers are spawned.
 
 **When spawned** (all must be true):
 - `slice_count >= 2` (multi-slice Build)
-- `dispatch_mode != "best-of-n"` (planning-agent is incoherent in Best-of-N races)
+- `dispatch_mode not in ("best-of-n", "pdr-rtv")` (planning-agent is incoherent in Best-of-N and PDR-RTV races — both are parallel candidate races with no shared evolving plan to refine)
 - `phase != "fix"` (fix-engineer scope is narrower than the plan)
 
 **Spawn** (simultaneously with build engineers in a single message):
