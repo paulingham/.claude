@@ -20,6 +20,21 @@ For phases in the Team Phases table (see `rules/parallel-dispatch-protocol.md`),
 
 Best-of-N Build dispatch fires when `/intake` tags the task with `bestofn: true` (`critical OR user_override`). N candidate engineers run in parallel worktrees, each on a different model; a single code-reviewer selects the winner. The winner still faces the normal Review → Final Gate → Ship gates. Cost is roughly 2-3x a standard build. The full procedure (pre-flight resource check, candidate roster, scoring rubric, merge & cleanup, fallback) lives in `~/.claude/orchestrator/parallel-dispatch-details.md` § Best-of-N Build Team Dispatch.
 
+## Build Phase Dispatch Variants
+
+The Build phase has three dispatch variants. Routing precedence is `pdr_rtv > bestofn > standard` — when multiple flags fire on the same slice, the strictly stronger variant wins. Both `pdr_rtv` and `bestofn` are computed by `/intake` Step 2d / 2d-bis and persisted to `pipeline-state/{task-id}/intake.md` frontmatter; `/pipeline` Step 3 reads them at Build dispatch time.
+
+| Flag combination | Dispatch | Why |
+|---|---|---|
+| `pdr_rtv == true AND bestofn == true` | **PDR-RTV wins** (strictly stronger). Logged as a re-route. | PDR-RTV's T=2 iterations + summary-based tournament dominates Best-of-N's T=1 + code-reviewer rubric on the same parallel-build budget. |
+| `pdr_rtv == true AND bestofn == false` | PDR-RTV. | Triggered by `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-9} OR critical`. |
+| `pdr_rtv == false AND bestofn == true` | Best-of-N (existing path, unchanged). | Triggered by `critical OR user_override`. |
+| `pdr_rtv == false AND bestofn == false` | Standard Build (single engineer, or multi-slice parallel engineers). | Default. |
+
+**Fallback semantics**: PDR-RTV emits `PDR_NO_CONSENSUS` when (a) <4 candidates produce green builds across both iterations, OR (b) tournament verifier rejects every finalist, OR (c) worktree-cap exceeded at pre-flight. The pipeline silently re-routes to Best-of-N → standard; the fallback is logged in pipeline state's `## Re-routes` section with a `fallback_reason` enum (`worktree-cap-exceeded` | `insufficient-green-builds` | `all-finalists-rejected`). Best-of-N's existing `BoN_FALLBACK_TO_SINGLE` chain remains in place under it. Worst case is single-engineer Build — the same floor the harness already accepts.
+
+The full PDR-RTV procedure lives in `~/.claude/orchestrator/parallel-dispatch-details.md` § PDR-RTV Build Team Dispatch.
+
 ## Structured Pipeline State
 
 Phase results are persisted as files in `~/.claude/pipeline-state/` to survive context compaction and enable inter-phase communication.

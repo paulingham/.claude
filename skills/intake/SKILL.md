@@ -161,14 +161,29 @@ Always print one of:
 
 Persist the flag to `pipeline-state/{task-id}/intake.md` frontmatter as `critical: true|false`. `/pipeline` reads this flag to decide whether the Build phase routes to `/best-of-n` or the standard `/build-implementation`.
 
-### Step 2d-bis: Best-of-N Tag (MANDATORY)
+### Step 2d-bis: Best-of-N + PDR-RTV Tags (MANDATORY)
+
+Derive two Build-phase dispatch flags. Both are persisted to `pipeline-state/{task-id}/intake.md` frontmatter and read by `/pipeline` Step 3 at Build dispatch time. Routing precedence is `pdr_rtv > bestofn > standard` per `rules/_detail/pipeline-protocol.md` § Build Phase Dispatch Variants.
+
+#### Best-of-N Flag
 
 Derive `bestofn`:
 `bestofn = critical OR user_override`
 
 Where `user_override` is true when the user's request contains the literal token `[best-of-n]` (case-insensitive). This is the manual override — the user explicitly asks for Best-of-N regardless of criticality. No other budget- or class-based path enables the flag; the cost-vs-quality tradeoff for non-critical work is no longer worth the 2-3x spend by default.
 
-Always print:
+#### PDR-RTV Flag
+
+Derive `pdr_rtv`:
+`pdr_rtv = budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-9} OR critical == true`
+
+The default trigger floor is `budget >= 9` (matches the "must decompose" threshold per `rules/_detail/operational-protocol.md`), NOT `budget >= 7`. The `CLAUDE_PDR_RTV_BUDGET_FLOOR` env var (range 5–15) provides opt-in override for operators wanting an empirical lower-floor experiment. Migration plan to drop the default floor to 7 is documented in `skills/pdr-rtv/SKILL.md` § Anti-Patterns: only after `/eval-model-effectiveness` confirms ≥5% Pass@1 lift on the harness regression suite at the lower floor.
+
+PDR-RTV is mutually exclusive with Best-of-N at dispatch time (when both fire, PDR-RTV wins as the strictly stronger variant). The cost is roughly 4-5× standard Build (vs Best-of-N's 2-3×) — justifying the higher trigger floor.
+
+#### Output
+
+Always print one of:
 ```
 [Intake] Best-of-N: enabled (reason: critical | user-override)
 ```
@@ -177,9 +192,19 @@ or:
 [Intake] Best-of-N: disabled
 ```
 
-Persist both to `pipeline-state/{task-id}/intake.md` frontmatter:
+Always print one of:
+```
+[Intake] PDR-RTV: enabled (reason: critical | budget>=9)
+```
+or:
+```
+[Intake] PDR-RTV: disabled
+```
+
+Persist all three to `pipeline-state/{task-id}/intake.md` frontmatter:
 - `task_class: {the classification from Step 1}`
 - `bestofn: true|false`
+- `pdr_rtv: true|false`
 
 ### Step 2e: Contract Identification (MANDATORY)
 

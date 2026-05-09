@@ -39,7 +39,7 @@ Full protocol: `rules/_detail/agent-protocol.md`.
 
 ## Pipeline Phase Order
 
-`Plan → Plan Validation → Build (incl. code-review as final step) → Security Review → Final Gate (Verify + Test + Accept + Patch Critique) → Ship → Deploy → Reflect`. No phase skipped. Every phase has a corresponding skill. Code-review is no longer its own phase — it runs as the final step of Build (the value-add is "second model with different priors", not a separate phase boundary). Security review remains a separate phase (orthogonal concern). Reflect always runs (§ Iron Law 7). Detail: `rules/_detail/pipeline-protocol.md`.
+`Plan → Plan Validation → Build (incl. code-review as final step) → Security Review → Final Gate (Verify + Test + Accept + Patch Critique) → Ship → Deploy → Reflect`. No phase skipped. Every phase has a corresponding skill. Code-review is no longer its own phase — it runs as the final step of Build (the value-add is "second model with different priors", not a separate phase boundary). Security review remains a separate phase (orthogonal concern). Reflect always runs (§ Iron Law 7). Build has three dispatch variants — standard, Best-of-N, and PDR-RTV — selected by `/intake` flags with precedence `pdr_rtv > bestofn > standard`. Detail: `rules/_detail/pipeline-protocol.md`.
 
 ## Where to Look Next
 

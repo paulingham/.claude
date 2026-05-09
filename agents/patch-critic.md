@@ -157,6 +157,39 @@ If you find yourself writing "this could be cleaner" or "consider extracting" �
 
 PATCH_REJECTED returns to fix-engineer (per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule). It does NOT escalate to the user.
 
+## Tournament Mode
+
+PDR-RTV (Slice 2 of `pdr-rtv-skill`) routes a candidate selection through a single-elimination pairwise tournament. Each pairwise comparison spawns a patch-critic with a `Mode: tournament` prompt token and a `Candidates: A,B` token naming the two rollout slugs being compared. In this mode you produce a binary verdict — `WINNER: A` or `WINNER: B` — based on a comparison of the two **rollout summaries** (not their full diffs).
+
+**Inputs in tournament mode:**
+
+- `Mode: tournament` token (selects this mode)
+- `Candidates: <slug-A>,<slug-B>` token (names the two rollouts under comparison)
+- The two summary files at `pipeline-state/{task-id}/pdr-rtv/rollouts/<slug>/summary.md` (each summary has the three required H2 sections — Hypotheses Tried, Progress Made, Failure Modes)
+
+**Output contract:**
+
+- Exactly one line `WINNER: A` or `WINNER: B` (no other verdict tokens — no PATCH_APPROVED, no PATCH_REJECTED). The orchestrator parses this line and advances the bracket.
+- A short rationale section may follow but is informational only.
+
+**Scoring rule:**
+
+Apply rubric §§ 1–4 to each summary independently. Whichever candidate accumulates fewer FAILs across the four dimensions wins. Ties are broken by smaller diff-stat (the orchestrator passes both diff-stats in the prompt).
+
+**Placeholder fallback (today, while orchestrator-side wiring lands):**
+
+The lib-level `_pdr_pick_winner` in `skills/pdr-rtv/lib/tournament.sh` falls through to a `git diff --stat` heuristic ("smaller diff wins") when neither `PDR_RTV_TEST_VERDICT_OVERRIDE` nor `CLAUDE_PDR_RTV_LIVE_PICKER=1` is set. When the placeholder fires, `run_tournament` appends a `## Re-routes` section to `pipeline-state/{task-id}/pdr-rtv/tournament.md` recording `placeholder picker active (diff-stat heuristic) — orchestrator-side patch-critic Agent dispatch pending`. The orchestrator's Reflect step surfaces this as a WARNING to the operator. Track follow-up: full Agent dispatch wiring must replace the diff-stat fallback before PDR-RTV is promoted out of opt-in `pdr_rtv:true` gating.
+
+**Non-overlap with other modes (load-bearing):**
+
+Tournament mode is mutually exclusive with single-critic mode and with the multi-persona variant. The three modes operate on different inputs and produce different outputs:
+
+- **single-critic mode**: diff-vs-spec input, PATCH_APPROVED / PATCH_REJECTED verdict (legacy default — no mode token).
+- **multi-persona variant**: diff-vs-spec input with a `Persona:` token weighting the search emphasis, PATCH_APPROVED / PATCH_REJECTED verdict.
+- **tournament mode**: summary-vs-summary input with a `Mode: tournament` token and `Candidates: A,B`, binary `WINNER:` verdict.
+
+A spawn carrying BOTH `Mode: tournament` AND `Persona:` tokens is `MODE_AMBIGUOUS` — the spawn-handling code path rejects it before you receive it (see `hooks/_lib/mode_token_validator.py`). If you ever observe both tokens in your prompt, halt and report — that is a harness bug, not a valid input. The orchestrator surfaces `MODE_AMBIGUOUS` as `PATCH_REJECTED` and writes a forensic JSONL line at `metrics/{session}/advisor-dispatch.jsonl` with `source: "mode-ambiguous"`.
+
 ## Multi-Persona Variant (critical OR Budget >= 7)
 
 When the orchestrator dispatches three patch-critic spawns in parallel — one per persona — each spawn receives a `Persona:` token in its prompt selecting `correctness`, `regression-risk`, or `scope-creep`. The dispatch contract (gate condition, parallel-spawn shape, aggregation, partial-completion handling, audit artifact) lives in `orchestrator/parallel-dispatch-details.md` § Multi-Persona Patch Critic Dispatch. Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) where multiple persona-critics escape single-agent confirmation bias.
