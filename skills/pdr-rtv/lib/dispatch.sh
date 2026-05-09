@@ -19,6 +19,12 @@
 # instead of calling the real Agent tool. This is the substitution point
 # tests use to assert behaviour without spawning real subagents.
 
+# Source the shared validator (path-traversal defense, F1).
+_pdr_dispatch_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+. "${_pdr_dispatch_dir}/validate.sh"
+unset _pdr_dispatch_dir
+
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
@@ -39,6 +45,20 @@ _pdr_parse_kv_args() {
   [ -n "$_PDR_TASK_ID" ]    || { echo "dispatch_iteration: --task-id required" >&2; return 2; }
   [ -n "$_PDR_STATE_ROOT" ] || { echo "dispatch_iteration: --state-root required" >&2; return 2; }
   [ -n "$_PDR_CANDIDATES" ] || { echo "dispatch_iteration: --candidates required" >&2; return 2; }
+  _pdr_validate_task_id "$_PDR_TASK_ID" || return $?
+  _pdr_validate_candidates_csv "$_PDR_CANDIDATES" || return $?
+}
+
+_pdr_validate_candidates_csv() {
+  # Validates every comma-separated entry in $1 against the slug shape.
+  local csv="$1" slug
+  local IFS=','
+  # shellcheck disable=SC2206
+  local items=( $csv )
+  unset IFS
+  for slug in "${items[@]}"; do
+    _pdr_validate_slug "$slug" || return $?
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -192,10 +212,12 @@ dispatch_iteration() {
 
 reap_iteration_0_worktrees() {
   _pdr_parse_iter0_reap_args "$@" || return $?
-  # Reap every iter-0 candidate whose summary.md has been persisted.
+  # Reap every iter-0 candidate whose summary.md has been persisted. Slugs
+  # that fail the shape validator are skipped — see F2 in security review.
   local slug
   while IFS= read -r slug; do
     [ -n "$slug" ] || continue
+    _pdr_validate_slug "$slug" 2>/dev/null || continue
     _pdr_log_worktree_event WORKTREE_CLOSE 0 "$slug"
   done < <(_pdr_list_prior_summary_slugs "$_PDR_STATE_ROOT" "$_PDR_TASK_ID")
 }
@@ -212,10 +234,12 @@ _pdr_parse_iter0_reap_args() {
   done
   [ -n "$_PDR_TASK_ID" ]    || { echo "reap_iteration_0_worktrees: --task-id required" >&2; return 2; }
   [ -n "$_PDR_STATE_ROOT" ] || { echo "reap_iteration_0_worktrees: --state-root required" >&2; return 2; }
+  _pdr_validate_task_id "$_PDR_TASK_ID" || return $?
 }
 
 export -f dispatch_iteration reap_iteration_0_worktrees \
           _pdr_parse_kv_args _pdr_parse_iter0_reap_args \
+          _pdr_validate_candidates_csv \
           _pdr_list_prior_summary_slugs _pdr_seed_int \
           _pdr_sample_two_prior_summaries \
           _pdr_render_refine_section _pdr_render_spawn_prompt \

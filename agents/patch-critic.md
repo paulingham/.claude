@@ -176,6 +176,10 @@ PDR-RTV (Slice 2 of `pdr-rtv-skill`) routes a candidate selection through a sing
 
 Apply rubric §§ 1–4 to each summary independently. Whichever candidate accumulates fewer FAILs across the four dimensions wins. Ties are broken by smaller diff-stat (the orchestrator passes both diff-stats in the prompt).
 
+**Placeholder fallback (today, while orchestrator-side wiring lands):**
+
+The lib-level `_pdr_pick_winner` in `skills/pdr-rtv/lib/tournament.sh` falls through to a `git diff --stat` heuristic ("smaller diff wins") when neither `PDR_RTV_TEST_VERDICT_OVERRIDE` nor `CLAUDE_PDR_RTV_LIVE_PICKER=1` is set. When the placeholder fires, `run_tournament` appends a `## Re-routes` section to `pipeline-state/{task-id}/pdr-rtv/tournament.md` recording `placeholder picker active (diff-stat heuristic) — orchestrator-side patch-critic Agent dispatch pending`. The orchestrator's Reflect step surfaces this as a WARNING to the operator. Track follow-up: full Agent dispatch wiring must replace the diff-stat fallback before PDR-RTV is promoted out of opt-in `pdr_rtv:true` gating.
+
 **Non-overlap with other modes (load-bearing):**
 
 Tournament mode is mutually exclusive with single-critic mode and with the multi-persona variant. The three modes operate on different inputs and produce different outputs:

@@ -25,6 +25,12 @@
 #
 # Exit 0 on success, non-zero on bad arguments.
 
+# Source the shared validator (path-traversal defense, F1).
+_pdr_distill_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+. "${_pdr_distill_dir}/validate.sh"
+unset _pdr_distill_dir
+
 _pdr_distill_validate_args() {
   local fn_name="$1"; shift
   if [ "$#" -ne 4 ]; then
@@ -34,6 +40,9 @@ _pdr_distill_validate_args() {
   for arg in "$@"; do
     [ -n "$arg" ] || { echo "${fn_name}: empty argument" >&2; return 2; }
   done
+  # Position 3 = task_id, position 4 = slug (worktree + state_root are paths).
+  _pdr_validate_task_id "$3" || return $?
+  _pdr_validate_slug "$4"    || return $?
 }
 
 _pdr_distill_read_commit_block() {
@@ -56,6 +65,63 @@ _pdr_distill_extract_field() {
     BEGIN { IGNORECASE=1; pat="^"k":[[:space:]]*" }
     $0 ~ pat { sub(pat, ""); print; exit }
   '
+}
+
+# F4 secret redaction — replace secret-shaped substrings with
+# `[REDACTED:<class>]` and emit one forensic JSONL record per pattern class
+# matched. Does NOT abort distillation on detection; redaction with
+# visibility is the right balance (false-positive risk on aborts is high).
+_pdr_distill_redact_secrets() {
+  # Args: <task_id> <text>; emits redacted text on stdout, JSONL records as
+  # side-effect via _pdr_emit_redaction_record.
+  local task_id="$1" text="$2"
+  local classes
+  classes="$(_pdr_distill_classes_matched "$text")"
+  text="$(printf '%s' "$text" | _pdr_apply_redactions)"
+  local cls
+  for cls in $classes; do
+    _pdr_emit_redaction_record "$task_id" "$cls"
+  done
+  printf '%s' "$text"
+}
+
+_pdr_distill_classes_matched() {
+  # Args: <text>. Emits matched class names (one per line, deduped).
+  local text="$1"
+  {
+    printf '%s' "$text" | grep -Eq 'AKIA[0-9A-Z]{16}'        && echo aws-key
+    printf '%s' "$text" | grep -Eq 'gh[pousr]_[A-Za-z0-9]{36,}' && echo github-token
+    printf '%s' "$text" | grep -Eq '[A-Za-z0-9+/=]{40,}'      && echo high-entropy
+    printf '%s' "$text" | grep -Eq '^[A-Z_]+=[^[:space:]]{20,}$' && echo env-style
+  } | awk '!seen[$0]++'
+}
+
+_pdr_apply_redactions() {
+  # Reads stdin, applies regex-based redactions, writes to stdout.
+  # Order: env-style (line-anchored) FIRST so its value isn't pre-mangled by
+  # high-entropy. AWS and GitHub before high-entropy so the more specific
+  # class label is used; otherwise high-entropy would catch first.
+  sed -E \
+    -e 's/^[A-Z_]+=[^[:space:]]{20,}$/[REDACTED:env-style]/g' \
+    -e 's/AKIA[0-9A-Z]{16}/[REDACTED:aws-key]/g' \
+    -e 's/gh[pousr]_[A-Za-z0-9]{36,}/[REDACTED:github-token]/g' \
+    -e 's/[A-Za-z0-9+\/=]{40,}/[REDACTED:high-entropy]/g'
+}
+
+_pdr_emit_redaction_record() {
+  # Args: <task_id> <pattern_class>. Appends one JSON line to
+  # metrics/{session}/pdr-secret-redactions.jsonl.
+  local task_id="$1" pattern_class="$2"
+  local session="${CLAUDE_SESSION_ID:-local-$$}"
+  session="${session//[^A-Za-z0-9_-]/_}"
+  [[ -z "$session" || "$session" =~ ^_+$ ]] && session="local-$$"
+  local dir="${HOME}/.claude/metrics/${session}"
+  mkdir -p "$dir" 2>/dev/null || return 0
+  local ts
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"timestamp": "%s", "source": "pdr-secret-redacted", "task_id": "%s", "pattern_class": "%s"}\n' \
+    "$ts" "$task_id" "$pattern_class" \
+    >> "${dir}/pdr-secret-redactions.jsonl" 2>/dev/null || true
 }
 
 _pdr_distill_write_summary() {
@@ -83,6 +149,10 @@ distill_rollout() {
   progress="$(_pdr_distill_extract_field "$block" "PROGRESS")"
   failures="$(_pdr_distill_extract_field "$block" "FAILURES")"
 
+  hypotheses="$(_pdr_distill_redact_secrets "$task_id" "$hypotheses")"
+  progress="$(_pdr_distill_redact_secrets   "$task_id" "$progress")"
+  failures="$(_pdr_distill_redact_secrets   "$task_id" "$failures")"
+
   out_file="${state_root}/${task_id}/pdr-rtv/rollouts/${slug}/summary.md"
   _pdr_distill_write_summary "$out_file" "$hypotheses" "$progress" "$failures"
 }
@@ -91,4 +161,8 @@ export -f distill_rollout \
           _pdr_distill_validate_args \
           _pdr_distill_read_commit_block \
           _pdr_distill_extract_field \
+          _pdr_distill_redact_secrets \
+          _pdr_distill_classes_matched \
+          _pdr_apply_redactions \
+          _pdr_emit_redaction_record \
           _pdr_distill_write_summary

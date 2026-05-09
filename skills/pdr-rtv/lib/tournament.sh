@@ -24,6 +24,12 @@
 # Dependencies: distill.sh's summary directory layout is read here, so
 # rollouts/<slug>/summary.md must already exist before run_tournament fires.
 
+# Source the shared validator (path-traversal defense, F1).
+_pdr_tournament_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+. "${_pdr_tournament_dir}/validate.sh"
+unset _pdr_tournament_dir
+
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
@@ -43,6 +49,19 @@ _pdr_tournament_parse_args() {
   [ -n "$_PDR_T_TASK_ID" ]    || { echo "run_tournament: --task-id required" >&2; return 2; }
   [ -n "$_PDR_T_STATE_ROOT" ] || { echo "run_tournament: --state-root required" >&2; return 2; }
   [ -n "$_PDR_T_CANDIDATES" ] || { echo "run_tournament: --candidates required" >&2; return 2; }
+  _pdr_validate_task_id "$_PDR_T_TASK_ID" || return $?
+  _pdr_tournament_validate_csv "$_PDR_T_CANDIDATES" || return $?
+}
+
+_pdr_tournament_validate_csv() {
+  local csv="$1" slug
+  local IFS=','
+  # shellcheck disable=SC2206
+  local items=( $csv )
+  unset IFS
+  for slug in "${items[@]}"; do
+    _pdr_validate_slug "$slug" || return $?
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -108,13 +127,23 @@ _pdr_pick_winner() {
   # Test-seamed verdict picker. Production: invokes patch-critic via Agent
   # tool (out-of-scope for Slice 2; orchestrator-side wiring lands in Slice 3).
   # Test path honours PDR_RTV_TEST_VERDICT_OVERRIDE.
+  #
+  # Placeholder-detection (F3): when neither the test override nor the
+  # CLAUDE_PDR_RTV_LIVE_PICKER opt-in is set, the diff-stat heuristic acts
+  # as the primary verdict source. That is a gate-bypass surface — touch a
+  # sentinel file so `run_tournament` can append a `## Re-routes` section
+  # AFTER the bracket walk completes. (The bracket walks inside a process-
+  # substitution subshell, so a global var would not propagate; the
+  # filesystem sentinel survives the subshell boundary.)
   local slug_a="$1" slug_b="$2"
   case "${PDR_RTV_TEST_VERDICT_OVERRIDE:-}" in
     alpha-first)
       [ "$slug_a" \< "$slug_b" ] && printf '%s' "$slug_a" || printf '%s' "$slug_b"
       ;;
     *)
-      # Default fallback: smaller diff_stat wins; on tie, alphabetically first.
+      if [ -z "${CLAUDE_PDR_RTV_LIVE_PICKER:-}" ] && [ -n "${_PDR_T_PLACEHOLDER_SENTINEL:-}" ]; then
+        : > "$_PDR_T_PLACEHOLDER_SENTINEL"
+      fi
       _pdr_pick_winner_by_diff_stat "$slug_a" "$slug_b"
       ;;
   esac
@@ -182,6 +211,20 @@ _pdr_tournament_md_append_winner() {
   } >> "$out_path"
 }
 
+_pdr_tournament_md_append_reroute() {
+  # F3 — appended when _pdr_pick_winner fell through to the diff-stat
+  # heuristic without orchestrator-level patch-critic wiring. Reflect step
+  # surfaces this as a WARNING; pipeline never silently ships a diff-stat-
+  # only winner without the operator seeing it.
+  local out_path
+  out_path="$(_pdr_tournament_md_path)"
+  {
+    echo ""
+    echo "## Re-routes"
+    echo "placeholder picker active (diff-stat heuristic) — orchestrator-side patch-critic Agent dispatch pending"
+  } >> "$out_path"
+}
+
 # ---------------------------------------------------------------------------
 # Bracket walk (single-elimination)
 # ---------------------------------------------------------------------------
@@ -230,6 +273,12 @@ run_tournament() {
   unset IFS
 
   _pdr_tournament_md_init
+  # Placeholder-detection sentinel — survives subshell boundaries (the
+  # round walk runs inside `< <(...)` process substitution, so a global
+  # var would not propagate). Cleaned up at function exit.
+  export _PDR_T_PLACEHOLDER_SENTINEL
+  _PDR_T_PLACEHOLDER_SENTINEL="$(mktemp -t pdr-rtv-placeholder.XXXXXX)"
+  rm -f "$_PDR_T_PLACEHOLDER_SENTINEL"
 
   local round_idx=1
   local current=( "${cands[@]}" )
@@ -245,12 +294,19 @@ run_tournament() {
   local final_winner="${current[0]}"
   _pdr_record_winner "final" "$final_winner"
   _pdr_tournament_md_append_winner "$final_winner"
+  if [ -e "$_PDR_T_PLACEHOLDER_SENTINEL" ]; then
+    _pdr_tournament_md_append_reroute
+  fi
+  rm -f "$_PDR_T_PLACEHOLDER_SENTINEL"
+  unset _PDR_T_PLACEHOLDER_SENTINEL
 }
 
 export -f run_tournament \
-          _pdr_tournament_parse_args _pdr_tournament_md_path \
+          _pdr_tournament_parse_args _pdr_tournament_validate_csv \
+          _pdr_tournament_md_path \
           _pdr_rollout_meta_field _pdr_render_comparison_prompt \
           _pdr_record_comparison _pdr_record_winner \
           _pdr_pick_winner _pdr_pick_winner_by_diff_stat \
           _pdr_tournament_md_init _pdr_tournament_md_append_match \
-          _pdr_tournament_md_append_winner _pdr_run_round
+          _pdr_tournament_md_append_winner \
+          _pdr_tournament_md_append_reroute _pdr_run_round
