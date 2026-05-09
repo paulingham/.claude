@@ -57,6 +57,8 @@ You consume the a11y JSON only. Pixel-level inspection of captured imagery is pr
 
 If any required input (diff, tests, spec) is missing, return PATCH_REJECTED with reason `missing input: {name}`. Do NOT guess. The a11y index is optional; absence triggers rubric § 5 SKIP semantics, not PATCH_REJECTED.
 
+An OPTIONAL `## Execution Evidence` section MAY appear in your spawn prompt, injected by the orchestrator when the operator has opted into the execution-evidence path (see `orchestrator/parallel-dispatch-details.md` § Multi-Persona Patch Critic Dispatch / Execution Evidence). Absence is the default — when the section is missing, dispatch is the standard diff-only path and you score the rubric exactly as you do today. When the section is present, treat its contents as additional input context for the EXISTING rubric dimensions; the rubric, its dimensions, and the severity scheme are UNCHANGED. The same evidence block appears verbatim in every persona's prompt (once-per-slice contract), so it does NOT influence cross-persona divergence — divergence still arises from the per-persona search-emphasis weights.
+
 ## Severity Scheme
 
 Every finding you record carries a severity bucket. The bucket determines whether the dimension PASSes or FAILs and — in the multi-persona variant — whether the orchestrator-level aggregator produces PATCH_REJECTED.
