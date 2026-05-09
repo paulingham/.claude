@@ -135,10 +135,19 @@ Before signaling build complete, review your own work. All verification must be 
    - No duplication (same logic in 2+ places → extract)
    - Functions have single responsibility
    - No dead code, unused imports, commented-out blocks
-4. **PBT run produced ≥ 1 property per public function on changed lines, OR a documented justification why a property is impossible.** See `skills/qa-test-strategy/SKILL.md` § Property-Based Coverage for the procedure (Hypothesis / fast-check / PropEr; idempotence / inverse / oracle / metamorphic relations; 60s time-box per function; frozen counterexamples become unit tests). Justification format: one line per skipped function citing the impossibility class (I/O-only, pure SDK pass-through, single-call dispatcher).
+4. **PBT run produced ≥ 1 property per public function on changed lines, OR a documented justification why a property is impossible.** See `skills/property-based-test/SKILL.md` for the authoring procedure (Hypothesis / fast-check / PropEr; idempotence / inverse / oracle / metamorphic relations; 60s time-box per function; frozen counterexamples become unit tests). Justification format: one line per skipped function citing the impossibility class (I/O-only, pure SDK pass-through, single-call dispatcher). qa-engineer's role at Final Gate is verification — re-running `/property-based-test` is the in-cycle fix path when the matrix is incomplete.
 5. **Web E2E flows exist for changed behavior matching web trigger globs, OR no web globs matched.** Cross-check `hooks/_lib/e2e_target_resolver.py` `WEB_PATTERNS` against the diff via `detect_targets(...)`; when web fires, a Playwright (or Cypress) spec MUST exercise the changed behavior. If web does not fire, document "no web globs matched" in the verify report.
 6. Fix any issues found — do not leave them for the reviewer
 7. The code-reviewer should find only design-level concerns, never mechanical issues
+
+### Deprecation Window
+
+The PBT authoring procedure relocated from `skills/qa-test-strategy/SKILL.md` § Property-Based Coverage to `skills/property-based-test/SKILL.md` in the pbt-skill pipeline. Both pointer forms are accepted during the **30-day soak**:
+
+- **New (canonical)**: `skills/property-based-test/SKILL.md` — the authoring procedure now lives here.
+- **Legacy (deprecated)**: `skills/qa-test-strategy/SKILL.md § Property-Based Coverage` — retained so in-flight worktrees that started before the harness upgrade landed continue to resolve.
+
+Tooling that reads the qa-engineer self-review pointer treats either substring as valid. A follow-up cleanup pipeline removes the legacy pointer after the 30-day soak ends. This protects pipelines that span the upgrade boundary from hard-halting on a missing-pointer error.
 
 ## Commit Cadence
 
