@@ -34,12 +34,11 @@ Agent({
 
     1. Map each AC to existing test(s) that verify it
     2. Identify gaps: ACs without tests, missing error paths, untested edge cases
-    3. Property-Based Coverage (see § Property-Based Coverage below) — for every public function on a changed line with type annotations, generate idempotence/inverse/oracle/metamorphic properties using the language-appropriate harness. Time-box 60s per function. Frozen counterexamples become unit tests in the next step.
-    4. Write integration tests for gaps (including frozen PBT counterexamples promoted to unit tests)
-    5. Write E2E test flows for critical user paths
-    6. Verify 80% coverage on critical paths
+    3. Write integration tests for gaps (including frozen PBT counterexamples promoted to unit tests by `/property-based-test` at Build Step 1d)
+    4. Write E2E test flows for critical user paths
+    5. Verify 80% coverage on critical paths
 
-    7. Analyze maestro/ E2E flows:
+    6. Analyze maestro/ E2E flows:
        - Map user journeys to existing Maestro flows
        - Verify flows exist for changed behavior (see rules/e2e-protocol.md trigger matrix)
        - If new domains or auth paths were added, verify corresponding flows exist
@@ -52,36 +51,15 @@ Agent({
 
 Uses `isolation: "worktree"` — qa-engineer writes test files.
 
-### Property-Based Coverage
+### Property-Based Coverage Verification (Final-Gate role)
 
-Inserted between gap analysis (Step 2 in the qa-engineer prompt) and authoring (Steps 3-5). Required for changes touching public functions with typed signatures; every such function gets ≥1 property OR a documented justification why a property is impossible (per `agents/qa-engineer.md` checklist).
+PBT authoring is performed earlier in the pipeline by `/property-based-test` at Build Step 1d (see `skills/property-based-test/SKILL.md`). At Final Gate, qa-engineer's responsibility is **verification only**:
 
-#### Procedure
+- Confirm ≥1 property exists per public function on changed lines, OR a documented justification why a property is impossible (per the QA Checklist below).
+- Confirm any frozen counterexamples joined the deterministic unit-test tier with harness-native syntax (`@example` / seeded `fc.assert`).
+- Report the matrix in the `### Property-Based Coverage Report` section of the Test Coverage Report Format.
 
-1. **Identify candidate functions**: from `git diff --name-only`, list public functions on changed lines that have type annotations / typed signatures.
-2. **Generate properties** for each candidate using the language-appropriate harness:
-   - **Python**: [Hypothesis](https://hypothesis.readthedocs.io/) — `@given(...)` strategies derived from type hints; `@example(...)` for known boundary cases.
-   - **TypeScript / JavaScript**: [fast-check](https://github.com/dubzzz/fast-check) — `fc.assert(fc.property(...))` with arbitraries derived from the type signature.
-   - **Erlang**: [PropEr](https://proper-testing.github.io/) — `?FORALL(...)` macros with type-derived generators.
-   - Other typed languages: equivalent PBT framework (e.g., Hypothesis-jvm, Hedgehog for Haskell).
-3. **Pick relations**, choosing the strongest applicable subset (≥1 required):
-   - **Idempotence** — `f(f(x)) == f(x)` (e.g., `normalize`, `sanitize`, `dedupe`).
-   - **Inverse** — `decode(encode(x)) == x` and `encode(decode(y)) == y` for round-trippable pairs.
-   - **Oracle** — `f(x)` agrees with a known reference implementation (slower but obviously correct version) on all inputs.
-   - **Metamorphic** — relations between outputs (`f(sort(xs)) == sort(f(xs))`, `f(x ++ y) == f(x) + f(y)` for homomorphisms, `f(x) ⊆ f(x ++ y)` for monotonicity).
-4. **Time-box 60s per function**. If the harness exhausts the wall-clock without finding a counterexample, record `passed_within_budget` and move on. If a counterexample IS found, freeze it.
-5. **Freeze counterexamples as unit tests**: every counterexample produced by the PBT harness is captured as a deterministic regression test (`@example(...)` in Hypothesis, `fc.assert(...)` with the seed in fast-check). The frozen test joins the unit-test tier and runs on every CI run thereafter.
-6. **Justify impossibility** when no property applies: I/O-only functions, pure side-effect callers, single-call dispatchers — record a one-line justification in the qa report's `## Property-Based Coverage` section. The qa-engineer checklist gates on "≥1 property OR documented justification".
-
-#### When PBT does NOT apply
-
-- Stateful integration glue (covered by integration tests, not PBT)
-- UI event handlers without pure logic separation
-- Functions whose only contract is "calls the SDK and returns the result" — wrap the SDK in a port and PBT the port instead
-
-#### Tier mapping
-
-PBT tests run as **Tier 1.5** in `rules/_detail/engineering-invariants.md` § Proof of Correctness. They sit between unit (Tier 1) and integration (Tier 2). Frozen counterexamples join Tier 1.
+If the matrix is incomplete, return GAPS_FOUND and dispatch fix-engineer (per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule). qa-engineer does NOT author PBTs at this gate — re-running `/property-based-test` is the in-cycle fix path.
 
 ### 3. Process Report
 
@@ -114,7 +92,7 @@ PBT tests run as **Tier 1.5** in `rules/_detail/engineering-invariants.md` § Pr
 - **Missing**: [list of untested ACs or paths]
 - **Weak**: [list of ACs with insufficient assertions]
 
-### Property-Based Coverage
+### Property-Based Coverage Report
 | Function | Path | Properties | Outcome | Counterexamples Frozen |
 |----------|------|-----------|---------|------------------------|
 | `parse_csv` | `lib/parser.py` | inverse(decode∘encode), idempotence(strip-bom) | passed_within_budget | — |

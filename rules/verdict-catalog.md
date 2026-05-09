@@ -33,6 +33,9 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `TOOL_SYNTHESISED` | info | `tool-synthesis` | build | Build agent uses the scratch tool, deletes after use |
 | `TOOL_SYNTHESISED_PROMOTABLE` | info | `tool-synthesis` | build | Same as TOOL_SYNTHESISED + flagged as reusable across pipelines; `/learn` counts cross-pipeline recurrences and scaffolds a permanent skill on the third hit (human review gate) |
 | `TOOL_UNNECESSARY` | info | `tool-synthesis` | build | Build agent proceeds with standard tools |
+| `PBT_AUTHORED` | success | `property-based-test` | build | Build proceeds; ≥1 property authored at Step 1d, ≥0 counterexamples frozen, ≥0 functions justified-impossible |
+| `PBT_SKIPPED` | info | `property-based-test` | build | Build proceeds; reason ∈ {`env-hatch` (CLAUDE_PBT=0 set), `no-candidates` (no public-typed-changed-line functions), `no-framework-for-language` (language has no shipped PBT harness or harness not installed)} |
+| `PBT_BLOCKED` | failure | `property-based-test` | build | Build halts; reason ∈ {`harness-crash`, `unrecoverable-error`}; recovery = set CLAUDE_PBT=0 and re-run; does NOT count against retry-twice-then-escalate budget per `rules/_detail/operational-protocol.md` |
 | `PLAN_REFINED` | info | `continuous-planning` | build | Build agents re-read plan; never gates Build completion |
 | `PLAN_UNCHANGED` | info | `continuous-planning` | build | No effect; Build proceeds |
 | `BoN_WINNER_SELECTED` | success | `best-of-n` | build | `/code-review` + `/security-review` |
