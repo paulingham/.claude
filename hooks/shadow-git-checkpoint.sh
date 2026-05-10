@@ -13,6 +13,11 @@
 
 set -euo pipefail
 
+# Sentinel string for the "clean worktree, nothing to checkpoint" path. Used
+# by both the error-state assignment and the downstream success-coercion so
+# the two sites can never drift on the literal value.
+readonly _SGC_NO_CHANGES="no-changes-to-capture"
+
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/log.sh"
@@ -84,7 +89,7 @@ if [[ -n "$STEP" && -n "$REF" ]]; then
       git -C "$WT" update-ref "$REF" "$SHA" 2>/dev/null || ERROR="git-update-ref-failed"
     else
       # AC2.7 — clean worktree (no diff vs HEAD). Graceful skip.
-      ERROR="no-changes-to-capture"
+      ERROR="$_SGC_NO_CHANGES"
       printf 'shadow-checkpoint: no changes to capture\n' >&2
     fi
   else
@@ -105,7 +110,7 @@ SUCCESS="true"
 # Treat the no-changes path as a successful no-op for forensics filtering: the
 # hook did its job, the worktree just had nothing to capture. Other paths with
 # ERROR set are real failures.
-[[ "$ERROR" == "no-changes-to-capture" ]] && SUCCESS="true"
+[[ "$ERROR" == "$_SGC_NO_CHANGES" ]] && SUCCESS="true"
 
 # AC2.11, AC2.13 — forensic JSONL via python3 json.dumps (NEVER printf with %s).
 python3 - "$TS" "$TASK" "$SLUG" "$STEP" "$REF" "$SHA" "$DURATION" "$SUCCESS" "$ERROR" "$LOG_FILE" <<'PY' 2>/dev/null || true

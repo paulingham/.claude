@@ -25,10 +25,15 @@
 _sgc_validate_id() {
   local id="${1:-}"
   [[ -z "$id" ]] && return 1
+  # Reject any embedded `..` substring BEFORE the regex check (path traversal:
+  # the regex permits dots, so `agent-..`, `foo..bar`, `..agent` would all
+  # otherwise pass — git itself rejects refs containing `..` per
+  # git-check-ref-format(1), but the helper is the contract layer).
+  case "$id" in *..*) return 1 ;; esac
   [[ "$id" =~ ^[A-Za-z0-9_.-]+$ ]] || return 1
-  # Reject literal `..` (path-traversal). The regex above blocks `/`, whitespace,
-  # quotes, control chars; we only need to reject pure-dot tokens explicitly.
-  [[ "$id" == ".." || "$id" == "." ]] && return 1
+  # Reject pure single-dot tokens. (The `..` and embedded-`..` cases are
+  # already handled above.)
+  [[ "$id" == "." ]] && return 1
   return 0
 }
 
@@ -131,11 +136,13 @@ _sgc_resolve_task_id() {
 # AC1.4 — _sgc_increment_counter (mkdir-as-mutex; bash 3.2 / BSD safe)
 # ---------------------------------------------------------------------------
 # Atomic increment of pipeline-state/{task}/checkpoint-counter-{slug}.txt.
-# 50ms backoff × 20 retries (1s budget). Mutex released via per-call EXIT trap
-# (subshell-scoped) — never leaks across helper invocations because each call
-# runs in the caller's process; we use trap-on-RETURN-equivalent via explicit
-# rmdir at the end. The function chooses an EXIT-trap-equivalent: explicit
-# release on success path, plus a guarded release on the error/return paths.
+# 50ms backoff × 20 retries (1s budget). The critical section runs in a
+# subshell whose EXIT trap unconditionally rmdir's the mutex — fires on
+# normal exit, on `exit 1` from the subshell body, and on signal kill.
+# Bash 3.2 RETURN traps are unreliable across `set -e` boundaries; subshell
+# EXIT traps are not. The wrapping function captures the subshell's stdout
+# (the padded step number) only on success and propagates a nonzero return
+# when the critical section fails (e.g. counter write blocked).
 _sgc_increment_counter() {
   local task_dir="${1:-}" slug="${2:-}"
   [[ -z "$task_dir" || -z "$slug" ]] && return 1
@@ -153,16 +160,20 @@ _sgc_increment_counter() {
     sleep 0.05
   done
 
-  local current=0 next padded
-  if [[ -f "$counter" ]]; then
-    current=$(cat "$counter" 2>/dev/null | tr -d ' \t\n')
-    [[ -z "$current" || ! "$current" =~ ^[0-9]+$ ]] && current=0
-  fi
-  next=$((10#$current + 1))
-  printf '%d\n' "$next" > "$counter" 2>/dev/null
-  rmdir "$lock" 2>/dev/null || true
+  local padded
+  padded=$(
+    trap 'rmdir "$lock" 2>/dev/null || true' EXIT
+    local current=0 next
+    if [[ -f "$counter" ]]; then
+      current=$(cat "$counter" 2>/dev/null | tr -d ' \t\n')
+      [[ -z "$current" || ! "$current" =~ ^[0-9]+$ ]] && current=0
+    fi
+    next=$((10#$current + 1))
+    printf '%d\n' "$next" > "$counter" 2>/dev/null || exit 1
+    printf '%04d\n' "$next"
+  ) || return 1
 
-  printf '%04d\n' "$next"
+  printf '%s\n' "$padded"
   return 0
 }
 

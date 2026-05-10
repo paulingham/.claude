@@ -156,7 +156,25 @@ def test_ac13_validate_id_rejects_traversal_and_separators() -> None:
     the test fixture itself (the helper's safety is what's under test).
     """
 
-    hostile = ["../etc", "..", "a/b", "a b", "tab\there", "a\nb", "a;rm -rf /", 'a"b', "''", ""]
+    hostile = [
+        "../etc",
+        "..",
+        "a/b",
+        "a b",
+        "tab\there",
+        "a\nb",
+        "a;rm -rf /",
+        'a"b',
+        "''",
+        "",
+        # Embedded `..` traversal segments — git itself rejects refs containing
+        # `..` per git-check-ref-format(1), but the validator must catch these
+        # at the helper layer too (defense in depth, AC1.3 + AC1.5 contract).
+        "agent-..",
+        "foo..bar",
+        "..agent",
+        "agent-..-trail",
+    ]
     for candidate in hostile:
         result = _bash(
             '_sgc_validate_id "$HOSTILE" || echo "RC=$?"',

@@ -87,6 +87,40 @@ _count_checkpoint_refs() {
 }
 
 # ---------------------------------------------------------------------------
+# AC1.4 — mutex released even when critical section errors mid-flight
+# ---------------------------------------------------------------------------
+
+@test "AC1.4 mutex released when counter write fails mid-section (no leak)" {
+  source "$HELPERS"
+  TASK_DIR="$STATE_DIR/$TASK"
+  SLUG="agent-leak"
+  mkdir -p "$TASK_DIR"
+
+  # Inject a failure between mkdir-lock and rmdir-lock by replacing the
+  # counter file path with a directory of the same name — the helper's
+  # `printf > "$counter"` will fail. The contract is:
+  #   (a) the helper MUST return nonzero (no spurious "0001" with the
+  #       counter file unwritten)
+  #   (b) the lock MUST be released so the next call doesn't spin
+  COUNTER="$TASK_DIR/checkpoint-counter-${SLUG}.txt"
+  mkdir "$COUNTER"  # not a file — printf > "$COUNTER" will fail
+
+  # First call: critical section fails — helper must return nonzero AND
+  # release the lock (subshell EXIT trap).
+  run _sgc_increment_counter "$TASK_DIR" "$SLUG"
+  [ "$status" -ne 0 ]
+  LOCK="${COUNTER}.lock"
+  [ ! -d "$LOCK" ]
+
+  # Second call (with the obstruction removed) must succeed without any
+  # lingering retry-spin from a leaked lock.
+  rmdir "$COUNTER"
+  run _sgc_increment_counter "$TASK_DIR" "$SLUG"
+  [ "$status" -eq 0 ]
+  [ "$output" = "0001" ]
+}
+
+# ---------------------------------------------------------------------------
 # AC2.1 — EXIT trap registered before any escape-hatch
 # ---------------------------------------------------------------------------
 
@@ -215,6 +249,11 @@ _count_checkpoint_refs() {
 
 @test "AC2.10 hostile worktree slug containing .. is rejected (no ref outside namespace)" {
   # Construct a worktree whose last segment is `agent-..` (path-traversal guard target).
+  # The validator (_sgc_validate_id) is the gate at the helper layer — it
+  # rejects any embedded `..` substring before the regex check, so the hook
+  # exits at the SLUG validation step (line ~42 of shadow-git-checkpoint.sh)
+  # without ever invoking `git update-ref`. Git's own ref-format check is a
+  # secondary defense, not the primary one.
   HOSTILE_WT="$TMP/.claude/worktrees/agent-.."
   mkdir -p "$HOSTILE_WT"
   echo "evil" > "$HOSTILE_WT/foo.txt"
@@ -224,6 +263,12 @@ _count_checkpoint_refs() {
   # Critical: NO ref created anywhere in the global ref db.
   ALL_REFS=$(git -C "$WT" for-each-ref --format='%(refname)' "refs/checkpoints/" 2>/dev/null | wc -l | tr -d ' ')
   [ "$ALL_REFS" -eq 0 ]
+
+  # Sibling assertion: prove the validator is the gate, not git. Sourcing
+  # the helper and asking it directly must reject the hostile slug with
+  # nonzero — same path the hook takes at line 42.
+  source "$HELPERS"
+  ! _sgc_validate_id "agent-.."
 }
 
 # ---------------------------------------------------------------------------
