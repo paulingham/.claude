@@ -1,7 +1,9 @@
 # Path allowlist for spec-blind-validator. One ERE pattern per line.
-# Lines starting with '#' or empty lines are ignored.
+# Lines starting with '#' or empty lines are ignored. Lines starting with '!'
+# (after optional whitespace) are EXCLUDE patterns evaluated FIRST — any path
+# matching an exclude is denied even if it also matches an include glob below.
 # Patterns are matched against the absolute path of a Read|Grep|Glob target;
-# any path NOT matching at least one pattern is denied.
+# any path NOT matching at least one include pattern is denied.
 #
 # Sources:
 #   - rules/_detail/module-boundaries-protocol.md § Module Contract Artifacts
@@ -11,6 +13,13 @@
 #
 # Default-deny: anything outside this list (src/**, lib/internal.ts, app/**, etc.)
 # returns exit 2 from hooks/spec-blind-read-guard.sh with a JSONL violation log.
+
+# CR-MED-4 — vendored / built / generated dirs excluded BEFORE include match so
+# `**/index.{ts,js}` does not admit `node_modules/foo/index.js` or `dist/x.js`.
+!.*/node_modules/.*
+!.*/vendor/.*
+!.*/dist/.*
+!.*/build/.*
 
 # Pipeline-state inputs (the spec)
 .*/pipeline-state/[A-Za-z0-9_.-]+/plan\.md$

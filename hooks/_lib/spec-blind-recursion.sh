@@ -18,11 +18,12 @@
 # Public function:
 #   is_harness_internal_cwd <cwd>  — exit 0 (harness-internal) / 1 (not harness)
 
-# Resolve a path to its realpath without depending on the GNU `realpath` binary
-# (macOS BSD lacks the GNU flag set).
-_spec_blind_realpath() {
-  python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "$1" 2>/dev/null
-}
+# Path resolution shim. `_spec_blind_realpath` lives in the shared
+# spec-blind-path.sh helper so read/write guards can call it BEFORE allowlist
+# matching (SEC-HIGH-1: symlink-bypass mitigation). Sourced here so the
+# function is in scope for is_harness_internal_cwd below.
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/spec-blind-path.sh"
 
 is_harness_internal_cwd() {
   local cwd="$1"
