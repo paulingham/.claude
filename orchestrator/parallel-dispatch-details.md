@@ -298,6 +298,250 @@ Agent({
 
 After both complete: merge branches, shut down teammates.
 
+### Multi-Slice DAG Mode (schema_version: 2)
+
+When `pipeline-state/{task-id}/plan.md` carries `schema_version: 2` in its
+frontmatter, Build dispatch routes through the v2 DAG path defined here.
+Plans without `schema_version: 2` (legacy v1 plans) fall through to the
+flat parallel-engineer path documented above — the legacy block is
+unchanged. The discriminator runs FIRST; the helper
+(`hooks/_lib/plan_dag_resolver.py`) is v2-only and rejects v1 input by
+design.
+
+Wave dispatch is **knapsack-packed** across the topological waves Kahn's
+algorithm emits. `pdr_rtv` and `bestofn` slice variants are orthogonal to
+the DAG: each variant contributes a per-slice worktree cost (PDR-RTV: 4,
+Best-of-N: variable, standard: 1) and the wave packer takes both
+`CLAUDE_BUILD_WAVE_MAX_PARALLEL` (slice-parallelism cap, default 3) and
+`CLAUDE_BESTOFN_MAX_WORKTREES` (total-worktree cap, workstation 6 / CI 12)
+into account simultaneously. Single-slice oversize cases (cost > total
+cap) serialise solo; the dispatcher never halts on capacity.
+
+#### Wave Cap Formula (canonical — single source of truth)
+
+The canonical wave-cap algorithm is **knapsack-style first-fit-decreasing**
+(NOT a divisor). It is defined ONCE here and referenced from the
+pseudocode below.
+
+```python
+def pack_wave(
+    ready_set: list[Slice],
+    max_total_worktrees: int,        # CLAUDE_BESTOFN_MAX_WORKTREES (workstation 6 / CI 12)
+    max_parallel_slices: int,        # CLAUDE_BUILD_WAVE_MAX_PARALLEL (default 3)
+    cost_for_slice: callable,        # standard: 1, BoN: N_BoN, PDR-RTV: N_PDR (typ. 4)
+) -> tuple[list[Slice], list[Slice]]:
+    """First-fit-decreasing knapsack packing.
+
+    Returns (selected, queued_to_next_wave). 'selected' is the actual wave
+    dispatched in parallel; 'queued' carries over to the next wave attempt.
+
+    Invariants:
+      - len(selected) <= max_parallel_slices
+      - sum(cost_for_slice(s) for s in selected) <= max_total_worktrees
+      - Single oversize slice (cost > max_total_worktrees) ALWAYS goes solo
+        (selected=[slice], rest queued). Logged to pipeline.md § Re-routes
+        as `[wave-cap] oversize slice {id} serialised; cost {N} > cap {M}`.
+    """
+    sorted_set = sorted(ready_set, key=cost_for_slice, reverse=True)  # FFD
+    selected, queued, used = [], [], 0
+    for slice in sorted_set:
+        cost = cost_for_slice(slice)
+        if cost > max_total_worktrees and not selected:
+            # Oversize-solo: take it alone, queue everything else.
+            return [slice], [s for s in sorted_set if s is not slice]
+        if len(selected) >= max_parallel_slices:
+            queued.append(slice); continue
+        if used + cost > max_total_worktrees:
+            queued.append(slice); continue
+        selected.append(slice); used += cost
+    return selected, queued
+```
+
+Worked examples (verifies the divisor regression is fixed):
+
+| Scenario | ready_set (cost) | cap_total=6, cap_par=3 | Result |
+|---|---|---|---|
+| All standard | a(1), b(1), c(1) | wave=[a,b,c] | today's behaviour preserved |
+| Mixed PDR-RTV + standard | A(4), C(1) | wave=[A,C] | was serialised by old divisor |
+| 2× PDR-RTV | A(4), B(4) | wave=[A]; next=[B] | correct serialise (8>6) |
+| Oversize PDR-RTV | A(4) on cap=3 | wave=[A] solo + log | never halts |
+| Many standard, > cap_par | a..g (1), cap_par=3 | wave=[a,b,c]; queued=[d..g] | parallelism cap honoured |
+
+#### Wave Dispatcher Pseudocode
+
+```python
+# orchestrator pseudocode — v2 DAG dispatch entry point.
+from hooks._lib.plan_dag_resolver import parse_plan, topological_waves, validate
+
+# Step 0: discriminator. Helper is v2-only; v1 falls through to legacy path.
+schema_version = detect_plan_schema_version(plan_path)
+if schema_version == 1:
+    dispatch_legacy_multi_slice(plan_path)   # the block above; unchanged
+    return
+
+result = parse_plan(plan_path)               # PlanV2 | ValidateResult
+if not isinstance(result, PlanV2):
+    raise PlanRejected(result.errors)        # parse_plan returned ValidateResult
+plan = result
+validation = validate(plan)
+if not validation.ok:
+    raise PlanRejected(validation.errors)
+
+# Env caps fed into the canonical pack_wave (above).
+cap_total = int(os.environ.get("CLAUDE_BESTOFN_MAX_WORKTREES", _default_bon_cap()))
+cap_par   = int(os.environ.get("CLAUDE_BUILD_WAVE_MAX_PARALLEL", "3"))
+all_waves = topological_waves(plan)          # Kahn's algorithm
+
+completed_shas: dict[str, str] = {}          # slice_id → branch-tip SHA (M5)
+wave_widths: list[int] = []                  # B1 forensic field
+queue: list[Slice] = []                      # carries over from prior waves
+
+# State-persistence target (M6): pipeline.md via Edit. Orchestrator-PWD writes
+# to .json / .yaml / .yml / .sh are blocked at PreToolUse by
+# hooks/bash-write-guard.sh — never shell-redirect from the orchestrator.
+# Appending to learning/{hash}/observations.jsonl is the one allowed exception
+# (the bash-write-guard whitelists append-mode opens for that path).
+
+for wave_idx, kahn_wave in enumerate(all_waves):
+    ready_set = list(queue) + [plan.slice(sid) for sid in kahn_wave]
+    queue = []
+
+    while ready_set:
+        # Knapsack-pack via the canonical pack_wave above (NOT a divisor).
+        selected, leftover = pack_wave(
+            ready_set, cap_total, cap_par, cost_for_slice=variant_cost,
+        )
+        ready_set = leftover
+
+        # State BEFORE dispatch: Edit `## Wave Progress` in pipeline.md.
+        edit_pipeline_md_wave_progress(
+            wave_dispatched=len(wave_widths),
+            slice_ids=[s.id for s in selected],
+        )
+        wave_widths.append(len(selected))
+
+        # Build per-slice spawn prompts.
+        spawn_prompts = []
+        for slice in selected:
+            # E2 fix: DIRECT parents only. Each parent's branch-tip already
+            # contains its own ancestors via cherry-pick chain, so transitive
+            # closure is redundant. See § Cherry-Pick Chain for DAG below.
+            parent_shas = topo_ordered_direct_parent_shas(
+                slice, completed_shas, plan,
+            )
+            spawn_prompts.append(build_prompt(
+                slice_id=slice.id,
+                # Each spawn prompt embeds the literal worktree-delegated form
+                # (Iron Law 4): `git -C "$WORKTREE" cherry-pick <sha1> <sha2>`.
+                cherry_pick_chain=parent_shas,
+                variant=resolve_variant(slice),
+            ))
+
+        # Single-message multi-Agent call (existing pattern).
+        results = parallel_agent_call(spawn_prompts)
+
+        # M5: agent's structured return carries `branch_head_sha`. The
+        # orchestrator NEVER runs `git merge` from REPO_ROOT — branches
+        # accumulate; the final merge is the Ship phase's job, IL4-compliant
+        # via `(cd "$WORKTREE" && ...)` delegation. The orchestrator does NOT
+        # invoke `git merge`; it reads `result.branch_head_sha` from each
+        # agent's structured return.
+        for slice, result in zip(selected, results):
+            if not result.ok:
+                # M3: deterministic transitive cancel. NOT a follow-up ticket
+                # (Iron Law 6) — descendants are killed in-cycle.
+                aborted = transitive_descendants(plan, slice.id)
+                mark_aborted(aborted)            # writes to pipeline.md § Re-routes
+                if slice.retry_count < 2:
+                    queue.append(slice)          # retry-twice-then-escalate
+                else:
+                    escalate_to_user(format_cancel_escalation(
+                        failed_slice=slice.id,
+                        cancelled_dependents=aborted,
+                        task_id=plan.task_id,
+                    ))
+                    halt_pipeline()
+                    return
+            completed_shas[slice.id] = result.branch_head_sha   # M5
+
+        edit_pipeline_md_wave_progress(wave_completed=len(wave_widths) - 1)
+
+# B1: emit forensic fields to observation record at Reflect time.
+write_observation_field("phases.build.wave_count",  len(wave_widths))
+write_observation_field("phases.build.wave_widths", wave_widths)
+```
+
+#### Cherry-Pick Chain for DAG (direct-parents-only)
+
+For a slice with `depends-on: [A, B]` where A and B both depend on root R:
+
+- `topo_ordered_direct_parent_shas(slice, completed_shas, plan)` returns
+  `[A_sha, B_sha]` — **only the DIRECT parents**, NOT the transitive closure.
+- The spawn prompt embeds the literal worktree-delegated form (Iron Law 4):
+  `git -C "$WORKTREE" cherry-pick <A_sha> <B_sha>`. Forms missing the
+  `-C "$WORKTREE"` delegation prefix are forbidden by
+  `hooks/main-branch-guard.sh`.
+- The orchestrator captures each slice's `branch_head_sha` from the agent's
+  structured return — IL4-compliant because no orchestrator-PWD git
+  command runs against REPO_ROOT. (Fallback: orchestrator reads the SHA
+  from the slice's scratchpad frontmatter via the Read tool, NOT via shell.)
+
+**Why direct-parents-only is safe**: git's cherry-pick computes
+`diff(commit, source_parent)` and applies the diff to HEAD. If A's branch-tip
+SHA already contains R's commits (because A's worktree first cherry-picked R
+and then committed A's own changes), then a downstream slice cherry-picking
+A_sha applies ONLY A's own delta — git's cherry-pick of `A_sha` uses A's
+parent (the R-applied commit) as the diff source, so R is NOT re-applied.
+The same holds for B_sha. R is applied EXACTLY ONCE, via whichever of A or B
+is cherry-picked first; the second cherry-pick of R via the other parent's
+tip is a no-op (diff equals what HEAD already has). This is load-bearing:
+future debuggers seeing a cherry-pick conflict on a diamond should suspect
+"A and B touched the same lines" (handled by
+`orchestrator/operational-details.md` merge-conflict procedure), NOT
+"R applied twice".
+
+#### Failure Handling (transitive cancel + retry-twice-then-escalate)
+
+- **Slice fails (BUILD_FAILED, irrecoverable)**: walk the reverse-DAG, mark
+  every transitive descendant `aborted`, and write the cancellation to
+  pipeline.md § Re-routes. The failed slice consumes its 2 retries per
+  `rules/_detail/operational-protocol.md` retry-twice-then-escalate; on the
+  third failure the pipeline halts.
+- **Iron Law 6 reconciliation**: cancelling transitive descendants is NOT a
+  follow-up ticket — it is the deterministic outcome of a parent's terminal
+  failure. The user is NOT asked any question; the pipeline halts after
+  emitting the structured escalation message below.
+- **Verbatim escalation copy** (`format_cancel_escalation`):
+
+  ```
+  Pipeline halted: {failed_slice} failed after 2 retries. Cancelled {N} dependent slice(s): {sorted_ids}. See pipeline-state/{task-id}/pipeline.md § Re-routes for full lineage. Recovery options:
+    1. Re-run /pipeline-resume to retry from the failed wave.
+    2. Edit the plan to remove the failed slice (set `aborted: true`) and re-emit.
+    3. Run /forensics for full timeline reconstruction.
+  ```
+
+  Cancelled-dependent IDs MUST appear inline in the user-visible escalation
+  message — operators reading a halted pipeline need to know the blast
+  radius without grepping pipeline.md.
+- **Wave-cap-exceeded mid-wave**: cannot occur — capacity is checked at
+  `pack_wave` time, before dispatch.
+
+#### Forensic Fields (Reflect emission)
+
+The wave dispatcher emits two fields to `learning/{project-hash}/observations.jsonl`
+at Reflect time per `rules/_detail/autonomous-intelligence.md` § Field
+reference:
+
+- `phases.build.wave_count` — `int`, the count of waves the dispatcher ran.
+- `phases.build.wave_widths` — `list[int]`, one entry per wave with the
+  selected-slice count (after knapsack packing).
+
+Both fields are **schema_version: 2 only** — legacy v1 pipelines do not run
+the wave dispatcher and therefore do not emit them. Readers MUST tolerate
+absence (treat as "v1 pipeline / unknown", NOT as `0`); see
+`rules/_detail/autonomous-intelligence.md` § Field reference for the
+canonical absence-tolerance contract.
+
 ### Planning Agent Dispatch (advisory, multi-slice Build only)
 
 **Spawn condition**: `should_spawn_planning_agent(slice_count, dispatch_mode, phase)` returns True.
