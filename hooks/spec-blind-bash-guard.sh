@@ -2,30 +2,23 @@
 # spec-blind-bash-guard PreToolUse hook (Bash).
 #
 # Closes the Bash bypass surface for the spec-blind-validator. Without this
-# guard, `cat src/x.ts` (or `node -e 'require("./src/x")'`) would let the
-# validator read implementation source even with the read-guard active.
+# guard, `cat src/x.ts` or `node -e 'require("./src/x")'` would leak source
+# even with the read-guard active. When subagent_type == spec-blind-validator:
+#   1. 7-runner allowlist at hooks/_lib/spec-blind-test-runners.txt. Each
+#      pattern's argument suffix excludes shell metachars (& | ; < > $ ` \
+#      ( ) cntrl) so chains like `npm test && cat src/x` are rejected
+#      (SEC-CRIT-1).
+#   2. Otherwise apply leak shapes (cat/head/tail on src|lib|app, sed/awk
+#      on src, node -e, python -c, ruby -e, perl -e, xxd, hexdump, grep -r
+#      <src>, find <src|lib|app>) via textual prefix matching — does NOT
+#      depend on git-rev-parse(pwd) (CR-MED-3).
+#   3. Deny-by-default: anything else blocked as `non-allowlisted-command`.
+# For every other subagent, fast-exits 0 (grep -F over raw stdin BEFORE jq)
+# preserving the AC17 budget for the no-op path.
 #
-# When subagent_type == spec-blind-validator:
-#   1. Check the 7-runner allowlist at hooks/_lib/spec-blind-test-runners.txt.
-#      Each pattern's argument suffix uses a NEGATIVE class that excludes
-#      shell metacharacters (& | ; < > $ ` \ ( ) cntrl), so chains like
-#      `npm test && cat src/x` are rejected at allowlist time (SEC-CRIT-1).
-#   2. Otherwise apply spec-blind-specific leak shapes (cat/head/tail on
-#      src|lib|app, sed/awk on src, node -e, python -c, ruby -e, perl -e,
-#      xxd, hexdump, grep -r <src>, find <src|lib|app>) using textual prefix
-#      matching against `src/`, `lib/`, `app/` substrings — does NOT depend
-#      on git-rev-parse(pwd) resolving to the repo root (CR-MED-3).
-#   3. Deny-by-default: anything else is blocked as `non-allowlisted-command`.
-#
-# For every other subagent, fast-exits 0. The fast-exit branch (grep -F over
-# raw stdin BEFORE jq) preserves the AC17 budget for the no-op path even
-# though Bash itself is the highest-volume PreToolUse matcher.
-#
-# IF SPEC-BLIND BASH IS LEAKING: check .subagent_type top-level JSON field
-# OR CLAUDE_SUBAGENT_TYPE env var (SEC-MED-2 fallback).
-# IF BASH GUARD IS OVER-BLOCKING legitimate test runs: check the runner ladder
-# at hooks/_lib/spec-blind-test-runners.txt — if your test command isn't there,
-# add it (V1 ships exactly 7 entries).
+# IF LEAKING: check .subagent_type JSON field OR CLAUDE_SUBAGENT_TYPE env
+# (SEC-MED-2 fallback). IF OVER-BLOCKING legitimate test runs: check
+# hooks/_lib/spec-blind-test-runners.txt — V1 ships exactly 7 entries.
 #
 # enforces: rules/_detail/pipeline-protocol.md (Final Gate § In-Cycle Fix Rule)
 # protects: spec-blind-validate
