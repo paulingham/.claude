@@ -147,6 +147,78 @@ Transcript-style, including ≥1 happy path and ≥2 failure paths per primary A
 > **Failure A**: backend timeout → user sees {state}, recovers by {action}
 > **Failure B**: validation rejects input → user sees {error message text}, corrects by {action}
 
+### Artifact 5 — Slice DAG
+
+Required for plans with ≥2 slices on `schema_version: 2`. The slice DAG is the orchestrator's source of truth for Build-phase wave scheduling — `hooks/_lib/plan_dag_resolver.py` parses it and `orchestrator/parallel-dispatch-details.md § Multi-Slice DAG Mode` consumes the topological waves.
+
+The DAG is encoded as a fenced YAML codeblock immediately under the `## Slices` heading, so the helper parses it unambiguously. Per-slice prose (description, ACs, failing-test stubs, risks) follows the codeblock under per-slice `### Slice <id>` headings.
+
+```yaml
+slices:
+  - id: slice-a-schema-spec        # REQUIRED. kebab-case, plan-unique.
+    depends-on: []                  # REQUIRED. Empty list = root.
+    description: Add Artifact 5 + frontmatter discriminator to agents/architect.md
+    domain: docs                    # OPTIONAL. Free-form forensic tag; no enforcement.
+  - id: slice-b-helper-module
+    depends-on: [slice-a-schema-spec]
+    description: Mint hooks/_lib/plan_dag_resolver.py + tests
+  - id: slice-c-consumer
+    depends-on: [slice-b-helper-module]
+    description: Wrap Build Phase Dispatch with v2 wave scheduler
+```
+
+**Field contract**:
+
+| Field | Cardinality | Format |
+|---|---|---|
+| `id` | REQUIRED | kebab-case (`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`); plan-unique |
+| `depends-on` | REQUIRED | List of `id`s declared elsewhere in `slices`. Empty list = root slice. |
+| `description` | REQUIRED | Non-empty string after trim. One-line slice summary. |
+| `domain` | OPTIONAL | Free-form forensic tag (e.g., `docs`, `helper`, `consumer`). Not enforced. |
+
+**Future-reserved fields** (REJECTED for v2; reserved for v3+): `mode`, `cap_hint`. Architects MUST NOT emit either today; the helper rejects v2 plans containing them.
+
+### Plan Output Contract — `schema_version: 2` (DAG plans)
+
+The architect emits one of two plan schemas; the orchestrator-side discriminator picks the dispatch path before any helper invocation.
+
+**v2 plan frontmatter** (REQUIRED on every DAG plan):
+
+```yaml
+---
+task_id: <id>
+schema_version: 2   # discriminator. Reader rejects values ∉ {1, 2}.
+dag: true           # capability flag. REQUIRED iff schema_version: 2.
+phase: plan
+---
+```
+
+`schema_version: 2` is the discriminator; `dag: true` is a capability flag that lets shell-side consumers (`grep -l 'dag: true' pipeline-state/*/plan.md`) enumerate v2 plans without parsing version numbers, and decouples version-bumping from DAG-presence in v3+.
+
+**v1 plan frontmatter** (legacy linear) carries NO `schema_version` field. The orchestrator's discriminator treats absence as v1 and dispatches via the legacy path. v1 plans are dispatched via the legacy multi-slice path; the helper is **v2-only** (v1 plans bypass `parse_plan` entirely — `parse_plan` REJECTS v1 inputs with `"v1 plans must be dispatched via legacy path"`).
+
+**Validation rules (architect emit-time AND helper read-time)**. The architect MUST self-check before emitting; the helper re-validates on read. Each rule has a canonical error token used in the helper's `ValidateResult.errors`:
+
+1. **No cycles** (`cycle: [<ids>]`) — adjacency map → Kahn's algorithm; if any node retains in-degree > 0 after wave extraction, fail.
+2. **All `depends-on` IDs declared** (`dangling: [<ids>]`) — set difference; every referenced ID must exist as a slice.
+3. **No self-deps** (`self-dep: <id>`) — `slice.id ∉ slice.depends-on`.
+4. **Kebab-case IDs** (`bad-id-format: <id>`) — regex `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`.
+5. **ID uniqueness** (`duplicate-ids: [<ids>]`) — list length matches set size.
+6. **Empty plan rejected** (`empty plan`) — `slices: []` is invalid for v2 (an empty DAG carries no work).
+7. **Non-empty description** (`empty-description: <id>`) — `len(description.strip()) > 0`. Catches `description: ""` and whitespace-only values which YAML accepts but the schema declares REQUIRED.
+
+Heavy-gate plan-validation challengers MUST run rules 1-7 against the architect's draft. Failure ⇒ `PLAN_HOLES`.
+
+**DUAL_PATH soak (90 days)**. The schema migration runs a 90-day DUAL_PATH soak. Writers (architects) emit only v2 on new DAG plans; readers (helper, orchestrator, plan-validation) tolerate both v1 (legacy linear) and v2 (DAG). Soak ends 2026-08-08 — the placeholder `pipeline-state/wave-dag-soak-end/pipeline.md` carries `not_before: 2026-08-08T00:00:00Z`; SessionStart's active-pipeline scan surfaces it once the date passes. The cleanup pipeline removes the v1 dispatch branch from `orchestrator/parallel-dispatch-details.md` and the v1-input rejection branch from `hooks/_lib/plan_dag_resolver.py`, gated on zero in-flight v1 plans.
+
+### Per-AC Failing Test Stub Grouping (v2)
+
+For v2 plans, **per-slice grouping is REQUIRED**: stubs group under `### Slice <id>` headings (one heading per slice), each followed by a stub table that lists `AC | Test File | Test Name | Assertion Intent` for that slice's ACs only. The orchestrator dispatches one Build agent per slice and routes each agent to its own `### Slice <id>` block — flat tables would force the agent to filter the table at read time and risk picking up a sibling slice's stubs.
+
+For v1 plans, the **flat layout is retained**: a single stub table at the start of the plan covering every AC across the whole linear story. v1 plans have a single Build agent and no slice-level routing, so flat is correct and consistent with today's behaviour.
+
+Architects emitting v2 MUST NOT use the flat layout; emitting v1 MUST NOT use per-slice headings. The orchestrator's discriminator routes the Build agent to the correct stub-shape; mismatched layout breaks dispatch.
+
 ### Prose Sections (kept tight)
 
 - Context and problem statement (≤100 words)
