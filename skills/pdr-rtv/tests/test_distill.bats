@@ -26,6 +26,16 @@ FAILURES: edge case on empty input remained
 
 Rollout summary commit.
 EOF
+
+  # AC1 — distill_rollout now writes a meta file with sha + diff_stat
+  # derived from `git rev-parse HEAD`. The fixture must be a git repo
+  # with at least one commit for the contract to hold.
+  ( cd "$WORKTREE" \
+      && git init -q \
+      && git config user.email t@t.t \
+      && git config user.name "t" \
+      && git add main.rs COMMIT_MSG \
+      && git commit -q -m "fixture commit for distill tests" )
 }
 
 teardown() {

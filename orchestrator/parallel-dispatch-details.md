@@ -412,7 +412,17 @@ The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastruct
 
 3. **Iteration 1 — refined rollouts**: call `dispatch_iteration 1`. The helper spawns N=4 parallel build engineers (branch `build/{task-id}-pdr-iter1-<slug>`), each receiving K=2 randomly-sampled iteration-0 summaries injected as a `## Refine From Prior Attempts` section in the spawn prompt. Sampling is deterministic given `CLAUDE_PDR_SEED` (default unset → fresh random). Iter-1 worktrees are reaped inside `dispatch_iteration` after each rollout's summary + meta is persisted.
 
-4. **Tournament — pairwise summary comparison**: source `skills/pdr-rtv/lib/tournament.sh` and call `run_tournament` against the list of green-build slugs (across both iterations, expected 8 if all candidates succeeded). Tournament is single-elimination pairwise (G=2); bracket order is deterministic given seed. Each match invokes `_pdr_pick_winner`, which dispatches `patch-critic` in tournament mode:
+4. **Tournament — pairwise summary comparison**: source `skills/pdr-rtv/lib/tournament.sh` and call `run_tournament` against the list of green-build slugs (across both iterations, expected 8 if all candidates succeeded). Tournament is single-elimination pairwise (G=2); bracket order is deterministic given seed.
+
+   **Live-picker wiring (orchestrator-side, mandatory in production):** before sourcing `tournament.sh` the orchestrator MUST export both:
+
+   ```
+   export CLAUDE_PDR_RTV_LIVE_PICKER=1
+   export PDR_RTV_VERDICT_DIR="<absolute path under pipeline-state/{task-id}/pdr-rtv/verdicts>"
+   mkdir -p "$PDR_RTV_VERDICT_DIR"
+   ```
+
+   Per match, the orchestrator dispatches `patch-critic` in tournament mode and pipes Agent stdout through `tee` so the verdict-file the lib reads is byte-identical to the agent's first line:
 
    ```
    Agent({
@@ -422,19 +432,24 @@ The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastruct
               Mode: tournament
               Candidates: <slug-A>,<slug-B>
               Read ~/.claude/agents/patch-critic.md and execute fully."
-   })
+   }) | tee "${PDR_RTV_VERDICT_DIR}/${round_idx}-${match_idx}.verdict"
    ```
 
-   The orchestrator parses `WINNER: A|B` from the agent's stdout. Today the production picker `_pdr_pick_winner` returns a diff-stat heuristic placeholder when no test-seam override is set — this is the documented hand-off surface for the orchestrator-side `Agent` invocation. The diff-stat heuristic remains as a tie-breaker, NOT the primary verdict source. Tournament progresses log2(N×T) rounds (3 for default 8 candidates: 8→4→2→1).
+   Round indexing is **1-based** (first round is `1`); match indexing is **0-based** (first match is `0`) — matches the `Match ${round_idx}.${match_idx}` heading convention emitted by `_pdr_tournament_md_append_match`. The lib's `_pdr_pick_winner` parses the FIRST LINE of the verdict file for `WINNER: A` or `WINNER: B` (trailing rationale lines are tolerated per `agents/patch-critic.md` § Tournament Mode output spec). On parse success the chosen slug is selected — diff-stat is NOT consulted. The diff-stat heuristic remains as a **documented tie-breaker** per `agents/patch-critic.md` § Tournament Mode (rubric §§ 1–4 ties → smaller diff-stat), NOT the primary verdict source. Tournament progresses log2(N×T) rounds (3 for default 8 candidates: 8→4→2→1).
+
+   On verdict-file missing OR malformed first line, the lib falls back to the diff-stat tie-breaker AND records a `## Re-routes` line `parse-failure for match ${round_idx}.${match_idx}, fell back to diff-stat` in `tournament.md` for forensic visibility.
 
 5. **MODE_AMBIGUOUS surfacing (Path-B advisory today)**: when a tournament-mode spawn carries BOTH `Mode: tournament` AND `Persona: <name>` tokens (as a future multi-persona prompt-builder bug could inject), `hooks/pre-agent-advisor.sh` (PreToolUse) logs `source: "mode-ambiguous"` to `metrics/{session}/advisor-dispatch.jsonl` per `agents/patch-critic.md` § Tournament Mode AC8b. The orchestrator MUST parse this forensic line at tournament conclusion and surface the offending match as `PATCH_REJECTED` (per AC8b verbatim) — propagate as `PDR_NO_CONSENSUS` with `fallback_reason: "all-finalists-rejected"` if the rejection eliminates the final pair. The hook is currently log-only because the Agent input schema does not yet expose the relevant fields; promotion to enforcement is a single-line flip in `hooks/pre-agent-advisor.sh` when the schema lands. The orchestrator-side `MODE_AMBIGUOUS → PATCH_REJECTED` surfacing is decoupled from the hook's promotion timeline.
 
 6. **Verdict & merge**: `run_tournament` writes `pipeline-state/{task-id}/pdr-rtv/tournament.md` with the full bracket (N-1 round entries), the `## Winner` section (slug + SHA + verbatim selection rationale), and the cost estimate. The orchestrator merges the winner branch into the pipeline working branch (`git -C "$WORKTREE" merge --no-ff build/{task-id}-pdr-iter<N>-<winner-slug>`) and removes loser worktrees + branches. Emits:
    - `PDR_WINNER_SELECTED` (success): winner proceeds to standard Review (`/code-review` + `/security-review` per `rules/_detail/pipeline-protocol.md`).
-   - `PDR_NO_CONSENSUS` (failure): silent re-route to Best-of-N → standard. Log to pipeline state's `## Re-routes` with one of three `fallback_reason` enum values:
+   - `PDR_NO_CONSENSUS` (failure): silent re-route to Best-of-N → standard. Log to pipeline state's `## Re-routes` with one of four `fallback_reason` enum values:
      - `worktree-cap-exceeded` (Step 0 above)
      - `insufficient-green-builds` (<4 candidates produced green builds across both iterations)
      - `all-finalists-rejected` (tournament verifier rejected every finalist via `PATCH_REJECTED` propagation)
+     - `missing-meta` (every finalist's distill-time meta file was missing — every winner's `## Winner` block carries `sha: <unknown>` and a `meta-missing for {slug}` reroute)
+
+   Tournament-time `meta-missing` indicates filesystem race or post-distill corruption — distill itself fails-loud at the upstream producer, so the meta file is always present immediately after `distill_rollout` returns 0.
 
 **Pipeline state** (`pipeline-state/{task-id}/pdr-rtv.md`):
 
@@ -443,7 +458,7 @@ The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastruct
 task_id: {task-id}
 phase: build
 verdict: PDR_WINNER_SELECTED | PDR_NO_CONSENSUS
-fallback_reason: null | worktree-cap-exceeded | insufficient-green-builds | all-finalists-rejected
+fallback_reason: null | worktree-cap-exceeded | insufficient-green-builds | all-finalists-rejected | missing-meta
 timestamp: {ISO 8601}
 ---
 

@@ -3,7 +3,7 @@
 # from the engineer-authored `[SUMMARY]…[/SUMMARY]` block before writing
 # `summary.md`. Patterns covered:
 #   - AWS access keys: AKIA[0-9A-Z]{16}
-#   - GitHub tokens:   gh[pous]_[A-Za-z0-9]{36,}
+#   - GitHub tokens:   gh[pousr]_[A-Za-z0-9]{36,}
 #   - High-entropy:    [A-Za-z0-9+/=]{40,}
 #   - .env-style:      ^[A-Z_]+=<value-len-20+>
 #
@@ -43,6 +43,17 @@ FAILURES: edge case remained
 
 Rollout summary commit.
 EOF
+  # AC1 — distill_rollout requires a commit at HEAD (writes meta file
+  # with sha + diff_stat). Initialise the worktree as a git repo with
+  # one commit so secret-redaction behaviour can still be exercised.
+  if [ ! -d "$WORKTREE/.git" ]; then
+    ( cd "$WORKTREE" \
+        && git init -q \
+        && git config user.email t@t.t \
+        && git config user.name "t" \
+        && git add COMMIT_MSG \
+        && git commit -q -m "fixture commit for secret redaction tests" )
+  fi
   # shellcheck source=/dev/null
   source "$DISTILL_PATH"
   distill_rollout "$WORKTREE" "$STATE_ROOT" "$TASK_ID" "$SLUG"
