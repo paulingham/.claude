@@ -352,6 +352,10 @@ def test_ac41_pipeline_skill_step7d_has_ref_cleanup() -> None:
 def test_ac51_pipeline_protocol_mentions_checkpoint_refs() -> None:
     text = PIPELINE_PROTOCOL_MD.read_text()
     assert "refs/checkpoints" in text, "pipeline-protocol.md missing refs/checkpoints contract"
+    # AC5.1 specifically asks the Lifecycle bullet to mention the contract.
+    assert "Lifecycle" in text and "shadow-git-checkpoint" in text, (
+        "Lifecycle bullet missing shadow-git-checkpoint reference"
+    )
 
 
 def test_ac52_dual_path_soak_section_documents_ref_cleanup() -> None:
