@@ -26,6 +26,7 @@
 !statusline-command.sh
 !statusline-robbyrussell.sh
 !version-pin
+!pyproject.toml
 !agent-memory/
 !agent-memory/**
 !memory/
