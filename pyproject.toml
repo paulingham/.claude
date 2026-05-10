@@ -1,0 +1,36 @@
+# Harness Python dependency manifest.
+#
+# The harness ships as a directory tree of bash hooks + Python helpers; it is
+# not a published wheel. This pyproject.toml is the SINGLE SOURCE OF TRUTH
+# for Python dependencies introduced by harness features (Wave 5+ codebase-map).
+#
+# Carryforward MEDIUM (Slice B → Slice C of pipeline auto-codebase-map):
+# `networkx>=3.6` was introduced in Slice B as a NEW HARNESS DEPENDENCY but
+# captured nowhere in the source tree. Slice C closes that gap by declaring
+# the codebase-map dependency surface here, with `tree-sitter-languages>=0.20`
+# alongside.
+#
+# Why optional-dependencies (not project.dependencies):
+# These deps gate a NON-CRITICAL feature (codebase-map digest generation).
+# A fresh harness install must work even when neither package is present —
+# the codebase-map hooks fast-exit gracefully (AC21 broadened catch surface
+# in pipeline-state/auto-codebase-map/plan.md). Treating them as required
+# would make the harness uninstallable in eval-isolation environments and
+# CI runs that don't carry the native deps.
+#
+# Install:  pip install -e '.[codebase-map]'
+[project]
+name = "claude-harness"
+version = "0.0.0"
+description = "Internal harness — not published to PyPI."
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+codebase-map = [
+    # Symbol-reference graph + personalized PageRank (Slice B).
+    "networkx>=3.6",
+    # Multi-language tag extraction via tree-sitter native grammars (Slice A
+    # non-Python branch). Optional — the codebase-map hooks degrade
+    # gracefully when this is missing (AC21 in the plan).
+    "tree-sitter-languages>=0.20",
+]
