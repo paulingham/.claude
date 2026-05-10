@@ -123,30 +123,89 @@ _pdr_record_winner() {
 }
 
 _pdr_pick_winner() {
-  # Args: <slug_a> <slug_b>
-  # Test-seamed verdict picker. Production: invokes patch-critic via Agent
-  # tool (out-of-scope for Slice 2; orchestrator-side wiring lands in Slice 3).
-  # Test path honours PDR_RTV_TEST_VERDICT_OVERRIDE.
+  # Args: <slug_a> <slug_b> [<round_idx>] [<match_idx>]
+  # Test-seamed verdict picker. Production behaviour (AC7): when both
+  # CLAUDE_PDR_RTV_LIVE_PICKER=1 and PDR_RTV_VERDICT_DIR are exported,
+  # read `${PDR_RTV_VERDICT_DIR}/<round>-<idx>.verdict` (1-based round,
+  # 0-based match — matches `_pdr_tournament_md_append_match` indexing)
+  # and parse the FIRST LINE for `WINNER: A` or `WINNER: B`. Trailing
+  # rationale lines are tolerated. On parse success the chosen slug is
+  # returned and diff-stat is NOT consulted.
+  #
+  # On verdict-file missing OR malformed (no first-line WINNER:A|B),
+  # fall back to `_pdr_pick_winner_by_diff_stat` AND record a parse-
+  # failure event in the sentinel directory so `run_tournament` can
+  # append a `## Re-routes` line after the bracket walk completes.
   #
   # Placeholder-detection (F3): when neither the test override nor the
   # CLAUDE_PDR_RTV_LIVE_PICKER opt-in is set, the diff-stat heuristic acts
-  # as the primary verdict source. That is a gate-bypass surface — touch a
-  # sentinel file so `run_tournament` can append a `## Re-routes` section
-  # AFTER the bracket walk completes. (The bracket walks inside a process-
-  # substitution subshell, so a global var would not propagate; the
-  # filesystem sentinel survives the subshell boundary.)
+  # as the primary verdict source. That is a gate-bypass surface — touch
+  # a sentinel file so `run_tournament` can append the F3 re-route line.
+  # The bracket walks inside a process-substitution subshell, so global
+  # vars would not propagate; the filesystem sentinel survives the
+  # subshell boundary.
   local slug_a="$1" slug_b="$2"
+  local round_idx="${3:-}" match_idx="${4:-}"
   case "${PDR_RTV_TEST_VERDICT_OVERRIDE:-}" in
     alpha-first)
       [ "$slug_a" \< "$slug_b" ] && printf '%s' "$slug_a" || printf '%s' "$slug_b"
-      ;;
-    *)
-      if [ -z "${CLAUDE_PDR_RTV_LIVE_PICKER:-}" ] && [ -n "${_PDR_T_PLACEHOLDER_SENTINEL:-}" ]; then
-        : > "$_PDR_T_PLACEHOLDER_SENTINEL"
-      fi
-      _pdr_pick_winner_by_diff_stat "$slug_a" "$slug_b"
+      return 0
       ;;
   esac
+  if _pdr_live_picker_enabled; then
+    local picked
+    if picked="$(_pdr_pick_winner_from_verdict_file \
+                   "$slug_a" "$slug_b" "$round_idx" "$match_idx")"; then
+      printf '%s' "$picked"
+      return 0
+    fi
+    # parse-failure path — fall through to diff-stat fallback below.
+    _pdr_record_parse_failure "$round_idx" "$match_idx"
+  elif [ -z "${CLAUDE_PDR_RTV_LIVE_PICKER:-}" ]; then
+    # F3 placeholder sentinel — only when LIVE_PICKER is unset. When
+    # LIVE_PICKER is set but VERDICT_DIR is missing (operator error or
+    # legacy test seam), we skip the F3 reroute to keep AC2's positive
+    # guarantee: the live-picker opt-in suppresses the placeholder
+    # signal even when diff-stat is the actual tie-breaker path.
+    if [ -n "${_PDR_T_PLACEHOLDER_SENTINEL:-}" ]; then
+      : > "$_PDR_T_PLACEHOLDER_SENTINEL"
+    fi
+  fi
+  _pdr_pick_winner_by_diff_stat "$slug_a" "$slug_b"
+}
+
+# AC7 — true when the orchestrator has wired the live picker (both env
+# vars exported). False otherwise (fall through to legacy diff-stat).
+_pdr_live_picker_enabled() {
+  [ -n "${CLAUDE_PDR_RTV_LIVE_PICKER:-}" ] && [ -n "${PDR_RTV_VERDICT_DIR:-}" ]
+}
+
+# AC7 — read verdict file and emit chosen slug on stdout. Returns 0 on
+# parse success, 1 on missing/malformed verdict (caller falls through to
+# diff-stat). Parses FIRST LINE only — trailing rationale lines tolerated
+# per `agents/patch-critic.md` § Tournament Mode output spec.
+_pdr_pick_winner_from_verdict_file() {
+  local slug_a="$1" slug_b="$2" round_idx="$3" match_idx="$4"
+  [ -n "$round_idx" ] && [ -n "$match_idx" ] || return 1
+  local verdict_file="${PDR_RTV_VERDICT_DIR}/${round_idx}-${match_idx}.verdict"
+  [ -f "$verdict_file" ] || return 1
+  local first_line
+  first_line="$(head -n 1 "$verdict_file")"
+  case "$first_line" in
+    "WINNER: A") printf '%s' "$slug_a"; return 0 ;;
+    "WINNER: B") printf '%s' "$slug_b"; return 0 ;;
+    *)           return 1 ;;
+  esac
+}
+
+# AC7 — record a parse-failure event so `run_tournament` can emit a
+# `## Re-routes` line after the bracket walk completes. One file per
+# match keeps the event reportable in deterministic order.
+_pdr_record_parse_failure() {
+  local round_idx="$1" match_idx="$2"
+  [ -n "${_PDR_T_PARSE_FAILURE_DIR:-}" ] || return 0
+  [ -n "$round_idx" ] && [ -n "$match_idx" ] || return 0
+  : > "${_PDR_T_PARSE_FAILURE_DIR}/${round_idx}-${match_idx}"
 }
 
 _pdr_pick_winner_by_diff_stat() {
@@ -200,10 +259,24 @@ _pdr_tournament_md_append_match() {
 
 _pdr_tournament_md_append_winner() {
   # Args: <slug>
+  # AC3 — when meta is missing or carries an empty sha, write the
+  # literal `sha: <unknown>` AND call the new sibling reroute helper to
+  # append `meta-missing for <slug>`. The existing F3 zero-arg helper
+  # `_pdr_tournament_md_append_reroute` is left untouched for callers
+  # that need its placeholder-active line (a different surface).
   local slug="$1"
   local out_path sha
   out_path="$(_pdr_tournament_md_path)"
   sha="$(_pdr_rollout_meta_field "$slug" sha)"
+  if [ -z "$sha" ]; then
+    {
+      echo "## Winner"
+      echo "slug: ${slug}"
+      echo "sha: <unknown>"
+    } >> "$out_path"
+    _pdr_tournament_md_append_meta_missing_reroute "$slug"
+    return 0
+  fi
   {
     echo "## Winner"
     echo "slug: ${slug}"
@@ -223,6 +296,54 @@ _pdr_tournament_md_append_reroute() {
     echo "## Re-routes"
     echo "placeholder picker active (diff-stat heuristic) — orchestrator-side patch-critic Agent dispatch pending"
   } >> "$out_path"
+}
+
+# AC3 — sibling helper. Appends a `meta-missing for <slug>` line under
+# the shared `## Re-routes` header. When the header is already present
+# (e.g., AC2-bis or F3 emitted earlier), reuse it; otherwise add it.
+_pdr_tournament_md_append_meta_missing_reroute() {
+  local slug="$1"
+  local out_path
+  out_path="$(_pdr_tournament_md_path)"
+  if ! grep -Fxq "## Re-routes" "$out_path" 2>/dev/null; then
+    {
+      echo ""
+      echo "## Re-routes"
+    } >> "$out_path"
+  fi
+  echo "meta-missing for ${slug}" >> "$out_path"
+}
+
+# AC7 — sibling helper. Appends a `parse-failure for match <round>.<idx>,
+# fell back to diff-stat` line under the shared `## Re-routes` header
+# for every match where the verdict file was malformed.
+_pdr_tournament_md_append_parse_failure_reroute() {
+  local round_idx="$1" match_idx="$2"
+  local out_path
+  out_path="$(_pdr_tournament_md_path)"
+  if ! grep -Fxq "## Re-routes" "$out_path" 2>/dev/null; then
+    {
+      echo ""
+      echo "## Re-routes"
+    } >> "$out_path"
+  fi
+  echo "parse-failure for match ${round_idx}.${match_idx}, fell back to diff-stat" >> "$out_path"
+}
+
+# AC2-bis — appended at run_tournament entry when both LIVE_PICKER and
+# TEST_VERDICT_OVERRIDE are unset. Cause-then-symptom convention: this
+# line lands BEFORE the F3 `placeholder picker active` line under the
+# shared `## Re-routes` header.
+_pdr_tournament_md_append_live_picker_missing_reroute() {
+  local out_path
+  out_path="$(_pdr_tournament_md_path)"
+  if ! grep -Fxq "## Re-routes" "$out_path" 2>/dev/null; then
+    {
+      echo ""
+      echo "## Re-routes"
+    } >> "$out_path"
+  fi
+  echo "live-picker-flag-missing — operator must export CLAUDE_PDR_RTV_LIVE_PICKER=1" >> "$out_path"
 }
 
 # ---------------------------------------------------------------------------
@@ -252,7 +373,7 @@ _pdr_run_round() {
     fi
     prompt="$(_pdr_render_comparison_prompt "$a" "$b")"
     _pdr_record_comparison "$round_idx" "$a" "$b" "$prompt"
-    winner="$(_pdr_pick_winner "$a" "$b")"
+    winner="$(_pdr_pick_winner "$a" "$b" "$round_idx" "$match_idx")"
     _pdr_tournament_md_append_match "$round_idx" "$match_idx" "$a" "$b" "$winner"
     printf '%s\n' "$winner"
     i=$((i + 2))
@@ -273,12 +394,29 @@ run_tournament() {
   unset IFS
 
   _pdr_tournament_md_init
+
+  # AC2-bis — positive-assertion check at entry. When both LIVE_PICKER
+  # and TEST_VERDICT_OVERRIDE are unset (production without the flag),
+  # surface the cause BEFORE the bracket walk so the reroute lands
+  # BEFORE F3's symptom line under the shared `## Re-routes` header.
+  if [ -z "${CLAUDE_PDR_RTV_LIVE_PICKER:-}" ] \
+     && [ -z "${PDR_RTV_TEST_VERDICT_OVERRIDE:-}" ]; then
+    echo "run_tournament: live-picker-flag-missing — operator must export CLAUDE_PDR_RTV_LIVE_PICKER=1" >&2
+    _pdr_tournament_md_append_live_picker_missing_reroute
+  fi
+
   # Placeholder-detection sentinel — survives subshell boundaries (the
   # round walk runs inside `< <(...)` process substitution, so a global
   # var would not propagate). Cleaned up at function exit.
   export _PDR_T_PLACEHOLDER_SENTINEL
   _PDR_T_PLACEHOLDER_SENTINEL="$(mktemp -t pdr-rtv-placeholder.XXXXXX)"
   rm -f "$_PDR_T_PLACEHOLDER_SENTINEL"
+
+  # AC7 — parse-failure event dir. Picker writes one file per match
+  # whose verdict file is missing/malformed; we replay them here as
+  # `## Re-routes` lines after the bracket walk completes.
+  export _PDR_T_PARSE_FAILURE_DIR
+  _PDR_T_PARSE_FAILURE_DIR="$(mktemp -d -t pdr-rtv-parsefail.XXXXXX)"
 
   local round_idx=1
   local current=( "${cands[@]}" )
@@ -297,8 +435,25 @@ run_tournament() {
   if [ -e "$_PDR_T_PLACEHOLDER_SENTINEL" ]; then
     _pdr_tournament_md_append_reroute
   fi
+  _pdr_tournament_replay_parse_failures
   rm -f "$_PDR_T_PLACEHOLDER_SENTINEL"
-  unset _PDR_T_PLACEHOLDER_SENTINEL
+  rm -rf "$_PDR_T_PARSE_FAILURE_DIR"
+  unset _PDR_T_PLACEHOLDER_SENTINEL _PDR_T_PARSE_FAILURE_DIR
+}
+
+# AC7 — replay parse-failure events as `## Re-routes` lines. Iterates
+# the sentinel directory in lexical order (round-major, match-minor) so
+# multiple failures within a tournament are reported deterministically.
+_pdr_tournament_replay_parse_failures() {
+  [ -d "${_PDR_T_PARSE_FAILURE_DIR:-}" ] || return 0
+  local entry round_idx match_idx base
+  for entry in "$_PDR_T_PARSE_FAILURE_DIR"/*; do
+    [ -e "$entry" ] || continue
+    base="$(basename "$entry")"
+    round_idx="${base%%-*}"
+    match_idx="${base#*-}"
+    _pdr_tournament_md_append_parse_failure_reroute "$round_idx" "$match_idx"
+  done
 }
 
 export -f run_tournament \
@@ -307,6 +462,14 @@ export -f run_tournament \
           _pdr_rollout_meta_field _pdr_render_comparison_prompt \
           _pdr_record_comparison _pdr_record_winner \
           _pdr_pick_winner _pdr_pick_winner_by_diff_stat \
+          _pdr_live_picker_enabled \
+          _pdr_pick_winner_from_verdict_file \
+          _pdr_record_parse_failure \
           _pdr_tournament_md_init _pdr_tournament_md_append_match \
           _pdr_tournament_md_append_winner \
-          _pdr_tournament_md_append_reroute _pdr_run_round
+          _pdr_tournament_md_append_reroute \
+          _pdr_tournament_md_append_meta_missing_reroute \
+          _pdr_tournament_md_append_parse_failure_reroute \
+          _pdr_tournament_md_append_live_picker_missing_reroute \
+          _pdr_tournament_replay_parse_failures \
+          _pdr_run_round

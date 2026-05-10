@@ -139,10 +139,58 @@ _pdr_distill_write_summary() {
   } > "$out_file"
 }
 
+# AC1 — fail-loud meta writer. Derives sha + diff_stat from the worktree's
+# HEAD commit. Diff range is `HEAD~1..HEAD` (project-portable; no hardcoded
+# `main`). Empty repo (no commit at HEAD) is a hard failure: returns 2 and
+# prints `cannot derive meta` to stderr.
+_pdr_distill_write_meta() {
+  local worktree="$1" out_file="$2"
+  local sha
+  if ! sha="$(git -C "$worktree" rev-parse --verify HEAD 2>/dev/null)"; then
+    echo "distill_rollout: cannot derive meta — no commit at HEAD" >&2
+    return 2
+  fi
+  local diff_stat
+  diff_stat="$(_pdr_distill_diff_stat_count "$worktree")"
+  mkdir -p "$(dirname "$out_file")"
+  {
+    printf 'sha=%s\n' "$sha"
+    printf 'diff_stat=%s\n' "$diff_stat"
+  } > "$out_file"
+}
+
+# Helper: count of changed lines in `git diff --shortstat HEAD~1..HEAD`.
+# When HEAD has no parent (single-commit repo), `git diff` against a missing
+# parent returns empty output — we report 0 (the commit added everything;
+# diff-vs-parent is undefined, not an error).
+_pdr_distill_diff_stat_count() {
+  local worktree="$1"
+  local stat
+  stat="$(git -C "$worktree" diff --shortstat HEAD~1..HEAD 2>/dev/null)"
+  # `--shortstat` output is like " 1 file changed, 3 insertions(+)".
+  # Extract the changed-line count: insertions + deletions. When stat is
+  # empty (no parent commit), report 0.
+  if [ -z "$stat" ]; then
+    printf '0'
+    return 0
+  fi
+  # Extract via grep -oE (portable: BSD + GNU). `grep -oE '[0-9]+ insertion'`
+  # captures the digits-followed-by-keyword token; `head -c -10` would be
+  # non-portable, so we strip the suffix with parameter expansion. When a
+  # match is absent (deletion-only or insertion-only diff), the variable
+  # stays empty and contributes 0.
+  local ins_token del_token ins=0 del=0
+  ins_token="$(printf '%s\n' "$stat" | grep -oE '[0-9]+ insertion' | head -1)"
+  del_token="$(printf '%s\n' "$stat" | grep -oE '[0-9]+ deletion'  | head -1)"
+  [ -n "$ins_token" ] && ins="${ins_token% *}"
+  [ -n "$del_token" ] && del="${del_token% *}"
+  printf '%s' "$((ins + del))"
+}
+
 distill_rollout() {
   _pdr_distill_validate_args distill_rollout "$@" || return $?
   local worktree="$1" state_root="$2" task_id="$3" slug="$4"
-  local block hypotheses progress failures out_file
+  local block hypotheses progress failures out_dir summary_file meta_file
 
   block="$(_pdr_distill_read_commit_block "$worktree")"
   hypotheses="$(_pdr_distill_extract_field "$block" "HYPOTHESES")"
@@ -153,8 +201,12 @@ distill_rollout() {
   progress="$(_pdr_distill_redact_secrets   "$task_id" "$progress")"
   failures="$(_pdr_distill_redact_secrets   "$task_id" "$failures")"
 
-  out_file="${state_root}/${task_id}/pdr-rtv/rollouts/${slug}/summary.md"
-  _pdr_distill_write_summary "$out_file" "$hypotheses" "$progress" "$failures"
+  out_dir="${state_root}/${task_id}/pdr-rtv/rollouts/${slug}"
+  summary_file="${out_dir}/summary.md"
+  meta_file="${out_dir}/meta"
+
+  _pdr_distill_write_summary "$summary_file" "$hypotheses" "$progress" "$failures"
+  _pdr_distill_write_meta "$worktree" "$meta_file" || return $?
 }
 
 export -f distill_rollout \
@@ -165,4 +217,6 @@ export -f distill_rollout \
           _pdr_distill_classes_matched \
           _pdr_apply_redactions \
           _pdr_emit_redaction_record \
-          _pdr_distill_write_summary
+          _pdr_distill_write_summary \
+          _pdr_distill_write_meta \
+          _pdr_distill_diff_stat_count
