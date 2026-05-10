@@ -6,8 +6,44 @@
 #   - exit 0 on hit, exit 1 on neither
 # On legacy fallback, appends one JSONL line to
 # metrics/{session-id}/session-store-mirror.jsonl.
+#
+# Slice E (AC26-AC28): codebase-map sub-file is GENERATED — its DUAL_PATH
+# preference order (generator → manual → legacy) and divergence JSONL
+# emission are factored into _smr_read_codebase_map below. This branch
+# is REMOVED at the auto-codebase-map-soak-end pipeline (30-day window).
+
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/codebase-map-divergence.sh"
 
 _smr_config_dir() { printf '%s\n' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; }
+
+# Path to the codebase-map sub-file written by codebase_map.cli build.
+_smr_codebase_map_generator_path() {
+  printf '%s/db/codebase-map/%s/codebase-map.md\n' "$(_smr_config_dir)" "$1"
+}
+
+# Codebase-map DUAL_PATH reader (Slice E). Returns 0 + content on hit,
+# 1 on miss. Preference order: generator → manual. Emits forensic JSONL:
+#   - generator present, manual present, content differs → divergence
+#   - generator absent, manual present                    → fallback
+_smr_read_codebase_map() {
+  local hash="$1" sub="$2" gen man
+  gen="$(_smr_codebase_map_generator_path "$hash")"
+  man="$(_smr_config_dir)/session-memory/$hash/$sub.md"
+  if [[ -f "$gen" ]]; then
+    if [[ -f "$man" ]] && ! /usr/bin/cmp -s "$gen" "$man"; then
+      codebase_map_emit_divergence "$hash" "$sub" "$gen" "$man"
+    fi
+    cat "$gen"
+    return 0
+  fi
+  if [[ -f "$man" ]]; then
+    codebase_map_emit_fallback "$hash" "$sub"
+    cat "$man"
+    return 0
+  fi
+  return 1
+}
 
 _smr_canonical_header() {
   case "$1" in
@@ -44,6 +80,12 @@ _smr_read_legacy() {
 
 session_memory_read_split() {
   local hash="$1" sub="$2"
+  if [[ "$sub" == "codebase-map" ]]; then
+    _smr_read_codebase_map "$hash" "$sub" && return 0
+    # Generator absent AND no manual file under session-memory/ —
+    # fall through to the legacy notes.md branch so the historical
+    # "# Codebase Map" section is still served pre-rebuild.
+  fi
   local proj; proj="$(_smr_config_dir)/session-memory/$hash"
   local new="$proj/$sub.md" legacy="$proj/notes.md"
   [[ -f "$new" ]] && { cat "$new"; return 0; }
