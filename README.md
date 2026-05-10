@@ -43,6 +43,12 @@ You describe what you want. The system:
   skills/                      # 44 skills (procedural workflows)
   knowledge/                   # 37 domain pattern references
   hooks/                       # 25 enforcement scripts
+    _lib/                      #   Shared helpers, including:
+                               #     plan_dag_resolver.py — schema_version: 2 plan
+                               #       parsing, validation, topological waves
+                               #     plan_dag_validation.py — rule 1-7 enforcement
+                               #     pipeline_state_paths_not_before.py — soak
+                               #       placeholder activation by ISO date
   learning/                    # Continuous learning: observations + instincts
     {project-hash}/            #   Per-project observations.jsonl
     instincts/                 #   Learned patterns with confidence scores
@@ -140,6 +146,8 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `/tech-spike` | Time-boxed technical research |
 
 **Continuous Planning**: On multi-slice Build runs (≥2 engineer slices), a `planning-agent` teammate (Sonnet 4.6) monitors the pipeline scratchpad and refines the active plan when findings contradict it. The planning-agent appends `## Plan Update` sections to the plan file and broadcasts updates to active build teammates. It is advisory only — Build engineers never block on it. Controlled by `should_spawn_planning_agent(slice_count, dispatch_mode, phase)` in `hooks/_lib/should_spawn_planning_agent.py`.
+
+**Build Dispatch Variants**: precedence is `pdr_rtv > bestofn > dag > standard`. The standard path is single-engineer or per-slice parallel engineers. `bestofn` and `pdr_rtv` are tournament-style variants for high-stakes work (`critical OR budget>=7`). **Multi-Slice DAG Mode** (`schema_version: 2`) is the bounded-wave dispatcher: when the architect's plan declares `schema_version: 2` with explicit `depends-on` edges per slice, the orchestrator parses the plan via `hooks/_lib/plan_dag_resolver.py`, computes topological waves, and packs each wave with knapsack first-fit so wave width never exceeds `CLAUDE_BUILD_WAVE_MAX_PARALLEL` (mixed `bestofn`/standard slices share the cap). v1 plans (no `schema_version`) bypass the helper entirely — the legacy linear-slice dispatch path is unchanged during the DUAL_PATH soak. Full spec: `orchestrator/parallel-dispatch-details.md` § Multi-Slice DAG Mode (schema_version: 2).
 
 ### Scaffolding (Auto-Detected)
 | Skill | Trigger |
