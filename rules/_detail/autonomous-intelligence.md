@@ -126,7 +126,7 @@ When injecting session memory into agent prompts, the orchestrator selects sub-f
 
 | Agent Role | Sub-files Injected (in order) |
 |---|---|
-| `architect` | `codebase-map.md`, `patterns.md`, `fragility.md` |
+| `architect` | `codebase-map.md` *(generated artifact, see § Codebase-Map Sub-file & Soak)*, `patterns.md`, `fragility.md` |
 | `software-engineer` | `build-test.md`, `patterns.md`, `fragility.md` |
 | `frontend-engineer` | `build-test.md`, `patterns.md`, `fragility.md` |
 | `database-engineer` | `build-test.md`, `patterns.md`, `fragility.md` |
@@ -163,6 +163,23 @@ Templates seeded from `session-memory/config/templates/{sub-file}.md`. The legac
 **30-day DUAL_PATH soak.** Writers emit only the new layout; readers tolerate both forms via `session_memory_read_split` in `hooks/_lib/session-memory-read-split.sh`. The helper returns the new-layout file when present, falling back to the matching canonical section of the legacy single-file otherwise; each fallback hit appends a forensic JSONL line at `metrics/{session-id}/session-store-mirror.jsonl` with `source: "session-memory-read-fallback"`. The soak ends 30 days after merge, gated by the placeholder `pipeline-state/wave2a-c3-soak-end/pipeline.md` (frontmatter `not_before` carries the calendar anchor; SessionStart's active-pipeline scan surfaces it once the date passes). The follow-up cleanup pipeline removes the reader-fallback code path and any remaining legacy artifacts.
 
 **Updater dispatch.** `session-memory-updater` accepts `targetFile` + `targetSection` inputs and writes exactly one sub-file per spawn. The orchestrator dispatches N parallel updaters (one per affected sub-file, max N=4; `active-work.md` is updated directly by the orchestrator without an updater spawn) — see `orchestrator/agent-orchestration.md` § Session Memory Update for the canonical bash wrap.
+
+### Codebase-Map Sub-file & Soak
+
+`codebase-map.md` is the **only generated artifact** in the sub-file layout. The harness regenerates it from a tree-sitter symbol graph + personalised PageRank (the auto-codebase-map feature) on every SessionStart and whenever the Stop-poll hook detects that `main` has advanced. The on-disk file at `~/.claude/db/codebase-map/{project-hash}/codebase-map.md` is generator-owned; the four other sub-files (`build-test.md`, `patterns.md`, `fragility.md`, `active-work.md`) remain hand-curated.
+
+**Writers MUST NOT include `codebase-map.md` in updater dispatch.** `session-memory-updater` is the only writer-class agent in the harness; the dispatch path (`hooks/_lib/session-memory-updater-dispatch.sh`) refuses any spawn whose `targetFile` is `codebase-map.md` and exits 1 with a `{"error":"generated_artifact_misroute","action":"spawn_refused"}` JSONL marker on stderr. **The refusal is permanent architecture, not soak scaffolding** — generator-owned artifacts are off-limits to the writer-class regardless of soak state. Re-introducing the writer path on any future regression would corrupt the generator's deterministic byte-equal contract.
+
+**30-day DUAL_PATH soak.** During the migration window, readers (`hooks/_lib/session-memory-read-split.sh`) prefer the generator output and fall back to any operator-authored manual `codebase-map.md` only when the generator file is absent (rebuild failed, fresh install pre-rebuild). When BOTH files are present and content differs, the reader returns the generator output AND emits one JSONL line at `metrics/{session-id}/codebase-map-divergence.jsonl` with `source: "codebase-map-divergence"` and a content-hash pair (no full content — privacy + size). The window mirrors the `CLAUDE_LEARNING_RETENTION_DAYS` floor and the C3 soak precedent above.
+
+**Soak end (4-item cleanup).** The placeholder pipeline at `pipeline-state/auto-codebase-map-soak-end/pipeline.md` carries the `not_before:` calendar anchor (merge_date + 30 days). When the date passes, the cleanup pipeline executes exactly **4 cleanup items**:
+
+1. Remove the reader-fallback branch from `session-memory-read-split.sh`.
+2. Sweep operator-authored manual `codebase-map.md` files into `.legacy` siblings (per the migration-script preserve-do-not-delete precedent).
+3. Assert no `codebase-map-divergence.jsonl` hits in the last 7 days as a gate condition.
+4. Update this section to mark the codebase-map soak as complete.
+
+The updater-dispatch refusal is **deliberately not on the cleanup list** — see the permanent-architecture clause above.
 
 ### Adapters
 
