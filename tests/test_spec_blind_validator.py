@@ -256,8 +256,10 @@ class RecursionGuardWiredAndLogicCorrect(unittest.TestCase):
         self.skill_text = _read("skills/spec-blind-validate/SKILL.md")
 
     def test_helper_invoked_before_any_read_step(self):
-        # Find § Process block; the recursion helper invocation must precede the
-        # first "Read" step (line-number ordering check).
+        # Find § Process block; the recursion-guard STEP (numbered ordered list item)
+        # must precede any "Read inputs"/"Read public surface" STEP.
+        # Both intra-line and block-line ordering are tolerated, but the recursion
+        # step's bullet number MUST be lower than the first Read-step bullet number.
         lines = self.skill_text.splitlines()
         process_idx = None
         for i, ln in enumerate(lines):
@@ -265,21 +267,32 @@ class RecursionGuardWiredAndLogicCorrect(unittest.TestCase):
                 process_idx = i
                 break
         self.assertIsNotNone(process_idx, "SKILL § Process section missing")
-        # Find the recursion-helper invocation line and the first 'Read' step line
-        helper_line = None
-        first_read_line = None
+
+        # Walk numbered steps "<n>. **..." and capture (step_number, line_idx, text)
+        step_re = re.compile(r"^(\d+)\.\s+\*\*(.+?)\*\*")
+        steps = []
         for i in range(process_idx + 1, len(lines)):
-            if helper_line is None and "recursion" in lines[i].lower() and "helper" in lines[i].lower():
-                helper_line = i
-            if first_read_line is None and re.search(r"\bRead\b", lines[i]) and i > process_idx:
-                first_read_line = i
-            # Stop at next H2
-            if i > process_idx and lines[i].startswith("## "):
+            if lines[i].startswith("## ") and i != process_idx:
                 break
-        self.assertIsNotNone(helper_line, "recursion-helper invocation not found in § Process")
-        self.assertIsNotNone(first_read_line, "no Read step found in § Process")
-        self.assertLess(helper_line, first_read_line,
-                        "recursion-helper invocation must precede the first Read step")
+            m = step_re.match(lines[i])
+            if m:
+                steps.append((int(m.group(1)), i, m.group(2)))
+
+        self.assertGreaterEqual(len(steps), 2, "§ Process needs at least two numbered steps")
+
+        recursion_step = next((s for s in steps if "recursion" in s[2].lower()), None)
+        # First Read-step is the lowest-numbered step whose title STARTS with
+        # "Read " (so "Read inputs" / "Read public surface" match, but
+        # "Recursion-guard precheck (BEFORE any Read)" — which contains "Read"
+        # only as a back-reference — does NOT).
+        read_steps = [s for s in steps if s[2].startswith("Read ")]
+
+        self.assertIsNotNone(recursion_step, "no recursion-guard step found in § Process")
+        self.assertTrue(read_steps, "no Read-prefixed step found in § Process")
+
+        first_read_step = min(read_steps, key=lambda s: s[0])
+        self.assertLess(recursion_step[0], first_read_step[0],
+                        f"recursion-guard step (#{recursion_step[0]}) must precede first Read step (#{first_read_step[0]})")
 
     def test_helper_logic_returns_insufficient_for_harness_cwd(self):
         # Helper lives in hooks/_lib/spec-blind-recursion.sh and exposes

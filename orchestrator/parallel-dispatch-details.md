@@ -896,15 +896,17 @@ After both APPROVE: shut down both reviewers.
 
 ## Final Gate Phase Dispatch
 
-Three phases that currently run sequentially now run in parallel:
+Five phases that currently run sequentially now run in parallel:
 
 ```
 // Step 1: Create tasks
 TaskCreate({ title: "Verify: contract + smoke + mutation", description: "..." })
 TaskCreate({ title: "Test: coverage analysis + gap filling", description: "..." })
 TaskCreate({ title: "Accept: AC validation + UX review", description: "..." })
+TaskCreate({ title: "Patch critique: test results + diff", description: "..." })
+TaskCreate({ title: "Spec-blind validate: ACs only, no source", description: "..." })
 
-// Step 2: Spawn all three in single message
+// Step 2: Spawn all five in single message
 Agent({
   name: "verifier",
   team_name: "pipeline-{task-id}",
@@ -934,9 +936,48 @@ Agent({
     Context: branch feature/X, ACs: [list].
     Validate all ACs are met, assess UX quality, verify business value."
 })
+
+Agent({
+  name: "spec-blind-validator",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "spec-blind-validator",
+  isolation: "worktree",
+  prompt: "Read ~/.claude/skills/spec-blind-validate/SKILL.md and execute it fully.
+    Read ~/.claude/agents/spec-blind-validator.md for your role definition.
+    Context: branch feature/X, ACs: [verbatim AC list from pipeline-state/{task-id}/plan.md].
+    NEVER receive the diff — independence from implementation is the design.
+    The intake spec is at pipeline-state/{task-id}/intake.md.
+    Three PreToolUse hooks (read-guard, write-guard, bash-guard) enforce
+    the spec-blind property — Read/Bash content-leak attempts on src/ will
+    exit 2 with a JSONL violation log. This is the design.
+    Recursion-guard precheck: source hooks/_lib/spec-blind-recursion.sh and
+    call is_harness_internal_cwd \"$(pwd)\" BEFORE any read; if it returns
+    0, emit SPEC_BLIND_INSUFFICIENT_SURFACE reason harness-internal-recursion.
+    Verdicts:
+      - SPEC_BLIND_VALIDATED on green tests
+      - SPEC_BLIND_FAILED on red (fix-engineer is code-fix-only; MUST NOT mutate ACs)
+      - SPEC_BLIND_INSUFFICIENT_SURFACE when no public surface or no test runner
+      - SPEC_BLIND_BLOCKED on harness/hook error (HALT — operator escalation)"
+})
 ```
 
-After all three return verdicts: shut down teammates.
+After all five return verdicts: shut down teammates.
+
+### Final Gate Summary Rendering
+
+The orchestrator collects the five verdicts and emits a one-line-per-teammate summary block to the user. The `SPEC_BLIND_INSUFFICIENT_SURFACE` verdict renders verbatim as `spec-blind: SKIPPED (no public surface)` so the operator sees the no-op explicitly (per AC18 — silent skip would let the gate become an unattended no-op on convention-poor projects).
+
+```
+[Final Gate] verifier         -> VERIFIED
+[Final Gate] test-analyst     -> COVERED
+[Final Gate] product-reviewer -> APPROVED
+[Final Gate] patch-critic     -> PATCH_APPROVED
+[Final Gate] spec-blind       -> SPEC_BLIND_VALIDATED
+                              (or: spec-blind: SKIPPED (no public surface))
+                              (or: spec-blind: HALT — operator escalation required)
+```
+
+Same convention as the existing per-verdict summary lines. The `SPEC_BLIND_BLOCKED` line is operator-actionable (HALT routing per `rules/verdict-catalog.md`) — `/pr-creation` will refuse to advance until the blocker is resolved.
 
 ## Multi-Persona Patch Critic Dispatch (critical OR Budget >= 7)
 

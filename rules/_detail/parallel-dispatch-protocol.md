@@ -73,7 +73,7 @@ Key advantage: reviewer **remembers the codebase** on re-review -- no context re
 
 ### Final Gate Team (always)
 
-Four phases run simultaneously instead of sequentially. All four are read-only against the same final state — no lock contention, no shared write surface.
+Five phases run simultaneously instead of sequentially. All five are read-only against the same final state — no lock contention, no shared write surface (with one exception: `spec-blind-validator` writes test files to `tests/`, gated by `hooks/spec-blind-write-guard.sh`).
 
 | Teammate | Skill | Verdict |
 |----------|-------|---------|
@@ -81,10 +81,13 @@ Four phases run simultaneously instead of sequentially. All four are read-only a
 | qa-engineer (test) | `/qa-test-strategy` | COVERED |
 | product-reviewer | `/product-acceptance` | APPROVED |
 | patch-critic | `/patch-critique` | PATCH_APPROVED |
+| spec-blind-validator | `/spec-blind-validate` | SPEC_BLIND_VALIDATED |
 
 `patch-critic` evaluates the candidate patch by **test results + diff** — NOT SOLID/DRY (that is the code-reviewer's job, gated upstream). Inspired by SWE-bench top scaffolds (Agentless, AutoCodeRover, MarsCode-Agent) where a critic step distinguishes high-scoring patches from regressions. Rubric: tests cover the change, diff minimal vs spec, no obvious regressions visible from diff, no incidental refactor. PATCH_REJECTED returns to fix-engineer per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule — never escalates to the user.
 
-All four assess the same final state independently.
+`spec-blind-validator` authors black-box behavioural tests from the AC plan + public API surface ONLY — never implementation source. Three PreToolUse hooks (`hooks/spec-blind-{read,write,bash}-guard.sh`) bind the spec-blind property at the tool layer, so the validator cannot fall back to `cat src/`/`node -e`/`grep -r src/` to reach internals. Verdicts: `SPEC_BLIND_VALIDATED` (success → next gate), `SPEC_BLIND_FAILED` (failure → fix-engineer code-fix-only; MUST NOT mutate ACs), `SPEC_BLIND_INSUFFICIENT_SURFACE` (info → next gate; Final Gate summary renders `spec-blind: SKIPPED (no public surface)`), `SPEC_BLIND_BLOCKED` (failure → HALT pipeline + operator escalation, no auto-advance, no fix-engineer dispatch). Inspired by SWE-Bench Pro vs Verified — closes the failure mode where build-time tests codify the same misconceptions about the spec as production code.
+
+All five assess the same final state independently.
 
 ## Resource Bounds
 
