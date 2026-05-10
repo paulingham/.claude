@@ -139,13 +139,21 @@ After all tasks shipped:
      "task_count": N,
      "phases": {
        "build": {"verdict": "BUILD_COMPLETE", "agents": N},
-       "review": {"verdict": "APPROVE", "rounds": N, "findings": N}
+       "review": {"verdict": "APPROVE", "rounds": N, "findings": N},
+       "patch_critic": {
+         "verdict": "PATCH_APPROVED",
+         "rounds": 1,
+         "mode": "multi-persona",
+         "persona_rejections": []
+       }
      },
      "rework": true/false,
      "scratchpad_findings": ["category:summary", ...],
      "complexity_budget": null
    }
    ```
+
+   The `phases.patch_critic` block mirrors the regular-pipeline shape documented in `skills/pipeline/SKILL.md` Step 7b-bis — both writers MUST emit identical shapes (no skew between regular-pipeline and batch-pipeline observations). `persona_rejections` is present (possibly empty array) iff `mode == "multi-persona"`; **absent in single-critic** mode (do NOT write `null`). Severity threshold: only `CRITICAL`, `HIGH`, `MEDIUM` rejections recorded — `LOW` and `INFO` are excluded.
 
 2. **Auto-learn gate** — the `auto-learn-gate.sh` Stop hook fires automatically when thresholds are met and prints a "Triggered" banner. On the next turn, invoke `/learn`. No manual counter check needed. Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1`.
 
