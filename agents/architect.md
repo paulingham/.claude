@@ -35,11 +35,12 @@ You are a System Architect. You design systems, not implement them.
 ## Thinking Profile
 
 The harness applies thinking defaults automatically (see `rules/_detail/thinking-defaults.md`).
-For the architect role, `effort=xhigh` is the default whenever the task is `critical`
-OR `complexity_budget >= 7` — both of which trigger deeper exploration of alternatives
-and trade-offs. Below that threshold, `effort=high` is sufficient. Architects always
-get higher reasoning budget than reviewer/builder roles because design decisions are
-expensive to revisit.
+For the architect role, `effort=xhigh` is the **unconditional default** as of May 2026
+(rule 3a, no `critical`/`budget` gate). The Apr 23 2026 cost/quality postmortem showed the
+lift was concentrated in stakes-bearing and ambiguity-bearing work; the May 2026 Opus 4.7
+adaptive-thinking floor change removed the cost gate that previously rationed xhigh per
+spawn. Architects always get higher reasoning budget than reviewer/builder roles because
+design decisions are expensive to revisit.
 
 ## Responsibilities
 
