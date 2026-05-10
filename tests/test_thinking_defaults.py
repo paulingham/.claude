@@ -118,37 +118,55 @@ class PlanningAgentLowDefault(unittest.TestCase):
         self.assertEqual(result["source"], "role")
 
 
-# ---------------- AC2g–AC2i: implementation roles inherit high default ----------------
+# ---------------- AC2g–AC2i: implementation roles unconditionally promoted to xhigh ----------------
 
 
-class SoftwareEngineerExplicitDowngrade(unittest.TestCase):
-    def test_software_engineer_neutral_and_elevated_yield_high_role(self):
+class SoftwareEngineerUnconditionalXhigh(unittest.TestCase):
+    """AC2: software-engineer is unconditionally promoted to xhigh by rule 3a.
+
+    Was previously in `_DOWNGRADE_TO_HIGH` (Sonnet executor); after the
+    May 2026 Opus 4.7 adaptive-thinking floor change, primary build roles
+    are unconditionally elevated. The Apr 23 2026 postmortem captured the
+    promotion-on-trigger lift; adaptive thinking moved the floor.
+    """
+
+    def test_software_engineer_neutral_yields_xhigh(self):
         tool_input = {"subagent_type": "software-engineer"}
-        # Neutral state: explicit role downgrade to high (rule 3b).
-        neutral = resolve(tool_input=tool_input, env={}, state={})
-        self.assertEqual(neutral["effort"], "high")
-        self.assertEqual(neutral["source"], "role")
-        # Elevated: not in any promotion set; hits explicit downgrade rule 3b.
-        elevated = resolve(tool_input=tool_input, env={},
-                           state={"critical": True, "budget": 10})
-        self.assertEqual(elevated["effort"], "high")
-        self.assertEqual(elevated["source"], "role")
-
-
-class FrontendEngineerExplicitDowngrade(unittest.TestCase):
-    def test_frontend_engineer_neutral_yields_high_role(self):
-        tool_input = {"subagent_type": "frontend-engineer"}
         result = resolve(tool_input=tool_input, env={}, state={})
-        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "role")
+
+    def test_software_engineer_elevated_yields_xhigh(self):
+        # Promotion fires regardless of critical/budget — same xhigh outcome.
+        tool_input = {"subagent_type": "software-engineer"}
+        result = resolve(tool_input=tool_input, env={},
+                         state={"critical": True, "budget": 10})
+        self.assertEqual(result["effort"], "xhigh")
         self.assertEqual(result["source"], "role")
 
 
-class InfrastructureEngineerInheritsHigh(unittest.TestCase):
-    def test_infrastructure_engineer_inherits_high_default(self):
+class FrontendEngineerUnconditionalXhigh(unittest.TestCase):
+    """AC3: frontend-engineer is unconditionally promoted to xhigh."""
+
+    def test_frontend_engineer_neutral_yields_xhigh(self):
+        tool_input = {"subagent_type": "frontend-engineer"}
+        result = resolve(tool_input=tool_input, env={}, state={})
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "role")
+
+
+class InfrastructureEngineerUnconditionalXhigh(unittest.TestCase):
+    """AC4: infrastructure-engineer is unconditionally promoted to xhigh.
+
+    Note: source flipped from `default` to `role` because rule 3a now fires
+    instead of falling through to rule 4 fallback.
+    """
+
+    def test_infrastructure_engineer_neutral_yields_xhigh(self):
         tool_input = {"subagent_type": "infrastructure-engineer"}
         result = resolve(tool_input=tool_input, env={}, state={})
-        self.assertEqual(result["effort"], "high")
-        self.assertEqual(result["source"], "default")
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "role")
 
 
 # ---------------- AC3a / AC3a-bis / AC3b: architect promotion + below-threshold ----------------
@@ -180,13 +198,30 @@ class ArchitectNonCriticalBudget7YieldsXhigh(unittest.TestCase):
         self.assertEqual(result["source"], "role")
 
 
-class ArchitectBelowThresholdInheritsHigh(unittest.TestCase):
-    def test_architect_below_threshold_inherits_high(self):
+class ArchitectBelowThresholdYieldsXhigh(unittest.TestCase):
+    """AC1: architect promotion to xhigh is now unconditional.
+
+    The previous gate (`critical=true OR budget>=7`) is removed — architect
+    always elevates regardless of state.
+    """
+
+    def test_architect_below_threshold_yields_xhigh(self):
         tool_input = {"subagent_type": "architect"}
         state = {"critical": False, "budget": 6}
         result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "high")
-        self.assertEqual(result["source"], "default")
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "role")
+
+
+class ArchitectUnconditionalXhigh(unittest.TestCase):
+    """AC1: architect at the lowest non-critical state still resolves to xhigh."""
+
+    def test_architect_low_budget_non_critical_yields_xhigh(self):
+        tool_input = {"subagent_type": "architect"}
+        state = {"critical": False, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "role")
 
 
 # ---------------- AC3c–AC3d: security-engineer promotion + downgrade ----------------
@@ -222,12 +257,17 @@ class BestOfNCandidateXhigh(unittest.TestCase):
         self.assertEqual(result["source"], "role")
 
 
-class BestOfNCandidateLowBudgetDowngrades(unittest.TestCase):
-    def test_best_of_n_low_budget_software_engineer_downgrades_to_role(self):
+class BestOfNCandidateLowBudgetSoftwareEngineerStillXhigh(unittest.TestCase):
+    """`boN-` software-engineer at budget=5 now resolves to xhigh because the
+    rule-3a promotion (unconditional for software-engineer) short-circuits
+    in `_is_xhigh()` BEFORE the Best-of-N budget gate is evaluated. Captures
+    the precedence ordering inside `role_effort()` after AC2."""
+
+    def test_best_of_n_low_budget_software_engineer_yields_xhigh(self):
         tool_input = {"subagent_type": "software-engineer", "name": "boN-opus"}
         state = {"critical": True, "budget": 5}
         result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["effort"], "xhigh")
         self.assertEqual(result["source"], "role")
 
 
@@ -312,16 +352,18 @@ class SourceFieldReportsWinningLayer(unittest.TestCase):
 
 
 class DowngradeListMatchesAgentFrontmatter(unittest.TestCase):
-    """Pins `_DOWNGRADE_TO_HIGH ∪ _DOWNGRADE_TO_LOW` to exactly the nine
-    Sonnet-executor agent files. Drift in either direction fails CI: a missing
-    entry would silently waste capability; an extra entry for an Opus-promoted
-    agent would silently downgrade it.
+    """Pins `_DOWNGRADE_TO_HIGH ∪ _DOWNGRADE_TO_LOW` to exactly the seven
+    Sonnet-executor agent files that remain on a downgrade after the May 2026
+    Opus 4.7 floor change. `software-engineer` and `frontend-engineer` were
+    REMOVED from this set — they now ride the unconditional rule-3a promotion
+    to xhigh (see `PromoteToXhighListMatchesAgentFrontmatter`). Drift in either
+    direction still fails CI.
     """
 
     EXPECTED_ROLES = {
         "code-reviewer", "qa-engineer", "product-reviewer",
         "patch-critic", "database-engineer", "security-engineer",
-        "planning-agent", "software-engineer", "frontend-engineer",
+        "planning-agent",
     }
 
     def _frontmatter(self, role):
@@ -349,6 +391,71 @@ class DowngradeListMatchesAgentFrontmatter(unittest.TestCase):
         actual = set(_DOWNGRADE_TO_HIGH) | set(_DOWNGRADE_TO_LOW)
         self.assertEqual(actual, self.EXPECTED_ROLES,
                          "Downgrade set drift vs agent frontmatter")
+
+
+# ---------------- AC5 / AC7: preserved downgrades + promotion-list pin ----------------
+
+
+class DowngradesPreservedAfterPromotion(unittest.TestCase):
+    """AC5: review/critic/database/planning roles keep their existing
+    downgrade after the May 2026 promotion. security-engineer keeps its
+    dual treatment — high under non-promotion state, xhigh only under the
+    existing `critical=true AND budget>=7` gate.
+    """
+
+    HIGH_ROLES = (
+        "code-reviewer", "qa-engineer", "product-reviewer",
+        "patch-critic", "database-engineer",
+    )
+
+    def test_review_and_database_roles_remain_high(self):
+        for role in self.HIGH_ROLES:
+            tool_input = {"subagent_type": role}
+            result = resolve(tool_input=tool_input, env={}, state={})
+            self.assertEqual(result["effort"], "high",
+                             f"{role}: expected high")
+            self.assertEqual(result["source"], "role",
+                             f"{role}: expected source=role")
+
+    def test_planning_agent_remains_low(self):
+        tool_input = {"subagent_type": "planning-agent"}
+        result = resolve(tool_input=tool_input, env={}, state={})
+        self.assertEqual(result["effort"], "low")
+        self.assertEqual(result["source"], "role")
+
+    def test_security_engineer_below_promotion_gate_remains_high(self):
+        tool_input = {"subagent_type": "security-engineer"}
+        result = resolve(tool_input=tool_input, env={},
+                         state={"critical": False, "budget": 5})
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "role")
+
+
+class PromoteToXhighListMatchesAgentFrontmatter(unittest.TestCase):
+    """AC7: pins `_PROMOTE_TO_XHIGH` to exactly the four roles that the May
+    2026 Opus 4.7 adaptive-thinking change unconditionally elevated.
+    Counterpart to `DowngradeListMatchesAgentFrontmatter` — drift in either
+    direction fails CI: a missing entry silently downgrades a build role,
+    an extra entry silently inflates cost on a non-build role.
+    """
+
+    EXPECTED_PROMOTIONS = {
+        "architect", "software-engineer",
+        "frontend-engineer", "infrastructure-engineer",
+    }
+
+    def test_promote_set_matches_unconditional_xhigh_roles(self):
+        from thinking_role import _PROMOTE_TO_XHIGH
+        self.assertEqual(set(_PROMOTE_TO_XHIGH), self.EXPECTED_PROMOTIONS,
+                         "Promote-to-xhigh set drift vs documented roster")
+
+    def test_promote_set_disjoint_from_downgrade_set(self):
+        from thinking_role import (_DOWNGRADE_TO_HIGH, _DOWNGRADE_TO_LOW,
+                                   _PROMOTE_TO_XHIGH)
+        downgraded = set(_DOWNGRADE_TO_HIGH) | set(_DOWNGRADE_TO_LOW)
+        overlap = set(_PROMOTE_TO_XHIGH) & downgraded
+        self.assertEqual(overlap, set(),
+                         f"Role(s) cannot be both promoted and downgraded: {overlap}")
 
 
 # ---------------- Pipeline-state / debug-display regression tests ----------------
@@ -503,6 +610,8 @@ class HookLogsOnlyDoesNotBlock(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
 
     def test_missing_thinking_writes_log_line(self):
+        # Architect spawns now resolve to xhigh unconditionally via rule 3a
+        # (`_PROMOTE_TO_XHIGH`); verifies the hook logs the new floor.
         session = f"test-{uuid.uuid4()}"
         log_path = (Path.home() / ".claude" / "metrics" / session
                     / "hook-injections.jsonl")
@@ -517,7 +626,8 @@ class HookLogsOnlyDoesNotBlock(unittest.TestCase):
             line = log_path.read_text().strip().splitlines()[-1]
             entry = json.loads(line)
             self.assertEqual(entry["agent_role"], "architect")
-            self.assertEqual(entry["resolved"]["effort"], "high")
+            self.assertEqual(entry["resolved"]["effort"], "xhigh")
+            self.assertEqual(entry["resolved"]["source"], "role")
         finally:
             _cleanup_metric_session(session)
 
@@ -878,6 +988,110 @@ class HookLogsClaudeEffortEnvSourceToJsonl(unittest.TestCase):
             self.assertEqual(entry["resolved"]["effort"], "low")
         finally:
             _cleanup_metric_session(session)
+
+
+# ---------------- AC8: Role Defaults Summary table reflects xhigh promotion ----------------
+
+
+class RoleDefaultsTableShowsXhighForPromotedRoles(unittest.TestCase):
+    """AC8: `## Role Defaults Summary` table in
+    `rules/_detail/thinking-defaults.md` shows `xhigh` in the Default-effort
+    column for each of the four unconditionally-promoted roles. Pins the doc
+    to the resolver behaviour after AC1–AC4.
+    """
+
+    PROMOTED_ROLES = (
+        "architect", "software-engineer",
+        "frontend-engineer", "infrastructure-engineer",
+    )
+
+    def test_table_rows_show_xhigh_default(self):
+        path = REPO_ROOT / "rules" / "_detail" / "thinking-defaults.md"
+        body = path.read_text()
+        section = re.search(
+            r"## Role Defaults Summary(.*?)(?=\n## |\Z)",
+            body, re.DOTALL)
+        self.assertIsNotNone(section, "Role Defaults Summary section missing")
+        for role in self.PROMOTED_ROLES:
+            # Match a table row whose first cell names the role and assert the
+            # third cell (Default effort) is xhigh.
+            row = re.search(
+                rf"\|\s*`{re.escape(role)}`\s*\|[^|]+\|\s*xhigh\s*\|",
+                section.group(1))
+            self.assertIsNotNone(
+                row,
+                f"{role}: row missing or Default-effort column != xhigh in "
+                f"Role Defaults Summary table")
+
+
+# ---------------- AC9: README skill/agent counts match filesystem ----------------
+
+
+def _count_active_skills(repo_root):
+    """Counts user-facing skills under `skills/*/SKILL.md`, excluding the
+    scaffolding template. The rule is documented here so the test and the
+    README pin to the same number deterministically.
+    """
+    all_skills = list(repo_root.glob("skills/*/SKILL.md"))
+    return sum(1 for p in all_skills if p.parent.name != "_template")
+
+
+def _count_agents(repo_root):
+    return len(list(repo_root.glob("agents/*.md")))
+
+
+class ReadmeCountsMatchActualFiles(unittest.TestCase):
+    """AC9: README skill/agent counts MUST equal filesystem reality. Counting
+    rule: skills = `skills/*/SKILL.md` minus `_template`; agents =
+    `agents/*.md`. Test asserts whatever the file count IS — drift in either
+    direction fails CI. README must be updated when skills or agents are
+    added or removed.
+    """
+
+    def test_readme_skill_and_agent_counts_match_filesystem(self):
+        readme = (REPO_ROOT / "README.md").read_text()
+        expected_skills = _count_active_skills(REPO_ROOT)
+        expected_agents = _count_agents(REPO_ROOT)
+        # The `## Skills (N)` heading. `(?m)` enables MULTILINE so `^/$` anchor
+        # to line boundaries, not the whole-string boundary.
+        self.assertRegex(
+            readme,
+            rf"(?m)^## Skills \({expected_skills}\)$",
+            f"README `## Skills (N)` heading: expected ({expected_skills}); "
+            f"adjust line 126 of README.md")
+        # The architecture-diagram comment lines naming both counts.
+        self.assertRegex(
+            readme,
+            rf"#\s*{expected_skills}\s+skills",
+            f"README architecture diagram: expected `{expected_skills} skills` "
+            f"comment near line 43")
+        self.assertRegex(
+            readme,
+            rf"#\s*{expected_agents}\s+specialized agent",
+            f"README architecture diagram: expected `{expected_agents} "
+            f"specialized agent` comment near line 42")
+
+
+# ---------------- AC10: CLAUDE.md carries Apr 23 / Opus 4.7 postmortem note ----------------
+
+
+class ClaudeMdCarriesOpus47PostmortemNote(unittest.TestCase):
+    """AC10: `~/.claude/CLAUDE.md` carries a one-line (or short adjacent)
+    postmortem note that cites BOTH `Apr 23 2026` and `Opus 4.7` within a
+    200-character span. Documents the cost/quality data motivating the
+    May 2026 unconditional promotion of build roles to xhigh.
+    """
+
+    def test_claude_md_cites_apr_23_and_opus_47_in_proximity(self):
+        path = REPO_ROOT / "CLAUDE.md"
+        body = path.read_text()
+        match = re.search(
+            r"Apr 23 2026.{0,200}Opus 4\.7|Opus 4\.7.{0,200}Apr 23 2026",
+            body, re.DOTALL)
+        self.assertIsNotNone(
+            match,
+            "CLAUDE.md missing postmortem note: expected `Apr 23 2026` and "
+            "`Opus 4.7` within 200 characters of each other")
 
 
 if __name__ == "__main__":

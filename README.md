@@ -39,8 +39,8 @@ You describe what you want. The system:
     autonomous-intelligence.md #   Scratchpad, session memory, continuous learning
     e2e-protocol.md            #   Multi-target E2E trigger matrix (mobile + web)
   orchestrator/                # Orchestrator-only detailed procedures (4 files)
-  agents/                      # 9 specialized agent definitions
-  skills/                      # 44 skills (procedural workflows)
+  agents/                      # 15 specialized agent definitions
+  skills/                      # 57 skills (procedural workflows)
   knowledge/                   # 37 domain pattern references
   hooks/                       # 25 enforcement scripts
     _lib/                      #   Shared helpers, including:
@@ -123,7 +123,7 @@ Next pipeline → Instinct injected into agent prompt → Better build → Fewer
 
 Review findings classified as "preventable by build agent" become build-targeted instincts — a backward feedback loop from review to build.
 
-## Skills (45)
+## Skills (57)
 
 ### Pipeline & Orchestration
 | Skill | Purpose |
