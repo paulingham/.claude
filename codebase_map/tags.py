@@ -17,13 +17,13 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable
 from pathlib import Path
 
 from codebase_map._lib import cache as _cache
 from codebase_map._lib.python_ast import extract_python_tags
 from codebase_map._lib.treesitter import extract_treesitter_tags
-from codebase_map._lib.walk import walk_repo
+from codebase_map._lib.walk import walk_repo  # noqa: F401 — re-exported
 from codebase_map.tags_types import CodebaseMapDependencyMissing, Tag
 
 __all__ = (
@@ -102,10 +102,5 @@ def _get_parser(lang: str):
     this function MUST raise ImportError so the caller can wrap into
     CodebaseMapDependencyMissing.
     """
-    from tree_sitter_languages import get_parser  # noqa: F401
+    from tree_sitter_languages import get_parser
     return get_parser(lang)
-
-
-# Re-export for `from codebase_map.tags import walk_repo` callers and
-# downstream slices that import the public surface verbatim.
-_ = walk_repo, Iterator
