@@ -97,6 +97,39 @@ _run_hook() {
   [ ! -f "$LOG" ]
 }
 
+@test "SBR-M1 Grep on src/** is denied (matcher coverage beyond Read)" {
+  local payload
+  payload=$(jq -nc --arg s "spec-blind-validator" --arg p "/tmp/proj/src/auth.ts" --arg sid "$CLAUDE_SESSION_ID" \
+    '{tool_name:"Grep", subagent_type:$s, tool_input:{file_path:$p}, session_id:$sid}')
+  run bash -c "echo '$payload' | bash '$HOOK'"
+  [ "$status" -eq 2 ]
+}
+
+@test "SBR-M2 Glob with src/** pattern is denied" {
+  local payload
+  payload=$(jq -nc --arg s "spec-blind-validator" --arg p "/tmp/proj/src/**" --arg sid "$CLAUDE_SESSION_ID" \
+    '{tool_name:"Glob", subagent_type:$s, tool_input:{pattern:$p}, session_id:$sid}')
+  run bash -c "echo '$payload' | bash '$HOOK'"
+  [ "$status" -eq 2 ]
+}
+
+@test "SBR-M3 relative src path is resolved against pwd and denied" {
+  cd "$TMP" || return
+  run _run_hook "spec-blind-validator" "Read" "src/auth.ts"
+  [ "$status" -eq 2 ]
+}
+
+@test "SBR-M4 sanitised session_id with control chars produces clean log path" {
+  # session_id with shell-meta chars must be stripped via tr -dc
+  local payload
+  payload=$(jq -nc --arg s "spec-blind-validator" --arg p "/tmp/proj/src/x.ts" --arg sid "evil$(printf '\\x01\\n')id" \
+    '{tool_name:"Read", subagent_type:$s, tool_input:{file_path:$p}, session_id:$sid}')
+  run bash -c "echo '$payload' | bash '$HOOK'"
+  [ "$status" -eq 2 ]
+  # No file should exist with control chars in name
+  [ -z "$(find "$HOME/.claude/metrics" -type d -name '*evil*\\x01*' 2>/dev/null)" ]
+}
+
 @test "SBR12 read of node_modules path is denied" {
   run _run_hook "spec-blind-validator" "Read" "/tmp/proj/node_modules/foo/index.js"
   # node_modules/foo/index.js matches **/index.js entry-point glob — BUT we

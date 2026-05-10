@@ -320,6 +320,36 @@ class RecursionGuardWiredAndLogicCorrect(unittest.TestCase):
         )
         self.assertEqual(result.stdout.strip(), "NOT")
 
+    def test_helper_returns_not_when_core_md_absent(self):
+        # Mutation killer: if the helper drops the rules/core.md existence check,
+        # any cwd whose realpath equals CLAUDE_CONFIG_DIR realpath would falsely
+        # match. Point CLAUDE_CONFIG_DIR at a directory WITHOUT rules/core.md.
+        helper = REPO_ROOT / "hooks" / "_lib" / "spec-blind-recursion.sh"
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            # No rules/core.md in tmp; cwd = tmp
+            env = os.environ.copy()
+            env["CLAUDE_CONFIG_DIR"] = tmp
+            result = subprocess.run(
+                ["bash", "-c", f"source '{helper}' && is_harness_internal_cwd '{tmp}' && echo HARNESS || echo NOT"],
+                capture_output=True, text=True, env=env,
+            )
+            self.assertEqual(result.stdout.strip(), "NOT",
+                             "helper must NOT match when rules/core.md is absent under CLAUDE_CONFIG_DIR")
+
+    def test_helper_returns_not_when_cwd_outside_repo(self):
+        # Mutation killer: if the helper drops the realpath comparison, any cwd
+        # would match as long as core.md exists. Pass a non-git path.
+        helper = REPO_ROOT / "hooks" / "_lib" / "spec-blind-recursion.sh"
+        env = os.environ.copy()
+        env["CLAUDE_CONFIG_DIR"] = str(REPO_ROOT)
+        # /private/tmp is not a git repo (or its top-level differs from REPO_ROOT)
+        result = subprocess.run(
+            ["bash", "-c", f"source '{helper}' && is_harness_internal_cwd '/private/tmp' && echo HARNESS || echo NOT"],
+            capture_output=True, text=True, env=env,
+        )
+        self.assertEqual(result.stdout.strip(), "NOT")
+
 
 class FinalGateSummaryRendersSkippedForInsufficientSurface(unittest.TestCase):
     """AC18 — Final Gate summary renders the skip line; PR narrative includes the one-liner."""
