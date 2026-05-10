@@ -11,11 +11,21 @@
 # IF YOUR TEST RUNNER ISN'T HERE: emit SPEC_BLIND_INSUFFICIENT_SURFACE with
 # reason `no-test-runner-discoverable` rather than working around the guard.
 # Adding a new runner is a follow-up pipeline, not an in-line bypass.
+#
+# CHAIN-BYPASS HARDENING (SEC-CRIT-1): each pattern's optional argument suffix
+# uses TWO restrictions: (1) the separating whitespace is a literal SPACE
+# only (` ` not `[[:space:]]`), so newline/tab/CR injection cannot supply the
+# suffix, and (2) the run of arg chars uses a NEGATIVE class that excludes
+# shell metacharacters (& | ; < > $ ` \ ( ) and [:cntrl:] which covers
+# newline / tab / etc). Without these restrictions, `( .*)?` matched
+# `&& cat src/internal.ts` AND `\n cat src/internal.ts` because `[[:space:]]`
+# spans newlines. The class is kept inline (not factored to a variable) so
+# each pattern is auditable in isolation.
 
-^npm test( .*)?$
-^pnpm test( .*)?$
-^yarn test( .*)?$
-^bundle exec rspec( .*)?$
-^pytest( .*)?$
-^cargo test( .*)?$
-^go test( .*)?$
+^npm test( +[^&|;<>$`\()[:cntrl:]]*)?$
+^pnpm test( +[^&|;<>$`\()[:cntrl:]]*)?$
+^yarn test( +[^&|;<>$`\()[:cntrl:]]*)?$
+^bundle exec rspec( +[^&|;<>$`\()[:cntrl:]]*)?$
+^pytest( +[^&|;<>$`\()[:cntrl:]]*)?$
+^cargo test( +[^&|;<>$`\()[:cntrl:]]*)?$
+^go test( +[^&|;<>$`\()[:cntrl:]]*)?$
