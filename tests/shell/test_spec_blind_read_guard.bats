@@ -130,11 +130,59 @@ _run_hook() {
   [ -z "$(find "$HOME/.claude/metrics" -type d -name '*evil*\\x01*' 2>/dev/null)" ]
 }
 
-@test "SBR12 read of node_modules path is denied" {
+@test "SBR12 read of node_modules path is denied (CR-MED-4: exclude pattern)" {
+  # CR-MED-4: vendored / built / generated dirs are excluded BEFORE the
+  # entry-point glob match so `**/index.{ts,js}` no longer admits
+  # `node_modules/foo/index.js`. Excludes live in spec-blind-allow-paths.txt
+  # as `!.*/node_modules/.*` etc.
   run _run_hook "spec-blind-validator" "Read" "/tmp/proj/node_modules/foo/index.js"
-  # node_modules/foo/index.js matches **/index.js entry-point glob — BUT we
-  # want vendored deps OFF the allowlist. Today the entry-point glob admits
-  # them; this is a known V1 corner. Lock the V1 behaviour with an `||`
-  # tolerant assertion so a future tightening doesn't silently regress.
-  [ "$status" -eq 0 ] || [ "$status" -eq 2 ]
+  [ "$status" -eq 2 ]
+}
+
+@test "SBR13 read of vendor/ path is denied (CR-MED-4: exclude pattern)" {
+  run _run_hook "spec-blind-validator" "Read" "/tmp/proj/vendor/bundle/index.rb"
+  [ "$status" -eq 2 ]
+}
+
+@test "SBR14 read of dist/ path is denied (CR-MED-4: exclude pattern)" {
+  run _run_hook "spec-blind-validator" "Read" "/tmp/proj/dist/index.js"
+  [ "$status" -eq 2 ]
+}
+
+@test "SBR15 read of build/ path is denied (CR-MED-4: exclude pattern)" {
+  run _run_hook "spec-blind-validator" "Read" "/tmp/proj/build/index.js"
+  [ "$status" -eq 2 ]
+}
+
+# --- SEC-HIGH-1: symlink bypass under read-guard ---
+
+@test "SBR-SH1 symlink at allowlisted path -> src/ is denied (realpath check)" {
+  PROJ="$TMP/proj"
+  mkdir -p "$PROJ/src" "$PROJ/lib"
+  echo "internal" > "$PROJ/src/internal.ts"
+  # Symlink that LOOKS allowlisted (matches **/interface.ts ERE) but points at src/internal.ts.
+  ln -s "$PROJ/src/internal.ts" "$PROJ/lib/interface.ts"
+  run _run_hook "spec-blind-validator" "Read" "$PROJ/lib/interface.ts"
+  # Realpath resolution lands on src/internal.ts which has no allowlist match -> denied.
+  [ "$status" -eq 2 ]
+}
+
+@test "SBR-SH2 symlink at pipeline-state plan.md -> src/ is denied" {
+  PROJ="$TMP/proj"
+  mkdir -p "$PROJ/src" "$PROJ/pipeline-state/foo"
+  echo "internal" > "$PROJ/src/internal.ts"
+  ln -s "$PROJ/src/internal.ts" "$PROJ/pipeline-state/foo/plan.md"
+  run _run_hook "spec-blind-validator" "Read" "$PROJ/pipeline-state/foo/plan.md"
+  [ "$status" -eq 2 ]
+}
+
+# --- SEC-MED-2: env-var fallback for subagent_type ---
+
+@test "SBR-MED2 CLAUDE_SUBAGENT_TYPE env var triggers guard when JSON field missing" {
+  # Payload omits .subagent_type — without the fallback, the hook would fast-exit.
+  local payload
+  payload=$(jq -nc --arg p "/tmp/proj/src/auth.ts" --arg sid "$CLAUDE_SESSION_ID" \
+    '{tool_name:"Read", tool_input:{file_path:$p}, session_id:$sid}')
+  CLAUDE_SUBAGENT_TYPE="spec-blind-validator" run bash -c "echo '$payload' | bash '$HOOK'"
+  [ "$status" -eq 2 ]
 }

@@ -53,11 +53,16 @@ class AgentFrontmatterMatchesSpec(unittest.TestCase):
         self.assertTrue(self.path.exists(), "agents/spec-blind-validator.md missing")
         self.text = self.path.read_text()
 
-    def test_tools_list_contains_required_six(self):
-        for tool in ("Read", "Write", "Edit", "Bash", "Grep", "Glob"):
+    def test_tools_list_contains_required_five_and_excludes_edit(self):
+        # SEC-MED-3 — Edit dropped (validator only authors NEW test files via
+        # Write; Edit was over-broad attack surface).
+        for tool in ("Read", "Write", "Bash", "Grep", "Glob"):
             self.assertIsNotNone(
                 re.search(rf"^\s*-\s*{tool}\s*$", self.text, re.MULTILINE),
                 f"agent tools list missing: {tool}")
+        self.assertIsNone(
+            re.search(r"^\s*-\s*Edit\s*$", self.text, re.MULTILINE),
+            "agent tools list MUST NOT include Edit (SEC-MED-3)")
 
     def test_disallowed_tools_present(self):
         for tool in ("Agent", "Skill", "MultiEdit"):
@@ -175,10 +180,23 @@ class SettingsJsonRegistersThreeGuardsWithPortablePath(unittest.TestCase):
         self.assertIn("${CLAUDE_CONFIG_DIR:-$HOME/.claude}", joined)
 
     def test_write_edit_matcher_registers_write_guard(self):
-        # Write-guard registered under Write|Edit (a single matcher block)
-        cmds = self._commands_for_matcher("Write|Edit")
-        joined = "\n".join(cmds)
-        self.assertIn("spec-blind-write-guard.sh", joined)
+        # CR-MED-5: write-guard registered under per-tool matchers (Write
+        # AND Edit), aligning with pre-existing settings.json convention
+        # (no other hook uses the disjunction "Write|Edit"). After SEC-MED-3
+        # dropped Edit from the agent's tools, the Edit registration is a
+        # no-op for spec-blind but is harmless and preserves convention.
+        write_cmds = self._commands_for_matcher("Write")
+        self.assertTrue(
+            any("spec-blind-write-guard.sh" in c for c in write_cmds),
+            "spec-blind-write-guard.sh missing from Write matcher",
+        )
+        edit_cmds = self._commands_for_matcher("Edit")
+        self.assertTrue(
+            any("spec-blind-write-guard.sh" in c for c in edit_cmds),
+            "spec-blind-write-guard.sh missing from Edit matcher",
+        )
+        # Both registrations use the portable path.
+        joined = "\n".join(write_cmds + edit_cmds)
         self.assertIn("${CLAUDE_CONFIG_DIR:-$HOME/.claude}", joined)
 
     def test_bash_matcher_registers_bash_guard(self):

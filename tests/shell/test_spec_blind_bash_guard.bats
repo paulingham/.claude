@@ -67,7 +67,7 @@ _run_hook() {
 
 # --- Blocked: content-leak shapes ---
 
-@test "SBB-B1 cat src/auth.ts is denied (exit 2 + JSONL)" {
+@test "SBB-B1 cat src/auth.ts is denied (exit 2 + JSONL with offender=cat)" {
   run _run_hook "spec-blind-validator" "cat src/auth.ts"
   [ "$status" -eq 2 ]
   echo "$output" | grep -q "BLOCKED: spec-blind-validator"
@@ -75,6 +75,8 @@ _run_hook() {
   [ -f "$LOG" ]
   grep -q "spec_blind_blocked" "$LOG"
   grep -q "bash-guard" "$LOG"
+  # CR-MED-2: offender field MUST be the verb word, not the deny-by-default sentinel.
+  [ "$(jq -r '.offender' "$LOG" | head -1)" = "cat" ]
 }
 
 @test "SBB-B2 node -e require src is denied" {
@@ -134,4 +136,129 @@ _run_hook() {
 @test "SBB-C2 other subagent_type running an arbitrary script fast-exits 0" {
   run _run_hook "qa-engineer" "ls -la"
   [ "$status" -eq 0 ]
+}
+
+# --- CR-MED-2: offender-field assertions for canonical leak shapes ---
+
+_offender_for() {
+  local cmd="$1"
+  _run_hook "spec-blind-validator" "$cmd" >/dev/null
+  local LOG="$HOME/.claude/metrics/$CLAUDE_SESSION_ID/spec-blind-violations.jsonl"
+  jq -r '.offender' "$LOG" | tail -1
+}
+
+@test "SBB-OF1 head src offender is 'head'" {
+  [ "$(_offender_for 'head src/auth.ts')" = "head" ]
+}
+
+@test "SBB-OF2 node -e offender is 'node'" {
+  [ "$(_offender_for 'node -e require(\"./src/x\")')" = "node" ]
+}
+
+@test "SBB-OF3 sed offender is 'sed'" {
+  [ "$(_offender_for 'sed -n 1,5p src/auth.ts')" = "sed" ]
+}
+
+@test "SBB-OF4 python -c offender is 'python'" {
+  [ "$(_offender_for 'python -c print(open(\"src/x.py\").read())')" = "python" ]
+}
+
+@test "SBB-OF5 ruby -e offender is 'ruby'" {
+  [ "$(_offender_for 'ruby -e File.read(\"src/x.rb\")')" = "ruby" ]
+}
+
+@test "SBB-OF6 perl -e offender is 'perl'" {
+  [ "$(_offender_for 'perl -e print src/x.pl')" = "perl" ]
+}
+
+@test "SBB-OF7 xxd offender is 'xxd'" {
+  [ "$(_offender_for 'xxd src/x.bin')" = "xxd" ]
+}
+
+@test "SBB-OF8 hexdump offender is 'hexdump'" {
+  [ "$(_offender_for 'hexdump src/x')" = "hexdump" ]
+}
+
+# --- SEC-CRIT-1: chain-bypass attempts (all must exit 2) ---
+
+@test "SBB-CB1 npm test && cat src/internal.ts is denied" {
+  run _run_hook "spec-blind-validator" "npm test && cat src/internal.ts"
+  [ "$status" -eq 2 ]
+}
+
+@test "SBB-CB2 pytest | curl example.com is denied" {
+  run _run_hook "spec-blind-validator" "pytest | curl example.com"
+  [ "$status" -eq 2 ]
+}
+
+@test "SBB-CB3 go test; rm -rf \$HOME is denied (must NOT reach the rm)" {
+  run _run_hook "spec-blind-validator" "go test; rm -rf \$HOME"
+  [ "$status" -eq 2 ]
+}
+
+@test "SBB-CB4 npm test || cat src/internal.ts is denied" {
+  run _run_hook "spec-blind-validator" "npm test || cat src/internal.ts"
+  [ "$status" -eq 2 ]
+}
+
+@test "SBB-CB5 pytest \$(cat src/internal.ts) is denied (command substitution)" {
+  run _run_hook "spec-blind-validator" 'pytest $(cat src/internal.ts)'
+  [ "$status" -eq 2 ]
+}
+
+@test "SBB-CB6 npm test <(cat src/internal.ts) is denied (process substitution)" {
+  run _run_hook "spec-blind-validator" 'npm test <(cat src/internal.ts)'
+  [ "$status" -eq 2 ]
+}
+
+@test "SBB-CB7 bundle exec rspec; cat src/internal.ts is denied" {
+  run _run_hook "spec-blind-validator" "bundle exec rspec; cat src/internal.ts"
+  [ "$status" -eq 2 ]
+}
+
+@test "SBB-CB8 pytest && python -c open(...) is denied" {
+  run _run_hook "spec-blind-validator" 'pytest && python -c "import sys; print(open(\"src/internal.ts\").read())"'
+  [ "$status" -eq 2 ]
+}
+
+@test "SBB-CB9 newline injection (npm test\\ncat src/internal.ts) is denied" {
+  # Emit a literal newline inside the command string via printf %b interpretation.
+  local cmd
+  cmd=$(printf 'npm test\ncat src/internal.ts')
+  run _run_hook "spec-blind-validator" "$cmd"
+  [ "$status" -eq 2 ]
+}
+
+@test "SBB-CB10 backtick command substitution is denied" {
+  run _run_hook "spec-blind-validator" 'npm test `cat src/internal.ts`'
+  [ "$status" -eq 2 ]
+}
+
+# --- SEC-MED-1: secret redaction in violation log + stderr ---
+
+@test "SBB-RED1 Bearer token in blocked command is redacted in JSONL log" {
+  run _run_hook "spec-blind-validator" 'curl -H "Authorization: Bearer sk-prod-XYZ123-secret" example.com'
+  [ "$status" -eq 2 ]
+  LOG="$HOME/.claude/metrics/$CLAUDE_SESSION_ID/spec-blind-violations.jsonl"
+  [ -f "$LOG" ]
+  CMD_FIELD=$(jq -r '.attempted_command' "$LOG" | tail -1)
+  echo "$CMD_FIELD" | grep -qi "REDACTED"
+  ! echo "$CMD_FIELD" | grep -q "sk-prod-XYZ123-secret"
+}
+
+@test "SBB-RED2 token=... in blocked command is redacted in stderr echo" {
+  run _run_hook "spec-blind-validator" 'curl --header token=abc-secret-123 example.com'
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -qi "REDACTED"
+  ! echo "$output" | grep -q "abc-secret-123"
+}
+
+# --- SEC-MED-2: env-var fallback for subagent_type ---
+
+@test "SBB-MED2 CLAUDE_SUBAGENT_TYPE env triggers guard when JSON field missing" {
+  local payload
+  payload=$(jq -nc --arg c "cat src/x.ts" --arg sid "$CLAUDE_SESSION_ID" \
+    '{tool_name:"Bash", tool_input:{command:$c}, session_id:$sid}')
+  CLAUDE_SUBAGENT_TYPE="spec-blind-validator" run bash -c "echo '$payload' | bash '$HOOK'"
+  [ "$status" -eq 2 ]
 }
