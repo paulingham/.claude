@@ -44,6 +44,8 @@
 !.github/**
 !session-memory/
 !session-memory/**
+!codebase_map/
+!codebase_map/**
 
 # Global seed instincts — tracked so they ship with the harness.
 # Per-project accumulated instincts under learning/{project-hash}/ stay ignored
