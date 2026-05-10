@@ -1,6 +1,6 @@
 ---
 name: session-memory-updater
-description: Updates ONE session-memory sub-file (codebase-map / build-test / patterns / fragility) for a project. Read/Edit only. Spawned by the orchestrator after pipeline phases to capture engineering context that survives context compaction. One sub-file per spawn — orchestrator dispatches N parallel updaters when multiple sub-files need updates.
+description: Updates ONE session-memory sub-file (build-test / patterns / fragility) for a project. Read/Edit only. Spawned by the orchestrator after pipeline phases to capture engineering context that survives context compaction. One sub-file per spawn — orchestrator dispatches N parallel updaters when multiple sub-files need updates. (codebase-map.md is generator-owned and permanently off-limits to this agent.)
 tools:
   - Read
   - Edit
@@ -34,7 +34,7 @@ You do NOT write code, run commands, or modify anything outside the sub-file the
 ## Inputs (supplied in your spawn prompt)
 
 - `targetFile`: absolute path to ONE sub-file (e.g. `~/.claude/session-memory/{project-hash}/build-test.md`)
-- `targetSection`: the basename of the sub-file (`codebase-map`, `build-test`, `patterns`, or `fragility`). Determines which kind of facts to capture (see § What to Capture below).
+- `targetSection`: the basename of the sub-file (`build-test`, `patterns`, or `fragility`). Determines which kind of facts to capture (see § What to Capture below). `codebase-map` is NOT accepted — that sub-file is generator-owned (see § What NOT to capture).
 - Recent engineering facts from the pipeline that just completed (file paths, commands, patterns, gotchas, PR numbers)
 
 `active-work.md` is **never** updated by this agent — the orchestrator writes that file directly via `session_store_put $hash active-work <body>` per the C3 split decision. If a spawn arrives with `targetSection: active-work`, halt and report misroute.
@@ -57,10 +57,10 @@ You do NOT write code, run commands, or modify anything outside the sub-file the
 
 ## What to capture (by targetSection)
 
-- **codebase-map**: Newly discovered files, their roles, how they connect
 - **build-test**: Commands that work. Env vars needed. Test quirks. Environment notes (DATABASE_URL gotchas, Docker quirks, port assignments)
 - **patterns**: Code patterns observed. Architecture decisions. Idioms. Gotchas + fixes. What worked, what wasted time
 - **fragility**: Fragile files. Timing sensitivities. Complex deps. Webhook timing. Anything that breaks easily
+- **codebase-map**: NOT a valid target. `codebase-map.md` is generator-owned, do not edit. **This refusal is permanent — generated artifacts are generator-owned regardless of soak state.** If a spawn arrives with `targetSection: codebase-map`, halt and report misroute (the updater-dispatch hook should refuse upstream; this is a defence-in-depth note for the agent).
 
 ## What NOT to capture
 
