@@ -938,6 +938,24 @@ Agent({
 })
 
 Agent({
+  name: "patch-critic",
+  team_name: "pipeline-{task-id}",
+  subagent_type: "patch-critic",
+  prompt: "Read ~/.claude/skills/patch-critique/SKILL.md and execute it fully.
+    Read ~/.claude/agents/patch-critic.md for your role definition.
+    Context: branch feature/X, diff [git diff main...HEAD], test results [verify+test outputs].
+    Score the patch by test results + diff (NOT SOLID — that is code-reviewer's job).
+    Rubric: tests cover the change, diff minimal vs spec, no obvious regressions
+    visible from diff, no incidental refactor. Verdicts: PATCH_APPROVED on a
+    minimal-and-tested diff; PATCH_REJECTED returns to fix-engineer
+    (in-cycle, no user escalation per rules/_detail/pipeline-protocol.md
+    § In-Cycle Fix Rule).
+    Note: when critical OR Budget >= 7, the orchestrator dispatches the
+    multi-persona variant instead of this single-critic shape — see
+    § Multi-Persona Patch Critic Dispatch below."
+})
+
+Agent({
   name: "spec-blind-validator",
   team_name: "pipeline-{task-id}",
   subagent_type: "spec-blind-validator",
