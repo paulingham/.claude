@@ -196,17 +196,40 @@ def test_ac15_ref_name_rejects_invalid_slug() -> None:
 _READ_ONLY_VERBS = ("for-each-ref", "rev-parse")
 
 
-def _git_lines_in(path: Path) -> list[str]:
-    """Return every non-comment line that contains a `git ` invocation."""
+def _git_invocation_lines_in(path: Path) -> list[str]:
+    """Return non-comment lines that *invoke* the git CLI.
 
-    out = []
+    Excludes string-literal occurrences of the word "git" inside printf/echo
+    messages — those are not invocations. A line is treated as a git
+    invocation iff a token starting with ``git`` appears outside of any
+    quoted span.
+    """
+
+    out: list[str] = []
     for raw in path.read_text().splitlines():
         stripped = raw.lstrip()
         if stripped.startswith("#"):
             continue
-        if " git " not in f" {raw} " and not raw.lstrip().startswith("git "):
+        # Strip single-quoted spans (literal strings) before scanning.
+        scrubbed = ""
+        in_squote = False
+        for ch in raw:
+            if ch == "'":
+                in_squote = not in_squote
+                scrubbed += " "
+                continue
+            scrubbed += " " if in_squote else ch
+        # Now look for a `git ` token at line start or after whitespace/`(`.
+        tokens = scrubbed.split()
+        if not tokens:
             continue
-        out.append(raw)
+        idx = 0
+        while idx < len(tokens):
+            tok = tokens[idx]
+            if tok == "git" or tok.endswith("/git"):
+                out.append(raw)
+                break
+            idx += 1
     return out
 
 
@@ -217,7 +240,7 @@ def test_ac28_all_git_invocations_use_dash_C_delegation() -> None:
     for path in (HOOK, HELPERS):
         if not path.exists():
             pytest.fail(f"{path} not yet created — Slice {path.name} must land first")
-        for line in _git_lines_in(path):
+        for line in _git_invocation_lines_in(path):
             if 'git -C "$' in line:
                 continue
             if any(verb in line for verb in _READ_ONLY_VERBS):

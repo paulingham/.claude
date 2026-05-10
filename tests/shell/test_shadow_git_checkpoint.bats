@@ -240,7 +240,8 @@ _count_checkpoint_refs() {
   [ "$status" -eq 0 ]
   CHK_LOG="$TMP/.claude/metrics/$CLAUDE_SESSION_ID/shadow-checkpoints.jsonl"
   [ -f "$CHK_LOG" ]
-  grep -q '"success":false' "$CHK_LOG"
+  # Tolerate either compact (json.dumps default) or whitespace-separated form.
+  jq -e '.success == false' "$CHK_LOG" >/dev/null
 }
 
 # ---------------------------------------------------------------------------
