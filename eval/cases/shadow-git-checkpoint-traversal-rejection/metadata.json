@@ -1,0 +1,14 @@
+{
+  "case_id": "shadow-git-checkpoint-traversal-rejection",
+  "classification": "feature",
+  "source_pr": "",
+  "min_harness_ref": "21d39a617c7e284ff5714452f8837e11b31fd2c6",
+  "max_harness_ref": null,
+  "flakiness_tier": "deterministic",
+  "scoring_mode": "test-passing",
+  "timeout_minutes": 30,
+  "cost_ceiling_usd": 5,
+  "synthetic": true,
+  "authored_at": "2026-05-10T11:08:45Z",
+  "authored_by": "manual"
+}
