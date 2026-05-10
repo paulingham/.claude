@@ -1,0 +1,12 @@
+{
+  "case_id": "v2-plan-dag-diamond",
+  "classification": "feature",
+  "source_pr": "",
+  "min_harness_ref": "69ae09b19e2ec860ed85ddcfed157839e80c3ac8",
+  "max_harness_ref": null,
+  "flakiness_tier": "deterministic",
+  "scoring_mode": "test-passing",
+  "timeout_minutes": 5,
+  "cost_ceiling_usd": 0,
+  "synthetic": true
+}
