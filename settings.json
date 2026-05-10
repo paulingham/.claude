@@ -328,6 +328,11 @@
           },
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/spec-blind-bash-guard.sh\"",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/tdd-guard.sh\"",
             "timeout": 10000
           }
