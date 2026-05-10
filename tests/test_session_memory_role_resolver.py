@@ -10,6 +10,7 @@ import unittest
 
 from session_memory_role_resolver import (
     CANONICAL_SUBFILES,
+    is_generated_subfile,
     resolve_subfiles_for_role,
 )
 
@@ -53,6 +54,23 @@ class ResolverMatchesDocumentedTableForAllCanonicalRoles(unittest.TestCase):
 
     def test_resolver_returns_empty_for_unknown_role(self):
         self.assertEqual(resolve_subfiles_for_role("totally-made-up"), [])
+
+
+class IsGeneratedSubfilePredicateMatchesPlanSliceD(unittest.TestCase):
+    """AC22 — `is_generated_subfile` flags codebase-map only.
+
+    Generator-owned (codebase-map.md is rebuilt on every SessionStart) is
+    orthogonal to the canonical sub-file list — the resolver still must
+    enumerate codebase-map for the architect's injection list, but the
+    updater-dispatch hook must permanently refuse to spawn an updater
+    for it.
+    """
+
+    def test_ac22_is_generated_subfile_predicate(self):
+        # Three assertions per plan §3 Slice D AC22.
+        self.assertTrue(is_generated_subfile("codebase-map"))
+        self.assertFalse(is_generated_subfile("patterns"))
+        self.assertFalse(is_generated_subfile("totally-unknown"))
 
 
 if __name__ == "__main__":
