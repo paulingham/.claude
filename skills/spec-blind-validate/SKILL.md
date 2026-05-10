@@ -75,6 +75,8 @@ On `SPEC_BLIND_FAILED`, the orchestrator dispatches `fix-engineer` per `rules/_d
 
 ## Process
 
+> **Subagent-type resolution (SEC-MED-2).** All three guards (read / write / bash) resolve `subagent_type` via this fallback chain: (1) the `.subagent_type` top-level field on the PreToolUse JSON envelope, (2) the `CLAUDE_SUBAGENT_TYPE` environment variable. The orchestrator MUST set `CLAUDE_SUBAGENT_TYPE=spec-blind-validator` in the spawn shell when dispatching this validator so the guards still fire even if the harness omits the JSON field. Mirrors the precedent at `hooks/cost-feed.sh:33`.
+
 1. **Recursion-guard precheck (BEFORE any Read)**: source `hooks/_lib/spec-blind-recursion.sh` and call `is_harness_internal_cwd "$(pwd)"`. If the helper returns 0 (harness-internal), emit `SPEC_BLIND_INSUFFICIENT_SURFACE` with reason `harness-internal-recursion` and exit. This invocation MUST precede the first Read step — without the precheck, V1 would attempt to author spec-blind tests against the harness itself.
 2. **Read inputs**: Read the AC list (`pipeline-state/{task-id}/plan.md`) and intake spec (`pipeline-state/{task-id}/intake.md`).
 3. **Discover public surface**: Glob the public-surface allowlist. If nothing matches (no `interface.*`, no `index.*`, no `__init__.py`, no OpenAPI/Protobuf/JSON-Schema), emit `SPEC_BLIND_INSUFFICIENT_SURFACE` with reason `no-public-surface-discoverable`.

@@ -4,7 +4,6 @@ description: Final-Gate teammate that authors black-box behavioural tests from t
 tools:
   - Read
   - Write
-  - Edit
   - Bash
   - Grep
   - Glob

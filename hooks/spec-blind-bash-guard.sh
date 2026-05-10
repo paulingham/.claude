@@ -6,19 +6,23 @@
 # validator read implementation source even with the read-guard active.
 #
 # When subagent_type == spec-blind-validator:
-#   1. Reuses find_blocking_clause from hooks/_lib/no-shell-read-helpers.sh
-#      to detect cat/head/tail/sed/awk targeting paths inside the repo —
-#      the existing per-clause parser returns the offending command word.
-#   2. Adds spec-blind-specific shape detection: node -e, python -c,
-#      ruby -e, perl -e, xxd, hexdump, grep -r <src>, find <src>.
-#   3. Allows ONLY commands matching the 7-runner allowlist at
-#      hooks/_lib/spec-blind-test-runners.txt.
+#   1. Check the 7-runner allowlist at hooks/_lib/spec-blind-test-runners.txt.
+#      Each pattern's argument suffix uses a NEGATIVE class that excludes
+#      shell metacharacters (& | ; < > $ ` \ ( ) cntrl), so chains like
+#      `npm test && cat src/x` are rejected at allowlist time (SEC-CRIT-1).
+#   2. Otherwise apply spec-blind-specific leak shapes (cat/head/tail on
+#      src|lib|app, sed/awk on src, node -e, python -c, ruby -e, perl -e,
+#      xxd, hexdump, grep -r <src>, find <src|lib|app>) using textual prefix
+#      matching against `src/`, `lib/`, `app/` substrings — does NOT depend
+#      on git-rev-parse(pwd) resolving to the repo root (CR-MED-3).
+#   3. Deny-by-default: anything else is blocked as `non-allowlisted-command`.
 #
 # For every other subagent, fast-exits 0. The fast-exit branch (grep -F over
 # raw stdin BEFORE jq) preserves the AC17 budget for the no-op path even
 # though Bash itself is the highest-volume PreToolUse matcher.
 #
-# IF SPEC-BLIND BASH IS LEAKING: check .subagent_type top-level JSON field.
+# IF SPEC-BLIND BASH IS LEAKING: check .subagent_type top-level JSON field
+# OR CLAUDE_SUBAGENT_TYPE env var (SEC-MED-2 fallback).
 # IF BASH GUARD IS OVER-BLOCKING legitimate test runs: check the runner ladder
 # at hooks/_lib/spec-blind-test-runners.txt — if your test command isn't there,
 # add it (V1 ships exactly 7 entries).
@@ -29,7 +33,8 @@
 set -uo pipefail
 
 INPUT=$(cat)
-if ! printf '%s' "$INPUT" | grep -F -q "spec-blind-validator"; then
+if ! printf '%s' "$INPUT" | grep -F -q "spec-blind-validator" \
+   && [[ "${CLAUDE_SUBAGENT_TYPE:-}" != "spec-blind-validator" ]]; then
   exit 0
 fi
 
@@ -39,12 +44,9 @@ _log_hook_start
 _log_hook_trigger "PreToolUse:Bash"
 trap 'log_hook_event $?' EXIT
 
-TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty')
-SUBAGENT_TYPE=$(printf '%s' "$INPUT" | jq -r '.subagent_type // empty')
-COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty')
-SESSION_RAW=$(printf '%s' "$INPUT" | jq -r '.session_id // empty')
-SESSION=$(printf '%s' "$SESSION_RAW" | tr -dc 'A-Za-z0-9_-' | head -c 64)
-[[ -z "$SESSION" ]] && SESSION="unknown"
+# shellcheck source=/dev/null
+source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/spec-blind-guard-common.sh"
+_spec_blind_parse_input
 
 [[ "$SUBAGENT_TYPE" != "spec-blind-validator" ]] && exit 0
 [[ "$TOOL_NAME" != "Bash" ]] && exit 0
@@ -52,6 +54,8 @@ SESSION=$(printf '%s' "$SESSION_RAW" | tr -dc 'A-Za-z0-9_-' | head -c 64)
 
 # ---- Allowlist check ---------------------------------------------------------
 # If the command matches one of the 7 enumerated test runners exactly, allow.
+# The patterns reject shell-metachar suffixes (SEC-CRIT-1) so chain bypasses
+# fall through to the leak-pattern list below.
 RUNNER_FILE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/spec-blind-test-runners.txt"
 ALLOWED=0
 if [[ -f "$RUNNER_FILE" ]]; then
@@ -69,64 +73,48 @@ if [[ "$ALLOWED" -eq 1 ]]; then
 fi
 
 # ---- Content-leak detection --------------------------------------------------
-# Reuse the existing per-clause parser from no-shell-read for cat|head|tail
-# targeting in-repo paths. find_blocking_clause returns the offending command
-# word (e.g. "cat") on hit, empty otherwise.
-REPO_ROOT=$(git -C "$(pwd)" rev-parse --show-toplevel 2>/dev/null || echo "$(pwd)")
-
-OFFENDER=""
-# shellcheck source=/dev/null
-if [[ -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/no-shell-read-helpers.sh" ]]; then
-  source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/no-shell-read-helpers.sh"
-  OFFENDER=$(find_blocking_clause "$COMMAND" "$REPO_ROOT" 2>/dev/null || true)
-fi
-
-# Spec-blind-specific shapes the standard helper does not cover.
-# Each pattern is an ERE matched against the full command string.
+# Spec-blind-specific shapes — textual prefix matching on `src/`, `lib/`,
+# `app/` substrings. CR-MED-3: previously this fell through to
+# find_blocking_clause, which resolves relative paths via $(pwd) and
+# silently no-oped when pwd was outside the repo (e.g. in bats tests).
+# Replacing the call with explicit ERE patterns over the raw command string
+# eliminates the env-fragility — the spec-blind threat model is "leak source
+# from tree-shaped path tokens", which is detectable from the command text
+# alone without needing pwd-resolved repo-root knowledge.
 SPEC_BLIND_LEAK_PATTERNS=(
+  'cat([[:space:]]+[^[:space:]]+)*[[:space:]]+(/?)((/[^[:space:]]+/)?(src|lib|app)/)'
+  'head([[:space:]]+[^[:space:]]+)*[[:space:]]+(/?)((/[^[:space:]]+/)?(src|lib|app)/)'
+  'tail([[:space:]]+[^[:space:]]+)*[[:space:]]+(/?)((/[^[:space:]]+/)?(src|lib|app)/)'
   'sed[[:space:]]+-n'
-  'sed[[:space:]]+[^|]*[[:space:]]+[^[:space:]/]*src/'
-  'awk[[:space:]]+[^|]*[[:space:]]+[^[:space:]/]*src/'
+  'sed[[:space:]]+[^|]*(src|lib|app)/'
+  'awk[[:space:]]+[^|]*(src|lib|app)/'
   'node[[:space:]]+-e'
-  'python[[:space:]]+-c'
-  'python3[[:space:]]+-c'
+  'python3?[[:space:]]+-c'
   'ruby[[:space:]]+-e'
   'perl[[:space:]]+-e'
   'xxd([[:space:]]|$)'
   'hexdump([[:space:]]|$)'
-  'grep[[:space:]]+-r[[:space:]]'
-  'find[[:space:]]+[^[:space:]]*src/'
-  'find[[:space:]]+[^[:space:]]*lib/'
-  'find[[:space:]]+[^[:space:]]*app/'
+  'grep[[:space:]]+(-[a-zA-Z]*r[a-zA-Z]*[[:space:]]|.*[[:space:]]-r[[:space:]])'
+  'find[[:space:]]+[^|]*(src|lib|app)/'
 )
 
-if [[ -z "$OFFENDER" ]]; then
-  for pat in "${SPEC_BLIND_LEAK_PATTERNS[@]}"; do
-    if [[ "$COMMAND" =~ $pat ]]; then
-      OFFENDER="${BASH_REMATCH[0]%% *}"
-      break
-    fi
-  done
-fi
+OFFENDER=""
+for pat in "${SPEC_BLIND_LEAK_PATTERNS[@]}"; do
+  if [[ "$COMMAND" =~ $pat ]]; then
+    # Extract leading verb word for the offender field.
+    OFFENDER="${COMMAND%% *}"
+    break
+  fi
+done
 
 # Either the command matched no allowlist entry AND triggered a leak shape,
 # OR it matched no allowlist entry at all. Both are blocked.
-LOG_DIR="${HOME:-/tmp}/.claude/metrics/$SESSION"
-mkdir -p "$LOG_DIR" 2>/dev/null || exit 2
-LOG_FILE="$LOG_DIR/spec-blind-violations.jsonl"
-TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 [[ -z "$OFFENDER" ]] && OFFENDER="non-allowlisted-command"
 
-jq -nc \
-  --arg ts "$TS" \
-  --arg subagent "spec-blind-validator" \
-  --arg tool "Bash" \
-  --arg cmd "$COMMAND" \
-  --arg offender "$OFFENDER" \
-  --arg session "$SESSION" \
-  --arg guard "bash-guard" \
-  '{ts:$ts, record_type:"spec_blind_blocked", subagent_type:$subagent, tool:$tool, attempted_command:$cmd, offender:$offender, session_id:$session, guard:$guard, action:"blocked"}' \
-  >> "$LOG_FILE" 2>/dev/null
+_spec_blind_log_violation "bash-guard" "Bash" "$COMMAND" "$OFFENDER"
 
-echo "BLOCKED: spec-blind-validator may not run '$OFFENDER' (full command: $COMMAND). Allowed runners: npm test, pnpm test, yarn test, bundle exec rspec, pytest, cargo test, go test." >&2
+# Stderr message redacts the command body so secrets in the blocked command
+# do not leak to the log streams (SEC-MED-1).
+REDACTED_CMD="$(_spec_blind_redact "$COMMAND")"
+echo "BLOCKED: spec-blind-validator may not run '$OFFENDER' (full command: $REDACTED_CMD). Allowed runners: npm test, pnpm test, yarn test, bundle exec rspec, pytest, cargo test, go test." >&2
 exit 2
