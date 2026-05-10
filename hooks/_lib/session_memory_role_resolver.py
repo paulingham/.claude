@@ -9,6 +9,7 @@ Public API:
     resolve_subfiles_for_role(role: str) -> list[str]
     body_chars(text: str) -> int
     should_inject_subfile(text: str) -> bool
+    is_generated_subfile(sub: str) -> bool   # generator-owned (codebase-map)
 """
 import re
 
@@ -19,6 +20,13 @@ CANONICAL_SUBFILES = (
     "fragility",
     "active-work",
 )
+
+# Sub-files owned by an external generator (rebuilt on every SessionStart) and
+# therefore permanently off-limits to the session-memory-updater agent.
+# Generated-vs-writable is orthogonal to CANONICAL_SUBFILES — the resolver
+# still must enumerate codebase-map for the architect's injection list, but
+# the updater-dispatch hook permanently refuses to spawn an updater for it.
+_GENERATED_SUBFILES = frozenset({"codebase-map"})
 
 # Role → sub-file injection list (active-work.md NEVER appears here).
 _ROLE_TABLE = {
@@ -55,6 +63,17 @@ def body_chars(text):
 def should_inject_subfile(text):
     """True iff body_chars(text) >= EMPTY_BODY_CHAR_THRESHOLD."""
     return body_chars(text) >= EMPTY_BODY_CHAR_THRESHOLD
+
+
+def is_generated_subfile(sub: str) -> bool:
+    """True iff `sub` is a generator-owned sub-file (e.g. codebase-map).
+
+    Generator-owned sub-files are rebuilt on every SessionStart and are
+    permanently off-limits to the session-memory-updater agent. The
+    updater-dispatch hook consults this predicate to refuse spawns; the
+    refusal is permanent architecture, NOT soak scaffolding.
+    """
+    return sub in _GENERATED_SUBFILES
 
 
 def _is_header(line):
