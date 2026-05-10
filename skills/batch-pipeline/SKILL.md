@@ -162,6 +162,7 @@ After all tasks shipped:
 4. **Clean up** (dual-form during 90-day DUAL_PATH soak):
    - Empty `pipeline-state/{batch-id}/` via `find -delete` — `rm -rf` on directories is sandbox-denied even on orchestrator-writable paths (see `skills/pipeline/SKILL.md` Step 7d for the canonical `find -type f -delete && find -depth -type d -empty -delete` snippet)
    - Remove any legacy phase files via `_psp_phase_list` (see `skills/pipeline/SKILL.md` Step 7d for the canonical cleanup snippet — never bare globs)
+   - Checkpoint-ref deletion is included via the canonical `skills/pipeline/SKILL.md` Step 7d snippet — no batch-pipeline-specific code (delegation, not duplication, per the canonical pre-step that runs `git for-each-ref refs/checkpoints/{batch-id}/` + `update-ref -d` against REPO_ROOT before file deletion).
    - Remove worktree branches
 
 ## Orchestrator Boundaries (same as full pipeline)

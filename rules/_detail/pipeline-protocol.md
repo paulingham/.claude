@@ -49,7 +49,7 @@ The canonical layout is **per-task subdirectory**: every artifact for a given pi
 - **Approval token**: `pipeline-state/{task-id}/approval.token`
 - **Trajectory**: `pipeline-state/{task-id}/trajectory.jsonl`
 - **Health reports** (project-wide, NOT task-keyed): `pipeline-state/health-reports/{date}.md`
-- **Lifecycle**: created by phase agent/skill, read by next phase, emptied via `find {task-id} -type f -delete && find {task-id} -depth -type d -empty -delete` after pipeline completes (`rm -rf` on directories is sandbox-denied even on orchestrator-writable paths — see `skills/pipeline/SKILL.md` Step 7d for the canonical snippet)
+- **Lifecycle**: created by phase agent/skill, read by next phase, emptied via `find {task-id} -type f -delete && find {task-id} -depth -type d -empty -delete` after pipeline completes (`rm -rf` on directories is sandbox-denied even on orchestrator-writable paths — see `skills/pipeline/SKILL.md` Step 7d for the canonical snippet) AND any `refs/checkpoints/{task-id}/*` refs in the shared ref database (created by `hooks/shadow-git-checkpoint.sh`) deleted via the canonical Step 7d pre-step
 - **Why files, not memory**: files survive context compaction intact; orchestrator memory does not
 - **Why subdirectory**: cleanup is bounded to one task-prefix (no prefix-collision risk — `tool` cleanup cannot match `tool-timing-capture-*`); concurrent pipelines are filesystem-isolated
 
@@ -70,7 +70,7 @@ During the soak:
   pipeline-state/health-reports/                                # EXCLUDED from active-pipeline scans
   ```
 - **Read-precedence (locked by tests)**: workstream layout beats root layout when `task_id` collides. Within a single layout-class, fresher mtime wins. Ties favour the new layout. The approval-token reader returns whichever path exists; if both exist, fresher mtime wins.
-- **Reflect cleanup is dual-form**: `find pipeline-state/{task-id} -type f -delete && find pipeline-state/{task-id} -depth -type d -empty -delete` for the new layout (NOT `rm -rf` — sandbox-denied on directories) AND iterate the canonical phase list (`_psp_phase_list`) to remove any legacy `pipeline-state/{task-id}-{phase}.md` files. Bare globs are forbidden (they would catch prefix neighbours).
+- **Reflect cleanup is dual-form**: `find pipeline-state/{task-id} -type f -delete && find pipeline-state/{task-id} -depth -type d -empty -delete` for the new layout (NOT `rm -rf` — sandbox-denied on directories) AND iterate the canonical phase list (`_psp_phase_list`) to remove any legacy `pipeline-state/{task-id}-{phase}.md` files. Bare globs are forbidden (they would catch prefix neighbours). Reflect cleanup ALSO deletes shadow checkpoint refs via `git for-each-ref refs/checkpoints/{task-id}/` + per-ref `update-ref -d`, run BEFORE Form-1 file deletion per `skills/pipeline/SKILL.md` Step 7d.
 - **Soak end**: a cleanup pipeline removes legacy-read code paths from helpers, hooks, and skills, gated on `find pipeline-state -maxdepth 1 -name "*-pipeline.md" -type f` returning zero.
 
 ### Format

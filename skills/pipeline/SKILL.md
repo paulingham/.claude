@@ -558,6 +558,7 @@ The orchestrator reports learnings to the user (skip if nothing actionable). Eve
 
 After analytics, reflection, and learning are complete, remove the pipeline state files. Cleanup is dual-form during the 90-day DUAL_PATH soak (per `rules/_detail/pipeline-protocol.md` § Structured Pipeline State):
 
+0. **Pre-step — shadow-checkpoint refs**: delete every `refs/checkpoints/{task-id}/*` ref in the shared ref database (created by `hooks/shadow-git-checkpoint.sh`). Refs live in REPO_ROOT's ref db (per `git-worktree(1)` semantics — only `refs/heads/*` is per-worktree), so cleanup runs against `REPO_ROOT`, NOT against any individual worktree. Idempotent: zero refs → loop no-ops. Workstream variant: refs are NOT workstream-prefixed (task-id alone is unique), so the same loop covers both. Per-worktree counter file `pipeline-state/{task-id}/checkpoint-counter-{slug}.txt` is removed by Form 1's `find -delete` below — no separate step.
 1. **Form 1 — new-layout subdir cleanup**: empty the per-task subdir with `find -delete` (sandbox-safe — `rm -rf` on directories is denied by the sandbox even on orchestrator-writable paths). Workstream variant: same pattern under `pipeline-state/workstreams/{ws}/{task-id}/`.
 2. **Form 2 — legacy phase enumeration**: iterate the canonical phase list via `_psp_phase_list` (sourced from `hooks/_lib/pipeline-state-paths.sh`) and remove each `pipeline-state/{task-id}-{phase}.md` file. **NEVER use a bare wildcard glob over the task prefix** — that matches prefix neighbours (e.g. cleanup of `tool` would delete `tool-timing-capture-*` files). R12 mitigation.
 3. Approval token + trajectory have well-known names; remove them by exact path: `pipeline-state/{task-id}-approval.token` and `pipeline-state/{task-id}-trajectory.jsonl`.
@@ -569,6 +570,17 @@ source ~/.claude/hooks/_lib/pipeline-state-paths.sh
 state_dir="$HOME/.claude/pipeline-state"
 task="{task-id}"
 ws=""  # set to the workstream name when applicable
+
+# Pre-step: delete shadow-git-checkpoint refs for this task-id.
+# Refs live in REPO_ROOT's shared ref db (not per-worktree), so cleanup runs
+# against REPO_ROOT. Idempotent — zero refs → while loop iterates zero times.
+REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}"
+if [ -n "$REPO_ROOT" ]; then
+  git -C "$REPO_ROOT" for-each-ref --format='%(refname)' "refs/checkpoints/$task/" 2>/dev/null \
+    | while IFS= read -r ref; do
+        git -C "$REPO_ROOT" update-ref -d "$ref" 2>/dev/null || true
+      done
+fi
 
 # Form 1: new-layout subdir. Use find -delete (rm -rf on dirs is sandbox-denied).
 if [ -n "$ws" ]; then
