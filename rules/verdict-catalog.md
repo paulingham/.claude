@@ -60,6 +60,10 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `REJECTED` | failure | `product-acceptance` | final-gate | Halt; back to Build with AC violations |
 | `PATCH_APPROVED` | success | `patch-critique` | final-gate | `/pr-creation` unblocked |
 | `PATCH_REJECTED` | failure | `patch-critique` | final-gate | Spawn fix-engineer (in-cycle, no user escalation) |
+| `SPEC_BLIND_VALIDATED` | success | `spec-blind-validate` | final-gate | Pipeline advances to next gate |
+| `SPEC_BLIND_FAILED` | failure | `spec-blind-validate` | final-gate | Spawn fix-engineer per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule (code-fix-only — fix-engineer MUST NOT mutate ACs) |
+| `SPEC_BLIND_INSUFFICIENT_SURFACE` | info | `spec-blind-validate` | final-gate | Pipeline advances to next gate; Final Gate summary renders `spec-blind: SKIPPED (no public surface)` (verbatim) |
+| `SPEC_BLIND_BLOCKED` | failure | `spec-blind-validate` | final-gate | HALT pipeline + emit operator-visible escalation message; do NOT auto-advance and do NOT route to fix-engineer |
 | `POLISHED` | info | `polish` | utility | Continue to Review |
 | `NO_CHANGES_NEEDED` | info | `polish` | utility | Continue to Review |
 | `SCREENSHOTS_CAPTURED` | info | `design-qc` | utility | Product-reviewer consumes screenshots |

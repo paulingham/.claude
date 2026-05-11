@@ -1,0 +1,61 @@
+# Path allowlist for spec-blind-validator. One ERE pattern per line.
+# Lines starting with '#' or empty lines are ignored. Lines starting with '!'
+# (after optional whitespace) are EXCLUDE patterns evaluated FIRST — any path
+# matching an exclude is denied even if it also matches an include glob below.
+# Patterns are matched against the absolute path of a Read|Grep|Glob target;
+# any path NOT matching at least one include pattern is denied.
+#
+# Sources:
+#   - rules/_detail/module-boundaries-protocol.md § Module Contract Artifacts
+#   - common language entry-point conventions (Node index.*, Python __init__.py,
+#     Rust lib.rs/mod.rs, C/C++ headers)
+#   - the validator's own pipeline-state inputs and authored test directories
+#
+# Default-deny: anything outside this list (src/**, lib/internal.ts, app/**, etc.)
+# returns exit 2 from hooks/spec-blind-read-guard.sh with a JSONL violation log.
+
+# CR-MED-4 — vendored / built / generated dirs excluded BEFORE include match so
+# `**/index.{ts,js}` does not admit `node_modules/foo/index.js` or `dist/x.js`.
+!.*/node_modules/.*
+!.*/vendor/.*
+!.*/dist/.*
+!.*/build/.*
+
+# Pipeline-state inputs (the spec)
+.*/pipeline-state/[A-Za-z0-9_.-]+/plan\.md$
+.*/pipeline-state/[A-Za-z0-9_.-]+/intake\.md$
+
+# Module contract artifacts (rules/_detail/module-boundaries-protocol.md)
+.*/interface\.(ts|tsx|js|jsx|rb|py|go|rs|java|kt|swift)$
+.*/types\.(ts|tsx|js|jsx|rb|py|go|rs|java|kt|swift)$
+.*/events\.(ts|tsx|js|jsx|rb|py|go|rs|java|kt|swift)$
+
+# Language entry-point conventions
+.*/index\.(ts|tsx|js|jsx|mjs|cjs)$
+.*/__init__\.py$
+.*/lib\.rs$
+.*/mod\.rs$
+.*\.h$
+.*\.hpp$
+
+# Module documentation
+.*/README\.md$
+
+# Contract artifacts (OpenAPI / Protobuf / JSON-Schema)
+.*\.openapi\.(yaml|yml|json)$
+.*\.proto$
+.*/schemas/[^/]+\.json$
+
+# Test-runner discovery (CLAUDE.md + convention manifests)
+.*/CLAUDE\.md$
+.*/\.claude/CLAUDE\.md$
+.*/package\.json$
+.*/Gemfile$
+.*/pyproject\.toml$
+.*/Cargo\.toml$
+.*/go\.mod$
+
+# The validator's OWN authored tests (writable too — see write-guard)
+.*/tests?/.*$
+.*/spec/.*$
+.*/__tests__/.*$
