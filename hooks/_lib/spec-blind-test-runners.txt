@@ -1,0 +1,31 @@
+# Allowed test-runner shapes for the spec-blind-validator. One ERE per line.
+# Lines starting with '#' or empty lines are ignored. Patterns are matched
+# against the full Bash command string (case-sensitive).
+#
+# This list is the COMPLETE allowlist — exactly seven runners enumerated by
+# AC15. Other Bash invocations from spec-blind-validator are blocked at
+# hooks/spec-blind-bash-guard.sh by either a content-leak shape match
+# (find_blocking_clause from no-shell-read-helpers.sh) or by failing this
+# allowlist when no content-leak shape applies.
+#
+# IF YOUR TEST RUNNER ISN'T HERE: emit SPEC_BLIND_INSUFFICIENT_SURFACE with
+# reason `no-test-runner-discoverable` rather than working around the guard.
+# Adding a new runner is a follow-up pipeline, not an in-line bypass.
+#
+# CHAIN-BYPASS HARDENING (SEC-CRIT-1): each pattern's optional argument suffix
+# uses TWO restrictions: (1) the separating whitespace is a literal SPACE
+# only (` ` not `[[:space:]]`), so newline/tab/CR injection cannot supply the
+# suffix, and (2) the run of arg chars uses a NEGATIVE class that excludes
+# shell metacharacters (& | ; < > $ ` \ ( ) and [:cntrl:] which covers
+# newline / tab / etc). Without these restrictions, `( .*)?` matched
+# `&& cat src/internal.ts` AND `\n cat src/internal.ts` because `[[:space:]]`
+# spans newlines. The class is kept inline (not factored to a variable) so
+# each pattern is auditable in isolation.
+
+^npm test( +[^&|;<>$`\()[:cntrl:]]*)?$
+^pnpm test( +[^&|;<>$`\()[:cntrl:]]*)?$
+^yarn test( +[^&|;<>$`\()[:cntrl:]]*)?$
+^bundle exec rspec( +[^&|;<>$`\()[:cntrl:]]*)?$
+^pytest( +[^&|;<>$`\()[:cntrl:]]*)?$
+^cargo test( +[^&|;<>$`\()[:cntrl:]]*)?$
+^go test( +[^&|;<>$`\()[:cntrl:]]*)?$
