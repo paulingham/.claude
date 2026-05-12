@@ -6,7 +6,7 @@
 # any path NOT matching at least one include pattern is denied.
 #
 # Sources:
-#   - rules/_detail/module-boundaries-protocol.md § Module Contract Artifacts
+#   - protocols/module-boundaries-protocol.md § Module Contract Artifacts
 #   - common language entry-point conventions (Node index.*, Python __init__.py,
 #     Rust lib.rs/mod.rs, C/C++ headers)
 #   - the validator's own pipeline-state inputs and authored test directories
@@ -25,7 +25,7 @@
 .*/pipeline-state/[A-Za-z0-9_.-]+/plan\.md$
 .*/pipeline-state/[A-Za-z0-9_.-]+/intake\.md$
 
-# Module contract artifacts (rules/_detail/module-boundaries-protocol.md)
+# Module contract artifacts (protocols/module-boundaries-protocol.md)
 .*/interface\.(ts|tsx|js|jsx|rb|py|go|rs|java|kt|swift)$
 .*/types\.(ts|tsx|js|jsx|rb|py|go|rs|java|kt|swift)$
 .*/events\.(ts|tsx|js|jsx|rb|py|go|rs|java|kt|swift)$

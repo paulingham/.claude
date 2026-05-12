@@ -1,12 +1,12 @@
 # Pipeline Orchestration (Orchestrator-Only)
 
-Extracted from `rules/_detail/pipeline-protocol.md`. Agents do not need this content.
+Extracted from `protocols/pipeline-protocol.md`. Agents do not need this content.
 
 ## Pipeline State Tracking
 
 Pipeline state is tracked using `pipeline-state/[feature-name]/pipeline.md` files (workstream variant: `pipeline-state/workstreams/{ws}/[feature-name]/pipeline.md`). Each pipeline run creates a state file with YAML frontmatter (task_id, phase, verdict, timestamp, scale, branch) plus phase status, verdicts, artifacts, and agent summaries. This is the single source of truth — do NOT dual-write to `memory/`.
 
-During the DUAL_PATH soak (see `rules/_detail/pipeline-protocol.md` § Structured Pipeline State), the legacy flat form `pipeline-state/[feature-name]-pipeline.md` is still tolerated by readers but never written by new code. Path resolution always goes through `hooks/_lib/pipeline_state_paths.py` (or `pipeline-state-paths.sh` from bash).
+During the DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State), the legacy flat form `pipeline-state/[feature-name]-pipeline.md` is still tolerated by readers but never written by new code. Path resolution always goes through `hooks/_lib/pipeline_state_paths.py` (or `pipeline-state-paths.sh` from bash).
 
 ### State File Structure
 
@@ -247,10 +247,10 @@ The orchestrator does not need to count observations, check dates, or evaluate c
 4. **Enumerate all pipeline phases** and the skill for each
 5. **Determine dispatch mode**: single-slice (subagents) or multi-slice/multi-domain (team)
 6. **Create pipeline team**: `TeamCreate("pipeline-{task-id}")` -- always, even for single-slice (the team hosts review + final gate teammates)
-6b. **Create pipeline scratchpad**: `mkdir -p pipeline-state/{task-id}/scratchpad/` (see `rules/_detail/autonomous-intelligence.md`)
+6b. **Create pipeline scratchpad**: `mkdir -p pipeline-state/{task-id}/scratchpad/` (see `protocols/autonomous-intelligence.md`)
 6c. **Load session memory**: Read `session-memory/{project-hash}/` sub-files (`codebase-map.md`, `build-test.md`, `patterns.md`, `fragility.md` — `active-work.md` is orchestrator-only, never injected). Use `session_memory_read_split $hash $sub` so legacy single-file content is still tolerated during the 30-day DUAL_PATH soak. Seed from `session-memory/config/templates/{sub}.md` if first pipeline in this project.
 7. **Write the phase plan** as a visible message to the user
-8. **Execute phases in order**, spawning teammates for team phases, subagents for subagent phases. Inject session memory + scratchpad findings into every agent prompt (see `rules/_detail/autonomous-intelligence.md` § Agent Spawn)
+8. **Execute phases in order**, spawning teammates for team phases, subagents for subagent phases. Inject session memory + scratchpad findings into every agent prompt (see `protocols/autonomous-intelligence.md` § Agent Spawn)
 
 ## Learn-Status Pre-flight Check
 

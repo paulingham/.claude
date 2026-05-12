@@ -1,6 +1,6 @@
 """Slice 3 AC10 — pipeline-protocol.md and core.md document PDR-RTV.
 
-`rules/_detail/pipeline-protocol.md` § Build Phase Dispatch Variants
+`protocols/pipeline-protocol.md` § Build Phase Dispatch Variants
 documents the routing precedence (`pdr_rtv > bestofn > standard`).
 `rules/core.md` § Pipeline Phase Order summary mentions PDR-RTV as a
 Build dispatch variant.
@@ -11,7 +11,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PIPELINE_PROTOCOL_DETAIL = (
-    REPO_ROOT / "rules" / "_detail" / "pipeline-protocol.md")
+    REPO_ROOT / "protocols" / "pipeline-protocol.md")
 CORE_RULES = REPO_ROOT / "rules" / "core.md"
 
 
@@ -20,7 +20,7 @@ class BuildDispatchVariantsDocumentsPdrRtv(unittest.TestCase):
         content = PIPELINE_PROTOCOL_DETAIL.read_text()
         self.assertIn(
             "Build Phase Dispatch Variants", content,
-            "rules/_detail/pipeline-protocol.md must contain a "
+            "protocols/pipeline-protocol.md must contain a "
             "'Build Phase Dispatch Variants' subsection")
 
     def test_pipeline_protocol_documents_routing_precedence(self):

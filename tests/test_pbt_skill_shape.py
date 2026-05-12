@@ -1,6 +1,6 @@
 """AC1.7 — `/property-based-test` skill obeys engineering shape rules.
 
-Advisory smell signals only (per `rules/_detail/engineering-invariants.md`):
+Advisory smell signals only (per `protocols/engineering-invariants.md`):
 no heading body exceeds 30 lines without a documented cohesion rationale.
 We surface anything > 30 lines as a soft warning, but only HARD-fail when
 the file as a whole exceeds the safety-net cap (300 lines) without

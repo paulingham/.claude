@@ -7,7 +7,7 @@
 #   standard — all hooks (default)
 #   strict   — all hooks (same as standard; reserved for future stricter checks)
 #
-# enforces: rules/_detail/agent-protocol.md:Hook Profile
+# enforces: protocols/agent-protocol.md:Hook Profile
 # protects: pipeline
 check_hook_profile() {
   local required_level="$1"

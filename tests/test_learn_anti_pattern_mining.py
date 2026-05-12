@@ -23,7 +23,7 @@ def _make_pipeline_obs(pipeline_id, rounds, scratchpad_findings):
     """Builder for a single synthetic pipeline observation record.
 
     Mirrors the production schema as documented in
-    `rules/_detail/autonomous-intelligence.md` § Observation Capture.
+    `protocols/autonomous-intelligence.md` § Observation Capture.
     `rounds=None` simulates a legacy record missing the
     `phases.review.rounds` field.
     """

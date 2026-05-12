@@ -5,7 +5,7 @@
 - Lean agile: thin vertical slices delivering observable user value
 - MVP mindset: smallest increment that validates the hypothesis
 - Ship-learn-iterate: deploy independently, measure, adapt
-- Modular monolith by default: in-process boundaries first; new services only when a forcing function (see `rules/_detail/module-boundaries-protocol.md`) is explicitly named.
+- Modular monolith by default: in-process boundaries first; new services only when a forcing function (see `protocols/module-boundaries-protocol.md`) is explicitly named.
 - Engineering discipline: TDD mandatory, SOLID, DRY, clean architecture
 - Zero waste: every output line is a test result or a real error
 - Proven correct: tests passing is necessary but not sufficient — verify it actually works
@@ -42,7 +42,7 @@ Global wins for quality standards; project wins for project-specific conventions
 
 ### Thinking Defaults (Opus 4.7)
 
-Every Agent spawn carries a `thinking` field — `effort` (`low|medium|high|xhigh`) and `display` (`omitted|text`). Defaults are applied automatically by the `pre-agent-thinking.sh` PreToolUse hook. The four primary build/design roles — `architect`, `software-engineer`, `frontend-engineer`, `infrastructure-engineer` — default to `effort=xhigh` **unconditionally** (May 2026 policy). Review/critic/database roles (`code-reviewer`, `qa-engineer`, `product-reviewer`, `patch-critic`, `database-engineer`) default to `effort=high`. `planning-agent` stays `low`. `security-engineer` keeps its dual treatment — `high` by default, xhigh only when `critical=true AND budget>=7`. `fix-engineer` (Opus 4.7) is NOT on the unconditional-promotion list and inherits `high`. Best-of-N candidates promote when `budget>=7`. When the active pipeline is in a debug state (`{task_id}-debug.md` exists OR phase is `debugging`), `display=text` is forced. Override via `CLAUDE_THINKING_EFFORT` / `CLAUDE_THINKING_DISPLAY` env vars. See `rules/_detail/thinking-defaults.md` for the full precedence table.
+Every Agent spawn carries a `thinking` field — `effort` (`low|medium|high|xhigh`) and `display` (`omitted|text`). Defaults are applied automatically by the `pre-agent-thinking.sh` PreToolUse hook. The four primary build/design roles — `architect`, `software-engineer`, `frontend-engineer`, `infrastructure-engineer` — default to `effort=xhigh` **unconditionally** (May 2026 policy). Review/critic/database roles (`code-reviewer`, `qa-engineer`, `product-reviewer`, `patch-critic`, `database-engineer`) default to `effort=high`. `planning-agent` stays `low`. `security-engineer` keeps its dual treatment — `high` by default, xhigh only when `critical=true AND budget>=7`. `fix-engineer` (Opus 4.7) is NOT on the unconditional-promotion list and inherits `high`. Best-of-N candidates promote when `budget>=7`. When the active pipeline is in a debug state (`{task_id}-debug.md` exists OR phase is `debugging`), `display=text` is forced. Override via `CLAUDE_THINKING_EFFORT` / `CLAUDE_THINKING_DISPLAY` env vars. See `protocols/thinking-defaults.md` for the full precedence table.
 
 **Postmortem note (May 2026):** the four unconditional promotions reflect both the **Apr 23 2026** cost/quality data — promotion-on-trigger lift was concentrated in stakes-bearing build/design work — AND the **Opus 4.7** adaptive-thinking floor change (manual `budget_tokens` rejected at the API layer; adaptive thinking allocates budget dynamically). Promotion-on-trigger captured the lift; adaptive thinking removed the cost gate that previously rationed xhigh per spawn.
 
@@ -56,11 +56,11 @@ Every Agent spawn carries a `thinking` field — `effort` (`low|medium|high|xhig
 
 ### Per-Agent Tool Allowlists (Path B)
 
-Every agent's `tools:` frontmatter declares the tools that agent may invoke (YAML list, one tool per line). The `pre-agent-allowlist.sh` PreToolUse hook reads the spawned `subagent_type`, loads the matching frontmatter via `agent_tools_loader`, and computes a subset check against `tool_input.allowed_tools`. Any superset request is logged to `metrics/{session}/tool-allowlist.jsonl` with `source: "path-b-advisory"` — no spawn is refused today because the Agent input schema does not yet expose `allowed_tools`. Disable per-session with `CLAUDE_DISABLE_TOOL_ALLOWLIST=1`; suppressed by `CLAUDE_HOOK_PROFILE=minimal`. Will be promoted to enforcement (exit 2 on `would_block`) the moment the schema lands. See `rules/_detail/agent-protocol.md` § Per-Agent Tool Scoping for the full contract.
+Every agent's `tools:` frontmatter declares the tools that agent may invoke (YAML list, one tool per line). The `pre-agent-allowlist.sh` PreToolUse hook reads the spawned `subagent_type`, loads the matching frontmatter via `agent_tools_loader`, and computes a subset check against `tool_input.allowed_tools`. Any superset request is logged to `metrics/{session}/tool-allowlist.jsonl` with `source: "path-b-advisory"` — no spawn is refused today because the Agent input schema does not yet expose `allowed_tools`. Disable per-session with `CLAUDE_DISABLE_TOOL_ALLOWLIST=1`; suppressed by `CLAUDE_HOOK_PROFILE=minimal`. Will be promoted to enforcement (exit 2 on `would_block`) the moment the schema lands. See `protocols/agent-protocol.md` § Per-Agent Tool Scoping for the full contract.
 
 ### Instinct Injection (Path B)
 
-Every agent's `instinct_categories:` frontmatter (YAML list of role-name tokens) determines which `learning/{project-hash}/instincts/*.md` and `learning/instincts/*.md` files apply to that spawn. The `instinct-injector.sh` PreToolUse hook (`Agent` matcher, position 6) loads matching instincts via `instinct_loader.py`, filters by confidence floor (default `0.4`), sorts by confidence DESC, caps at top N (default `5`), and logs the resolution to `metrics/{session}/instinct-injections.jsonl` with `source: "logged"`. The hook is **advisory/log-only today** — the Agent input schema does not yet expose `modified_tool_input`, so the hook cannot patch the spawn prompt. Actual `## Learned Patterns` injection is performed by the orchestrator at spawn time, which writes a paired `source: "orchestrator-injected"` JSONL record. Mismatch (`logged` without paired `orchestrator-injected`) is the Path-B failure surface, detected by `/forensics`. Override with `CLAUDE_INSTINCT_MIN_CONFIDENCE` / `CLAUDE_INSTINCT_TOP_N`; disable via `CLAUDE_DISABLE_INSTINCT_INJECTION=1`; suppressed by `CLAUDE_HOOK_PROFILE=minimal`. Will be promoted to enforcement (single-file flip in `hooks/instinct-injector.sh`) the moment `modified_tool_input` lands. See `rules/_detail/autonomous-intelligence.md` § Instinct Injection for the full contract and `orchestrator/agent-orchestration.md` § Instinct Injection for the caller-side splice.
+Every agent's `instinct_categories:` frontmatter (YAML list of role-name tokens) determines which `learning/{project-hash}/instincts/*.md` and `learning/instincts/*.md` files apply to that spawn. The `instinct-injector.sh` PreToolUse hook (`Agent` matcher, position 6) loads matching instincts via `instinct_loader.py`, filters by confidence floor (default `0.4`), sorts by confidence DESC, caps at top N (default `5`), and logs the resolution to `metrics/{session}/instinct-injections.jsonl` with `source: "logged"`. The hook is **advisory/log-only today** — the Agent input schema does not yet expose `modified_tool_input`, so the hook cannot patch the spawn prompt. Actual `## Learned Patterns` injection is performed by the orchestrator at spawn time, which writes a paired `source: "orchestrator-injected"` JSONL record. Mismatch (`logged` without paired `orchestrator-injected`) is the Path-B failure surface, detected by `/forensics`. Override with `CLAUDE_INSTINCT_MIN_CONFIDENCE` / `CLAUDE_INSTINCT_TOP_N`; disable via `CLAUDE_DISABLE_INSTINCT_INJECTION=1`; suppressed by `CLAUDE_HOOK_PROFILE=minimal`. Will be promoted to enforcement (single-file flip in `hooks/instinct-injector.sh`) the moment `modified_tool_input` lands. See `protocols/autonomous-intelligence.md` § Instinct Injection for the full contract and `orchestrator/agent-orchestration.md` § Instinct Injection for the caller-side splice.
 
 ### Agent Team
 
@@ -155,7 +155,7 @@ No phase skipped. No gate bypassed. CHANGES_REQUESTED = go back.
 
 ### Autonomous Intelligence
 
-Three systems make the pipeline self-improving (see `rules/_detail/autonomous-intelligence.md`):
+Three systems make the pipeline self-improving (see `protocols/autonomous-intelligence.md`):
 
 | System | Scope | Purpose |
 |--------|-------|---------|
@@ -165,7 +165,7 @@ Three systems make the pipeline self-improving (see `rules/_detail/autonomous-in
 
 Every agent spawn includes: instincts + agent memory + session memory + scratchpad findings.
 
-Tracing is off by default (`CLAUDE_ENABLE_TRACE=0` in `settings.json`). Enable per-session with `/debug-trace on` to capture rendered spawn prompts to `metrics/{session}/trace/`; turn it off again with `/debug-trace off`. See `rules/_detail/autonomous-intelligence.md` § Prompt Tracing.
+Tracing is off by default (`CLAUDE_ENABLE_TRACE=0` in `settings.json`). Enable per-session with `/debug-trace on` to capture rendered spawn prompts to `metrics/{session}/trace/`; turn it off again with `/debug-trace off`. See `protocols/autonomous-intelligence.md` § Prompt Tracing.
 
 ### Skill Directory
 
@@ -221,7 +221,7 @@ Tracing is off by default (`CLAUDE_ENABLE_TRACE=0` in `settings.json`). Enable p
 
 #### Deferred (forcing-function required)
 
-These skills live under `skills/_deferred/` and are invoked only when a forcing function from `rules/_detail/module-boundaries-protocol.md` is named (service / multi-repo work) or a domain-specific channel is in scope (voice). The pipeline routes automatically — you do not invoke them directly. `/microservices-scaffold` enforces the FF gate at its Step 0.
+These skills live under `skills/_deferred/` and are invoked only when a forcing function from `protocols/module-boundaries-protocol.md` is named (service / multi-repo work) or a domain-specific channel is in scope (voice). The pipeline routes automatically — you do not invoke them directly. `/microservices-scaffold` enforces the FF gate at its Step 0.
 
 | Skill | When to Invoke | Verdict |
 |-------|----------------|---------|
@@ -255,25 +255,25 @@ Projects spanning multiple repos are managed via **project manifests** (`~/.clau
 - **Deploy**: Dependency-aware ordering. Health checks cascade. Rollback in reverse order
 - **Agents**: One agent per repo, worktree isolation per-repo. Parallel when independent
 
-See `rules/_detail/multi-repo-protocol.md` for full details.
+See `protocols/multi-repo-protocol.md` for full details.
 
 ## Detailed Protocols
 
-**Two-tier rules layout.** Auto-load is `rules/core.md` only — load-bearing invariants every spawn needs (Iron Laws, code shape limits, worktree + commit protocol, pipeline phase order, where-to-look-next index). Full protocols live in `rules/_detail/<topic>.md` and are pulled in by skills/agents only when the phase needs them. The original `rules/<topic>.md` files are stubs that preserve backwards-compatible references.
+**Two-tier rules layout.** Auto-load is `rules/core.md` only — load-bearing invariants every spawn needs (Iron Laws, code shape limits, worktree + commit protocol, pipeline phase order, where-to-look-next index). Full protocols live in `protocols/<topic>.md` and are pulled in by skills/agents only when the phase needs them. The original `rules/<topic>.md` files are stubs that preserve backwards-compatible references.
 
 ### Skill-Loaded Protocols (read on demand by specific skills/agents)
-- `rules/_detail/agent-protocol.md` — Worktree isolation, commit protocol, scratchpad, agent memory, fix-receiving rules, dynamic agents, resource bounds, per-agent tool scoping
-- `rules/_detail/pipeline-protocol.md` — Pipeline phases, review loop with in-cycle fix detail, environment-dependent debugging loop, enforcement
-- `rules/_detail/engineering-invariants.md` — Engineering baseline: shape decomposition rules, naming, SOLID, error handling, dependency resolution, testing standards, security baseline
-- `rules/_detail/atdd-procedure.md` — Full ATDD cycle, mutation gate, per-behaviour TDD exceptions (loaded by `/build-implementation` and `/bug-fix`)
-- `rules/_detail/operational-protocol.md` — Complexity Budget, error recovery principles, escalation decision tree
-- `rules/_detail/parallel-dispatch-protocol.md` — Hybrid dispatch: teams for Build/Review/Final Gate, subagents for Plan/Ship/Deploy, Best-of-N team variant
-- `rules/_detail/module-boundaries-protocol.md` — Modular monolith default, canonical forcing-function list (FF1–FF5)
-- `rules/_detail/multi-repo-protocol.md` — Project manifests, multi-repo pipelines, GitHub service config, linked PRs, deploy ordering
-- `rules/_detail/e2e-protocol.md` — Multi-target E2E trigger matrix (mobile via Maestro, web via Playwright/Cypress) and prerequisites
-- `rules/_detail/reflection-protocol.md` — Post-pipeline reflection, observation capture, auto-learn gate, session-memory + scratchpad cleanup
-- `rules/_detail/autonomous-intelligence.md` — Pipeline scratchpad, session memory, continuous learning loop, instinct injection, prompt tracing
-- `rules/_detail/thinking-defaults.md` — Default `effort`/`display` resolution, role layer rules, xhigh allocation policy
+- `protocols/agent-protocol.md` — Worktree isolation, commit protocol, scratchpad, agent memory, fix-receiving rules, dynamic agents, resource bounds, per-agent tool scoping
+- `protocols/pipeline-protocol.md` — Pipeline phases, review loop with in-cycle fix detail, environment-dependent debugging loop, enforcement
+- `protocols/engineering-invariants.md` — Engineering baseline: shape decomposition rules, naming, SOLID, error handling, dependency resolution, testing standards, security baseline
+- `protocols/atdd-procedure.md` — Full ATDD cycle, mutation gate, per-behaviour TDD exceptions (loaded by `/build-implementation` and `/bug-fix`)
+- `protocols/operational-protocol.md` — Complexity Budget, error recovery principles, escalation decision tree
+- `protocols/parallel-dispatch-protocol.md` — Hybrid dispatch: teams for Build/Review/Final Gate, subagents for Plan/Ship/Deploy, Best-of-N team variant
+- `protocols/module-boundaries-protocol.md` — Modular monolith default, canonical forcing-function list (FF1–FF5)
+- `protocols/multi-repo-protocol.md` — Project manifests, multi-repo pipelines, GitHub service config, linked PRs, deploy ordering
+- `protocols/e2e-protocol.md` — Multi-target E2E trigger matrix (mobile via Maestro, web via Playwright/Cypress) and prerequisites
+- `protocols/reflection-protocol.md` — Post-pipeline reflection, observation capture, auto-learn gate, session-memory + scratchpad cleanup
+- `protocols/autonomous-intelligence.md` — Pipeline scratchpad, session memory, continuous learning loop, instinct injection, prompt tracing
+- `protocols/thinking-defaults.md` — Default `effort`/`display` resolution, role layer rules, xhigh allocation policy
 
 ### Orchestrator-Only Protocols (not auto-loaded, read when needed)
 - `orchestrator/pipeline-orchestration.md` — State tracking, continuity, progress reporting, anti-patterns

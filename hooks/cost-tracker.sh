@@ -3,7 +3,7 @@
 # Appends session metrics to ~/.claude/metrics/costs.jsonl
 # Passive logging only (exit 0).
 #
-# enforces: rules/_detail/operational-protocol.md:Complexity Budget
+# enforces: protocols/operational-protocol.md:Complexity Budget
 # protects: pipeline
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

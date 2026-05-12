@@ -1,5 +1,5 @@
 """Tier 0 contract: precedence list ordering in
-`rules/_detail/thinking-defaults.md` matches the resolver's actual evaluation
+`protocols/thinking-defaults.md` matches the resolver's actual evaluation
 order.
 
 Parses the numbered list under `## Precedence`; asserts the literal sequence
@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DOC_PATH = REPO_ROOT / "rules" / "_detail" / "thinking-defaults.md"
+DOC_PATH = REPO_ROOT / "protocols" / "thinking-defaults.md"
 
 EXPECTED_SEQUENCE = ["1", "2", "2a", "3", "4"]
 
@@ -48,7 +48,7 @@ class PrecedenceListInDocOrders2aBetween2And3(unittest.TestCase):
             EXPECTED_SEQUENCE,
             (
                 "Precedence list ordering drift in "
-                "rules/_detail/thinking-defaults.md.\n"
+                "protocols/thinking-defaults.md.\n"
                 f"  expected: {EXPECTED_SEQUENCE}\n"
                 f"  observed: {numbers}\n"
                 "Rule 2a must slot between rule 2 (explicit field) and "

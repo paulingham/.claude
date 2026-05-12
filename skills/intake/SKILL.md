@@ -132,7 +132,7 @@ Check for multi-repo signals BEFORE routing to pipeline:
 
 If ANY signal is true:
 - Flag `multi_repo: true` in the routing output
-- The pipeline will auto-create/read the manifest (see `rules/_detail/multi-repo-protocol.md`)
+- The pipeline will auto-create/read the manifest (see `protocols/multi-repo-protocol.md`)
 - No separate command needed — the pipeline handles it
 
 ```
@@ -163,7 +163,7 @@ Persist the flag to `pipeline-state/{task-id}/intake.md` frontmatter as `critica
 
 ### Step 2d-bis: Best-of-N + PDR-RTV Tags (MANDATORY)
 
-Derive two Build-phase dispatch flags. Both are persisted to `pipeline-state/{task-id}/intake.md` frontmatter and read by `/pipeline` Step 3 at Build dispatch time. Routing precedence is `pdr_rtv > bestofn > standard` per `rules/_detail/pipeline-protocol.md` § Build Phase Dispatch Variants.
+Derive two Build-phase dispatch flags. Both are persisted to `pipeline-state/{task-id}/intake.md` frontmatter and read by `/pipeline` Step 3 at Build dispatch time. Routing precedence is `pdr_rtv > bestofn > standard` per `protocols/pipeline-protocol.md` § Build Phase Dispatch Variants.
 
 #### Best-of-N Flag
 
@@ -177,7 +177,7 @@ Where `user_override` is true when the user's request contains the literal token
 Derive `pdr_rtv`:
 `pdr_rtv = budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-9} OR critical == true`
 
-The default trigger floor is `budget >= 9` (matches the "must decompose" threshold per `rules/_detail/operational-protocol.md`), NOT `budget >= 7`. The `CLAUDE_PDR_RTV_BUDGET_FLOOR` env var (range 5–15) provides opt-in override for operators wanting an empirical lower-floor experiment. Migration plan to drop the default floor to 7 is documented in `skills/pdr-rtv/SKILL.md` § Anti-Patterns: only after `/eval-model-effectiveness` confirms ≥5% Pass@1 lift on the harness regression suite at the lower floor.
+The default trigger floor is `budget >= 9` (matches the "must decompose" threshold per `protocols/operational-protocol.md`), NOT `budget >= 7`. The `CLAUDE_PDR_RTV_BUDGET_FLOOR` env var (range 5–15) provides opt-in override for operators wanting an empirical lower-floor experiment. Migration plan to drop the default floor to 7 is documented in `skills/pdr-rtv/SKILL.md` § Anti-Patterns: only after `/eval-model-effectiveness` confirms ≥5% Pass@1 lift on the harness regression suite at the lower floor.
 
 PDR-RTV is mutually exclusive with Best-of-N at dispatch time (when both fire, PDR-RTV wins as the strictly stronger variant). The cost is roughly 4-5× standard Build (vs Best-of-N's 2-3×) — justifying the higher trigger floor.
 
@@ -208,7 +208,7 @@ Persist all three to `pipeline-state/{task-id}/intake.md` frontmatter:
 
 ### Step 2e: Contract Identification (MANDATORY)
 
-Identify what *contracts* the task touches before routing. Contracts are the public surface of the change — if a contract changes, downstream code (tests, callers, sibling modules, external consumers) is affected. Surfacing them at intake feeds Tier 0 (Contracts) of the Proof-of-Correctness ladder (`rules/_detail/engineering-invariants.md` § Proof of Correctness) and the build-implementation "Write Contract Assertions" step (`skills/build-implementation/SKILL.md` § ATDD).
+Identify what *contracts* the task touches before routing. Contracts are the public surface of the change — if a contract changes, downstream code (tests, callers, sibling modules, external consumers) is affected. Surfacing them at intake feeds Tier 0 (Contracts) of the Proof-of-Correctness ladder (`protocols/engineering-invariants.md` § Proof of Correctness) and the build-implementation "Write Contract Assertions" step (`skills/build-implementation/SKILL.md` § ATDD).
 
 Scan the request text and any existing CLAUDE.md / project layout for changes to:
 
@@ -234,7 +234,7 @@ Persist the findings to `pipeline-state/{task-id}/intake.md` as a `## Contracts 
 - invariants: "a session is `mfa_verified=true` → `last_mfa_at` is non-null and within 30d"
 
 # If the task touches no contracts (pure UI copy, log format tweak, README), say so:
-- (none) — change is internal/cosmetic; no public surface affected. Tier 0 contracts skipped per rules/_detail/engineering-invariants.md § Proof of Correctness.
+- (none) — change is internal/cosmetic; no public surface affected. Tier 0 contracts skipped per protocols/engineering-invariants.md § Proof of Correctness.
 ```
 
 Output a one-line summary:

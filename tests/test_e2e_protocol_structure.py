@@ -1,6 +1,6 @@
 """C3 — e2e-protocol.md multi-target structural assertions (AC1-AC6).
 
-These tests lock the post-restructure shape of `rules/_detail/e2e-protocol.md`.
+These tests lock the post-restructure shape of `protocols/e2e-protocol.md`.
 The mobile pre/post row-pair check (AC5) implements the M3 set-equality rule:
 the post-restructure mobile matrix MUST be a superset of the pre-restructure
 mobile matrix. Pre-restructure rows are pinned at the top of this file.
@@ -9,10 +9,10 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL = REPO_ROOT / "rules" / "_detail" / "e2e-protocol.md"
+PROTOCOL = REPO_ROOT / "protocols" / "e2e-protocol.md"
 
 # M3: Pre-restructure mobile (Category, Files) row pairs frozen here.
-# Source: rules/_detail/e2e-protocol.md @ HEAD before this slice (lines 18-28).
+# Source: protocols/e2e-protocol.md @ HEAD before this slice (lines 18-28).
 PRE_MOBILE_ROW_PAIRS = frozenset({
     ("URL/Navigation",
      "`url-classification.ts`, `url-parse-helpers.ts`, "

@@ -94,7 +94,7 @@ For each story:
 
 ### 5. Estimate Stories
 
-Use the Complexity Budget table in `rules/_detail/operational-protocol.md`. Score each dimension 1-3, apply thresholds and Fibonacci mapping.
+Use the Complexity Budget table in `protocols/operational-protocol.md`. Score each dimension 1-3, apply thresholds and Fibonacci mapping.
 
 **Thresholds**: 5-6 execute, 7-10 plan first, 11-12 break down, 13-15 must decompose.
 

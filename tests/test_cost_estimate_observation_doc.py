@@ -1,7 +1,7 @@
 """B12.2: cost_estimate_usd field documented in observation JSONL.
 
 Verifies:
-- rules/_detail/autonomous-intelligence.md § Observation Capture documents
+- protocols/autonomous-intelligence.md § Observation Capture documents
   the new `cost_estimate_usd: number` field, its source, and the backward-
   compatibility note. The example JSONL block includes the field.
 - skills/learn/SKILL.md mentions cost_estimate_usd correlation in a section
@@ -15,7 +15,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DOC = REPO_ROOT / "rules" / "_detail" / "autonomous-intelligence.md"
+DOC = REPO_ROOT / "protocols" / "autonomous-intelligence.md"
 LEARN = REPO_ROOT / "skills" / "learn" / "SKILL.md"
 
 

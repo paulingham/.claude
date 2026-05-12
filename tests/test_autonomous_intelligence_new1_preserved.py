@@ -2,7 +2,7 @@
 
 AC4 (fast-fail): the literal string 'min(0.85, floor + 0.05 * (N - 3))'
 and its containing bullet are present in
-rules/_detail/autonomous-intelligence.md after this PR's edits.
+protocols/autonomous-intelligence.md after this PR's edits.
 
 AC18 (comprehensive): the entire § Scratchpad → Instinct Promotion subsection
 (from its '### Scratchpad → Instinct Promotion' header through the next
@@ -14,10 +14,10 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TARGET = ROOT / "rules" / "_detail" / "autonomous-intelligence.md"
+TARGET = ROOT / "protocols" / "autonomous-intelligence.md"
 
 # Captured at PR-open time (verified from main branch HEAD before edits).
-EXPECTED_SHA256 = "6f47cc8331abbca5867e2b38f1731cf57d0c0edd99251f263ed7c3e6bb5c7170"
+EXPECTED_SHA256 = "4fae015e756f7cea36503af50c10942ebb6855b5b88209f48b0019bad4294618"
 
 
 def _section_text():

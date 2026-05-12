@@ -67,7 +67,7 @@ Trust the build process for mechanical correctness. Focus your limited turns on 
 
 ## Review Checklist
 
-Verify compliance with `rules/_detail/engineering-invariants.md` (engineering standards, testing standards, security baseline) and `rules/_detail/atdd-procedure.md` (ATDD cycle, audit trail).
+Verify compliance with `protocols/engineering-invariants.md` (engineering standards, testing standards, security baseline) and `protocols/atdd-procedure.md` (ATDD cycle, audit trail).
 
 ### Architecture & Design
 - [ ] SOLID principles applied (see engineering-standards rule)
@@ -90,7 +90,7 @@ Shape compliance is enforced by build hooks. Do not re-measure. If shape violati
 - [ ] CSRF protection enabled
 
 ### Testing & TDD Audit Trail
-- [ ] TDD evidence: visible RED -> GREEN -> REFACTOR cycles per `rules/_detail/atdd-procedure.md` (batched per slice; per-behaviour for exception cases)
+- [ ] TDD evidence: visible RED -> GREEN -> REFACTOR cycles per `protocols/atdd-procedure.md` (batched per slice; per-behaviour for exception cases)
 - [ ] One test written at a time (no bulk test-then-implement pattern)
 - [ ] Tests test behavior, not implementation
 - [ ] Edge cases and error paths covered

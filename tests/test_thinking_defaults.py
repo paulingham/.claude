@@ -838,13 +838,13 @@ class DocCarriesNamingRationaleClause(unittest.TestCase):
     file."""
 
     def test_doc_carries_naming_rationale_clause(self):
-        path = (REPO_ROOT / "rules" / "_detail" / "thinking-defaults.md")
+        path = (REPO_ROOT / "protocols" / "thinking-defaults.md")
         body = path.read_text()
         self.assertRegex(
             body,
             r"existing\s+`?env`?\s+source\s+name.*predates",
             "Naming-rationale clause: 'existing env source name ... predates' "
-            "phrase missing from rules/_detail/thinking-defaults.md",
+            "phrase missing from protocols/thinking-defaults.md",
         )
         self.assertRegex(
             body,
@@ -902,7 +902,7 @@ class ThinkingDefaultsDocListsRule2aClaudeEffortEnv(unittest.TestCase):
     rule 3; subsequent rules do NOT renumber (still 3, 4)."""
 
     def test_thinking_defaults_doc_lists_rule_2a_claude_effort_env(self):
-        path = (REPO_ROOT / "rules" / "_detail" / "thinking-defaults.md")
+        path = (REPO_ROOT / "protocols" / "thinking-defaults.md")
         body = path.read_text()
         # Rule 2a entry header. List items in markdown begin at column 0
         # (no leading whitespace).
@@ -940,7 +940,7 @@ class ForensicCatalogIncludesClaudeEffortEnvBullet(unittest.TestCase):
     documents that the new value indicates rule 2a fired."""
 
     def test_forensic_catalog_includes_claude_effort_env_bullet(self):
-        path = (REPO_ROOT / "rules" / "_detail" / "thinking-defaults.md")
+        path = (REPO_ROOT / "protocols" / "thinking-defaults.md")
         body = path.read_text()
         # Locate the forensic subsection.
         section_match = re.search(
@@ -995,7 +995,7 @@ class HookLogsClaudeEffortEnvSourceToJsonl(unittest.TestCase):
 
 class RoleDefaultsTableShowsXhighForPromotedRoles(unittest.TestCase):
     """AC8: `## Role Defaults Summary` table in
-    `rules/_detail/thinking-defaults.md` shows `xhigh` in the Default-effort
+    `protocols/thinking-defaults.md` shows `xhigh` in the Default-effort
     column for each of the four unconditionally-promoted roles. Pins the doc
     to the resolver behaviour after AC1–AC4.
     """
@@ -1006,7 +1006,7 @@ class RoleDefaultsTableShowsXhighForPromotedRoles(unittest.TestCase):
     )
 
     def test_table_rows_show_xhigh_default(self):
-        path = REPO_ROOT / "rules" / "_detail" / "thinking-defaults.md"
+        path = REPO_ROOT / "protocols" / "thinking-defaults.md"
         body = path.read_text()
         section = re.search(
             r"## Role Defaults Summary(.*?)(?=\n## |\Z)",

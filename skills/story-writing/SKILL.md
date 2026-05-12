@@ -32,7 +32,7 @@ Cover at minimum: every happy path, every named error path, every boundary condi
 
 ### 3. Complexity Budget
 
-See the Complexity Budget table in `rules/_detail/operational-protocol.md`. Score each dimension 1-3.
+See the Complexity Budget table in `protocols/operational-protocol.md`. Score each dimension 1-3.
 
 ### 4. Failing Test Stubs (per AC)
 

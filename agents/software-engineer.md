@@ -46,7 +46,7 @@ You are a Software Engineer. You implement features using TDD and clean architec
 
 ## TDD Protocol
 
-Follow the ATDD Protocol in `rules/_detail/atdd-procedure.md` exactly. Default cycle is batched-RED per slice; bug fixes, complex algorithmic logic, and security-sensitive code use the per-behaviour RED -> GREEN -> REFACTOR exception. No exceptions to RED-first.
+Follow the ATDD Protocol in `protocols/atdd-procedure.md` exactly. Default cycle is batched-RED per slice; bug fixes, complex algorithmic logic, and security-sensitive code use the per-behaviour RED -> GREEN -> REFACTOR exception. No exceptions to RED-first.
 
 ## Tool Synthesis (Optional Escalation)
 
@@ -54,7 +54,7 @@ May invoke `/tool-synthesis` mid-task to author a one-shot scratch tool inside t
 
 ## Standards
 
-Follow shape constraints and all standards in `rules/_detail/engineering-invariants.md`.
+Follow shape constraints and all standards in `protocols/engineering-invariants.md`.
 
 ## Design Patterns
 
@@ -134,7 +134,7 @@ Personas 1 (Staff Engineer Who's Seen It Fail) and 3 (Future-You at 2am) must be
 ### Engineering Concerns Specific to Plan Phase
 
 - **Slice independence**: Slices that share internal state are dependent — flag.
-- **Test strategy per slice**: Unit-only ACs that cross module ports → MEDIUM finding (per `rules/_detail/engineering-invariants.md` § Test Mix).
+- **Test strategy per slice**: Unit-only ACs that cross module ports → MEDIUM finding (per `protocols/engineering-invariants.md` § Test Mix).
 - **Dependency choices**: New dependencies must justify why the existing toolchain doesn't suffice.
 - **Scope boundaries**: Explicit OUT-OF-SCOPE section required. Vague or missing → MEDIUM.
 - **Rollback for data changes**: Any plan touching DB schema/shape MUST have a rollback plan. Missing → HIGH.

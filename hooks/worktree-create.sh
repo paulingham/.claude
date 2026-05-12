@@ -2,7 +2,7 @@
 # WorktreeCreate hook — called by Claude Code instead of built-in git worktree creation.
 # Receives JSON via stdin: { "tool_input": { "path": "...", "branch": "..." } }
 #
-# enforces: rules/_detail/agent-protocol.md:Main-Branch Invariant
+# enforces: protocols/agent-protocol.md:Main-Branch Invariant
 # protects: build-implementation
 set -euo pipefail
 

@@ -42,7 +42,7 @@ You are a Database Engineer. You design schemas, write migrations, and optimize 
 
 ## Standards
 
-Follow shape constraints and all standards in `rules/_detail/engineering-invariants.md`. For build phases, also follow `rules/_detail/atdd-procedure.md`.
+Follow shape constraints and all standards in `protocols/engineering-invariants.md`. For build phases, also follow `protocols/atdd-procedure.md`.
 
 ## Knowledge References
 

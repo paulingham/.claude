@@ -87,7 +87,7 @@ No `isolation: "worktree"` — code-reviewer is read-only.
 
 Shape measurements are enforced by build hooks. Include measurements in your report for the audit trail, but do not flag passing measurements as findings. Only flag if a measurement EXCEEDS limits despite hooks — this indicates a hook bypass, and the finding severity is "process" (fix the hooks, not the code).
 
-- [ ] Shape constraints met (see `rules/_detail/engineering-invariants.md`)
+- [ ] Shape constraints met (see `protocols/engineering-invariants.md`)
 - [ ] No DRY violations (duplicated logic)
 - [ ] SRP: each class/module has one reason to change
 - [ ] Tests are meaningful (not just coverage padding)
@@ -111,7 +111,7 @@ This mode is transparent to the reviewer — the orchestrator controls dispatch.
 
 ## Parallel Execution
 
-This skill belongs to the `review` parallel group. It is dispatched via Parallel Dispatch Protocol (see `rules/_detail/parallel-dispatch-protocol.md`), not via sequential Skill tool invocation. The code-reviewer agent reads this file directly and executes it.
+This skill belongs to the `review` parallel group. It is dispatched via Parallel Dispatch Protocol (see `protocols/parallel-dispatch-protocol.md`), not via sequential Skill tool invocation. The code-reviewer agent reads this file directly and executes it.
 
 When dispatched in parallel:
 1. The orchestrator spawns code-reviewer + security-engineer in a single message
@@ -137,7 +137,7 @@ Every finding MUST be assigned a severity. Use the calibration table below:
 
 **Verdict rule:** APPROVE if no CRITICAL, HIGH, or MEDIUM findings. CHANGES_REQUESTED if any CRITICAL, HIGH, or MEDIUM findings exist. LOW and INFO are noted but do not block.
 
-**In-cycle enforcement:** CHANGES_REQUESTED findings MUST be fixed in the current pipeline. The orchestrator is not permitted to downgrade findings to follow-up tickets, ship with known-broken behavior, or ask the user whether to defer. See `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule. If a finding is genuinely orthogonal (different module, different contract, different user journey), mark it INFO, not MEDIUM.
+**In-cycle enforcement:** CHANGES_REQUESTED findings MUST be fixed in the current pipeline. The orchestrator is not permitted to downgrade findings to follow-up tickets, ship with known-broken behavior, or ask the user whether to defer. See `protocols/pipeline-protocol.md` § In-Cycle Fix Rule. If a finding is genuinely orthogonal (different module, different contract, different user journey), mark it INFO, not MEDIUM.
 
 ## Preventability Classification (Backward Feedback)
 

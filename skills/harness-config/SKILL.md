@@ -9,7 +9,7 @@ description: "Modify the Claude Code harness itself: hooks (.sh), settings.json,
 
 Manages changes to the Claude Code harness — the hooks, settings, agent definitions, and skill infrastructure that control how the orchestrator and agents operate.
 
-**Why this skill exists:** The orchestrator may edit `.md` files in `.claude/` directly (config exception in `rules/_detail/agent-protocol.md`). But `.sh` hooks, `.json` settings, and other non-markdown files are NOT covered by that exception. They must be delegated to an agent -- just like source code.
+**Why this skill exists:** The orchestrator may edit `.md` files in `.claude/` directly (config exception in `protocols/agent-protocol.md`). But `.sh` hooks, `.json` settings, and other non-markdown files are NOT covered by that exception. They must be delegated to an agent -- just like source code.
 
 ## When to Invoke
 

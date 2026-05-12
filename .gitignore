@@ -8,6 +8,8 @@
 !settings.json
 !rules/
 !rules/**
+!protocols/
+!protocols/**
 !skills/
 !skills/**
 !hooks/

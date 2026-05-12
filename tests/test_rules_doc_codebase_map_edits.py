@@ -2,7 +2,7 @@
 
 Pinned by `pipeline-state/auto-codebase-map/plan.md` § Slice F (AC31).
 
-The rules document `rules/_detail/autonomous-intelligence.md` MUST call
+The rules document `protocols/autonomous-intelligence.md` MUST call
 out `codebase-map.md` as a generated artifact in two places:
 
 1. The role × sub-file injection table (lines 127-140 region) gets a
@@ -25,7 +25,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-RULES_DOC = ROOT / "rules" / "_detail" / "autonomous-intelligence.md"
+RULES_DOC = ROOT / "protocols" / "autonomous-intelligence.md"
 
 
 class RulesDocCodebaseMapEdits(unittest.TestCase):

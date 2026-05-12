@@ -8,7 +8,7 @@
 # the originating tool call (always exits 0). Forensic JSONL emission via
 # python3 json.dumps (F5 instinct — never printf-with-%s).
 #
-# enforces: rules/_detail/agent-protocol.md:Main-Branch Invariant
+# enforces: protocols/agent-protocol.md:Main-Branch Invariant
 # protects: build-implementation, pdr-rtv
 
 set -euo pipefail

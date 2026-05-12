@@ -4,7 +4,7 @@
 # Prevents infinite hook loops in pathological agent behaviour.
 # shellcheck source=_lib/state-dir.sh
 #
-# enforces: rules/_detail/agent-protocol.md:Resource Bounds
+# enforces: protocols/agent-protocol.md:Resource Bounds
 # protects: pipeline
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"
 check_loop_guard() {

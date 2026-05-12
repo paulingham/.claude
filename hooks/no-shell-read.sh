@@ -4,7 +4,7 @@
 # forcing callers to use the Read tool. Allows streaming tail (-f/-F),
 # outside-repo paths, and clauses with no path argument (pipe-only).
 #
-# enforces: rules/_detail/engineering-invariants.md:Code Shape
+# enforces: protocols/engineering-invariants.md:Code Shape
 # protects: build-implementation
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

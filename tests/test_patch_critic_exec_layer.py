@@ -15,7 +15,7 @@ execution-evidence path:
           points.
   AC1.2 — same sub-section explicitly states once-per-slice and
           shared-across-personas semantics.
-  AC1.3 — rules/_detail/autonomous-intelligence.md field-reference
+  AC1.3 — protocols/autonomous-intelligence.md field-reference
           row for `phases.patch_critic` documents the OPTIONAL
           `evidence_mode` field with values
           `"diff-only" | "diff+execution"` and a backward-compat
@@ -36,7 +36,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DISPATCH_DOC = REPO_ROOT / "orchestrator" / "parallel-dispatch-details.md"
-OBSERVATION_DOC = REPO_ROOT / "rules" / "_detail" / "autonomous-intelligence.md"
+OBSERVATION_DOC = REPO_ROOT / "protocols" / "autonomous-intelligence.md"
 PATCH_CRITIC_DOC = REPO_ROOT / "agents" / "patch-critic.md"
 VERIFY_SKILL_DOC = REPO_ROOT / "skills" / "verify" / "SKILL.md"
 
@@ -182,7 +182,7 @@ class ObservationSchemaDocumentsEvidenceModeOptional(unittest.TestCase):
         self.assertIsNotNone(
             section,
             "Could not locate § Field reference in "
-            "rules/_detail/autonomous-intelligence.md")
+            "protocols/autonomous-intelligence.md")
 
         # Field name
         self.assertIn(

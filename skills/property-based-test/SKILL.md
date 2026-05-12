@@ -9,7 +9,7 @@ agent: pbt-engineer
 
 ## What This Skill Does
 
-Authors **Tier 1.5 property-based tests** (per `rules/_detail/engineering-invariants.md` § Proof of Correctness) for every public function on changed lines with a typed signature. Spawns a `pbt-engineer` agent in the calling Build engineer's worktree (no fresh worktree — mirrors `fix-engineer`). For each candidate function the engineer generates ≥1 property using a harness-native PBT framework, time-boxes work at 60s/function, and freezes any counterexamples inline as deterministic regression tests. Output files match the existing `tests/**/*.property.{spec,test}.*` glob byte-for-byte so `build-implementation:94` Step 2b cap-detection (5→3) fires automatically.
+Authors **Tier 1.5 property-based tests** (per `protocols/engineering-invariants.md` § Proof of Correctness) for every public function on changed lines with a typed signature. Spawns a `pbt-engineer` agent in the calling Build engineer's worktree (no fresh worktree — mirrors `fix-engineer`). For each candidate function the engineer generates ≥1 property using a harness-native PBT framework, time-boxes work at 60s/function, and freezes any counterexamples inline as deterministic regression tests. Output files match the existing `tests/**/*.property.{spec,test}.*` glob byte-for-byte so `build-implementation:94` Step 2b cap-detection (5→3) fires automatically.
 
 ## When to Invoke
 
@@ -108,7 +108,7 @@ When emitting `PBT_BLOCKED`, include in the verdict payload:
 - The **candidate function name** (fully qualified: `path/to/file.py::function_name` or language equivalent — e.g., `lib/url.ts::normalizeUrl`).
 - The first **5 line** excerpt of the underlying tool failure (Hypothesis traceback / fast-check error / PropEr crash report). Truncate to the first five lines so the operator surface is bounded.
 - The recommended **recovery action**: *set `CLAUDE_PBT=0` in the env and re-run `/build-implementation`; do NOT retry pbt-engineer on the same function within this pipeline*.
-- An explicit statement that **`PBT_BLOCKED` does NOT count against the retry-twice-then-escalate budget** in `rules/_detail/operational-protocol.md` because the env hatch is a single-action recovery; the orchestrator-side retry counter resets when `CLAUDE_PBT=0` is set.
+- An explicit statement that **`PBT_BLOCKED` does NOT count against the retry-twice-then-escalate budget** in `protocols/operational-protocol.md` because the env hatch is a single-action recovery; the orchestrator-side retry counter resets when `CLAUDE_PBT=0` is set.
 
 ## Escape Hatch
 
@@ -122,7 +122,7 @@ When emitting `PBT_BLOCKED`, include in the verdict payload:
 
 ## Tier Mapping
 
-PBT tests run as **Tier 1.5** in `rules/_detail/engineering-invariants.md` § Proof of Correctness. They sit between unit (Tier 1) and integration (Tier 2). Frozen counterexamples join Tier 1.
+PBT tests run as **Tier 1.5** in `protocols/engineering-invariants.md` § Proof of Correctness. They sit between unit (Tier 1) and integration (Tier 2). Frozen counterexamples join Tier 1.
 
 ## Reference
 

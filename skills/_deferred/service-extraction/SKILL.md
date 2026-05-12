@@ -30,7 +30,7 @@ Autonomously extracts a bounded context from a monolith into its own repository.
 
 ### Step 0 — Forcing-Function Gate
 
-Before any extraction work, verify at least one FF from `rules/_detail/module-boundaries-protocol.md` is named in the task context:
+Before any extraction work, verify at least one FF from `protocols/module-boundaries-protocol.md` is named in the task context:
 
 1. Scan the task description for explicit FF phrasing (compliance, scaling, polyglot, blast radius, team ownership, regulatory, HIPAA, PCI, GDPR, data residency).
 2. Scan pipeline state (`pipeline-state/{task-id}/intake.md`) for an intake-stamped FF rationale.
@@ -74,7 +74,7 @@ Present this analysis to the user for approval before proceeding.
 
 ### Step 2: Create the New Repository (Manifest-Driven)
 
-Read GitHub config from the project manifest (`~/.claude/manifests/{project-name}.md`). If no manifest exists, auto-create one (see `rules/_detail/multi-repo-protocol.md`).
+Read GitHub config from the project manifest (`~/.claude/manifests/{project-name}.md`). If no manifest exists, auto-create one (see `protocols/multi-repo-protocol.md`).
 
 ```bash
 # Read config from manifest (org, visibility, template, branch_protection)
@@ -225,7 +225,7 @@ git push -u origin main
 
 Back in the monolith repo, on a feature branch.
 
-**Resolve the monolith worktree path first** (required by the main-branch invariant — see `rules/_detail/agent-protocol.md > ## Main-Branch Invariant`):
+**Resolve the monolith worktree path first** (required by the main-branch invariant — see `protocols/agent-protocol.md > ## Main-Branch Invariant`):
 
 ```bash
 # In harness-of-harness mode, MONOLITH_WORKTREE is the agent's worktree under
@@ -233,7 +233,7 @@ Back in the monolith repo, on a feature branch.
 MONOLITH_WORKTREE="$(cd "$(git -C ../monolith rev-parse --show-toplevel 2>/dev/null || pwd)" && pwd -P)"
 
 # Create feature branch via delegated form. Bare HEAD-mutating git commands are
-# blocked by hooks/main-branch-guard.sh — see rules/_detail/agent-protocol.md.
+# blocked by hooks/main-branch-guard.sh — see protocols/agent-protocol.md.
 git -C "$MONOLITH_WORKTREE" checkout -b extract-[service-name]
 ```
 

@@ -2,7 +2,7 @@
 # Worktree-cwd-check — SubagentStop diagnostic. Never blocks (always exit 0).
 # Pairs prevented→post-confirmed via per-task cursor; drift-detected if HEAD!=main.
 #
-# enforces: rules/_detail/agent-protocol.md:Main-Branch Invariant
+# enforces: protocols/agent-protocol.md:Main-Branch Invariant
 # protects: build-implementation, pipeline
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
 _log_hook_start

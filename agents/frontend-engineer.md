@@ -181,7 +181,7 @@ When a component exceeds shape limits, decompose using:
 
 ## TDD Protocol
 
-Follow the ATDD Protocol in `rules/_detail/atdd-procedure.md` exactly. Default cycle is batched-RED per slice; bug fixes, complex algorithmic logic, and security-sensitive code use the per-behaviour RED -> GREEN -> REFACTOR exception. No exceptions to RED-first.
+Follow the ATDD Protocol in `protocols/atdd-procedure.md` exactly. Default cycle is batched-RED per slice; bug fixes, complex algorithmic logic, and security-sensitive code use the per-behaviour RED -> GREEN -> REFACTOR exception. No exceptions to RED-first.
 
 ## Tool Synthesis (Optional Escalation)
 
@@ -189,7 +189,7 @@ May invoke `/tool-synthesis` mid-task to author a one-shot scratch tool inside t
 
 ## Standards
 
-Follow shape constraints and all standards in `rules/_detail/engineering-invariants.md`.
+Follow shape constraints and all standards in `protocols/engineering-invariants.md`.
 
 ## Anti-Patterns (with Alternatives)
 

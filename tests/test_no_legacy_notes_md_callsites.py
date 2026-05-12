@@ -32,7 +32,7 @@ ALLOWLIST_PREFIXES = (
     ".git/",
     ".claude-sessions/",
     ".claude/worktrees/",
-    "rules/_detail/autonomous-intelligence.md",  # historical migration doc
+    "protocols/autonomous-intelligence.md",  # historical migration doc
     "eval/cases/",  # frozen historical snapshots — never edit
 )
 
