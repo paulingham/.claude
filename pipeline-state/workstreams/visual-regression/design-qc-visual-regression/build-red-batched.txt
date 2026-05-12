@@ -73,3 +73,27 @@ UNIT TESTS (Tier 1):
 All failures map to documented ACs (AC1, AC2, AC5, AC6, AC7) + failure modes (rows 1, 2, 9). No syntax errors, no import failures, no unrelated tests failing.
 
 PROCEED TO GREEN.
+
+================================================================================
+
+ROUND 1 FIX-CYCLE — RED phase (Tier 2 integration test)
+Generated: 2026-05-12T(round-1 fix-cycle)
+
+Test added: tests/integration/test_design_qc_visual_regression_e2e.py
+Behaviour: end-to-end pump (baseline_capture.sh + Playwright pixel-diff
+           + visual_diff.js ratio computation) writes the four contracted
+           artifacts (a) baseline PNG under pipeline-state/{task-id}/
+           visual-baselines/, (b) current PNG under .claude/screenshots/,
+           (c) NO PNG under __screenshots__/, (d) index.json routes[*]
+           .visual_regression.pixel_diff_ratio is float.
+
+Command: python3 -m unittest tests.integration.test_design_qc_visual_regression_e2e -v
+
+RED state (fixture directory absent):
+  setUpClass ... skipped 'Fixture dir .../tests/fixtures/visual-regression-next missing; cannot run E2E.'
+  Ran 0 tests in 0.000s
+  OK (skipped=1)
+
+RED-reason: the test's setUpClass skip-gate fires on the documented
+fixture-missing condition. With the fixture added (next-step), the test
+runs the full E2E and asserts the four contract artifacts.

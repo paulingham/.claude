@@ -77,3 +77,67 @@ ATDD discipline verified:
 - Cohesion rules enforced continuously during GREEN, not in a separate cleanup pass.
 
 PROCEED TO MUTATION GATE.
+
+================================================================================
+
+ROUND 1 FIX-CYCLE — GREEN phase
+Generated: 2026-05-12T(round-1 fix-cycle)
+
+=== Python tests (all tiers) ===
+Command: python3 -m unittest tests.test_visual_diff tests.contract.spec_visual_regression_schema tests.integration.test_design_qc_visual_regression_e2e -v
+
+Tier 0 contract + Tier 1 Python-side unit:
+  Ran 29 tests in 0.158s — OK
+Tier 2 integration (real Playwright + npm + git worktree):
+  Ran 1 test in 5.562s — OK (full E2E; skipped automatically when
+  CLAUDE_SKIP_HEAVY_INTEGRATION=1 or node/npm absent)
+
+=== JS tests (Tier 1 + Tier 1.5 PBT regressions) ===
+Command: node --test tests/test_visual_diff.js
+  Ran 21 tests — OK (no fail, no skip)
+
+=== Tier 3 mutation gate (re-run via reproducible runner) ===
+Command: bash tests/mutation/visual_diff_mutation_runner.sh
+  15 mutants applied successfully
+  11 KILLED, 4 SURVIVED (all 4 in documented-equivalent set {M4, M8, M10, M14})
+  Raw kill rate:       0.733
+  Effective kill rate: 1.000
+  Gate (≥ 0.70):       PASS (raw clears; effective clears trivially)
+
+Round-1 fix-cycle changes (round-1 of max 2 review rounds):
+
+New artifacts:
+- tests/integration/test_design_qc_visual_regression_e2e.py
+  Tier 2 integration test exercising baseline_capture.sh + Playwright
+  + visual_diff.js end-to-end against a fixture project, asserting the
+  four contracted artifacts (a)-(d). Skips cleanly when node/npm absent
+  or CLAUDE_SKIP_HEAVY_INTEGRATION=1.
+- tests/fixtures/visual-regression-next/
+  Fixture project: package.json (Playwright devDep), server.js (static
+  HTTP server on port 4321), app/page.tsx + app/layout.tsx +
+  next.config.js (Next.js shape per plan § 6), playwright-driver.js
+  (Step 6 Playwright pump shim), README.md.
+- tests/mutation/visual_diff_mutation_runner.sh
+  Reproducible mutation-test runner committed to tree (no longer in
+  gitignored .claude-scratch-tools/). 15 perl-based mutants, exit-1 on
+  unexpected survivors or apply failures. Re-runs deterministically
+  against current source.
+
+Modified artifacts:
+- tests/test_visual_diff.js
+  Test docstring corrected for `partial-alpha pixels correctly` — was
+  claiming M8 discrimination but empirical verification shows M8 mutant
+  also satisfies the `> 0.5` assertion. Points readers to build-mutation
+  .md § M8 for the equivalent-mutant rationale.
+  Misleading test name `discriminates Y-luminance via primary-channel
+  test` renamed to `red vs black yields ratio 1.0 (documents M7
+  equivalent under pure-color inputs)` so the name matches what the
+  docstring already admits.
+- build-mutation.md
+  Round-1 addendum documenting (1) the tests/mutation/ runner location
+  and rationale (no top-level package.json → Option A Stryker
+  impractical, Option B per skills/verify/SKILL.md manual fallback),
+  (2) M8 empirical re-verification (both correct + mutant return
+  ratio=1.0 for the partial-alpha test inputs; classification unchanged).
+
+PROCEED TO ROUND-1 CODE-REVIEWER RE-DISPATCH.

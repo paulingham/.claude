@@ -283,31 +283,32 @@ test('computePixelDiffRatio: pixel-distance gate uses strict-greater-than', () =
 });
 
 test('computePixelDiffRatio: handles partial-alpha pixels correctly', () => {
-  // Kills M8 (_blend formula 255 + → 255 -).
-  // Compare opaque-black against half-transparent-black. With the correct
-  // _blend formula `255 + (channel - 255) * alpha`:
-  //   - alpha=255 (fully opaque), channel=0: 255 + (0-255)*1   = 0.    (true black)
+  // Behaviour under test: opaque-black against half-transparent-black is
+  // reported as a substantial diff. With the production _blend formula
+  // `255 + (channel - 255) * alpha`:
+  //   - alpha=255 (fully opaque), channel=0: 255 + (0-255)*1   = 0    (true black)
   //   - alpha=128 (half-transp.), channel=0: 255 + (0-255)*0.5 = 127.5 (mid-grey)
-  // So opaque-black vs half-transparent-black yields a LARGE Y-luminance delta
-  // (0 vs ~127). The correct formula MUST flag this as a diff.
+  // → large Y-luminance delta → every pixel flagged → ratio = 1.0.
   //
-  // With M8 mutant `255 - (channel - 255) * alpha`:
-  //   - alpha=255, channel=0: 255 - (0-255)*1 = 510 (out of range, but the
-  //     YIQ math still proceeds; the value clamps in conversion)
-  //   - alpha=128, channel=0: 255 - (0-255)*0.5 = 382.5 (also out of range)
-  // Both go out of range; the resulting YIQ values are nonsensical but
-  // similar to each other → mutant collapses to "ratio ~0.0" while the
-  // correct code reports a large diff. The mutant survives if the test
-  // doesn't actually exercise different-alpha pairs.
+  // M8 caveat (documented equivalent, not killed by this test): the M8
+  // mutation `255 - (channel - 255) * alpha` produces out-of-range blended
+  // values (e.g. 510 and 382.5 for the inputs above), but the squared YIQ
+  // distance against an identical second channel through the same wrong
+  // formula still produces a distance ABOVE the 3521 threshold. The mutant
+  // ALSO returns ratio = 1.0 for this input pair — the `> 0.5` assertion is
+  // satisfied by both correct and mutant code. See
+  // `pipeline-state/workstreams/visual-regression/design-qc-visual-regression/
+  // build-mutation.md` § M8 for the equivalent-mutant rationale. The test
+  // remains valuable as a regression guard against the `if (a === b) return 0`
+  // shortcut path being widened to cover alpha differences too.
   const w = 4, h = 4;
   const opaqueBlack = _solidRgba(w, h, 0, 0, 0, 255);
   const halfTranspBlack = _solidRgba(w, h, 0, 0, 0, 128);
   const ratio = computePixelDiffRatio(
     opaqueBlack, halfTranspBlack, 0.02, { width: w, height: h },
   );
-  // Correct formula → opaqueBlack (Y=0) vs halfTranspBlack (Y≈127) is a
-  // huge Y delta → distance well above threshold → every pixel flagged →
-  // ratio = 1.0.
+  // Production code returns 1.0; the assertion uses > 0.5 to tolerate any
+  // future coefficient retuning that nudges the ratio.
   assert.ok(
     ratio > 0.5,
     `opaque vs half-transparent black must report large diff (got ${ratio})`,
@@ -351,8 +352,10 @@ test('computePixelDiffRatio: Y-coefficient calibrated boundary discriminates M7'
   );
 });
 
-test('computePixelDiffRatio: discriminates Y-luminance via primary-channel test', () => {
-  // Kills M7 (Y coefficient 0.29889531 → 0.5).
+test('computePixelDiffRatio: red vs black yields ratio 1.0 (documents M7 equivalent under pure-color inputs)', () => {
+  // Earlier name promised Y-luminance discrimination via this test; the
+  // docstring below has long acknowledged that M7 is an equivalent mutant
+  // for pure-color inputs. Renamed to match what the test actually asserts.
   // Pure-red vs pure-green at full opacity:
   //   y1 = 255 * 0.29889531 = ~76.2 (red contribution)
   //   y2 = 255 * 0.58662247 = ~149.6 (green contribution)

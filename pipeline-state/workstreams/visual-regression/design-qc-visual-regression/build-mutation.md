@@ -135,3 +135,69 @@ real Playwright `toHaveScreenshot` against a fixture project:
 
 The deferred Tier 2 integration tests are explicitly out of slice-a
 scope per the plan's per-tier coverage matrix (§ 6).
+
+---
+
+## Round 1 fix addendum — 2026-05-12
+
+The code-reviewer round-1 review raised two MEDIUM concerns against this
+report. Both are addressed below; the per-mutant table and equivalent-mutant
+analysis above are unchanged.
+
+### Stryker reconciliation
+
+The plan (§ 6 row Tier 3) specifies `stryker.config.json` as the mutation
+runner. The harness has no top-level `package.json` — installing Stryker
+would force npm root-level scaffolding into a tree designed as
+bash + Python + plain JS. `skills/verify/SKILL.md` § Manual fallback
+allows a sed-based runner provided it is reproducible.
+
+The reproducible runner lives at
+**`tests/mutation/visual_diff_mutation_runner.sh`** (committed to tree, not
+gitignored — the previous `.claude-scratch-tools/` location was gitignored,
+which made the kill rate non-reproducible for downstream reviewers).
+
+Invocation:
+
+```bash
+bash tests/mutation/visual_diff_mutation_runner.sh
+```
+
+The runner:
+
+1. Applies the 15 mutants in the per-mutant table above via in-place perl
+   one-liners.
+2. Re-runs `node --test tests/test_visual_diff.js` after each mutation.
+3. Counts kills, classifies survivors against the documented-equivalent set
+   `{M4, M8, M10, M14}`, and exits 1 on UNEXPECTED survivors or apply
+   failures.
+
+Reviewers can re-run the runner to verify the 11/15 kill (raw 0.733,
+effective 1.0) reported above is reproducible against the current
+source tree.
+
+### M8 re-analysis
+
+The round-1 reviewer flagged a contradiction: M8 was classified as
+"survived (near-equivalent)" while the `partial-alpha pixels correctly`
+test docstring claimed to discriminate it. The contradiction was real and
+the **test docstring was wrong** — empirical verification (applying the
+M8 sed in-place and re-running the suite) shows all 21 JS tests pass,
+including `partial-alpha pixels correctly`.
+
+Per-input empirical check:
+
+| Input pair | Correct ratio | M8-mutant ratio |
+|---|---|---|
+| opaque-black (0,0,0,255) vs half-transp-black (0,0,0,128), 4×4 | 1.0 | 1.0 |
+
+Both formulas push the YIQ distance above the 3521 threshold for these
+inputs; the `> 0.5` assertion is satisfied by both. M8 IS effectively
+equivalent under the integer pixel input space the test suite exercises;
+the original classification in this report is correct.
+
+The test docstring in `tests/test_visual_diff.js` has been corrected to
+honestly describe what behaviour is exercised AND to point readers to this
+section for the equivalent-mutant rationale. The test remains valuable
+as a regression guard against the byte-equal shortcut path being widened
+to cover alpha differences.
