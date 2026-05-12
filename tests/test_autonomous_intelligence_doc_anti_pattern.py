@@ -16,7 +16,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DOC_PATH = REPO_ROOT / "rules" / "_detail" / "autonomous-intelligence.md"
+DOC_PATH = REPO_ROOT / "protocols" / "autonomous-intelligence.md"
 SKILL_PATH = REPO_ROOT / "skills" / "learn" / "SKILL.md"
 
 
@@ -54,7 +54,7 @@ class DocReferencesAntiPatternCategory(unittest.TestCase):
         self.assertIsNotNone(
             section,
             "Could not locate § Scratchpad → Instinct Promotion in "
-            "rules/_detail/autonomous-intelligence.md")
+            "protocols/autonomous-intelligence.md")
         lower = section.lower()
         self.assertIn("anti-pattern", lower,
                       "section must mention the anti-pattern category")
@@ -84,7 +84,7 @@ class DocReferencesPlus01Boost(unittest.TestCase):
         self.assertIsNotNone(
             section,
             "Could not locate § Instinct Injection in "
-            "rules/_detail/autonomous-intelligence.md")
+            "protocols/autonomous-intelligence.md")
         lower = section.lower()
         self.assertIn("+0.1", lower,
                       "Injection section must document the +0.1 boost")

@@ -41,7 +41,7 @@ The path-allowlist is established by `hooks/_lib/spec-blind-allow-paths.{sh,txt}
 |---|---|
 | `pipeline-state/{task-id}/plan.md` | The AC list IS the spec — primary input |
 | `pipeline-state/{task-id}/intake.md` | User's verbatim spec — secondary input |
-| `**/interface.{ts,tsx,js,jsx,rb,py,go,rs,java,kt,swift}` | `rules/_detail/module-boundaries-protocol.md` § Module Contract Artifacts |
+| `**/interface.{ts,tsx,js,jsx,rb,py,go,rs,java,kt,swift}` | `protocols/module-boundaries-protocol.md` § Module Contract Artifacts |
 | `**/types.{ts,tsx,js,jsx,rb,py,go,rs,java,kt,swift}` | Same source, optional artifact |
 | `**/events.{ts,tsx,js,jsx,rb,py,go,rs,java,kt,swift}` | Same source, optional artifact |
 | `**/index.{ts,tsx,js,jsx,mjs,cjs}` | Node convention barrel-export entry point |
@@ -71,7 +71,7 @@ The `git remote` heuristic was considered and dropped — it is fragile across f
 
 ## Fix-Engineer Constraint
 
-On `SPEC_BLIND_FAILED`, the orchestrator dispatches `fix-engineer` per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule. The fix-engineer is **code-fix-only on this verdict** — it MUST NOT mutate ACs. The AC list is the contract; if the candidate build's behaviour disagrees with the AC literal, the build is wrong (not the AC). If the AC itself is wrong (a Plan-phase defect surfacing late), fix-engineer surfaces back to the orchestrator with a HALT recommendation; the orchestrator must escalate to the user for a Plan revision.
+On `SPEC_BLIND_FAILED`, the orchestrator dispatches `fix-engineer` per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule. The fix-engineer is **code-fix-only on this verdict** — it MUST NOT mutate ACs. The AC list is the contract; if the candidate build's behaviour disagrees with the AC literal, the build is wrong (not the AC). If the AC itself is wrong (a Plan-phase defect surfacing late), fix-engineer surfaces back to the orchestrator with a HALT recommendation; the orchestrator must escalate to the user for a Plan revision.
 
 ## Process
 
@@ -109,7 +109,7 @@ On `SPEC_BLIND_FAILED`, the orchestrator dispatches `fix-engineer` per `rules/_d
 
 V1 emits `SPEC_BLIND_INSUFFICIENT_SURFACE` for harness-internal pipelines. V2 will augment the allowlist to make spec-blind validation viable on the harness itself. Specifically, V2 will add:
 
-- `rules/_detail/**.md` — harness contract surface (the iron laws + protocol detail are the harness's own "public API")
+- `protocols/**.md` — harness contract surface (the iron laws + protocol detail are the harness's own "public API")
 - `agents/*.md` — agent frontmatter + role definitions (the public surface for orchestrator dispatch)
 - `skills/**/SKILL.md` — skill frontmatter contracts (verdicts + dispatch shape)
 - `orchestrator/**.md` — orchestrator-side procedure detail

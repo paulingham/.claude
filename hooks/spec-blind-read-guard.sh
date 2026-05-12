@@ -17,7 +17,7 @@
 # allowlist matching so a symlink at
 # `pipeline-state/{task-id}/plan.md -> src/internal.ts` cannot slip through.
 #
-# enforces: rules/_detail/pipeline-protocol.md (Final Gate § In-Cycle Fix Rule)
+# enforces: protocols/pipeline-protocol.md (Final Gate § In-Cycle Fix Rule)
 # protects: spec-blind-validate
 
 set -uo pipefail

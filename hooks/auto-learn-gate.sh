@@ -3,7 +3,7 @@
 # to invoke /learn when thresholds are met. Never invokes /learn directly.
 # Test override: CLAUDE_LEARN_TEST_HASH sets the learning/<hash> dir explicitly.
 #
-# enforces: rules/_detail/autonomous-intelligence.md:Consolidation Gate
+# enforces: protocols/autonomous-intelligence.md:Consolidation Gate
 # protects: learn
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

@@ -1,6 +1,6 @@
 """Slice 3 AC13 — phases.pdr_rtv block documented in observation schema.
 
-`rules/_detail/autonomous-intelligence.md` § Observation Capture must
+`protocols/autonomous-intelligence.md` § Observation Capture must
 document an OPTIONAL `phases.pdr_rtv` block with required keys
 (`verdict`, `n_candidates_iter0`, `n_candidates_iter1`,
 `tournament_rounds`, `winner_slug`, `cost_estimate_usd`) and an
@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-OBSERVATION_DOC = REPO_ROOT / "rules" / "_detail" / "autonomous-intelligence.md"
+OBSERVATION_DOC = REPO_ROOT / "protocols" / "autonomous-intelligence.md"
 
 
 def _section(text, header_pattern, until_pattern):

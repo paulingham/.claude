@@ -119,7 +119,7 @@ class DocsRecordBackgroundSpawnContract(unittest.TestCase):
     """AC1: § 6b in reflection-protocol.md must specify background-spawn."""
 
     def test_reflection_protocol_specifies_run_in_background(self):
-        path = REPO_ROOT / "rules" / "_detail" / "reflection-protocol.md"
+        path = REPO_ROOT / "protocols" / "reflection-protocol.md"
         body = path.read_text()
         # AC1: literal phrase OR substantive equivalent.
         self.assertIn("Pipeline must NOT block on /learn completion", body)

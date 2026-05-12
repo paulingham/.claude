@@ -25,7 +25,7 @@ HOOK = REPO_ROOT / "hooks" / "shadow-git-checkpoint.sh"
 SETTINGS_JSON = REPO_ROOT / "settings.json"
 PIPELINE_SKILL_MD = REPO_ROOT / "skills" / "pipeline" / "SKILL.md"
 BATCH_PIPELINE_SKILL_MD = REPO_ROOT / "skills" / "batch-pipeline" / "SKILL.md"
-PIPELINE_PROTOCOL_MD = REPO_ROOT / "rules" / "_detail" / "pipeline-protocol.md"
+PIPELINE_PROTOCOL_MD = REPO_ROOT / "protocols" / "pipeline-protocol.md"
 
 
 def _bash(snippet: str, env: dict | None = None) -> subprocess.CompletedProcess:

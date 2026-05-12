@@ -20,7 +20,7 @@ Detects and resumes in-progress pipelines from structured state files in `pipeli
 
 ### Step 1: Scan for Active Pipelines
 
-The DUAL_PATH soak (see `rules/_detail/pipeline-protocol.md` § Structured Pipeline State) means readers MUST tolerate both the new per-task-subdir layout (`pipeline-state/{task-id}/pipeline.md`) and the legacy flat form (`pipeline-state/{task-id}-pipeline.md`). Use the canonical four-glob discovery sequence (encapsulated in `_psp_find_active_pipelines` from `hooks/_lib/pipeline-state-paths.sh`):
+The DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State) means readers MUST tolerate both the new per-task-subdir layout (`pipeline-state/{task-id}/pipeline.md`) and the legacy flat form (`pipeline-state/{task-id}-pipeline.md`). Use the canonical four-glob discovery sequence (encapsulated in `_psp_find_active_pipelines` from `hooks/_lib/pipeline-state-paths.sh`):
 
 ```bash
 # 1. New layout, root

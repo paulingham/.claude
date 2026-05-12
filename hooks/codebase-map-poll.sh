@@ -5,7 +5,7 @@
 # 0 (subprocess-isolates the generator per AC18, degrades on AC21
 # catch surface).
 #
-# enforces: rules/_detail/autonomous-intelligence.md:Codebase Map
+# enforces: protocols/autonomous-intelligence.md:Codebase Map
 # protects: codebase-map-poll
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

@@ -66,7 +66,7 @@ Documents and enforces React Native/Expo patterns for mobile development.
 
 ## Code Shape (Mandatory)
 
-All React Native code MUST comply with `rules/_detail/engineering-invariants.md` (8-line functions, 50-line files, CC <= 5, nesting <= 2, DRY).
+All React Native code MUST comply with `protocols/engineering-invariants.md` (8-line functions, 50-line files, CC <= 5, nesting <= 2, DRY).
 
 ### React Native Decomposition Patterns
 
@@ -195,8 +195,8 @@ Screenshot names should be descriptive: `[feature]-[state].png`.
 
 ### Shape Exception
 
-Maestro YAML flow files are exempt from the 50-line file limit and 8-line function limit defined in `rules/_detail/engineering-invariants.md`. E2E flows are sequential step lists, not functions, and splitting them across files harms readability.
+Maestro YAML flow files are exempt from the 50-line file limit and 8-line function limit defined in `protocols/engineering-invariants.md`. E2E flows are sequential step lists, not functions, and splitting them across files harms readability.
 
 ### E2E Protocol Integration
 
-For trigger criteria, flow-to-file mapping, prerequisites, and pass/fail criteria, see `rules/_detail/e2e-protocol.md`. That file is the single source of truth for when E2E tests are required in the pipeline.
+For trigger criteria, flow-to-file mapping, prerequisites, and pass/fail criteria, see `protocols/e2e-protocol.md`. That file is the single source of truth for when E2E tests are required in the pipeline.

@@ -7,7 +7,7 @@
 # OMITTED, never written as JSON null. JSON emission goes through Python
 # json.dumps in hooks/_lib/tool-timing-emit.py — never bash printf.
 #
-# enforces: rules/_detail/agent-protocol.md:Resource Bounds
+# enforces: protocols/agent-protocol.md:Resource Bounds
 # protects: pipeline, forensics
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

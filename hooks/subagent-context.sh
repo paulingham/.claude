@@ -4,7 +4,7 @@
 # observation-capture.sh reads this as fallback when env var is empty.
 # For parallel agents: last-writer-wins (acceptable — parallel agents share phase).
 #
-# enforces: rules/_detail/agent-protocol.md:Pipeline Scratchpad Protocol
+# enforces: protocols/agent-protocol.md:Pipeline Scratchpad Protocol
 # protects: pipeline
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

@@ -19,7 +19,7 @@
 # IF WRITES ARE OVER-BLOCKING legitimate test paths: check the directory
 # globs in hooks/_lib/spec-blind-allow-paths.sh::is_path_allowed_for_spec_blind_write.
 #
-# enforces: rules/_detail/pipeline-protocol.md (Final Gate § In-Cycle Fix Rule)
+# enforces: protocols/pipeline-protocol.md (Final Gate § In-Cycle Fix Rule)
 # protects: spec-blind-validate
 
 set -uo pipefail

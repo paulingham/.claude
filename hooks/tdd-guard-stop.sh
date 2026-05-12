@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SubagentStop forensic re-check for tdd-guard invariant
-# enforces: rules/_detail/atdd-procedure.md:ATDD Anti-Patterns
+# enforces: protocols/atdd-procedure.md:ATDD Anti-Patterns
 # protects: build-implementation, pr-creation
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

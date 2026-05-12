@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SubagentStop forensic re-check for quality-gate invariant
-# enforces: rules/_detail/pipeline-protocol.md:Phase Checklist
+# enforces: protocols/pipeline-protocol.md:Phase Checklist
 # protects: pr-creation, code-review
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

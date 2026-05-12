@@ -6,7 +6,7 @@
 # Historical per-call durations are captured separately by hooks/tool-timing-capture.sh
 # to metrics/{session}/tool-timings.jsonl. This guard owns wall-clock cap ENFORCEMENT only.
 #
-# enforces: rules/_detail/agent-protocol.md:Resource Bounds
+# enforces: protocols/agent-protocol.md:Resource Bounds
 # protects: pipeline, all-skills
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

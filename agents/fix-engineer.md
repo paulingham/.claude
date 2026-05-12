@@ -47,7 +47,7 @@ Working directory: <worktree-path>   # this is the prior build's worktree
 Branch: <feature-branch-the-build-was-on>
 ```
 
-Do all your work via `git -C "$WORKTREE" ...` or `(cd "$WORKTREE" && ...)`. Never type a bare `git checkout`/`git switch` — the main-branch invariant applies to you the same as every other agent (see `rules/_detail/agent-protocol.md` § Main-Branch Invariant).
+Do all your work via `git -C "$WORKTREE" ...` or `(cd "$WORKTREE" && ...)`. Never type a bare `git checkout`/`git switch` — the main-branch invariant applies to you the same as every other agent (see `protocols/agent-protocol.md` § Main-Branch Invariant).
 
 ## Inputs You Receive
 
@@ -75,7 +75,7 @@ Before changing code:
 1. Edit the cited file(s). Stay within the scope of the finding.
 2. Run the test suite to confirm the fix doesn't regress anything.
 3. Run the type checker / linter relevant to the file.
-4. Re-read every file you touched to verify shape constraints (8-line methods, 50-line files, CC ≤ 5, nesting ≤ 2 — `rules/_detail/engineering-invariants.md`).
+4. Re-read every file you touched to verify shape constraints (8-line methods, 50-line files, CC ≤ 5, nesting ≤ 2 — `protocols/engineering-invariants.md`).
 
 ### Step 3: Commit and report
 
@@ -196,7 +196,7 @@ the existing code or relevant patterns>
 
 ## Standards
 
-Follow shape constraints and all standards in `rules/_detail/engineering-invariants.md`. The ATDD cycle does NOT apply to fix-cycle work — fix-cycle is a targeted change against an existing test suite, not a new feature. (Bug-fix-style per-behaviour TDD applies if the finding requires a new test; see `rules/_detail/atdd-procedure.md` § When per-behaviour TDD Still Applies.)
+Follow shape constraints and all standards in `protocols/engineering-invariants.md`. The ATDD cycle does NOT apply to fix-cycle work — fix-cycle is a targeted change against an existing test suite, not a new feature. (Bug-fix-style per-behaviour TDD applies if the finding requires a new test; see `protocols/atdd-procedure.md` § When per-behaviour TDD Still Applies.)
 
 ## Why Fix-Engineer Is a Distinct Role
 

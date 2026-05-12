@@ -233,7 +233,7 @@ These complement `npm audit`/`bundle audit` by covering supply chain threats tha
 
 ## Parallel Execution
 
-This skill belongs to the `review` parallel group. It is dispatched via Parallel Dispatch Protocol (see `rules/_detail/parallel-dispatch-protocol.md`), not via sequential Skill tool invocation. The security-engineer agent reads this file directly and executes it.
+This skill belongs to the `review` parallel group. It is dispatched via Parallel Dispatch Protocol (see `protocols/parallel-dispatch-protocol.md`), not via sequential Skill tool invocation. The security-engineer agent reads this file directly and executes it.
 
 When dispatched in parallel:
 1. The orchestrator spawns code-reviewer + security-engineer in a single message
@@ -259,7 +259,7 @@ Every finding MUST be assigned a severity. Use the calibration table below:
 
 **Verdict rule:** APPROVE if no CRITICAL, HIGH, or MEDIUM findings. CHANGES_REQUESTED if any CRITICAL, HIGH, or MEDIUM findings exist. LOW and INFO are noted but do not block.
 
-**In-cycle enforcement:** CHANGES_REQUESTED findings MUST be fixed in the current pipeline. The orchestrator is not permitted to downgrade findings to follow-up tickets, ship with known-broken security behavior, or ask the user whether to defer. See `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule. If a finding is genuinely orthogonal (different attack surface, different module), mark it INFO, not MEDIUM.
+**In-cycle enforcement:** CHANGES_REQUESTED findings MUST be fixed in the current pipeline. The orchestrator is not permitted to downgrade findings to follow-up tickets, ship with known-broken security behavior, or ask the user whether to defer. See `protocols/pipeline-protocol.md` § In-Cycle Fix Rule. If a finding is genuinely orthogonal (different attack surface, different module), mark it INFO, not MEDIUM.
 
 ## Phase Output
 

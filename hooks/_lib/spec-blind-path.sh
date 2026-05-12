@@ -11,7 +11,7 @@
 # the helper returns empty string, which the callers treat as "do not allow"
 # (deny-by-default — the symlink-bypass risk class drives this design).
 #
-# enforces: rules/_detail/pipeline-protocol.md (Final Gate § In-Cycle Fix Rule)
+# enforces: protocols/pipeline-protocol.md (Final Gate § In-Cycle Fix Rule)
 # protects: spec-blind-validate (SEC-HIGH-1)
 
 _spec_blind_realpath() {

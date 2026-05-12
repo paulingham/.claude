@@ -23,7 +23,7 @@
 #                              Secrets in the target are redacted before
 #                              writing (SEC-MED-1).
 #
-# enforces: rules/_detail/pipeline-protocol.md (Final Gate § In-Cycle Fix Rule)
+# enforces: protocols/pipeline-protocol.md (Final Gate § In-Cycle Fix Rule)
 # protects: spec-blind-validate
 
 # Parse the standard PreToolUse JSON envelope into shell vars. Caller must

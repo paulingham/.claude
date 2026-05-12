@@ -3,7 +3,7 @@
 # Scans content of files written under ~/.claude/ for prompt injection patterns.
 # Advisory only (exit 0 + stderr warning). Never blocks legitimate writes.
 #
-# enforces: rules/_detail/agent-protocol.md:Hooks Calling MCP
+# enforces: protocols/agent-protocol.md:Hooks Calling MCP
 # protects: build-implementation, security-review
 
 # Hook profile and loop guard

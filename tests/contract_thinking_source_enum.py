@@ -88,7 +88,7 @@ class SourceEnumIncludesClaudeEffortEnvAndPreservesExisting(unittest.TestCase):
                 f"  expected: {sorted(EXPECTED_SOURCES)}\n"
                 f"  observed: {sorted(observed)}\n"
                 "If the enum genuinely needs to change, update this "
-                "contract test AND rules/_detail/thinking-defaults.md "
+                "contract test AND protocols/thinking-defaults.md "
                 "Forensic / Source-Field Integration Note in the same PR."
             ),
         )

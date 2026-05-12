@@ -11,7 +11,7 @@
 # - code-reviewer, security-engineer, product-reviewer (read-only review)
 # - agents spawned with CLAUDE_PIPELINE_BYPASS=1 env var
 #
-# enforces: rules/_detail/pipeline-protocol.md:Structured Pipeline State
+# enforces: protocols/pipeline-protocol.md:Structured Pipeline State
 # protects: pipeline
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

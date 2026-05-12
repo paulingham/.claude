@@ -24,7 +24,7 @@ Scaffolds a new microservice when extracting from a monolith or building a servi
 
 ### Step 0 — Forcing-Function Gate
 
-Before any scaffold work, verify at least one FF from `rules/_detail/module-boundaries-protocol.md` is named in the task context:
+Before any scaffold work, verify at least one FF from `protocols/module-boundaries-protocol.md` is named in the task context:
 
 1. Scan the task description for explicit FF phrasing (compliance, scaling, polyglot, blast radius, team ownership, regulatory, HIPAA, PCI, GDPR, data residency).
 2. Scan pipeline state (`pipeline-state/{task-id}/intake.md`) for an intake-stamped FF rationale.

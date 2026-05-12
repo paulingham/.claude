@@ -19,7 +19,7 @@ The pipeline routes here automatically (autonomous mode only) when ALL are true:
 - `Budget < 7` (Complexity Budget under the heavy-challenger threshold)
 - Plan file exists at `pipeline-state/{task-id}/plan.md`
 
-When `critical == true OR Budget >= 7`, the pipeline routes to the heavy product-reviewer + software-engineer challenger team instead. See `rules/_detail/pipeline-protocol.md` § Phase Checklist (Plan).
+When `critical == true OR Budget >= 7`, the pipeline routes to the heavy product-reviewer + software-engineer challenger team instead. See `protocols/pipeline-protocol.md` § Phase Checklist (Plan).
 
 This skill is NOT used in interactive mode — interactive mode asks the user.
 
@@ -47,7 +47,7 @@ For each rubric item, write a one-line verdict (`OK` / `HOLE: {what is missing}`
 ### Step 3: Verdict
 
 - **All items OK** → `PLAN_APPROVED`. Write a one-line confirmation to `pipeline-state/{task-id}/plan-validation.md` and return.
-- **One or more HOLE entries** → `PLAN_HOLES`. Write the hole list to `pipeline-state/{task-id}/plan-validation.md` and return. The pipeline returns the plan to architect with the hole list for ONE revision pass. If holes persist after that pass, the pipeline escalates to heavy challengers (product-reviewer + software-engineer team) per `rules/_detail/pipeline-protocol.md`.
+- **One or more HOLE entries** → `PLAN_HOLES`. Write the hole list to `pipeline-state/{task-id}/plan-validation.md` and return. The pipeline returns the plan to architect with the hole list for ONE revision pass. If holes persist after that pass, the pipeline escalates to heavy challengers (product-reviewer + software-engineer team) per `protocols/pipeline-protocol.md`.
 
 ### Step 4: Write Validation State File
 

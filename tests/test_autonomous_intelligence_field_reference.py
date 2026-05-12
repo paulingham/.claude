@@ -1,6 +1,6 @@
 """Slice slice-c-consumer AC7 — Field reference table documents wave_count / wave_widths.
 
-`rules/_detail/autonomous-intelligence.md` § Field reference must list both
+`protocols/autonomous-intelligence.md` § Field reference must list both
 `phases.build.wave_count` and `phases.build.wave_widths` with absence-tolerance
 prose for legacy-record readers.
 """
@@ -10,8 +10,7 @@ import pytest
 
 AI_FILE = (
     Path(__file__).resolve().parent.parent
-    / "rules"
-    / "_detail"
+    / "protocols"
     / "autonomous-intelligence.md"
 )
 

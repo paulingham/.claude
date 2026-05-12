@@ -15,7 +15,7 @@ Analyses pipeline observations and per-agent cost records for a project, then pr
 ## When to Invoke
 
 - Manually via `/eval-model-effectiveness` whenever you want a fresh recommendation report.
-- Automatically from the Reflect step when `observations_since_learn` is a non-zero multiple of 20. See `rules/_detail/reflection-protocol.md` § 6b-bis.
+- Automatically from the Reflect step when `observations_since_learn` is a non-zero multiple of 20. See `protocols/reflection-protocol.md` § 6b-bis.
 
 ## Inputs
 
@@ -36,7 +36,7 @@ For each `(agent_role, task_classification)` cell:
    - **clean_first_pass_pct**: fraction of pipelines where `review.rounds <= 1`
    - **rework_rate**: fraction where `rework == true`
    - **avg_review_rounds**: mean of `review.rounds` (floor 1)
-   - **success_rate** = `clean_first_pass_pct * 0.6 + (1 - rework_rate) * 0.3 + (MAX_REVIEW_ROUNDS_OBS / max(avg_review_rounds, 1)) * 0.1` where `MAX_REVIEW_ROUNDS_OBS = 2` (see `rules/_detail/pipeline-protocol.md` § Review Rules).
+   - **success_rate** = `clean_first_pass_pct * 0.6 + (1 - rework_rate) * 0.3 + (MAX_REVIEW_ROUNDS_OBS / max(avg_review_rounds, 1)) * 0.1` where `MAX_REVIEW_ROUNDS_OBS = 2` (see `protocols/pipeline-protocol.md` § Review Rules).
    - **cost_per_success**: `sum(total_cost_usd) / max(successes, 1)` where successful = `rework == false` AND `review.rounds <= 2`.
 3. **Confidence gate**: require ≥10 observations per `(role, model, classification)` subcell. Below threshold → tagged `INSUFFICIENT_DATA`, not used for recommendations.
 

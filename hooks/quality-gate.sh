@@ -3,7 +3,7 @@
 # Refactored: per-check logic extracted to _lib/quality-gate-checks.sh
 # (instinct: file >44 lines requires _lib/ extraction before adding new logic)
 #
-# enforces: rules/_detail/pipeline-protocol.md:Phase Checklist
+# enforces: protocols/pipeline-protocol.md:Phase Checklist
 # protects: pr-creation, code-review
 # self-test: skip
 

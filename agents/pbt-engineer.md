@@ -68,7 +68,7 @@ You hit a non-recoverable failure on a candidate. Build halts and surfaces the f
 - `harness-crash` — the underlying PBT framework crashed in a way you cannot route around.
 - `unrecoverable-error` — any other non-recoverable error path (disk-full, permission denied, infinite loop in strategy generation that exceeded the 60s wall-clock with no usable result).
 
-When emitting `PBT_BLOCKED`, include the candidate function name, the first 5-line excerpt of the underlying tool failure, the recommended `CLAUDE_PBT=0` recovery action, and the explicit statement that `PBT_BLOCKED` does NOT count against the retry-twice-then-escalate budget in `rules/_detail/operational-protocol.md` (the env hatch is a single-action recovery; the orchestrator-side retry counter resets when `CLAUDE_PBT=0` is set).
+When emitting `PBT_BLOCKED`, include the candidate function name, the first 5-line excerpt of the underlying tool failure, the recommended `CLAUDE_PBT=0` recovery action, and the explicit statement that `PBT_BLOCKED` does NOT count against the retry-twice-then-escalate budget in `protocols/operational-protocol.md` (the env hatch is a single-action recovery; the orchestrator-side retry counter resets when `CLAUDE_PBT=0` is set).
 
 ## Discipline
 
@@ -95,8 +95,8 @@ Before signaling done, review your own work. All verification must be FRESH — 
 
 - `skills/property-based-test/SKILL.md` — your invocation contract, the Language → PBT Framework table, and the verdict surface in full.
 - `agents/fix-engineer.md` — the worktree-reuse precedent.
-- `rules/_detail/engineering-invariants.md` § Proof of Correctness — Tier 1.5 placement of property-based tests.
-- `rules/_detail/operational-protocol.md` — the retry-twice-then-escalate semantics that PBT_BLOCKED is exempt from.
+- `protocols/engineering-invariants.md` § Proof of Correctness — Tier 1.5 placement of property-based tests.
+- `protocols/operational-protocol.md` — the retry-twice-then-escalate semantics that PBT_BLOCKED is exempt from.
 
 ## Commit Cadence
 

@@ -1,6 +1,6 @@
 # Parallel Dispatch Details (Orchestrator-Only)
 
-Extracted from `rules/_detail/parallel-dispatch-protocol.md`. Agents do not need this content.
+Extracted from `protocols/parallel-dispatch-protocol.md`. Agents do not need this content.
 
 ## Team Creation
 
@@ -21,7 +21,7 @@ Every teammate spawn propagates `CLAUDE_SUBAGENT_DEPTH` through the spawn
 shell so `hooks/depth-guard.sh` can refuse runaway recursion. Set
 `CLAUDE_SUBAGENT_DEPTH = parent_depth + 1` in the shell that invokes the
 Agent tool — the teammate inherits it via process env. See
-`rules/_detail/agent-protocol.md > Resource Bounds` for caps and override semantics.
+`protocols/agent-protocol.md > Resource Bounds` for caps and override semantics.
 
 Example (orchestrator-side teammate spawn shell):
 
@@ -41,7 +41,7 @@ records the teammate's start time at this same call and emits a precise
 `SendMessage({type:"shutdown_request", name:"<display>"})` directive on
 stderr if the teammate later exceeds `CLAUDE_TEAMMATE_MAX_RUNTIME` (3600s
 default). Subagent-class spawns (`team_name` empty) get a next-tool-call-blocked
-directive — see `rules/_detail/parallel-dispatch-protocol.md > Resource Bounds`
+directive — see `protocols/parallel-dispatch-protocol.md > Resource Bounds`
 for the Path-B disclosure.
 
 ## Plan Phase Dispatch
@@ -505,7 +505,7 @@ future debuggers seeing a cherry-pick conflict on a diamond should suspect
 - **Slice fails (BUILD_FAILED, irrecoverable)**: walk the reverse-DAG, mark
   every transitive descendant `aborted`, and write the cancellation to
   pipeline.md § Re-routes. The failed slice consumes its 2 retries per
-  `rules/_detail/operational-protocol.md` retry-twice-then-escalate; on the
+  `protocols/operational-protocol.md` retry-twice-then-escalate; on the
   third failure the pipeline halts.
 - **Iron Law 6 reconciliation**: cancelling transitive descendants is NOT a
   follow-up ticket — it is the deterministic outcome of a parent's terminal
@@ -529,7 +529,7 @@ future debuggers seeing a cherry-pick conflict on a diamond should suspect
 #### Forensic Fields (Reflect emission)
 
 The wave dispatcher emits two fields to `learning/{project-hash}/observations.jsonl`
-at Reflect time per `rules/_detail/autonomous-intelligence.md` § Field
+at Reflect time per `protocols/autonomous-intelligence.md` § Field
 reference:
 
 - `phases.build.wave_count` — `int`, the count of waves the dispatcher ran.
@@ -539,7 +539,7 @@ reference:
 Both fields are **schema_version: 2 only** — legacy v1 pipelines do not run
 the wave dispatcher and therefore do not emit them. Readers MUST tolerate
 absence (treat as "v1 pipeline / unknown", NOT as `0`); see
-`rules/_detail/autonomous-intelligence.md` § Field reference for the
+`protocols/autonomous-intelligence.md` § Field reference for the
 canonical absence-tolerance contract.
 
 ### Planning Agent Dispatch (advisory, multi-slice Build only)
@@ -621,7 +621,7 @@ The previous threshold (`task_class=="feature" AND Budget>=5`) was tightened to 
      1. Fewer changed files; then
      2. Fewer changed lines; then
      3. Cheaper executor tier (sonnet < opus < external-frontier, integer ranks 1/2/3).
-   - **Divergence record (advisory, no gate, no new verdict)**: when the top two candidates clear the tie-breaker boundary above AND their changed-files sets have Jaccard < 0.5 (non-overlapping work on the same slice), append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` with winner/runner-up SHAs, per-candidate diff-stat, and the verbatim `## Selection Rationale`. The dispatch never writes `category: anti-pattern` — recurring divergence is mined into anti-pattern instincts only by `/learn` Step 3d via the standard observations.jsonl path (see `skills/learn/SKILL.md` § 3d), gated on `recurrence>=3 AND phases.review.rounds>=2`. `category: decision` is in the scratchpad enum at `rules/_detail/autonomous-intelligence.md` § Pipeline Scratchpad and is forwarded to reviewers and Final Gate roles by the existing injection matrix.
+   - **Divergence record (advisory, no gate, no new verdict)**: when the top two candidates clear the tie-breaker boundary above AND their changed-files sets have Jaccard < 0.5 (non-overlapping work on the same slice), append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` with winner/runner-up SHAs, per-candidate diff-stat, and the verbatim `## Selection Rationale`. The dispatch never writes `category: anti-pattern` — recurring divergence is mined into anti-pattern instincts only by `/learn` Step 3d via the standard observations.jsonl path (see `skills/learn/SKILL.md` § 3d), gated on `recurrence>=3 AND phases.review.rounds>=2`. `category: decision` is in the scratchpad enum at `protocols/autonomous-intelligence.md` § Pipeline Scratchpad and is forwarded to reviewers and Final Gate roles by the existing injection matrix.
    - Reviewer MUST write a `## Selection Rationale` section — copied verbatim to the scratchpad for future `/learn` runs. The diff-stat and the Jaccard value (when the divergence record fires) are quoted in the rationale.
 6. **Merge & cleanup**:
    - `git merge --no-ff build/{task-id}-boN-{winner-slug}` into the pipeline's working branch
@@ -686,7 +686,7 @@ The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastruct
 5. **MODE_AMBIGUOUS surfacing (Path-B advisory today)**: when a tournament-mode spawn carries BOTH `Mode: tournament` AND `Persona: <name>` tokens (as a future multi-persona prompt-builder bug could inject), `hooks/pre-agent-advisor.sh` (PreToolUse) logs `source: "mode-ambiguous"` to `metrics/{session}/advisor-dispatch.jsonl` per `agents/patch-critic.md` § Tournament Mode AC8b. The orchestrator MUST parse this forensic line at tournament conclusion and surface the offending match as `PATCH_REJECTED` (per AC8b verbatim) — propagate as `PDR_NO_CONSENSUS` with `fallback_reason: "all-finalists-rejected"` if the rejection eliminates the final pair. The hook is currently log-only because the Agent input schema does not yet expose the relevant fields; promotion to enforcement is a single-line flip in `hooks/pre-agent-advisor.sh` when the schema lands. The orchestrator-side `MODE_AMBIGUOUS → PATCH_REJECTED` surfacing is decoupled from the hook's promotion timeline.
 
 6. **Verdict & merge**: `run_tournament` writes `pipeline-state/{task-id}/pdr-rtv/tournament.md` with the full bracket (N-1 round entries), the `## Winner` section (slug + SHA + verbatim selection rationale), and the cost estimate. The orchestrator merges the winner branch into the pipeline working branch (`git -C "$WORKTREE" merge --no-ff build/{task-id}-pdr-iter<N>-<winner-slug>`) and removes loser worktrees + branches. Emits:
-   - `PDR_WINNER_SELECTED` (success): winner proceeds to standard Review (`/code-review` + `/security-review` per `rules/_detail/pipeline-protocol.md`).
+   - `PDR_WINNER_SELECTED` (success): winner proceeds to standard Review (`/code-review` + `/security-review` per `protocols/pipeline-protocol.md`).
    - `PDR_NO_CONSENSUS` (failure): silent re-route to Best-of-N → standard. Log to pipeline state's `## Re-routes` with one of four `fallback_reason` enum values:
      - `worktree-cap-exceeded` (Step 0 above)
      - `insufficient-green-builds` (<4 candidates produced green builds across both iterations)
@@ -734,7 +734,7 @@ timestamp: {ISO 8601}
 - `skills/pdr-rtv/lib/tournament.sh` — sourceable `run_tournament`, `_pdr_pick_winner` (diff-stat tie-breaker)
 - `skills/best-of-n/lib/score.sh` — reused `check_worktree_capacity` for pre-flight (B11.2 helper)
 
-**Observation schema**: see `rules/_detail/autonomous-intelligence.md` § Observation Capture / `phases.pdr_rtv` for the full field reference (verdict, n_candidates_iter0, n_candidates_iter1, tournament_rounds, winner_slug, cost_estimate_usd, optional fallback_reason).
+**Observation schema**: see `protocols/autonomous-intelligence.md` § Observation Capture / `phases.pdr_rtv` for the full field reference (verdict, n_candidates_iter0, n_candidates_iter1, tournament_rounds, winner_slug, cost_estimate_usd, optional fallback_reason).
 
 ## Review Phase Dispatch
 
@@ -948,7 +948,7 @@ Agent({
     Rubric: tests cover the change, diff minimal vs spec, no obvious regressions
     visible from diff, no incidental refactor. Verdicts: PATCH_APPROVED on a
     minimal-and-tested diff; PATCH_REJECTED returns to fix-engineer
-    (in-cycle, no user escalation per rules/_detail/pipeline-protocol.md
+    (in-cycle, no user escalation per protocols/pipeline-protocol.md
     § In-Cycle Fix Rule).
     Note: when critical OR Budget >= 7, the orchestrator dispatches the
     multi-persona variant instead of this single-critic shape — see
@@ -1008,7 +1008,7 @@ The patch-critic role in the Final Gate Team has two dispatch modes selected by 
 
 Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) where multiple persona-critics escape single-agent confirmation bias. Cost is ~3x patch-critic spend; the gate already runs in parallel with verify+test+accept and is a rounding error vs build/review spend on critical work.
 
-**Composition with C8 anti-pattern mining (#80)**: complementary, not redundant. Multi-persona catches in-cycle (during this gate); C8 mines cross-pipeline patterns from observation rounds-counts after pipelines close. The schema extension in `rules/_detail/autonomous-intelligence.md` § Observation Capture (`phases.patch_critic.rounds`) wires the variant's rejections into C8's mining gate so consistently-caught-but-not-by-code-review patterns become anti-pattern instincts over time. They cover different time horizons.
+**Composition with C8 anti-pattern mining (#80)**: complementary, not redundant. Multi-persona catches in-cycle (during this gate); C8 mines cross-pipeline patterns from observation rounds-counts after pipelines close. The schema extension in `protocols/autonomous-intelligence.md` § Observation Capture (`phases.patch_critic.rounds`) wires the variant's rejections into C8's mining gate so consistently-caught-but-not-by-code-review patterns become anti-pattern instincts over time. They cover different time horizons.
 
 **Procedure (variant mode):**
 
@@ -1097,7 +1097,7 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
 
 7. **Partial completion contract**: if a persona fails to return within timeout (`CLAUDE_SUBAGENT_MAX_RUNTIME`, default 1800s), treat as `PATCH_REJECTED` with reason `persona-timeout`. Re-dispatch only the missing persona (1 retry). After 2 timeouts on the same persona → escalate per retry-twice-then-escalate. Do NOT silently skip a timed-out persona — a missing verdict is not an approval.
 
-8. **Observation capture** (Reflect step): record per-persona verdicts and rejecting findings in `phases.patch_critic` per `rules/_detail/autonomous-intelligence.md` § Observation Capture. The `rounds` count and `persona_rejections` array feed C8 anti-pattern mining on subsequent pipelines.
+8. **Observation capture** (Reflect step): record per-persona verdicts and rejecting findings in `phases.patch_critic` per `protocols/autonomous-intelligence.md` § Observation Capture. The `rounds` count and `persona_rejections` array feed C8 anti-pattern mining on subsequent pipelines.
 
 **Why no debate round (vs the paper)**: patch-critique is closed-form (fixed rubric, fixed dimensions, binary-per-finding-after-severity). The paper's debate coordinator targets open-ended reflexion (HotPotQA answers, HumanEval code generation). Three independent strict scorers + OR-aggregation captures the "different priors → different blind spots" lift without the 2x debate-round overhead.
 
@@ -1216,7 +1216,7 @@ Each skip point falls through to the existing dispatch exactly as #93 specifies;
 
 **Re-critique semantics**: when patch-critic returns `PATCH_REJECTED` and fix-engineer produces an updated diff, the orchestrator regenerates the execution-evidence block from scratch on each re-dispatch — the diff has changed, so the discriminative inputs and run output may differ. There is NO caching across rounds; per-dispatch regeneration is the contract.
 
-**Forensic record**: the observation-schema `phases.patch_critic.evidence_mode` field (see `rules/_detail/autonomous-intelligence.md` § Field reference) records `"diff-only"` when any skip point fires (or when the flag is unset) and `"diff+execution"` only when all three steps complete successfully. Readers MUST tolerate absence of the field as a legacy / pre-exec-layer record.
+**Forensic record**: the observation-schema `phases.patch_critic.evidence_mode` field (see `protocols/autonomous-intelligence.md` § Field reference) records `"diff-only"` when any skip point fires (or when the flag is unset) and `"diff+execution"` only when all three steps complete successfully. Readers MUST tolerate absence of the field as a legacy / pre-exec-layer record.
 
 Slices 2 and 3 land Steps 1-3 (input generation, sandboxed run, prompt-append point). This sub-section established Step 0 (the gate) and the silent-fallback semantics in Slice 1; subsequent slices extended the sub-section without altering the gate or the fallback contract.
 
@@ -1282,7 +1282,7 @@ esac
 
 **Logging:** every call appends one JSONL record to `metrics/${CLAUDE_SESSION_ID}/await-events.jsonl` with `record_type: await_match | await_timeout`.
 
-**Checkpoint vocabulary:** See `rules/_detail/parallel-dispatch-protocol.md § Checkpoint Vocabulary` for standard marker strings.
+**Checkpoint vocabulary:** See `protocols/parallel-dispatch-protocol.md § Checkpoint Vocabulary` for standard marker strings.
 
 ### Deprecation: Sleep-Poll Loops
 

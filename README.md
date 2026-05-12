@@ -11,13 +11,13 @@ You describe what you want. The system:
 3. **Scaffolds** infrastructure, APIs, databases, design systems — whatever the task needs
 4. **Builds** via incremental TDD with mechanical code quality enforcement
 5. **Reviews** with parallel code + security review (OWASP Top 10, SAST)
-6. **Verifies** with contract tests, smoke tests, mutation testing, and multi-target E2E (mobile via Maestro, web E2E via Playwright/Cypress) — Tier 4 verification dispatched per `rules/_detail/e2e-protocol.md`
+6. **Verifies** with contract tests, smoke tests, mutation testing, and multi-target E2E (mobile via Maestro, web E2E via Playwright/Cypress) — Tier 4 verification dispatched per `protocols/e2e-protocol.md`
 7. **Tests** for coverage gaps and writes missing tests
 8. **Accepts** against UX heuristics and acceptance criteria
 9. **Ships** a PR with quality gate enforcement
 10. **Deploys** with post-deploy verification and automatic rollback
 
-**Modular monolith is the default.** New work lives as a bounded context inside the existing repo with an explicit port (in-process module). When a module needs stronger boundaries short of a separate service, `/module-extraction` is the first-class, default extraction path. Splitting a module into its own repo is **advanced** and gated behind a named forcing function (see `rules/_detail/module-boundaries-protocol.md`) — the Advanced service/multi-repo skills are invoked only when a forcing function applies.
+**Modular monolith is the default.** New work lives as a bounded context inside the existing repo with an explicit port (in-process module). When a module needs stronger boundaries short of a separate service, `/module-extraction` is the first-class, default extraction path. Splitting a module into its own repo is **advanced** and gated behind a named forcing function (see `protocols/module-boundaries-protocol.md`) — the Advanced service/multi-repo skills are invoked only when a forcing function applies.
 
 11. **Learns** from every run — agents share discoveries in real-time, engineering context survives context compaction, and the system builds instincts that make future runs smarter
 
@@ -161,7 +161,7 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `/voice-scaffold` | Voice skill needed (Alexa/Google/Twilio) |
 
 ### Advanced — Service / Multi-Repo (forcing function required)
-Invoked only when a forcing function from `rules/_detail/module-boundaries-protocol.md` applies. Routing is automatic — `/microservices-scaffold` gates on this at its Step 0 (returns `WRONG_SKILL` if no forcing function is named). For same-repo boundary work, use `/module-extraction` instead.
+Invoked only when a forcing function from `protocols/module-boundaries-protocol.md` applies. Routing is automatic — `/microservices-scaffold` gates on this at its Step 0 (returns `WRONG_SKILL` if no forcing function is named). For same-repo boundary work, use `/module-extraction` instead.
 
 | Skill | Trigger |
 |-------|---------|
@@ -252,7 +252,7 @@ Invoked only when a forcing function from `rules/_detail/module-boundaries-proto
 | `depth-guard.sh` | Resource Bounds: refuses subagent spawn beyond max recursion depth (3) | Hard block |
 | `runtime-guard.sh` | Resource Bounds: shutdown directive when subagent (1800s) / teammate (3600s) wall-clock exceeded | Hard block |
 
-See `rules/_detail/agent-protocol.md > Resource Bounds` for caps, env overrides,
+See `protocols/agent-protocol.md > Resource Bounds` for caps, env overrides,
 violation log schemas, and the Path-B disclosure on shutdown semantics.
 
 ## Omnichannel Support
@@ -540,7 +540,7 @@ CLAUDE_SRC=/srv/claude-harness bash scripts/web-session-bootstrap.sh
 
 After the bootstrap runs and the session restarts, verify in Claude Code: `/intake "test"` should resolve (was "Unknown skill" before), and any Edit on a 51-line `.py` file should fire `code-shape-check.sh`.
 
-The portable-config-dir convention this bootstrap depends on is documented in `rules/_detail/agent-protocol.md` § Portable Config Dir.
+The portable-config-dir convention this bootstrap depends on is documented in `protocols/agent-protocol.md` § Portable Config Dir.
 
 ## Internal Evaluation
 

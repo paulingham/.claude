@@ -1,5 +1,5 @@
 """Slice B-AC2 + B-AC3: doc-rendering tests for the new `## Adaptive
-Thinking (Opus 4.7+)` subsection in `rules/_detail/thinking-defaults.md`.
+Thinking (Opus 4.7+)` subsection in `protocols/thinking-defaults.md`.
 
 The subsection sits between `## Fields` and `## Precedence`. Three tests:
 
@@ -18,7 +18,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DOC = REPO_ROOT / "rules" / "_detail" / "thinking-defaults.md"
+DOC = REPO_ROOT / "protocols" / "thinking-defaults.md"
 SUBSECTION_HEADER = "## Adaptive Thinking (Opus 4.7+)"
 
 

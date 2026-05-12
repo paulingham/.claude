@@ -93,7 +93,7 @@ Update the **Anomalies table** schema to include a `Rule Protected` column:
 ```markdown
 | # | Type | Description | Root Cause | Rule Protected |
 |---|------|------------|------------|----------------|
-| 1 | Main-branch violation | Bare `git checkout` detected | Agent omitted `git -C` delegation | `rules/_detail/agent-protocol.md:Main-Branch Invariant` (build-implementation, pr-creation) |
+| 1 | Main-branch violation | Bare `git checkout` detected | Agent omitted `git -C` delegation | `protocols/agent-protocol.md:Main-Branch Invariant` (build-implementation, pr-creation) |
 ```
 
 This traceability lets forensics readers immediately see which rule and which skill the hook was guarding when it fired — eliminating the "what does this hook protect?" question.

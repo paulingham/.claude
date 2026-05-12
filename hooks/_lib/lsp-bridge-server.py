@@ -1,7 +1,7 @@
 """LSP-as-MCP bridge — Path-B advisory stub for mcp_lsp_diagnostics_{ts,py}.
 
 Real LSP shell-out deferred; only this file changes when wired. See
-rules/_detail/agent-protocol.md § Per-Agent Tool Scoping for contract.
+protocols/agent-protocol.md § Per-Agent Tool Scoping for contract.
 """
 import argparse
 import importlib.util

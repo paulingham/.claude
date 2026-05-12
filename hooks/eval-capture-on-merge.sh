@@ -6,7 +6,7 @@
 #           CLAUDE_EVAL_CAPTURE_NOFORK=1 (test hook) runs worker synchronously.
 # Writes candidates to eval/cases/.candidates/ ONLY — never promotes.
 #
-# enforces: rules/_detail/agent-protocol.md:Internal Eval Gate
+# enforces: protocols/agent-protocol.md:Internal Eval Gate
 # protects: internal-eval
 # self-test: skip
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

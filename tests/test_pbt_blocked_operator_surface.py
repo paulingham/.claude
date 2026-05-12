@@ -3,7 +3,7 @@
 Asserts the skill body documents the four required operator surfaces:
 function name, 5-line error excerpt, `CLAUDE_PBT=0` recovery action,
 and the explicit non-counting clause referencing
-`rules/_detail/operational-protocol.md` retry-twice-then-escalate.
+`protocols/operational-protocol.md` retry-twice-then-escalate.
 """
 from pathlib import Path
 
@@ -15,7 +15,7 @@ REQUIRED_MARKERS = (
     "5 line",         # 5-line error excerpt (allow "5 line" or "5-line")
     "CLAUDE_PBT=0",   # recommended recovery
     "retry-twice",    # explicit reference to retry-twice budget exemption
-    "rules/_detail/operational-protocol.md",  # cite the rule file
+    "protocols/operational-protocol.md",  # cite the rule file
 )
 
 

@@ -22,8 +22,8 @@ Proves a feature works correctly beyond just passing tests. Runs three verificat
 |-------------|-------------------|----------------|------------------------------|------------------------|--------------|
 | Backend API | Hit real endpoint, verify response shape | curl + DB state check + log check | Mutate handler logic | ≥60% kill rate | N/A |
 | Frontend | Props match API response shape | Playwright/browser screenshot | Mutate component logic | ≥60% kill rate | N/A |
-| Mobile/WebView | Hook/service contract tests | Component render + prop verification | Mutation testing on lib/ business logic | ≥60% kill rate | Maestro (mobile) AND/OR Playwright/Cypress (web) — multi-target dispatch per `rules/_detail/e2e-protocol.md` |
-| Web (browser) | API contract tests against real endpoint | Curl + DOM snapshot + log check | Mutate handler/component logic | ≥60% kill rate | Playwright/Cypress against deployed preview / docker-compose / cloud ephemeral env (conditional per `rules/_detail/e2e-protocol.md`) |
+| Mobile/WebView | Hook/service contract tests | Component render + prop verification | Mutation testing on lib/ business logic | ≥60% kill rate | Maestro (mobile) AND/OR Playwright/Cypress (web) — multi-target dispatch per `protocols/e2e-protocol.md` |
+| Web (browser) | API contract tests against real endpoint | Curl + DOM snapshot + log check | Mutate handler/component logic | ≥60% kill rate | Playwright/Cypress against deployed preview / docker-compose / cloud ephemeral env (conditional per `protocols/e2e-protocol.md`) |
 | Database | Schema constraint tests | Migrate up+down, verify integrity | N/A | N/A | N/A |
 | Infrastructure | Health endpoint responds | Readiness probe passes | N/A | N/A | N/A |
 
@@ -120,7 +120,7 @@ kill_rate = killed / (killed + survived)
 ```
 where the denominator excludes `equivalent: yes` mutants. **kill_rate ≥ 0.60 required.** Below threshold → Tier 3.5 = **FAIL** → composite verdict becomes **UNVERIFIED**, slice returns to Build with the surviving-mutant list as targeted test gaps.
 
-**Audit-trail invariant**: Tier 3.5 results **APPEND to the existing mutation report** produced by Tier 3 — they do NOT generate a new report file. The audit-trail count locked by `rules/_detail/atdd-procedure.md` (3 artifacts: batched RED, GREEN, mutation-report) is preserved.
+**Audit-trail invariant**: Tier 3.5 results **APPEND to the existing mutation report** produced by Tier 3 — they do NOT generate a new report file. The audit-trail count locked by `protocols/atdd-procedure.md` (3 artifacts: batched RED, GREEN, mutation-report) is preserved.
 
 **Cross-reference**: `orchestrator/parallel-dispatch-details.md` § Multi-Persona Patch Critic Dispatch / Execution Evidence reuses the same call-shape pattern documented in this section (ONE call, NO retry, max-N items per response, JSON schema, parse-failure → silent skip). The procedure body above is the canonical wording source; the patch-critic execution-evidence layer inlines + adapts it. Tier 3.5's verify-time semantics are unchanged by that reuse.
 
@@ -130,7 +130,7 @@ where the denominator excludes `equivalent: yes` mutants. **kill_rate ≥ 0.60 r
 
 ### 4.5. Run Tier 4: E2E Tests (Conditional, multi-target)
 
-Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mobile (Maestro) and web (Playwright / Cypress) dispatch independently per `rules/_detail/e2e-protocol.md`. Both can fire on the same change.
+Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mobile (Maestro) and web (Playwright / Cypress) dispatch independently per `protocols/e2e-protocol.md`. Both can fire on the same change.
 
 1. **Detect targets** via `hooks/_lib/e2e_target_resolver.py`:
 

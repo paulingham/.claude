@@ -11,7 +11,7 @@ agent: patch-critic
 
 Adds a distinct critic step to the Final Gate that evaluates the candidate patch against test outcomes and the diff itself — orthogonal to the code-reviewer's SOLID/DRY/design audit. SWE-bench top scaffolds (Agentless, AutoCodeRover, MarsCode-Agent) consistently include a critic step of this shape; without it, patches that are "clean code but wrong fix" or "tests pass but huge incidental refactor" slip through.
 
-Verdict gates Ship. PATCH_REJECTED returns to fix-engineer per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule — never escalates to the user.
+Verdict gates Ship. PATCH_REJECTED returns to fix-engineer per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule — never escalates to the user.
 
 ## Advisor Mode (Sonnet executor + Opus advisor)
 
@@ -134,7 +134,7 @@ No `isolation: "worktree"` — patch-critic is read-only.
 
 ## Parallel Execution
 
-This skill belongs to the `final-gate` parallel group. Dispatched via Parallel Dispatch Protocol (`rules/_detail/parallel-dispatch-protocol.md` § Final Gate Team), not via sequential Skill tool invocation.
+This skill belongs to the `final-gate` parallel group. Dispatched via Parallel Dispatch Protocol (`protocols/parallel-dispatch-protocol.md` § Final Gate Team), not via sequential Skill tool invocation.
 
 When dispatched in parallel:
 1. The orchestrator spawns patch-critic + qa-engineer (verify) + qa-engineer (test) + product-reviewer in a single message
@@ -163,7 +163,7 @@ Patch-critique is rubric-binary (PASS/FAIL per dimension). Severity grading from
 
 ## In-Cycle Fix Rule
 
-PATCH_REJECTED is gated by `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule:
+PATCH_REJECTED is gated by `protocols/pipeline-protocol.md` § In-Cycle Fix Rule:
 
 - Findings are fixed in this pipeline. No follow-up tickets.
 - The orchestrator dispatches fix-engineer autonomously. No user question.

@@ -59,7 +59,7 @@ PBT authoring is performed earlier in the pipeline by `/property-based-test` at 
 - Confirm any frozen counterexamples joined the deterministic unit-test tier with harness-native syntax (`@example` / seeded `fc.assert`).
 - Report the matrix in the `### Property-Based Coverage Report` section of the Test Coverage Report Format.
 
-If the matrix is incomplete, return GAPS_FOUND and dispatch fix-engineer (per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule). qa-engineer does NOT author PBTs at this gate — re-running `/property-based-test` is the in-cycle fix path.
+If the matrix is incomplete, return GAPS_FOUND and dispatch fix-engineer (per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule). qa-engineer does NOT author PBTs at this gate — re-running `/property-based-test` is the in-cycle fix path.
 
 ### 3. Process Report
 

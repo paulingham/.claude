@@ -4,7 +4,7 @@
 # changes with no accompanying test changes. Exits 0 immediately for any
 # non-PR-creation Bash command. Enforces ATDD discipline at the PR boundary.
 #
-# enforces: rules/_detail/atdd-procedure.md:ATDD Anti-Patterns
+# enforces: protocols/atdd-procedure.md:ATDD Anti-Patterns
 # protects: build-implementation, pr-creation
 # self-test: skip
 
