@@ -34,4 +34,4 @@ session-memory/
 
 `active-work.md` is NEVER injected into agent prompts (encoded in `hooks/_lib/session_memory_role_resolver.py` — every role's sub-file list excludes it). The orchestrator reads it directly via `session_store_get $hash active-work` for its own state tracking.
 
-The other four sub-files are injected per the role × sub-file mapping in `rules/_detail/autonomous-intelligence.md` § Injection Priority. Empty bodies (< 50 chars after stripping headers + italic descriptions) are omitted from the rendered block — no role sees a header with no content.
+The other four sub-files are injected per the role × sub-file mapping in `protocols/autonomous-intelligence.md` § Injection Priority. Empty bodies (< 50 chars after stripping headers + italic descriptions) are omitted from the rendered block — no role sees a header with no content.
