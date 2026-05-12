@@ -155,7 +155,7 @@ If you find yourself writing "this could be cleaner" or "consider extracting" �
 - **PATCH_APPROVED**: all rubric dimensions PASS, all tests green.
 - **PATCH_REJECTED**: any rubric dimension FAILED (i.e., any MEDIUM+ severity finding), or any test failed, or any input missing.
 
-PATCH_REJECTED returns to fix-engineer (per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule). It does NOT escalate to the user.
+PATCH_REJECTED returns to fix-engineer (per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule). It does NOT escalate to the user.
 
 ## Tournament Mode
 
@@ -210,7 +210,7 @@ When the orchestrator dispatches three patch-critic spawns in parallel — one p
 
 **Default mode** (`!critical AND Budget < 7`): the persona prompt token is absent. You score the full rubric without specialty weighting. Behavior is identical to the pre-variant patch-critic.
 
-**Composition note**: this variant is complementary to the C8 anti-pattern mining loop. Multi-persona catches in-cycle (during this gate); C8 mines cross-pipeline patterns from observation rounds-counts after pipelines close. The schema extension in `rules/_detail/autonomous-intelligence.md` § Observation Capture (`phases.patch_critic.rounds`) wires variant rejections into C8's mining gate so consistently-caught-but-not-by-code-review patterns become anti-pattern instincts over time.
+**Composition note**: this variant is complementary to the C8 anti-pattern mining loop. Multi-persona catches in-cycle (during this gate); C8 mines cross-pipeline patterns from observation rounds-counts after pipelines close. The schema extension in `protocols/autonomous-intelligence.md` § Observation Capture (`phases.patch_critic.rounds`) wires variant rejections into C8's mining gate so consistently-caught-but-not-by-code-review patterns become anti-pattern instincts over time.
 
 ## Output Format
 

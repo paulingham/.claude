@@ -20,7 +20,7 @@
 # (SEC-MED-2 fallback). IF OVER-BLOCKING legitimate test runs: check
 # hooks/_lib/spec-blind-test-runners.txt — V1 ships exactly 7 entries.
 #
-# enforces: rules/_detail/pipeline-protocol.md (Final Gate § In-Cycle Fix Rule)
+# enforces: protocols/pipeline-protocol.md (Final Gate § In-Cycle Fix Rule)
 # protects: spec-blind-validate
 
 set -uo pipefail

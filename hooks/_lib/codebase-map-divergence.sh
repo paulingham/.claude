@@ -30,7 +30,7 @@
 #       — emit one JSONL line with source: "codebase-map-divergence" AND
 #         a content-hash pair (no full content — privacy + size).
 #
-# enforces: rules/_detail/autonomous-intelligence.md:Codebase Map
+# enforces: protocols/autonomous-intelligence.md:Codebase Map
 # protects: session-memory-read-split
 
 _CMD_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

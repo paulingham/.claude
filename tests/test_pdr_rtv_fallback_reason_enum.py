@@ -1,7 +1,7 @@
 """AC5 — `phases.pdr_rtv.fallback_reason` enum extended from 3 to 4
 values to include `missing-meta`.
 
-The enum is the single source of truth in `rules/_detail/autonomous-intelligence.md`
+The enum is the single source of truth in `protocols/autonomous-intelligence.md`
 and is mirrored in `orchestrator/parallel-dispatch-details.md § PDR-RTV step 6`.
 Both surfaces must list the four values:
   - `worktree-cap-exceeded`
@@ -21,7 +21,7 @@ import re
 import unittest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-AI_PATH = REPO_ROOT / "rules" / "_detail" / "autonomous-intelligence.md"
+AI_PATH = REPO_ROOT / "protocols" / "autonomous-intelligence.md"
 DISPATCH_PATH = REPO_ROOT / "orchestrator" / "parallel-dispatch-details.md"
 
 EXPECTED_VALUES = {

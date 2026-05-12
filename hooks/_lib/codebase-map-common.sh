@@ -7,7 +7,7 @@
 # DRY: the rebuild + poll hooks share most lifecycle logic (hash
 # resolution, metrics path setup, count + cache-hit-rate stubs,
 # subprocess invocation). Putting that logic here is the 2nd-occurrence
-# extraction per `rules/_detail/engineering-invariants.md` § Code Shape.
+# extraction per `protocols/engineering-invariants.md` § Code Shape.
 
 # ---- hash + paths ---------------------------------------------------
 

@@ -5,7 +5,7 @@
 # No-op when metrics dir does not exist (common — tracing is opt-in).
 # Never blocks session start.
 #
-# enforces: rules/_detail/autonomous-intelligence.md:Prompt Tracing
+# enforces: protocols/autonomous-intelligence.md:Prompt Tracing
 # protects: debug-trace
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

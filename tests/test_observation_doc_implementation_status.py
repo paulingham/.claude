@@ -1,7 +1,7 @@
 """AC9: documentation correctness regression.
 
 The `Implementation status` paragraph at
-`rules/_detail/autonomous-intelligence.md` § Field reference must
+`protocols/autonomous-intelligence.md` § Field reference must
 correctly cite the regular-pipeline observation writer. PR #105
 shipped the consumer (`mine_anti_patterns`) but the existing prose
 falsely claimed "the per-pipeline writer lives in
@@ -24,7 +24,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DOC = REPO_ROOT / "rules" / "_detail" / "autonomous-intelligence.md"
+DOC = REPO_ROOT / "protocols" / "autonomous-intelligence.md"
 
 
 def _implementation_status_paragraph() -> str:
@@ -52,7 +52,7 @@ class TestImplementationStatusAccurate(unittest.TestCase):
         self.assertTrue(
             para,
             "Implementation status paragraph not found at "
-            "rules/_detail/autonomous-intelligence.md § Field reference")
+            "protocols/autonomous-intelligence.md § Field reference")
         # Must reference the new regular-pipeline writer step.
         self.assertIn(
             "Step 7b-bis", para,

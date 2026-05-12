@@ -13,7 +13,7 @@
 #
 # Defense-in-depth alongside Step 0 grader quarantine in skills/internal-eval/SKILL.md.
 #
-# enforces: rules/_detail/agent-protocol.md:Internal Eval Gate
+# enforces: protocols/agent-protocol.md:Internal Eval Gate
 # protects: internal-eval
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

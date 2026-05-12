@@ -49,7 +49,7 @@ def _make_pipeline_obs(pipeline_id, *, review_rounds=None,
 
     Extends the helper from `tests/test_learn_anti_pattern_mining.py` with
     optional `patch_critic_rounds` and `persona_rejections` kwargs. Mirrors
-    the production schema in `rules/_detail/autonomous-intelligence.md` §
+    the production schema in `protocols/autonomous-intelligence.md` §
     Field reference.
 
     `review_rounds=None` simulates a legacy record missing the

@@ -54,7 +54,7 @@ Check whether the working directory has no recognizable project file (`package.j
 
 **MANDATORY**: Create a structured pipeline state file at pipeline start. This is the single source of truth for pipeline state — it survives context compaction.
 
-The canonical write path is the per-task subdir layout: `pipeline-state/{task-id}/pipeline.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/pipeline.md`). The legacy flat form `pipeline-state/{task-id}-pipeline.md` is read-tolerated during the 90-day DUAL_PATH soak (see `rules/_detail/pipeline-protocol.md` § Structured Pipeline State) but MUST NOT be written by new pipelines.
+The canonical write path is the per-task subdir layout: `pipeline-state/{task-id}/pipeline.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/pipeline.md`). The legacy flat form `pipeline-state/{task-id}-pipeline.md` is read-tolerated during the 90-day DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State) but MUST NOT be written by new pipelines.
 
 ```
 pipeline-state/[feature-name]/pipeline.md
@@ -106,7 +106,7 @@ If no workstream is active, use the default `pipeline-state/` directory (existin
 
 If intake flagged `multi_repo: true`, or if a manifest exists in `~/.claude/manifests/`:
 
-1. **Read or create manifest**: See `rules/_detail/multi-repo-protocol.md` for format and auto-creation triggers
+1. **Read or create manifest**: See `protocols/multi-repo-protocol.md` for format and auto-creation triggers
 2. **Resolve repo paths**: Verify all manifest repos exist locally. If a planned repo doesn't exist yet, it will be created during scaffold (Step 2b)
 3. **Add `manifest:` to pipeline state frontmatter** with the manifest path
 4. **Add `## Repos` section** to pipeline state tracking per-repo phases
@@ -240,7 +240,7 @@ For each phase:
 1. Update the memory file to mark the phase as `in_progress`
 2. **Sequential read-only phases** (Test analysis, Accept): Invoke the skill via the Skill tool
 2b. **Sequential write-capable phases** (Build, Verify Tier 3, QA gap-fill, scaffold): Spawn agent via Agent tool with `isolation: "worktree"`, instructing them to read and execute the skill file at `~/.claude/skills/[name]/SKILL.md`
-3. **Parallel phases**: Use Parallel Dispatch Protocol (see `rules/_detail/parallel-dispatch-protocol.md`) — spawn agents in a single message, each reading their own skill file
+3. **Parallel phases**: Use Parallel Dispatch Protocol (see `protocols/parallel-dispatch-protocol.md`) — spawn agents in a single message, each reading their own skill file
 4. Read the Phase Output (Verdict, Next, Artifacts)
 5. If verdict is a failure/rejection: handle per Step 4 (Recovery)
 6. If verdict is success: update memory file with verdict and artifacts, advance to next
@@ -460,7 +460,7 @@ This aggregates phase verdicts, agent counts, and review rounds into `metrics/pi
 
 #### 7b. Qualitative Reflection
 
-Run the reflection checklist from `rules/_detail/reflection-protocol.md`.
+Run the reflection checklist from `protocols/reflection-protocol.md`.
 
 If the pipeline experienced failures, >2 review rounds, or any recovery loop: invoke `/forensics` before reflection. The forensics report provides evidence-based findings for the reflection checklist.
 
@@ -472,7 +472,7 @@ If the pipeline experienced failures, >2 review rounds, or any recovery loop: in
 
 **MANDATORY** before invoking `/learn`. Appends a single `record_type: "pipeline"` JSON record to `learning/{project-hash}/observations.jsonl` so the auto-learn gate (`auto-learn-gate.sh` Stop hook) and `mine_anti_patterns` consumer in `/learn` see this pipeline.
 
-Schema source of truth: `rules/_detail/autonomous-intelligence.md` § Field reference. The `phases.patch_critic` block shape and the `persona_rejections` invariants are documented there; this step is the producer surface for the regular pipeline (the `batch-pipeline` skill writes the same shape from its Step 6).
+Schema source of truth: `protocols/autonomous-intelligence.md` § Field reference. The `phases.patch_critic` block shape and the `persona_rejections` invariants are documented there; this step is the producer surface for the regular pipeline (the `batch-pipeline` skill writes the same shape from its Step 6).
 
 ##### JSON template (orchestrator emits at Reflect time)
 
@@ -556,7 +556,7 @@ The orchestrator reports learnings to the user (skip if nothing actionable). Eve
 
 #### 7d. Reflect Cleanup (Dual-Form During DUAL_PATH Soak)
 
-After analytics, reflection, and learning are complete, remove the pipeline state files. Cleanup is dual-form during the 90-day DUAL_PATH soak (per `rules/_detail/pipeline-protocol.md` § Structured Pipeline State):
+After analytics, reflection, and learning are complete, remove the pipeline state files. Cleanup is dual-form during the 90-day DUAL_PATH soak (per `protocols/pipeline-protocol.md` § Structured Pipeline State):
 
 0. **Pre-step — shadow-checkpoint refs**: delete every `refs/checkpoints/{task-id}/*` ref in the shared ref database (created by `hooks/shadow-git-checkpoint.sh`). Refs live in REPO_ROOT's ref db (per `git-worktree(1)` semantics — only `refs/heads/*` is per-worktree), so cleanup runs against `REPO_ROOT`, NOT against any individual worktree. Idempotent: zero refs → loop no-ops. Workstream variant: refs are NOT workstream-prefixed (task-id alone is unique), so the same loop covers both. Per-worktree counter file `pipeline-state/{task-id}/checkpoint-counter-{slug}.txt` is removed by Form 1's `find -delete` below — no separate step.
 1. **Form 1 — new-layout subdir cleanup**: empty the per-task subdir with `find -delete` (sandbox-safe — `rm -rf` on directories is denied by the sandbox even on orchestrator-writable paths). Workstream variant: same pattern under `pipeline-state/workstreams/{ws}/{task-id}/`.

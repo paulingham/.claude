@@ -5,7 +5,7 @@
 # Recursion safety: hook executes only jq, mkdir, printf, date, cat, awk —
 # none match the forbidden regex, so the hook cannot block its own subshells.
 #
-# enforces: rules/_detail/agent-protocol.md:Main-Branch Invariant
+# enforces: protocols/agent-protocol.md:Main-Branch Invariant
 # protects: build-implementation, pr-creation
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

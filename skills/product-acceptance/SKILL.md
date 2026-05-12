@@ -80,7 +80,7 @@ No `isolation: "worktree"` — product-reviewer is read-only.
 - **APPROVED WITH CONDITIONS**: Spawn engineer (with worktree) to address conditions. Re-run acceptance.
 - **REJECTED**: Return to Build phase with specific feedback.
 
-**In-cycle enforcement:** Conditions and rejections MUST be resolved in the current pipeline. The orchestrator is not permitted to ship APPROVED_WITH_CONDITIONS as a "follow-up ticket" compromise, and must not ask the user whether to defer. If product-reviewer surfaces a defect that makes the fix-being-shipped incomplete, broken, or misleading (e.g. docs point users at a command that still fails), that is CHANGES_REQUESTED territory — dispatch a fix-engineer, roll the fix in, re-run acceptance. See `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule.
+**In-cycle enforcement:** Conditions and rejections MUST be resolved in the current pipeline. The orchestrator is not permitted to ship APPROVED_WITH_CONDITIONS as a "follow-up ticket" compromise, and must not ask the user whether to defer. If product-reviewer surfaces a defect that makes the fix-being-shipped incomplete, broken, or misleading (e.g. docs point users at a command that still fails), that is CHANGES_REQUESTED territory — dispatch a fix-engineer, roll the fix in, re-run acceptance. See `protocols/pipeline-protocol.md` § In-Cycle Fix Rule.
 
 Then proceed to Step 4 to write the approval token.
 
@@ -108,7 +108,7 @@ bash "$HOME/.claude/hooks/_lib/write-approval-token.sh" \
 - [ ] Performance is acceptable for the use case
 - [ ] No regressions in existing functionality
 - [ ] Business stakeholder would understand what was built from the PR description
-- [ ] If VERIFIED_WITH_SKIP: E2E skip reason acknowledged and risk assessed (see `rules/_detail/e2e-protocol.md`)
+- [ ] If VERIFIED_WITH_SKIP: E2E skip reason acknowledged and risk assessed (see `protocols/e2e-protocol.md`)
 - [ ] If E2E flows exist for changed behavior: confirm they passed in verification report
 
 ## Prerequisite

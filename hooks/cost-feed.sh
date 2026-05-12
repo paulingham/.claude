@@ -5,7 +5,7 @@
 # POSIX O_APPEND is atomic for records <4096B (~250B per record here).
 # Field path verified from subagent-stop-trajectory.sh: top-level .subagent_type.
 #
-# enforces: rules/_detail/operational-protocol.md:Complexity Budget
+# enforces: protocols/operational-protocol.md:Complexity Budget
 # protects: pipeline
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

@@ -3,7 +3,7 @@
 This is the load-bearing test that proves PR #105's
 `mine_anti_patterns` consumer is no longer dead code. It builds
 synthetic observation records matching the documented producer schema
-(per `rules/_detail/autonomous-intelligence.md` § Field reference) and
+(per `protocols/autonomous-intelligence.md` § Field reference) and
 asserts they flow through the consumer end-to-end:
 
 - multi-persona path: emits an instinct file with persona-categorical

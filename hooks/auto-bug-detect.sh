@@ -4,7 +4,7 @@
 # Logs to ~/.claude/metrics/bugs-detected.jsonl
 # Passive (exit 0).
 #
-# enforces: rules/_detail/atdd-procedure.md:ATDD Anti-Patterns
+# enforces: protocols/atdd-procedure.md:ATDD Anti-Patterns
 # protects: build-implementation, bug-fix
 # self-test: skip
 

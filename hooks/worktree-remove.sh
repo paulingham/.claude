@@ -2,7 +2,7 @@
 # WorktreeRemove hook — called by Claude Code to remove a worktree.
 # Receives JSON via stdin: { "tool_input": { "path": "..." } }
 #
-# enforces: rules/_detail/agent-protocol.md:Main-Branch Invariant
+# enforces: protocols/agent-protocol.md:Main-Branch Invariant
 # protects: build-implementation
 set -euo pipefail
 

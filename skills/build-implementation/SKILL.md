@@ -24,7 +24,7 @@ Before writing any code:
 1. Open `pipeline-state/{task-id}/plan.md` and locate the **Failing Test Stubs (per AC)** section the architect produced.
 2. For each AC in this slice, the stub list names: test file path, test name, assertion intent.
 3. **If any AC has no stub, halt immediately** — surface the gap to the architect and request a stub. Implementation cannot begin without a complete stub list.
-4. The stub list IS your implementation plan. Three test invocations per slice — not three per AC, three per slice. See `rules/_detail/atdd-procedure.md` for the full cycle.
+4. The stub list IS your implementation plan. Three test invocations per slice — not three per AC, three per slice. See `protocols/atdd-procedure.md` for the full cycle.
 
 ### Step 1b: Install Required Dependencies
 
@@ -49,13 +49,13 @@ For each contract in the list:
    - **DB schemas** → constraints declared in the migration (NOT NULL, FOREIGN KEY, CHECK) AND mirrored in the ORM/data-access layer for fail-fast at write time.
    - **Invariants** → a runtime check at the place the invariant must hold (`invariant(predicate, message)`), authored as a re-usable helper not a one-off `if`/`throw`.
 
-2. Author a **failing contract test** for each assertion in a `*.contract.spec.{ts,js,py,rb,go}` file (Tier 0 in `rules/_detail/engineering-invariants.md` § Proof of Correctness):
+2. Author a **failing contract test** for each assertion in a `*.contract.spec.{ts,js,py,rb,go}` file (Tier 0 in `protocols/engineering-invariants.md` § Proof of Correctness):
    - The test feeds a *deliberately invalid* input and asserts the contract rejects it with the structured error.
    - The test feeds a *valid* input and asserts the contract accepts it and the downstream behavior runs.
 
 3. Run the suite ONCE before any implementation. Capture the **Tier-0 RED output** — the contract assertions must fail because the production code that wires them is not yet written. This is the audit artifact for Tier 0.
 
-The Tier-0 RED output is a separate capture from the Step-2 BATCHED RED output. Both are required as audit artifacts for the slice (per `rules/_detail/atdd-procedure.md` § Audit Trail).
+The Tier-0 RED output is a separate capture from the Step-2 BATCHED RED output. Both are required as audit artifacts for the slice (per `protocols/atdd-procedure.md` § Audit Trail).
 
 ### Step 1d: Author Property-Based Tests (Tier 1.5)
 
@@ -68,20 +68,20 @@ Procedure:
 3. Read the verdict and act accordingly:
    - **`PBT_AUTHORED`** — ≥1 property authored. Proceed to Step 2.
    - **`PBT_SKIPPED`** with reason `env-hatch` (operator set `CLAUDE_PBT=0`), `no-candidates` (no public-typed-changed-line functions), or `no-framework-for-language` (language has no shipped harness or harness not installed). All three skip reasons are benign — proceed to Step 2.
-   - **`PBT_BLOCKED`** with reason `harness-crash` or `unrecoverable-error` — HALT Build. Surface the verdict payload (function name, 5-line error excerpt, `CLAUDE_PBT=0` recovery action, retry-twice-then-escalate exemption per `rules/_detail/operational-protocol.md`) to the orchestrator.
+   - **`PBT_BLOCKED`** with reason `harness-crash` or `unrecoverable-error` — HALT Build. Surface the verdict payload (function name, 5-line error excerpt, `CLAUDE_PBT=0` recovery action, retry-twice-then-escalate exemption per `protocols/operational-protocol.md`) to the orchestrator.
 
 **Escape hatch.** Set `CLAUDE_PBT=0` in the environment to disable Step 1d — this skips PBT authoring entirely. The hatch exists for the soak window (default-on) so cycle-time impact can be measured before flipping to mandatory; it is the one-line revert path if pbt-engineer introduces unexpected runtime cost.
 
 ### Step 2: Implement Slice via ATDD (Two test invocations per slice)
 
-Follow the ATDD Protocol in `rules/_detail/atdd-procedure.md`:
+Follow the ATDD Protocol in `protocols/atdd-procedure.md`:
 
 1. **BATCHED RED**: Write every AC test as one batch (the architect's stubs verbatim). Run the suite ONCE. Capture the RED output. Verify each test fails for the right reason — the named behavior is absent. The Tier-0 contract tests authored in Step 1c are also part of this batch (they are still RED unless the contract assertion was implementable in isolation in Step 1c).
 2. **IMPLEMENT CLEANLY**: Write production code that is correct AND well-shaped on the first pass. Cohesion rules (one-thing-per-function, CC ≤ 5, nesting ≤ 2, DRY on 2nd occurrence) apply *as you write*, not in a separate cleanup pass. Choose intent-revealing names from the start; extract duplication on the 2nd occurrence as it appears. Run the suite ONCE when done. Capture the GREEN output.
 3. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% required against the **union suite** (architect stubs + adversarials from Step 2b). If <70%, add tests targeting the surviving mutations and return to step 2 — the slice is NOT complete.
 4. **COMMIT** with the three audit artifacts: batched RED output, GREEN output, mutation report.
 
-**Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN. See `rules/_detail/atdd-procedure.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
+**Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN. See `protocols/atdd-procedure.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
 
 ### Step 2b: Adversarial Test Categories (greenfield ACs default-on, refactor slices env-gated)
 
@@ -118,13 +118,13 @@ Walk these 5 categories IN ORDER:
 - **passes immediately = delete.** An adversarial that goes GREEN on its first run without any production-code change has no diagnostic value — the existing tests already cover the case, or the named edge does not actually exist on the changed lines. Delete it; do not keep it as a vanity test.
 - **HALT if adversarial reveals contract gap.** If an adversarial surfaces a behavior the AC does not specify (e.g., what should happen on negative input when the AC is silent), HALT and surface to the architect. Do not invent the contract — the architect owns the spec, the engineer owns the implementation.
 
-**PBT overlap.** When a function has **Tier 1.5** property-based tests covering it (per `rules/_detail/engineering-invariants.md` § Proof of Correctness), **cap reduces from 5 to 3** for that function. PBTs already exercise boundary values and null/empty cases at the property level; adversarials should focus on **error-path + concurrency** which PBTs cover poorly. Detection is mechanical — file glob `tests/**/*.property.{spec,test}.*` next to the changed file → cap=3. Step 1d now produces those PBTs in-pipeline (auto-invoked unless `CLAUDE_PBT=0`), so the cap-reduction fires by default on every PBT-eligible function.
+**PBT overlap.** When a function has **Tier 1.5** property-based tests covering it (per `protocols/engineering-invariants.md` § Proof of Correctness), **cap reduces from 5 to 3** for that function. PBTs already exercise boundary values and null/empty cases at the property level; adversarials should focus on **error-path + concurrency** which PBTs cover poorly. Detection is mechanical — file glob `tests/**/*.property.{spec,test}.*` next to the changed file → cap=3. Step 1d now produces those PBTs in-pipeline (auto-invoked unless `CLAUDE_PBT=0`), so the cap-reduction fires by default on every PBT-eligible function.
 
 After adversarials are GREEN, return to Step 2's MUTATION GATE on the **union suite** (architect stubs + adversarials).
 
 ### Step 3: Shape Check After Every File
 
-After completing or modifying ANY file, verify the cohesion-based shape rules in `rules/_detail/engineering-invariants.md` § Code Shape:
+After completing or modifying ANY file, verify the cohesion-based shape rules in `protocols/engineering-invariants.md` § Code Shape:
 
 - One thing per function (name has no conjunction)
 - CC ≤ 5, nesting ≤ 2
@@ -159,7 +159,7 @@ Before declaring the build complete:
 - [ ] ATDD audit trail visible (batched RED + GREEN + mutation report ≥ 70%)
 - [ ] Step 2b ran with the correct cap for the slice's task class (greenfield: default-on, cap=5; refactor: opt-in via `CLAUDE_ADVERSARIAL_TESTS_REFACTOR=1`, cap=3), OR was skipped per `CLAUDE_ADVERSARIAL_TESTS=0` (master kill-switch), OR is N/A for a bug-fix slice
 - [ ] Step 1d ran (PBT_AUTHORED or PBT_SKIPPED), OR was skipped per `CLAUDE_PBT=0`
-- [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `rules/_detail/e2e-protocol.md` trigger matrix)
+- [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `protocols/e2e-protocol.md` trigger matrix)
 - [ ] If `/tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries
 
 ## Worktree Isolation

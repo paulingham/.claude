@@ -3,7 +3,7 @@
 # Aggregates phase state files + trajectory into a single metrics record
 # Usage: bash pipeline-analytics.sh <task-id>
 #
-# enforces: rules/_detail/reflection-protocol.md:Pipeline Analytics
+# enforces: protocols/reflection-protocol.md:Pipeline Analytics
 # protects: pipeline, forensics
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

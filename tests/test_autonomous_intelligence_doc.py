@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DOC = REPO_ROOT / "rules" / "_detail" / "autonomous-intelligence.md"
+DOC = REPO_ROOT / "protocols" / "autonomous-intelligence.md"
 
 
 def _per_agent_section():

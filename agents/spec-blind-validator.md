@@ -53,7 +53,7 @@ You may then Read from the project's public API surface only — see `skills/spe
 ## Verdicts
 
 - **SPEC_BLIND_VALIDATED**: tests pass against the candidate build, cross-validating that the build-time tests actually codify the spec.
-- **SPEC_BLIND_FAILED**: spec-blind tests fail. The build's behaviour does not match the AC literal. Returns to fix-engineer per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule. **fix-engineer is constrained to code-fix-only — it MUST NOT mutate ACs.** If the AC itself is wrong, fix-engineer surfaces back to the orchestrator with a HALT recommendation.
+- **SPEC_BLIND_FAILED**: spec-blind tests fail. The build's behaviour does not match the AC literal. Returns to fix-engineer per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule. **fix-engineer is constrained to code-fix-only — it MUST NOT mutate ACs.** If the AC itself is wrong, fix-engineer surfaces back to the orchestrator with a HALT recommendation.
 - **SPEC_BLIND_INSUFFICIENT_SURFACE**: project has no discoverable public API surface (no `interface.{ext}`, no `index.*`, no `__init__.py`, no OpenAPI/Protobuf/JSON-Schema). Pipeline advances; Final Gate summary renders `spec-blind: SKIPPED (no public surface)`.
 - **SPEC_BLIND_BLOCKED**: a hook or harness error prevented the validator from running (e.g. tool-result fabrication detected, harness-internal recursion, validator timeout). HALT pipeline; surface escalation to operator. Do NOT auto-advance and do NOT route to fix-engineer.
 

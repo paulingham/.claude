@@ -56,7 +56,7 @@ def test_readme_dispatch_table_lists_dag_variant():
     text = _readme_text()
     lower = text.lower()
     # The dispatch precedence is the canonical phrasing in
-    # rules/_detail/pipeline-protocol.md § Build Phase Dispatch Variants:
+    # protocols/pipeline-protocol.md § Build Phase Dispatch Variants:
     # `pdr_rtv > bestofn > standard`. Slice-f extends with `dag`.
     has_precedence_prose = (
         "pdr_rtv" in lower and "bestofn" in lower

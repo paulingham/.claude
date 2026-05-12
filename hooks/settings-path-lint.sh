@@ -9,7 +9,7 @@
 #   - Calls from inside a worktree are ALLOWED (agent-managed commits).
 #   - Calls from the orchestrator (PWD = main tree) are LINTED.
 #
-# enforces: rules/_detail/agent-protocol.md:Portable Config Dir
+# enforces: protocols/agent-protocol.md:Portable Config Dir
 # protects: harness-config
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

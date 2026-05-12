@@ -25,7 +25,7 @@ This file pins three things slice-e must ship:
    carries `phases.build.wave_count` AND `phases.build.wave_widths`. At Build
    time we cannot assert the orchestrator's eventual JSONL output, so we
    assert the contract is *documented* — the field-reference table in
-   `rules/_detail/autonomous-intelligence.md` names both fields. (slice-c
+   `protocols/autonomous-intelligence.md` names both fields. (slice-c
    already pinned the doc surface; this test re-asserts the slice-e angle.)
 """
 from __future__ import annotations
@@ -50,10 +50,10 @@ CASE_ID = "v2-plan-dag-diamond"
 CASE_DIR = REPO_ROOT / "eval" / "cases" / CASE_ID
 DIAMOND_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "plan_dag" / "v2_diamond.md"
 EVAL_PHASE_FILE_DOC = (
-    REPO_ROOT / "rules" / "_detail" / "pipeline-protocol.md"
+    REPO_ROOT / "protocols" / "pipeline-protocol.md"
 )  # doc that names the eval phase artifact contract
 AUTONOMOUS_INTEL = (
-    REPO_ROOT / "rules" / "_detail" / "autonomous-intelligence.md"
+    REPO_ROOT / "protocols" / "autonomous-intelligence.md"
 )
 
 

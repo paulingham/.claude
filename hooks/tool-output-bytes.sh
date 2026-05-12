@@ -7,7 +7,7 @@
 # separate retire path. JSON emission goes through a Python helper —
 # never bash printf for dynamic values (load-bearing learned instinct).
 #
-# enforces: rules/_detail/agent-protocol.md:Resource Bounds
+# enforces: protocols/agent-protocol.md:Resource Bounds
 # protects: pipeline, forensics
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

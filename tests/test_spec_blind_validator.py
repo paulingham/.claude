@@ -126,7 +126,7 @@ class SkillFrontmatterAndBodyComplete(unittest.TestCase):
     def test_future_work_section_names_v2_allowlist(self):
         self.assertIn("## Future Work", self.text)
         # V2 allowlist contents should be enumerated
-        for entry in ("rules/_detail/", "agents/", "skills/", "orchestrator/"):
+        for entry in ("protocols/", "agents/", "skills/", "orchestrator/"):
             self.assertIn(entry, self.text, f"V2 allowlist entry missing: {entry}")
 
     def test_fix_engineer_constraint_section(self):
@@ -232,7 +232,7 @@ class ParallelDispatchProtocolListsSpecBlindInFinalGateTeam(unittest.TestCase):
     """AC12 — Final Gate Team table contains spec-blind-validator row + 'All five' narrative."""
 
     def test_final_gate_table_contains_spec_blind_row(self):
-        text = _read("rules/_detail/parallel-dispatch-protocol.md")
+        text = _read("protocols/parallel-dispatch-protocol.md")
         # Look for spec-blind-validator row + skill + verdict
         self.assertIn("spec-blind-validator", text)
         self.assertIn("/spec-blind-validate", text)

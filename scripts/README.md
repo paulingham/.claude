@@ -82,7 +82,7 @@ Inside Claude Code:
 
 ### Convention
 
-The bootstrap depends on the portable-config-dir convention documented in `rules/_detail/agent-protocol.md` § Portable Config Dir — every config-loading reference inside the harness routes through `${CLAUDE_CONFIG_DIR:-$HOME/.claude}`. The drift gate at `tests/test_portable_config_dir.py` enforces this in CI.
+The bootstrap depends on the portable-config-dir convention documented in `protocols/agent-protocol.md` § Portable Config Dir — every config-loading reference inside the harness routes through `${CLAUDE_CONFIG_DIR:-$HOME/.claude}`. The drift gate at `tests/test_portable_config_dir.py` enforces this in CI.
 
 ## Module layout
 

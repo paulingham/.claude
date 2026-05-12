@@ -8,7 +8,7 @@ edit of settings.json that breaks subagent-validation.sh fails CI.
 
 Match is by hook script basename so the assertion survives the
 $HOME/CLAUDE_CONFIG_DIR portability migration (settings.json no longer
-hard-codes literal paths — see rules/_detail/agent-protocol.md
+hard-codes literal paths — see protocols/agent-protocol.md
 § Portable Config Dir).
 """
 import json

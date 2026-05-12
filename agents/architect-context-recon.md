@@ -104,7 +104,7 @@ You are NOT proposing solutions. You are surfacing hindsight.
 **Inputs**: task ACs (from spawn prompt), the codebase.
 
 1. For each AC, identify which file(s)/module(s)/port(s) the implementation will most likely touch. Cite file:line.
-2. Flag where the change crosses module ports — these need integration tests per `rules/_detail/engineering-invariants.md` § Test Mix.
+2. Flag where the change crosses module ports — these need integration tests per `protocols/engineering-invariants.md` § Test Mix.
 3. Identify shared dependencies (SDK clients, DB models, queue clients, etc.) the plan must inject rather than reach for globally.
 4. Document the test layout convention in use — where do unit / integration / E2E tests live for this kind of code?
 

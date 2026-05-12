@@ -3,7 +3,7 @@
 # Detects secrets and policy violations, logs to ~/.claude/metrics/governance.jsonl
 # Advisory only (exit 0).
 #
-# enforces: rules/_detail/reflection-protocol.md:Capture Pipeline Observation
+# enforces: protocols/reflection-protocol.md:Capture Pipeline Observation
 # protects: learn, forensics
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

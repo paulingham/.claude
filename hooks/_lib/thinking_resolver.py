@@ -3,7 +3,7 @@
 Returns {"effort", "display", "source"} where `source` names the layer that
 determined the EFFORT value: "env", "explicit", "claude-effort-env", "role",
 or "default". Display layer may differ but is not separately reported.
-See rules/_detail/thinking-defaults.md § Precedence for the ordering
+See protocols/thinking-defaults.md § Precedence for the ordering
 contract; the contract test in tests/contract_thinking_source_enum.py pins
 the enum to exactly five values.
 """

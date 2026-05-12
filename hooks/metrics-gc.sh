@@ -13,7 +13,7 @@
 # Escape hatch: CLAUDE_DISABLE_METRICS_GC=1 → fast-exit 0.
 # Always exits 0 — never blocks SessionStart.
 #
-# enforces: rules/_detail/agent-protocol.md:Resource Bounds
+# enforces: protocols/agent-protocol.md:Resource Bounds
 # protects: pipeline, all-skills
 
 # shellcheck source=/dev/null

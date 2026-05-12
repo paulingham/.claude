@@ -1,4 +1,4 @@
-"""C3 — local structure-drift check on rules/_detail/e2e-protocol.md (AC32, H2).
+"""C3 — local structure-drift check on protocols/e2e-protocol.md (AC32, H2).
 
 Reimplements the relevant portion of `/harness-audit` Step 2c (`STRUCTURE_OK`):
 - Frontmatter present and parseable
@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL = REPO_ROOT / "rules" / "_detail" / "e2e-protocol.md"
+PROTOCOL = REPO_ROOT / "protocols" / "e2e-protocol.md"
 
 REQUIRED_H2 = ("Targets", "Shared Verdict Semantics")
 REQUIRED_H3_UNDER_TARGETS = (

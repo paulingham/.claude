@@ -7,7 +7,7 @@ coupling is not. Per challenger Finding 1: the producer contract is
 documented separately from the consumer, and any drift between them
 is itself a regression.
 
-Schema (per `rules/_detail/autonomous-intelligence.md` § Field reference):
+Schema (per `protocols/autonomous-intelligence.md` § Field reference):
 
 - `persona ∈ {correctness, regression-risk, scope-creep}`
 - `dimension: int`

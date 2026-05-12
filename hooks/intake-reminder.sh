@@ -5,7 +5,7 @@
 #   1. HARD BLOCK (exit 2): Batch/wave keywords WITHOUT an active pipeline state.
 #   2. ADVISORY (exit 0): Single-task implementation keywords.
 #
-# enforces: rules/_detail/pipeline-protocol.md:Phase Checklist
+# enforces: protocols/pipeline-protocol.md:Phase Checklist
 # protects: intake, pipeline
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

@@ -18,7 +18,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_DIR = REPO_ROOT / "agents"
-DISPATCH_PROTOCOL = REPO_ROOT / "rules" / "_detail" / "parallel-dispatch-protocol.md"
+DISPATCH_PROTOCOL = REPO_ROOT / "protocols" / "parallel-dispatch-protocol.md"
 
 CLAUSE_FRAGMENT = "Tool-result fabrication is forbidden"
 TEMPLATE_SECTION_HEADER = "## Teammate Prompt Template"

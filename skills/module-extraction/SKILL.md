@@ -23,7 +23,7 @@ Phases 1–2 ship executable in the MVP and produce reviewable artifacts (a boun
 ## Out of Scope
 
 - Anything requiring a new process, repo, runtime, or network hop
-- Any request that names a forcing function from `rules/_detail/module-boundaries-protocol.md`
+- Any request that names a forcing function from `protocols/module-boundaries-protocol.md`
 
 If a forcing function is detected in the task context or pipeline state, the skill exits immediately with `WRONG_SKILL: route to /service-extraction`. The orchestrator auto-reroutes per the `WRONG_SKILL` handler contract.
 
@@ -152,7 +152,7 @@ Full procedural implementation is deferred to a follow-up pipeline. Until that p
 
 ## Per-Language Lint Rule Table
 
-Seam enforcement for Phase 4. This table lives here; `rules/_detail/module-boundaries-protocol.md` carries only the pointer.
+Seam enforcement for Phase 4. This table lives here; `protocols/module-boundaries-protocol.md` carries only the pointer.
 
 | Language | Tool | Mechanism |
 |----------|------|-----------|
@@ -185,5 +185,5 @@ Seam enforcement for Phase 4. This table lives here; `rules/_detail/module-bound
 
 ## References
 
-- `rules/_detail/module-boundaries-protocol.md` — single source of truth for what a module is, module contract artifacts, testing at the seam, the canonical forcing-function list (FF1–FF5), and the decision checklist. Do not duplicate that content here; link to it.
+- `protocols/module-boundaries-protocol.md` — single source of truth for what a module is, module contract artifacts, testing at the seam, the canonical forcing-function list (FF1–FF5), and the decision checklist. Do not duplicate that content here; link to it.
 $ARGUMENTS

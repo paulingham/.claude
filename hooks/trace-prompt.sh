@@ -12,7 +12,7 @@
 #
 # Never blocks the tool call — exits 0 on every failure path.
 #
-# enforces: rules/_detail/autonomous-intelligence.md:Prompt Tracing
+# enforces: protocols/autonomous-intelligence.md:Prompt Tracing
 # protects: debug-trace
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

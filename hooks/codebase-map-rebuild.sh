@@ -5,7 +5,7 @@
 # Subprocess-isolates the generator (AC18) so SIGSEGV in tree-sitter
 # native libs never poisons the hook's own exit code. Always exits 0.
 #
-# enforces: rules/_detail/autonomous-intelligence.md:Codebase Map
+# enforces: protocols/autonomous-intelligence.md:Codebase Map
 # protects: codebase-map-rebuild
 
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"

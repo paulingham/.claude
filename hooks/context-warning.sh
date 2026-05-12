@@ -4,7 +4,7 @@
 # Injects warnings at thresholds: 65% used = WARNING, 75% used = CRITICAL
 # Advisory only (exit 0). Debounced to avoid spam.
 #
-# enforces: rules/_detail/operational-protocol.md:Error Recovery
+# enforces: protocols/operational-protocol.md:Error Recovery
 # protects: pipeline
 
 # Hook profile

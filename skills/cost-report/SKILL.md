@@ -64,7 +64,7 @@ mcp__github__list_pull_requests(state="merged", per_page=100)
 ```
 
 Graceful fallback to shell when MCP is not connected (mirrors the
-`gh-cache` MCP pattern documented in `rules/_detail/agent-protocol.md`):
+`gh-cache` MCP pattern documented in `protocols/agent-protocol.md`):
 
 ```bash
 gh pr list --state merged --limit 100 --json number,title,mergedAt,headRefName
