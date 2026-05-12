@@ -1,10 +1,17 @@
-"""AC3 + AC4 + AC5: out-of-scope files MUST remain byte-identical to origin/main.
+"""AC3 + AC4 + AC5: out-of-scope files MUST NOT be modified by THIS branch's commits.
 
 Spike `pipeline-state/harness-native-v2140-migration/spike-findings.md` DROPPED
 three of four migration items. The dropped surfaces are listed below; this slice
 must not touch any of them.
 
 Plan source: pipeline-state/harness-native-v2140-migration/plan.md § AC3, AC4, AC5.
+
+The plan literally states `git diff --quiet origin/main HEAD -- <path>`, but
+that comparison fails whenever origin/main advances independently of the branch
+(e.g. an unrelated merge to main lands while this branch is in flight) — even
+though THIS branch never touched the file. The semantically-correct check is
+diff between the merge-base and HEAD: did THIS branch's commits modify the file?
+
 Skip pattern: matches tests/test_settings_portability.py — skips cleanly when
 origin/main is not fetched locally so CI / fresh clones do not break.
 """
@@ -27,31 +34,35 @@ OUT_OF_SCOPE_PATHS = (
 )
 
 
-def _origin_main_available() -> bool:
-    result = subprocess.run(
-        ["git", "rev-parse", "--verify", "origin/main"],
+def _git(args):
+    return subprocess.run(
+        ["git", *args],
         capture_output=True, text=True, check=False, cwd=REPO_ROOT,
     )
-    return result.returncode == 0
+
+
+def _origin_main_merge_base():
+    if _git(["rev-parse", "--verify", "origin/main"]).returncode != 0:
+        return None
+    result = _git(["merge-base", "HEAD", "origin/main"])
+    return result.stdout.strip() if result.returncode == 0 else None
 
 
 class OutOfScopeFilesUntouched(unittest.TestCase):
     def test_out_of_scope_files_unchanged_on_branch(self):
-        if not _origin_main_available():
+        base = _origin_main_merge_base()
+        if base is None:
             self.skipTest("origin/main not fetched (matches "
                           "test_settings_portability.py skip convention)")
-        offending = []
-        for path in OUT_OF_SCOPE_PATHS:
-            result = subprocess.run(
-                ["git", "diff", "--quiet", "origin/main", "--", path],
-                capture_output=True, text=True, check=False, cwd=REPO_ROOT,
-            )
-            if result.returncode != 0:
-                offending.append(path)
+        offending = [
+            path for path in OUT_OF_SCOPE_PATHS
+            if _git(["diff", "--quiet", f"{base}..HEAD", "--", path]).returncode != 0
+        ]
         self.assertEqual(
             offending, [],
-            "Out-of-scope files were modified on this branch. The spike DROPPED "
-            "these surfaces; this slice is additive-only. Offending paths:\n"
+            "Out-of-scope files were modified by THIS branch's commits. "
+            "The spike DROPPED these surfaces; this slice is additive-only. "
+            "Offending paths:\n"
             + "\n".join(f"  - {p}" for p in offending),
         )
 
