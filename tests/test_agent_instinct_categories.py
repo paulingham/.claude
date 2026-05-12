@@ -21,9 +21,12 @@ EXPECTED = {
     "qa-engineer": ["qa-engineer", "software-engineer",
                     "property-testing", "playwright", "web-e2e"],
     "product-reviewer": ["product-reviewer", "architect"],
-    "patch-critic": ["patch-critic", "code-reviewer"],
+    "patch-critic": ["patch-critic", "patch-critic-correctness",
+                     "patch-critic-regression", "patch-critic-scope",
+                     "code-reviewer"],
     "planning-agent": ["planning-agent", "architect"],
     "session-memory-updater": ["session-memory-updater"],
+    "sandbox-verify-engineer": ["sandbox-verify-engineer", "qa-engineer"],
 }
 
 

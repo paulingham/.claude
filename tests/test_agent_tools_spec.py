@@ -30,6 +30,7 @@ _SPEC = {
     "infrastructure-engineer": ["Read", "Write", "Edit", "Bash", "Grep",
                                 "Glob", "NotebookEdit", "ToolSearch"],
     "planning-agent": ["Read", "Grep", "Glob", "Edit"],
+    "sandbox-verify-engineer": ["Read", "Grep", "Glob", "Bash"],
 }
 
 
