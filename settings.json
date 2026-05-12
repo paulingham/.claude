@@ -10,6 +10,16 @@
     "CLAUDE_SUBAGENT_MAX_RUNTIME": "1800",
     "CLAUDE_TEAMMATE_MAX_RUNTIME": "3600"
   },
+  "autoMode": {
+    "hard_deny": [
+      "$defaults",
+      "Never run cloud volume/storage deletion commands: volumeDelete, aws s3 rb, gcloud sql instances delete, railway down, fly destroy.",
+      "Never run database destruction statements: DROP TABLE, TRUNCATE TABLE.",
+      "Never force-push (with --force-with-lease, -f, or --force) to a protected branch: main, master, release, production, staging, or develop.",
+      "Never run filesystem destruction on the home directory: rm -rf $HOME, rm -rf ~.",
+      "Never delete the production Kubernetes namespace: kubectl delete namespace prod or kubectl delete namespace production."
+    ]
+  },
   "permissions": {
     "allow": [
       "Read",
