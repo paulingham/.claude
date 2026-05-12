@@ -234,11 +234,31 @@ Procedure:
 
 Security review is a separate phase that runs after `BUILD_COMPLETE` — do NOT dispatch `/security-review` from inside Build.
 
+### Step 5b: Inline Sandbox Verify (mandatory before BUILD_COMPLETE)
+
+After Step 5 returns APPROVE, the build agent (or orchestrator on its behalf) dispatches `/sandbox-verify` inline. Step 5b is the second inline gate inside Build — it confirms the worktree's pass set reproduces inside a fresh E2B sandbox so machine-specific or "works on my worktree" patches do not reach Final Gate. Like Step 5, this is a gate inside Build, NOT a separate pipeline phase.
+
+The build agent writes the build-phase state file `pipeline-state/{task-id}/build.md` with three append-only sections: `## Decision Record`, `## Context for Review`, and (added by Step 5b) `## Sandbox Verify`. The exact `## Sandbox Verify` section template — including its body table with columns `Test | Worktree | Sandbox | Diff` — is documented in `### Sandbox Verify Section (Mandatory After Step 5b)` below, which appears in the file AFTER the `### Context for Next Phase` subsection so Story-4 forensics can locate the block deterministically.
+
+Procedure:
+1. **State stub first** — write the `## Sandbox Verify` section header to `pipeline-state/{task-id}/build.md` BEFORE invoking the skill (state-before-expensive-op — the E2B microVM is timeout-bounded and may be killed at the wall-clock cap; the stub makes the round recoverable).
+2. Dispatch `sandbox-verify-engineer` agent via `/sandbox-verify` (worktree-reuse — the engineer inherits the prior build's worktree path). The engineer parses the worktree's pytest/jest/rspec pass set, runs the same suite inside an E2B microVM, compares both pass sets, and returns one of three verdicts.
+3. Branch on verdict:
+   - **SANDBOX_VERIFIED** → write the final `## Sandbox Verify` body (per the template subsection below) and emit `BUILD_COMPLETE`.
+   - **SANDBOX_SKIPPED** with `reason ∈ {no-e2b-token, no-testable-changes, env-hatch}` → write the `## Sandbox Verify` body noting the skip reason and emit `BUILD_COMPLETE`. The three benign skip reasons are: `no-e2b-token` (no `E2B_API_KEY` available — Story-1 path), `no-testable-changes` (docs-only diff per `git diff --name-only $BASE...HEAD` against the project's testable-paths set — Story 2), and `env-hatch` (operator set `CLAUDE_DISABLE_SANDBOX_VERIFY=1` — Story 2).
+   - **SANDBOX_FAILED** → spawn `fix-engineer` on the same worktree per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule, re-run the suite, then re-dispatch Step 5 code-review FIRST and Step 5b sandbox-verify SECOND with the original divergence list + fix diff. The 2-round cap is **combined with Step 5** — code-review rounds and sandbox-verify rounds share a single 2-round budget across Build (max 2 rounds total, NOT 2+2). If `current_round + 1 > 2` after a failure, escalate to the user with the divergence list. Round 3+ never executes inside Build.
+
+The `Test | Worktree | Sandbox | Diff` table columns and the `## Sandbox Verify` heading itself are pinned by the template subsection below — the build agent renders the same column layout on every spawn so the Story-4 forensics consumer can join rows by test name.
+
+**Section overwrite semantics — last-writer-wins.** Round 2's `/sandbox-verify` spawn overwrites the `## Sandbox Verify` section in `build.md` produced by round 1 — the final state file reflects the round-2 outcome, never a merge.
+
+**Escape hatch.** Set `CLAUDE_DISABLE_SANDBOX_VERIFY=1` in the environment to skip Step 5b — `/sandbox-verify` fast-exits with `SANDBOX_SKIPPED` reason `env-hatch` and appends one JSONL line to `metrics/{session-id}/sandbox-verify-skips.jsonl`. Build then proceeds to `BUILD_COMPLETE`. The hatch matches the canonical `CLAUDE_DISABLE_*=1` shape used by `CLAUDE_DISABLE_AUTO_LEARN`, `CLAUDE_DISABLE_INSTINCT_INJECTION`, and six sibling hooks.
+
 ## Verdict
 
 After Step 5 completes:
-- **BUILD_COMPLETE**: All ACs have passing tests, cohesion-based shape rules met, ATDD audit trail visible (RED + GREEN + mutation), AND code-reviewer APPROVED.
-- **BUILD_FAILED**: Checklist items remain unresolved OR code-review never APPROVED after 2 rounds. List which items failed.
+- **BUILD_COMPLETE**: All ACs have passing tests, cohesion-based shape rules met, ATDD audit trail visible (RED + GREEN + mutation), code-reviewer APPROVED, AND sandbox-verify returned SANDBOX_VERIFIED or SANDBOX_SKIPPED.
+- **BUILD_FAILED**: Checklist items remain unresolved OR code-review never APPROVED after 2 rounds OR sandbox-verify never returned a non-FAILED verdict within the combined 2-round budget. List which items failed.
 
 ## Phase Output
 
@@ -276,5 +296,23 @@ Include a `## Context for Review` section in the pipeline state file:
 ```
 
 This gives reviewers a guided entry point instead of a cold diff read.
+
+### Sandbox Verify Section (Mandatory After Step 5b)
+
+Step 5b writes one `## Sandbox Verify` section to `pipeline-state/{task-id}/build.md`. The section appears AFTER the `## Context for Review` section so the Story-4 forensics consumer can locate the block deterministically. Round-2 overwrites round-1 (last-writer-wins).
+
+```markdown
+## Sandbox Verify
+- Worktree pass: 14/15  (1 failed: test_foo_bar)
+- Sandbox pass:   14/15  (1 failed: test_foo_bar)
+- Verdict: SANDBOX_VERIFIED  (or SANDBOX_SKIPPED reason=... | SANDBOX_FAILED)
+
+| Test | Worktree | Sandbox | Diff |
+|---|---|---|---|
+| test_foo_bar | FAIL | FAIL | match |
+```
+
+The pass counts are integer fractions (`worktree_pass / total_collected`). The `Diff` column is `match` when worktree and sandbox agree on a row's pass/fail status, and `diverge` otherwise — the SANDBOX_FAILED `diverging_tests` list is exactly the rows where `Diff` is `diverge`.
+
 $ARGUMENTS
 </reason></package>
