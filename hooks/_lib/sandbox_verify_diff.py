@@ -3,9 +3,9 @@
 Two public functions:
 
 - `parse_test_outcomes(output, runner='pytest') -> dict[str, "pass"|"fail"]`
-  Story-1 stub: returns an empty dict; Story 2 fills in the per-language
-  parsers (pytest, jest, rspec, ...). The contract is a string->str map
-  where each value is exactly `"pass"` or `"fail"`.
+  Story 3 implements the pytest `-v` parser. Story 4 carryforward extends
+  to jest, rspec, cargo, go test. ERROR markers map to `"fail"` because
+  the gate's contract is the pass set; ERROR is observably non-passing.
 
 - `compare_pass_sets(worktree, sandbox) -> dict`
   Compares two `{test_name: "pass"|"fail"}` dicts by symmetric difference
@@ -17,6 +17,24 @@ Lives in `hooks/_lib/` per the extracted-Python-helper pattern (see
 `session-memory/.../patterns.md` § Python helper module pattern).
 """
 from __future__ import annotations
+
+import re
+
+# Pytest `-v` output marker:
+#   tests/test_a.py::test_one PASSED                          [ 25%]
+#   tests/test_b.py::test_three FAILED                        [ 75%]
+#   tests/test_b.py::test_four ERROR                          [100%]
+# Anchored at line start; test_name is everything before the marker.
+_PYTEST_LINE = re.compile(
+    r"^(?P<name>\S+)\s+(?P<marker>PASSED|FAILED|ERROR)\b")
+
+# ERROR maps to "fail" per plan.md stub #3 assertion intent: the pass set is
+# the contract; ERROR is observably non-passing for the diff algorithm.
+_PYTEST_MARKER_TO_VERDICT = {
+    "PASSED": "pass",
+    "FAILED": "fail",
+    "ERROR": "fail",
+}
 
 
 def _pass_set(outcomes):
@@ -36,16 +54,31 @@ def compare_pass_sets(worktree, sandbox):
     return {"verdict": verdict, "diverging_tests": diverging}
 
 
+def _parse_pytest_verbose(output):
+    """Scan pytest `-v` output, return `{test_name: "pass"|"fail"}`."""
+    outcomes = {}
+    for line in output.splitlines():
+        m = _PYTEST_LINE.match(line)
+        if m:
+            outcomes[m.group("name")] = _PYTEST_MARKER_TO_VERDICT[
+                m.group("marker")]
+    return outcomes
+
+
+# Runner → parser dispatch table. Story 4 adds jest/rspec/cargo/go entries.
+_RUNNER_PARSERS = {
+    "pytest": _parse_pytest_verbose,
+}
+
+
 def parse_test_outcomes(output, runner="pytest"):
     """Parse test-runner output into `{test_name: "pass"|"fail"}`.
 
-    Story-1 stub: returns `{}`. The contract is a `dict[str, str]` where
-    each value is exactly `"pass"` or `"fail"`. Story 2 extends this with
-    per-language parsers; the runner argument selects the parser.
+    Story 3 implements the `pytest` parser; unknown runners return `{}`
+    (defensive — composes correctly with compare_pass_sets, yielding
+    SANDBOX_VERIFIED when both sides are empty).
     """
-    # Story 2 fills this in per language. The empty-dict stub composes
-    # correctly with compare_pass_sets — two empty parses produce
-    # SANDBOX_VERIFIED, which is the right behaviour when neither side
-    # has parseable test output (degenerate but not a regression).
-    del output, runner  # unused at Story 1
-    return {}
+    parser = _RUNNER_PARSERS.get(runner)
+    if parser is None:
+        return {}
+    return parser(output)

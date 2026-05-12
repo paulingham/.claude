@@ -46,8 +46,8 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `PDR_WINNER_SELECTED` | success | `pdr-rtv` | build | `/code-review` + `/security-review` |
 | `PDR_NO_CONSENSUS` | failure | `pdr-rtv` | build | Silent fallback to Best-of-N → standard Build; logged in `## Re-routes` with `fallback_reason` enum (`worktree-cap-exceeded` / `insufficient-green-builds` / `all-finalists-rejected`) |
 | `SANDBOX_VERIFIED` | success | `sandbox-verify` | build | Worktree pass set equals sandbox pass set; Build advances |
-| `SANDBOX_FAILED` | failure | `sandbox-verify` | build | Pass sets diverge; spawn fix-engineer with `diverging_tests` enumerated per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule |
-| `SANDBOX_SKIPPED` | info | `sandbox-verify` | build | Sandbox unavailable OR not applicable; reason ∈ {`no-e2b-token`, `no-testable-changes`, `env-hatch`}; one JSONL line appended to `metrics/{session-id}/sandbox-verify-skips.jsonl`; Build advances |
+| `SANDBOX_FAILED` | failure | `sandbox-verify` | build | Pass sets diverge OR cost-cap hard-trip; spawn fix-engineer with `diverging_tests` enumerated (or `reason: "cost-exceeded"` set) per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule |
+| `SANDBOX_SKIPPED` | info | `sandbox-verify` | build | Sandbox unavailable OR not applicable; reason ∈ {`no-e2b-token`, `no-testable-changes`, `env-hatch`, `e2b-unavailable`, `cost-exceeded`}; one JSONL line appended to `metrics/{session-id}/sandbox-verify-skips.jsonl`; Build advances |
 | `APPROVE` | success | `code-review` | build (final step) | Build emits BUILD_COMPLETE; advance to Security Review |
 | `APPROVE` | success | `security-review` | security-review | Final Gate (verify + test + accept + patch-critique) |
 | `CHANGES_REQUESTED` | failure | `code-review` | build (final step) | Spawn fix-engineer in-line; re-dispatch code-reviewer; max 2 rounds inside Build |
