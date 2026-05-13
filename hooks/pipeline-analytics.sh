@@ -13,20 +13,39 @@ trap 'log_hook_event $?' EXIT
 
 set -uo pipefail
 
-TASK_ID="${1:?Usage: pipeline-analytics.sh <task-id>}"
+RAW_TASK_ID="${1:?Usage: pipeline-analytics.sh TASK_ID (or workstreams/WS/TASK_ID)}"
 
-# Sanitize task ID to prevent path traversal
-TASK_ID="${TASK_ID//[^a-zA-Z0-9_.-]/}"
+# Parse workstream-scoped task ids of the form `workstreams/{ws}/{task-id}`
+# BEFORE sanitization. The intermediate slashes are part of the path
+# structure, not the identifier — sanitizing them away collapses the path.
+# Each path segment is sanitized independently to preserve traversal-resistance.
+_sanitize_segment() { printf '%s' "${1//[^a-zA-Z0-9_.-]/}"; }
+WORKSTREAM=""
+if [[ "$RAW_TASK_ID" =~ ^workstreams/([^/]+)/([^/]+)$ ]]; then
+  WORKSTREAM=$(_sanitize_segment "${BASH_REMATCH[1]}")
+  TASK_ID=$(_sanitize_segment "${BASH_REMATCH[2]}")
+else
+  TASK_ID=$(_sanitize_segment "$RAW_TASK_ID")
+fi
 
 PIPELINE_DIR="$HOME/.claude/pipeline-state"
 METRICS_DIR="$HOME/.claude/metrics"
 mkdir -p "$METRICS_DIR"
 
-# DUAL_PATH: prefer new layout, fall back to legacy.
-PIPELINE_FILE="$PIPELINE_DIR/${TASK_ID}/pipeline.md"
+# Resolve the per-task state directory honouring workstream scope.
+if [[ -n "$WORKSTREAM" ]]; then
+  TASK_STATE_DIR="$PIPELINE_DIR/workstreams/${WORKSTREAM}/${TASK_ID}"
+else
+  TASK_STATE_DIR="$PIPELINE_DIR/${TASK_ID}"
+fi
+
+# DUAL_PATH: prefer new layout, fall back to legacy (legacy form has no
+# canonical workstream variant — workstream pipelines only exist under the
+# new layout — so the legacy fallback is root-scoped only).
+PIPELINE_FILE="$TASK_STATE_DIR/pipeline.md"
 [[ -f "$PIPELINE_FILE" ]] || PIPELINE_FILE="$PIPELINE_DIR/${TASK_ID}-pipeline.md"
 if [[ ! -f "$PIPELINE_FILE" ]]; then
-  echo "ERROR: Pipeline file not found for task $TASK_ID" >&2
+  echo "ERROR: Pipeline file not found for task $RAW_TASK_ID" >&2
   exit 1
 fi
 
@@ -52,7 +71,9 @@ VERDICT_ACCEPT=""
 VERDICT_SHIP=""
 
 # DUAL_PATH: glob phase files from new-layout subdir AND legacy flat form.
-for PHASE_FILE in "$PIPELINE_DIR/${TASK_ID}"/*.md "$PIPELINE_DIR/${TASK_ID}"-*.md; do
+# Legacy form is root-scoped only — workstream pipelines never existed in the
+# legacy flat layout, so we glob only the root flat form for backwards compat.
+for PHASE_FILE in "$TASK_STATE_DIR"/*.md "$PIPELINE_DIR/${TASK_ID}"-*.md; do
   [[ "$PHASE_FILE" == *"-pipeline.md" ]] && continue
   [[ "$PHASE_FILE" == */pipeline.md ]] && continue
   [[ ! -f "$PHASE_FILE" ]] && continue
@@ -70,16 +91,16 @@ for PHASE_FILE in "$PIPELINE_DIR/${TASK_ID}"/*.md "$PIPELINE_DIR/${TASK_ID}"-*.m
 done
 
 # Count agents from trajectory file (DUAL_PATH).
-TRAJECTORY_FILE="$PIPELINE_DIR/${TASK_ID}/trajectory.jsonl"
+TRAJECTORY_FILE="$TASK_STATE_DIR/trajectory.jsonl"
 [[ -f "$TRAJECTORY_FILE" ]] || TRAJECTORY_FILE="$PIPELINE_DIR/${TASK_ID}-trajectory.jsonl"
 AGENT_COUNT=0
 if [[ -f "$TRAJECTORY_FILE" ]]; then
   AGENT_COUNT=$(wc -l < "$TRAJECTORY_FILE" | tr -d ' ')
 fi
 
-# Count review rounds from review phase files (DUAL_PATH).
+# Count review rounds from review phase files (DUAL_PATH, same layout rules).
 REVIEW_ROUNDS=0
-for PHASE_FILE in "$PIPELINE_DIR/${TASK_ID}"/review*.md "$PIPELINE_DIR/${TASK_ID}"-review*.md; do
+for PHASE_FILE in "$TASK_STATE_DIR"/review*.md "$PIPELINE_DIR/${TASK_ID}"-review*.md; do
   [[ -f "$PHASE_FILE" ]] && ((REVIEW_ROUNDS++)) || true
 done
 [[ "$REVIEW_ROUNDS" -eq 0 ]] && REVIEW_ROUNDS=1

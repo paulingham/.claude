@@ -5,6 +5,27 @@
 # live in main-branch-detect-regex.sh.
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/main-branch-detect-regex.sh"
+
+# Pure output-filter commands that, when appearing as a pipe RHS, can be
+# safely stripped before clause splitting — they consume stdout but cannot
+# mutate HEAD. Iterative stripping handles chained filters
+# (`cmd | grep foo | head`). The forbidden leading clause is preserved, so
+# `git checkout foo | tail` still blocks at the `git checkout foo` clause.
+# Redirect tokens (2>&1, &>, >file, etc.) are also stripped — they confuse
+# the safe-pull / safe-fetch carve-outs that iterate whitespace-split tokens.
+_mbd_strip_filter_tails() {
+  local cmd="$1" prev
+  local filter_re='[[:space:]]*\|[[:space:]]*(tail|head|grep|jq|awk|sed|cat|tr|wc|sort)([[:space:]][^|;&]*)?$'
+  local redirect_re='([[:space:]]+[0-9]*(>>|<<|<|>)(&[0-9]+|[[:space:]]*[^[:space:]|;&]+)|[[:space:]]+&>[[:space:]]*[^[:space:]|;&]+)'
+  while :; do
+    prev="$cmd"
+    cmd=$(printf '%s' "$cmd" | sed -E "s#${filter_re}##")
+    cmd=$(printf '%s' "$cmd" | sed -E "s#${redirect_re}##g")
+    [[ "$cmd" == "$prev" ]] && break
+  done
+  printf '%s' "$cmd"
+}
+
 split_clauses() {
   printf '%s' "$1" | awk 'BEGIN{RS=""} { gsub(/\|\||&&|;|\|/, "\n"); print }'
 }
@@ -45,6 +66,7 @@ _mbd_any_clause_forbidden() {
 }
 is_forbidden_command() {
   [[ "$1" =~ $(_mbd_cd_prefix_re) ]] && return 1
-  _mbd_any_clause_forbidden "$1"
+  local stripped; stripped=$(_mbd_strip_filter_tails "$1")
+  _mbd_any_clause_forbidden "$stripped"
 }
 # Test-fixture helpers (is_in_main_tree/is_in_worktree) live in main-branch-detect-fixtures.sh.
