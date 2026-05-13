@@ -105,6 +105,20 @@ Parallelizable phases dispatch as **parallel subagent calls in a single message*
 
 Orchestrator coordinates; never writes code/tests. Flow, dispatch mechanisms (Skill/Subagent/Team), and orchestrator boundaries: `protocols/pipeline-overview.md` § How the System Works.
 
+### Work-Class Routing (T0-T6)
+
+`/intake` Step 1.5 (Fingerprint) classifies every user request into one of seven tiers based on what files change and how they change — not what the user said. Tier determines dispatch shape; Complexity Budget shapes intra-tier dispatch (multi-slice Build at T5, Best-of-N vs PDR-RTV at T6). T0-T3 are fast paths that bypass `/pipeline` entirely. T4-T6 enter `/pipeline` at progressively heavier dispatch. Full protocol: `protocols/work-class-routing.md`.
+
+| Tier | Class | Dispatch target |
+|---|---|---|
+| **T0** | Question / Spike | Direct answer or `/tech-spike` |
+| **T1** | Doc-only | Orchestrator direct edit (Iron Law 3 exception) |
+| **T2** | Config-only | `/harness-config` |
+| **T3** | Mechanical sweep | `/batch-pipeline` |
+| **T4** | Bug fix | `/pipeline` (lightweight) |
+| **T5** | Standard feature | `/pipeline` (standard) |
+| **T6** | Critical / cross-cutting | `/pipeline` (heavy: Best-of-N or PDR-RTV) |
+
 ### Delivery Pipeline
 
 1. **Plan** → Architect designs slices (subagent). Gate: chosen approach documented (full alternatives table only when critical/Budget ≥7/interactive).

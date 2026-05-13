@@ -17,7 +17,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 
 | Verdict | Polarity | Emitter skill | Phase | Downstream branch |
 |---------|----------|---------------|-------|-------------------|
-| `ROUTED` | info | `intake` | intake | `/pipeline`, `/tech-spike`, `/epic-breakdown`, or direct answer |
+| `ROUTED` | info | `intake` | intake | `/pipeline`, `/tech-spike`, `/epic-breakdown`, or direct answer — payload includes `tier: T0..T6` (set by `/intake` Step 1.5) |
 | `STORIES_READY` | info | `epic-breakdown` | plan | One `/pipeline` per story |
 | `ESTIMATED` | info | `estimation` | plan | Pipeline continues with budget |
 | `STORY_READY` | info | `story-writing` | plan | `/build-implementation` |
@@ -26,6 +26,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `SPIKE_COMPLETE` | info | `tech-spike` | utility | Findings feed back into planning |
 | `PLAN_APPROVED` | success | `plan-self-validation` | plan-validation | `/build-implementation` |
 | `PLAN_HOLES` | failure | `plan-self-validation` | plan-validation | Architect re-plans (max 1 revision, then escalate to heavy challengers) |
+| `ROUTING_UPSHIFTED` | info | `plan-self-validation` | plan-validation | Plan-phase re-fingerprint detected tier upshift T{n}→T{m}; pipeline re-dispatches downstream phases at new tier (per `protocols/work-class-routing.md` § Plan-phase re-fingerprint sanity check) |
 | `BUILD_COMPLETE` | success | `build-implementation` | build | `/code-review` + `/security-review` |
 | `BUILD_FAILED` | failure | `build-implementation` | build | Halt; user escalation or re-dispatch |
 | `REFACTOR_COMPLETE` | success | `refactor` | build | `/code-review` + `/security-review` |
@@ -145,6 +146,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 
 ## Notes
 
+- `ROUTED` carries a `tier: T0..T6` field in its payload, set by the `/intake` Step 1.5 fingerprint (per `protocols/work-class-routing.md`). The field gates downstream dispatch: T0-T3 exit `/pipeline`; T4-T6 proceed.
 - `WRONG_SKILL` and `EXTRACTION_BLOCKED` appear in two emitters each (microservices-scaffold + module-extraction; module-extraction + service-extraction). The audit step accepts a verdict shared across multiple emitters as long as every entry's emitter list resolves to a real skill.
 - `ORCHESTRATOR_APPLY_REQUIRED` is emitted by the `fix-engineer` agent (via its spawn output), not a skill — agents emit verdicts through their structured output rather than a `verdict:` frontmatter field. The catalog tracks it for forensic completeness; the verdict-consistency audit step skips reverse-direction enforcement for agent-emitted entries (`Emitter skill` does not need to resolve to a `skills/<name>/SKILL.md` when it names an agent).
 - `RECON_COMPLETE` and `RECON_NULL` are emitted by the `architect-context-recon` agent (Stage 1 of Plan Phase Dispatch), same agent-emitted-verdict pattern as `ORCHESTRATOR_APPLY_REQUIRED`. The catalog tracks them for forensic completeness.
