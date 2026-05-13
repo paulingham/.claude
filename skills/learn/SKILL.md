@@ -117,6 +117,26 @@ PY
 
 Emitted files carry `category: anti-pattern` in the YAML frontmatter; the renderer prefixes their bullets with `AVOID: ` when injected into agent prompts. The `+0.1` floor boost (see `protocols/autonomous-intelligence.md` § Instinct Injection) ensures anti-pattern signals do not crowd out positive guidance — weak positives evaporate when an anti-pattern fires, while the anti-patterns themselves are immune to the boost they trigger (they ship at confidence >= 0.5 by construction).
 
+#### 3e. Sandbox-Verify Fragility Mining
+
+Mine recurring `SANDBOX_FAILED` divergences as `fragility` instincts. The producer is `learn_sandbox_fragility_mining.mine_sandbox_fragility`, the consumer-facing wrapper around the same `is_present`-filtered scan used by `/forensics`. Confidence 0.5 (matches the scratchpad → instinct promotion rule); roles `[software-engineer, sandbox-verify-engineer]`; domain `testing`; category `fragility`.
+
+```bash
+python3 - "$HOME/.claude/learning/$PROJECT_HASH/observations.jsonl" \
+         "$HOME/.claude/learning/$PROJECT_HASH/instincts" <<'PY'
+import os, sys
+sys.path.insert(0, f"{os.environ['HOME']}/.claude/hooks/_lib")
+from learn_sandbox_fragility_mining import mine_sandbox_fragility
+from pathlib import Path
+written = mine_sandbox_fragility(observations_path=Path(sys.argv[1]),
+                                 instincts_dir=Path(sys.argv[2]))
+for p in written:
+    print(f"[sandbox-fragility] emitted {p.name}")
+PY
+```
+
+Round-1-only transient divergences are filtered by the existing absence-tolerance contract — only records carrying `phases.sandbox_verify.verdict == "SANDBOX_FAILED"` contribute, so a pipeline that recovered via fix-engineer + Round-2 retry contributes its Round-2 verdict only (the final state, last-writer-wins per Step 5b semantics).
+
 ### 4. Classify Review Findings (Backward Feedback)
 
 For each review finding from the current pipeline, classify:

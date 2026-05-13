@@ -146,6 +146,13 @@ After all tasks shipped:
          "mode": "multi-persona",
          "persona_rejections": []
        }
+       // OPTIONAL: append `phases.sandbox_verify` when Build's Step 5b ran for
+       // any batched task. Schema documented in
+       // protocols/autonomous-intelligence.md § Field reference. Mirror
+       // skills/pipeline/SKILL.md Step 7b-bis — write IFF data present, never
+       // synthesise. Producer reads pipeline-state/{batch-id}/{task}/build.md
+       // for each batched task; aggregation strategy (per-task vs roll-up)
+       // is operator-defined for batch-pipeline.
      },
      "rework": true/false,
      "scratchpad_findings": ["category:summary", ...],
@@ -154,6 +161,8 @@ After all tasks shipped:
    ```
 
    The `phases.patch_critic` block mirrors the regular-pipeline shape documented in `skills/pipeline/SKILL.md` Step 7b-bis — both writers MUST emit identical shapes (no skew between regular-pipeline and batch-pipeline observations). `persona_rejections` is present (possibly empty array) iff `mode == "multi-persona"`; **absent in single-critic** mode (do NOT write `null`). Severity threshold: only `CRITICAL`, `HIGH`, `MEDIUM` rejections recorded — `LOW` and `INFO` are excluded.
+
+   The `phases.sandbox_verify` block (when written) follows the same parity contract — identical schema to the regular-pipeline writer. Absence-tolerance applies symmetrically: legacy batch observations without the block are skipped by downstream consumers, never coerced to a synthetic verdict.
 
 2. **Auto-learn gate** — the `auto-learn-gate.sh` Stop hook fires automatically when thresholds are met and prints a "Triggered" banner. On the next turn, invoke `/learn`. No manual counter check needed. Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1`.
 
