@@ -1,0 +1,28 @@
+1..9
+not ok 1 VCR1 vlm_critic_read_of_src_returns_exit_2_with_jsonl_violation
+# (in test file tests/shell/test_vlm_critic_read_guard.bats, line 41)
+#   `[ "$status" -eq 2 ]' failed
+not ok 2 VCR2 vlm_critic_read_of_baseline_png_is_allowed
+# (in test file tests/shell/test_vlm_critic_read_guard.bats, line 54)
+#   `[ "$status" -eq 0 ]' failed
+not ok 3 VCR3 symlink_to_src_via_visual_baselines_path_blocked_by_realpath_resolution
+# (in test file tests/shell/test_vlm_critic_read_guard.bats, line 71)
+#   `[ "$status" -eq 2 ]' failed
+not ok 4 VCR4 violation_log_redacts_bearer_token_in_attempted_path
+# (in test file tests/shell/test_vlm_critic_read_guard.bats, line 79)
+#   `[ "$status" -eq 2 ]' failed
+not ok 5 VCR-M1 Grep on src/** is denied (matcher coverage beyond Read)
+# (in test file tests/shell/test_vlm_critic_read_guard.bats, line 94)
+#   `[ "$status" -eq 2 ]' failed
+not ok 6 VCR-M2 Glob with src/** pattern is denied
+# (in test file tests/shell/test_vlm_critic_read_guard.bats, line 102)
+#   `[ "$status" -eq 2 ]' failed
+not ok 7 VCR5 other subagent_type fast-exits 0 even on src path
+# (in test file tests/shell/test_vlm_critic_read_guard.bats, line 109)
+#   `[ "$status" -eq 0 ]' failed
+not ok 8 VCR6 vlm-critic read of pipeline-state plan.md is allowed
+# (in test file tests/shell/test_vlm_critic_read_guard.bats, line 119)
+#   `[ "$status" -eq 0 ]' failed
+not ok 9 VCR-MED2 CLAUDE_SUBAGENT_TYPE env var triggers guard when JSON field missing
+# (in test file tests/shell/test_vlm_critic_read_guard.bats, line 130)
+#   `[ "$status" -eq 2 ]' failed

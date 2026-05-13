@@ -1,0 +1,13 @@
+{
+  "name": "visual-regression-next-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "true",
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0"
+  }
+}

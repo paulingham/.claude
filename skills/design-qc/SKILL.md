@@ -15,7 +15,7 @@ Proves frontend code renders correctly by running the full DevOps lifecycle: ins
 
 ## When to Invoke
 
-- MANDATORY when changed files include `.tsx`, `.jsx`, `.vue`, `.svelte`, or CSS files
+- MANDATORY when changed files include `.tsx`, `.jsx`, `.vue`, `.svelte`, `.html`, or CSS files
 - Invoked by the pipeline as part of the Final Gate (parallel with verify + qa + accept)
 - If this skill returns `CAPTURE_FAILED`, the pipeline BLOCKS
 
@@ -48,9 +48,10 @@ Do NOT probe random ports or guess commands. The contract is the source of truth
 npm install  # or yarn/pnpm per project convention
 ```
 
-If the project does not have `puppeteer` or `playwright` in devDependencies:
+If the project does not have `playwright` in devDependencies (Playwright is now the
+canonical browser driver — AC2 port from Puppeteer):
 ```bash
-npm install --save-dev puppeteer
+npm install --save-dev @playwright/test
 ```
 
 **If install fails** → verdict `CAPTURE_FAILED` with the npm error output.
@@ -99,7 +100,38 @@ For file-based routing frameworks:
 
 Cross-reference with `git diff --name-only` to limit to routes affected by the current change. Always include the root route `/`.
 
-### Step 6: Capture Screenshots
+### Step 5.5: Capture Baseline (Visual Regression Producer — AC1)
+
+Before capturing screenshots on the current branch, capture **baselines** from the
+project's `main` HEAD so pixel-diff in Step 6 has something to compare against.
+
+The helper `hooks/_lib/baseline_capture.sh` performs:
+
+1. `git -C "$REPO_ROOT" worktree add --detach "$BASELINE_WT" main` (Iron Law 4 —
+   never bare `git checkout`).
+2. Run the project's build command inside the baseline worktree.
+3. Capture screenshots through the same Playwright pump as Step 6, routed to
+   `pipeline-state/{task-id}/visual-baselines/{slug}-{viewport}.png`.
+4. Tear down the baseline worktree (`git worktree remove --force`).
+
+**Failure-mode-1 (baseline build fails on main HEAD)**: ALL routes are treated as
+auto-bless (new-route path); scratchpad warning `category: warning` with literal
+token `baseline-build-failed` is appended to
+`pipeline-state/{task-id}/scratchpad/design-qc-build.md`; index.json
+`visual_regression.captured` is set to `false`. design-qc still emits
+`SCREENSHOTS_CAPTURED` — capture failure does NOT change the design-qc verdict.
+
+**AC6 — new-route auto-bless**: if a route is present on the current branch but
+absent on main HEAD (e.g. a newly-added page), the helper captures the current
+branch screenshot AS its own baseline and appends a scratchpad warning
+`category: warning` with the literal token `auto-blessed-baseline` naming the
+route. This is the documented onboarding semantic for new pages.
+
+**AC8 / failure-mode-8 (worktree collision)**: the baseline worktree path is
+suffixed with a process-id + timestamp to avoid colliding with concurrent
+pipelines. The teardown runs even if the build fails.
+
+### Step 6: Capture Screenshots (Playwright — AC2)
 
 For each detected route, capture at two viewports:
 
@@ -116,17 +148,66 @@ Capture method:
 5. Max 8 sections per page
 6. Save to `.claude/screenshots/`
 
-Use Puppeteer:
+Use Playwright via `@playwright/test`:
+
 ```javascript
-const browser = await puppeteer.launch({ headless: true });
-const page = await browser.newPage();
-await page.setViewport({ width, height });
-await page.goto(url, { waitUntil: 'networkidle0' });
-await page.screenshot({ path, type: 'jpeg', quality: 80, fullPage: true });
+// Playwright Test config — explicitly override the default snapshot directory
+// `__screenshots__/` to `.claude/screenshots/` so the existing consumer-project
+// path contract is preserved across the Puppeteer→Playwright port (SE-5 /
+// failure-mode-9).
+const testConfig = {
+  snapshotDir: '.claude/screenshots',
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.02,  // AC7 default; per-route override via project CLAUDE.md
+    },
+  },
+};
+
+// Per-route capture + pixel-diff (AC2):
+const { chromium } = require('@playwright/test');
+const browser = await chromium.launch({ headless: true });
+const context = await browser.newContext({ viewport: { width, height } });
+const page = await context.newPage();
+await page.goto(url, { waitUntil: 'networkidle' });
+
+// Pixel-diff against the baseline captured in Step 5.5. Snapshots are written
+// to `.claude/screenshots/{slug}-{viewport}.png` (NOT Playwright's default
+// `__screenshots__/` — config override above).
+const result = await expect(page).toHaveScreenshot(
+  `${slug}-${viewport}.png`,
+  { maxDiffPixelRatio: routeThreshold },
+);
+
+await context.close();
 await browser.close();
 ```
 
-**If capture fails** (browser crash, navigation error) → log the failing route but continue with remaining routes. Report partial results.
+The measured `pixel_diff_ratio` for each route is computed via
+`hooks/_lib/visual_diff.js` (typed signature
+`computePixelDiffRatio(baseline: Buffer, current: Buffer, threshold: number,
+dimensions): number`) and written into the index.json `visual_regression` block
+described below.
+
+**Per-route threshold (AC7)**: the per-route threshold is consulted FIRST (from
+the project CLAUDE.md `## Visual Regression` `per_route` map), with the
+`default_max_diff_pixel_ratio` (default `0.02`) as fallback. Per-route override
+of `0.05` with a measured diff of `0.04` does NOT trip the global 0.02
+threshold.
+
+**Failure-mode-2 (Playwright returns null diff — internal error)**: the per-route
+call is wrapped in try/except; on null result the route's `pixel_diff_ratio` is
+set to `1.0` (worst-case sentinel) and a scratchpad `category: fragility` entry
+is appended with literal token `playwright-null-diff-{route}`. The pipeline
+continues with remaining routes — capture failure on one route does not abort
+the whole run.
+
+**Failure-mode-9 (snapshot output dir mismatch)**: Playwright's default snapshot
+output is `__screenshots__/`, which would break consumer-project tests that
+assert against the existing `.claude/screenshots/` contract. The
+`testConfig.snapshotDir = '.claude/screenshots'` override is load-bearing — if
+removed, consumer projects will see "snapshot not found at __screenshots__/..."
+errors. Sanity-check via Tier 2 integration test.
 
 ### Step 6.25: A11y Tree Capture (Dual-Output)
 
@@ -134,9 +215,42 @@ After Step 6 screenshots, while the dev server is still running and Playwright i
 
 **Index file** (canonical artifact for downstream consumers):
 - Path: `pipeline-state/{task-id}/design-qc/index.json`
-- Schema: `{schema_version: 1, task_id, captured_at, build_status, server_started, routes: [...], a11y_global: {...}}`
-- Per-route entry: `{route, screenshots: [...], a11y: {captured, capture_path?, reason?, snapshots: [{viewport, path}]}}`
+- Schema: `schema_version: 2` (bumped 1 → 2 in this pipeline to add the
+  `visual_regression` block; one-shot bump, no DUAL_PATH soak — index.json is
+  pipeline-scoped state deleted at Reflect step 6d).
+- Top-level shape: `{schema_version: 2, task_id, captured_at, build_status,
+  server_started, routes: [...], a11y_global: {...}, visual_regression: {...}}`
+- Per-route entry: `{route, screenshots: [...], a11y: {captured, capture_path?,
+  reason?, snapshots: [{viewport, path}]}, visual_regression: {pixel_diff_ratio,
+  baseline_path, current_path}}`
 - Per-snapshot file: `pipeline-state/{task-id}/design-qc/a11y/{route-slug}-{viewport}.json` with `schema_version: 1` and a normalised tree shape
+
+**Visual regression block** (NEW in schema_version 2):
+
+```json
+{
+  "visual_regression": {
+    "captured": true,
+    "baselines_dir": "pipeline-state/{task-id}/visual-baselines",
+    "default_max_diff_pixel_ratio": 0.02
+  },
+  "routes": [
+    {
+      "route": "/dashboard",
+      "visual_regression": {
+        "pixel_diff_ratio": 0.0123,
+        "baseline_path": "pipeline-state/{task-id}/visual-baselines/dashboard-desktop.png",
+        "current_path": ".claude/screenshots/dashboard-desktop.png"
+      }
+    }
+  ]
+}
+```
+
+Per-route `pixel_diff_ratio` is a float in `[0.0, 1.0]` (`0.0` = identical,
+`1.0` = maximally different). When Playwright internal error produces a null
+result, `pixel_diff_ratio` is set to `1.0` (worst-case sentinel — see
+failure-mode-2 / `playwright-null-diff-{route}` scratchpad token).
 
 **Capture strategy** (probe → fallback):
 
@@ -273,6 +387,34 @@ When reviewing screenshots, check:
 - [ ] Loading states use skeleton screens (not spinners for content)
 - [ ] Mobile layout is usable (no horizontal scroll, touch targets >= 44px)
 - [ ] Animations respect `prefers-reduced-motion`
+
+## Visual Regression (project CLAUDE.md schema — AC7)
+
+Projects MAY declare a `## Visual Regression` section in their `.claude/CLAUDE.md`
+to override the default pixel-diff threshold globally or per-route. Schema:
+
+```markdown
+## Visual Regression
+default_max_diff_pixel_ratio: 0.02
+per_route:
+  /dashboard: 0.05
+  /checkout: 0.01
+```
+
+**Field semantics**:
+- `default_max_diff_pixel_ratio`: applied to every route that does not appear
+  in the `per_route` map. Default value (when the section is absent or the
+  field is missing): `0.02`.
+- `per_route`: route → threshold map. Consulted FIRST when resolving the
+  threshold for a given route — the default is a fallback, not an override.
+  Precedence: per-route value (if present) > `default_max_diff_pixel_ratio`
+  (always present, defaults to `0.02`).
+
+**Backward compatibility**: projects without a `## Visual Regression` section
+get the global default `0.02` for every route. No warning is emitted; absent
+section is normal for projects that haven't tuned thresholds yet. Malformed YAML
+in the section is treated as failure-mode-6: scratchpad warning with literal
+token `claude-md-vr-yaml-error` and fallback to default 0.02 globally.
 
 ## Failure Modes
 
