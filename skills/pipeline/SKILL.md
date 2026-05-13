@@ -501,6 +501,12 @@ Schema source of truth: `protocols/autonomous-intelligence.md` § Field referenc
       "mode": "multi-persona",
       "persona_rejections": []
     }
+    // OPTIONAL: append `phases.sandbox_verify` when the Build phase's
+    // Step 5b /sandbox-verify gate ran and pipeline-state/{task-id}/build.md
+    // carries a `## Sandbox Verify` section. Schema documented in
+    // protocols/autonomous-intelligence.md § Field reference.
+    // Example: "sandbox_verify": {"verdict": "SANDBOX_VERIFIED",
+    //                              "rounds": 1, "cost_estimate_usd": 0.12}
   },
   "scratchpad_findings": ["category:summary", ...],
   "rework": false,
@@ -529,6 +535,23 @@ record = {
   "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
   # ... fill in remaining fields per the JSON template above ...
 }
+
+# OPTIONAL: append `phases.sandbox_verify` when Step 5b ran. Detect by
+# reading `pipeline-state/{task-id}/build.md` and looking for the
+# `## Sandbox Verify` section. Mirror the patch_critic absence rule:
+# write the block IFF the section exists; never synthesise a default.
+# Example fill:
+#   record.setdefault("phases", {})["sandbox_verify"] = {
+#       "verdict": "SANDBOX_VERIFIED",  # parse from build.md
+#       "rounds": 1,                    # orchestrator round counter
+#       "cost_estimate_usd": 0.0,       # null/0.0 when cost data unavailable
+#   }
+# When verdict == "SANDBOX_FAILED", populate `divergence_count` and
+# `diverging_tests` (bounded at 20) via
+# `hooks/_lib/sandbox_verify_observation.diverging_tests_from_build_md`.
+# When verdict == "SANDBOX_SKIPPED", populate `skip_reason` from the
+# build.md body line (`reason=...`).
+
 path = os.path.expanduser("~/.claude/learning/<project-hash>/observations.jsonl")
 os.makedirs(os.path.dirname(path), exist_ok=True)
 fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)

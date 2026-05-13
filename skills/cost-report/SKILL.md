@@ -93,7 +93,35 @@ Sections (in order):
 2. `## Cost-per-PR by project` — table with columns `Project | PRs merged | Total cost USD | Avg cost per PR`. The "project" column derives from the GitHub remote of the matched PRs.
 3. `## Top 3 Most Expensive Pipelines` — table `Rank | task_id | USD | PR (if matched)`.
 4. `## Top 3 Most Expensive Agents` — table `Rank | agent_role | USD | Pipelines touched`.
-5. `## Notes` — any unknown-model warnings (collected from `cost_estimator` stderr) and dropped-record counts (malformed JSONL lines, records without `task_id`).
+5. `## Sandbox Verify Skip Rate` — operator-facing fleet-ops view of sandbox-verify health. Aggregates `metrics/*/sandbox-verify-skips.jsonl` via the shared helper:
+
+   ```python
+   import sys
+   sys.path.insert(0, "$HOME/.claude/hooks/_lib")
+   from sandbox_skip_rate import aggregate_skip_rate
+   from pathlib import Path
+   result = aggregate_skip_rate(Path("$HOME/.claude/metrics").expanduser())
+   # {"reasons": {...}, "total_invocations": N, "skip_rate": float, "dropped_lines": N}
+   ```
+
+   Render as:
+
+   ```markdown
+   ## Sandbox Verify Skip Rate
+   | Reason | Count |
+   |---|---|
+   | no-e2b-token | 12 |
+   | env-hatch | 4 |
+   | no-testable-changes | 2 |
+
+   - Total invocations: 18
+   - Skip rate: 100.0% (18 / 18)
+   - Dropped lines (malformed JSONL): 0
+   ```
+
+   When `total_invocations == 0`, render the header with a single line `_No sandbox-verify invocations found in scanned metrics._` — the section is not omitted; an empty fleet is itself informative. When `dropped_lines > 0`, surface the dropped count so operators can investigate JSONL corruption.
+
+6. `## Notes` — any unknown-model warnings (collected from `cost_estimator` stderr) and dropped-record counts (malformed JSONL lines, records without `task_id`).
 
 ### Step 6: Emit verdict
 

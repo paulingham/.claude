@@ -225,6 +225,32 @@ class TeardownRunsOnEveryExitPath(unittest.TestCase):
                       f"for session {session_id!r}; saw {events}")
 
 
+class SessionIdLeadingDotPrefixesRejected(unittest.TestCase):
+    """M20 carryforward — leading-dot prefixes (`.foo`, `..bar`) must be
+    rejected by the session-id regex. The canonical regex pins to
+    `^[A-Za-z0-9_-]` for the first char, so `.foo` (single leading dot)
+    AND `..bar` (double leading dot) both fail. Existing `.` and `..`
+    alone tests do NOT cover this — they catch the bare dot strings,
+    not dot-prefixed strings.
+    """
+
+    def test_session_id_leading_dot_foo_rejected(self):
+        mod = _load()
+        captured_err = StringIO()
+        with patch.object(sys, "stderr", captured_err):
+            resolved = mod._resolve_session_id(".foo")
+        self.assertEqual(resolved, "local")
+        self.assertIn("session_id", captured_err.getvalue().lower())
+
+    def test_session_id_double_dot_bar_rejected(self):
+        mod = _load()
+        captured_err = StringIO()
+        with patch.object(sys, "stderr", captured_err):
+            resolved = mod._resolve_session_id("..bar")
+        self.assertEqual(resolved, "local")
+        self.assertIn("session_id", captured_err.getvalue().lower())
+
+
 class ExecFailureRoutesToSkipped(unittest.TestCase):
     """Regression: when `exec_in_microvm` returns `{"ok": False, ...}`
     (network failure caught by the client envelope), `_run_and_compare`
