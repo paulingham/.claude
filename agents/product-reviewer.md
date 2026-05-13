@@ -154,8 +154,44 @@ Persona 2 (PM Who Shipped a Feature That Flopped) must be answered substantively
 - [ ] Feature delivers intended business value
 
 ### Outcome
-- **APPROVED**: Definition of done met. Story complete.
-- **CHANGES REQUESTED**: Specify what's missing. Story returns to engineering.
+
+#### visual_regression machine pre-check (frontend-touching changes)
+
+Before scoring UX heuristics, run a machine pre-check against the
+visual-regression artifacts produced by `/design-qc` + `vlm-critic`:
+
+1. Read `pipeline-state/{task-id}/design-qc/index.json`.
+2. If the change is frontend-touching (any `.tsx`, `.jsx`, `.ts`, `.js`,
+   `.css`, `.html`, `.svg` under `src/`, `app/`, `lib/`, or `components/`)
+   AND the `visual_regression` block is MISSING from index.json, treat the
+   absence as `vlm_verdict == BLOCKED` and REJECT the story-level verdict
+   with reason `visual_regression block missing — producer (vlm-critic) did not run`.
+   This fail-closed semantic is the AC3+AC4 atomicity guard (PR #105
+   anti-pattern prevention) — the consumer gate must not silently bypass
+   when the producer fails to run.
+3. Otherwise, iterate each route in `index.json.routes[*]`:
+   - REJECT the story-level verdict if any route has
+     `pixel_diff_ratio > threshold OR vlm_verdict == FAIL`. Per-route
+     threshold (`routes[*].visual_regression.threshold`) overrides the
+     default 0.02 when present; otherwise the default applies.
+   - Cite the offending route(s) by name + the measured ratio + the
+     vlm_summary in the REJECTED output so the engineer can locate the
+     regression.
+
+The visual_regression machine pre-check is a *necessary precondition*
+for APPROVED — passing it does not by itself imply APPROVED. After the
+pre-check passes, continue with UX Heuristic Evaluation (§ 2) and
+Visual Design Evaluation (§ 2b) as usual. The story-level outcome below
+applies *after* the pre-check has passed.
+
+#### Story-level outcome
+
+- **APPROVED**: Definition of done met (visual_regression pre-check
+  PASSED + UX heuristic ≥14/20 + per-AC verdicts all APPROVED). Story
+  complete.
+- **CHANGES REQUESTED**: Specify what's missing. Story returns to
+  engineering. Includes any visual_regression REJECT outcome from the
+  pre-check above.
 
 ## Output Format
 

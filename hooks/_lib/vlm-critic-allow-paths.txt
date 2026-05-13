@@ -1,0 +1,28 @@
+# Path allowlist for vlm-critic. One ERE pattern per line.
+# Lines starting with '#' or empty lines are ignored. Lines starting with '!'
+# (after optional whitespace) are EXCLUDE patterns evaluated FIRST — any path
+# matching an exclude is denied even if it also matches an include glob below.
+# Patterns are matched against the absolute path of a Read|Grep|Glob target;
+# any path NOT matching at least one include pattern is denied.
+#
+# The vlm-critic operates on a closed file set: the named PNG pair from
+# index.json.routes[*].visual_regression.{baseline_path, current_path}
+# plus plan.md. Allowlist scope is intentionally tight.
+
+# Vendored / built / generated dirs excluded BEFORE include match.
+!.*/node_modules/.*
+!.*/vendor/.*
+!.*/dist/.*
+!.*/build/.*
+
+# Baseline screenshot PNGs (the primary input — SE-4 pin first include line).
+pipeline-state/.+/visual-baselines/[^/]+\.png
+
+# Current-run screenshot PNGs (the comparison input — design-qc Step 6 output).
+.*/\.claude/screenshots/[^/]+\.png
+
+# Design-qc index.json + writable target for vlm-critic.
+.*/pipeline-state/[A-Za-z0-9_.-]+/design-qc/index\.json$
+
+# The AC plan (the spec — secondary input).
+.*/pipeline-state/[A-Za-z0-9_.-]+/plan\.md$

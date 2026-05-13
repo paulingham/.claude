@@ -1,0 +1,99 @@
+ATDD Batched RED — slice-a-pixel-diff-pump
+Generated: 2026-05-12T23:55:00Z
+Command: python3 -m unittest tests/contract/spec_visual_regression_schema.py tests/test_visual_diff.py -v
+
+Test count: 29 total
+- Tier 0 (contract): 18 in tests/contract/spec_visual_regression_schema.py
+- Tier 1 (unit, Python-side): 11 in tests/test_visual_diff.py
+- Tier 1 (unit, JS-side): 9 in tests/test_visual_diff.js (driven by node:test, smoke-tested from test_node_test_visual_diff_passes)
+
+Result: FAILED (failures=22, errors=6, passes=3)
+
+Passes (these were intentionally green at RED time — fixture/placeholder behaviors):
+- test_skill_md_no_underscore_screenshots_default_referenced_as_target (passes because the legacy SKILL.md still has 0 references to .claude/screenshots vs 0 for __screenshots__; trivial-true)
+- test_soak_end_placeholder_body_names_both_clone_files (passes because slice-a wrote the placeholder body at the top of the cycle)
+- test_soak_end_placeholder_file_exists_with_correct_not_before_anchor (same — placeholder created)
+
+Per-test failure analysis (all failures are for the right reason — named behavior absent):
+
+CONTRACT TESTS (Tier 0):
+[FAIL] AutoBlessedBaselineWarning.test_skill_md_documents_auto_blessed_baseline_token
+       — SKILL.md does not contain literal token "auto-blessed-baseline" (AC6)
+[FAIL] BaselineCaptureHelperContract.test_baseline_capture_sh_exists
+       — hooks/_lib/baseline_capture.sh does not exist (AC1)
+[ERROR] BaselineCaptureHelperContract.test_baseline_capture_sh_uses_git_worktree_add
+        — FileNotFoundError (helper missing)
+[ERROR] BaselineCaptureHelperContract.test_baseline_capture_sh_writes_to_visual_baselines_dir
+        — FileNotFoundError (helper missing)
+[FAIL] HtmlGlobExtension.test_skill_md_when_to_invoke_lists_html
+       — SKILL.md When to Invoke block doesn't list .html extension (AC5)
+[FAIL] IndexJsonSchemaV2.test_design_qc_skill_declares_schema_version_2
+       — SKILL.md still declares schema_version: 1 (not bumped 1->2)
+[FAIL] IndexJsonSchemaV2.test_design_qc_skill_documents_visual_regression_block
+       — No "visual_regression" / "pixel_diff_ratio" / "baseline_path" in SKILL.md
+[FAIL] PerRouteThresholdOverride.test_skill_md_documents_default_max_diff_pixel_ratio
+       — SKILL.md has no "0.02" threshold reference
+[FAIL] PerRouteThresholdOverride.test_skill_md_documents_visual_regression_claude_md_section
+       — No "## Visual Regression" section documented
+[FAIL] PlaywrightOutputDirOverride.test_skill_md_declares_snapshot_dir_override
+       — No ".claude/screenshots" + "snapshotDir" pair in SKILL.md
+[FAIL] PlaywrightPortedFromPuppeteer.test_skill_md_does_not_use_puppeteer_launch_in_step_6
+       — Step 6 still contains `puppeteer.launch`
+[FAIL] PlaywrightPortedFromPuppeteer.test_skill_md_references_playwright_toHaveScreenshot
+       — Step 6 has no "toHaveScreenshot" reference (AC2)
+[FAIL] VisualDiffHelperContract.test_visual_diff_js_exists
+       — hooks/_lib/visual_diff.js does not exist (AC2)
+[ERROR] VisualDiffHelperContract.test_visual_diff_declares_typed_signature
+        — FileNotFoundError (helper missing)
+[ERROR] VisualDiffHelperContract.test_visual_diff_exports_compute_pixel_diff_ratio
+        — FileNotFoundError (helper missing)
+
+UNIT TESTS (Tier 1):
+[ERROR] BaselineBuildFailedTreatsAllRoutesAsAutoBlessed.test_baseline_build_failed_treats_all_routes_as_auto_blessed
+        — FileNotFoundError on baseline_capture.sh
+[ERROR] BaselineCaptureCreatesPngsUnderVisualBaselinesDir.test_baseline_capture_creates_pngs_under_visual_baselines_dir
+        — FileNotFoundError on baseline_capture.sh
+[FAIL] FrontendGlobExtensionIncludesHtmlFileChanges.test_skill_md_when_to_invoke_lists_html_extension
+       — Same as AC5 contract failure above
+[FAIL] NewRouteAutoBlessedWritesScratchpadWarningWithLiteralToken
+       — Token absent (AC6)
+[FAIL] PerRouteThresholdAboveDefaultDoesNotTripGlobalThreshold
+       — No "per_route" precedence documented
+[FAIL] PlaywrightNullResultWritesPixelDiffRatio10WithFragilityScratchpad
+       — No "playwright-null-diff" token (failure-mode-2)
+[FAIL] PlaywrightToHaveScreenshotWritesPixelDiffRatioToIndexJson
+       — Index.json schema doesn't document pixel_diff_ratio per route (AC2)
+[FAIL] ProjectClaudeMdPerRouteThresholdOverrideHonored (× 2 tests)
+       — ## Visual Regression section schema not documented (AC7)
+[FAIL] ScreenshotsLandAtClaudeScreenshotsNotPlaywrightDefault
+       — Same as Playwright snapshotDir override above
+[FAIL] VisualDiffJsRunsUnderNodeTest.test_node_test_visual_diff_passes
+       — node --test tests/test_visual_diff.js exits non-zero (visual_diff.js missing)
+
+All failures map to documented ACs (AC1, AC2, AC5, AC6, AC7) + failure modes (rows 1, 2, 9). No syntax errors, no import failures, no unrelated tests failing.
+
+PROCEED TO GREEN.
+
+================================================================================
+
+ROUND 1 FIX-CYCLE — RED phase (Tier 2 integration test)
+Generated: 2026-05-12T(round-1 fix-cycle)
+
+Test added: tests/integration/test_design_qc_visual_regression_e2e.py
+Behaviour: end-to-end pump (baseline_capture.sh + Playwright pixel-diff
+           + visual_diff.js ratio computation) writes the four contracted
+           artifacts (a) baseline PNG under pipeline-state/{task-id}/
+           visual-baselines/, (b) current PNG under .claude/screenshots/,
+           (c) NO PNG under __screenshots__/, (d) index.json routes[*]
+           .visual_regression.pixel_diff_ratio is float.
+
+Command: python3 -m unittest tests.integration.test_design_qc_visual_regression_e2e -v
+
+RED state (fixture directory absent):
+  setUpClass ... skipped 'Fixture dir .../tests/fixtures/visual-regression-next missing; cannot run E2E.'
+  Ran 0 tests in 0.000s
+  OK (skipped=1)
+
+RED-reason: the test's setUpClass skip-gate fires on the documented
+fixture-missing condition. With the fixture added (next-step), the test
+runs the full E2E and asserts the four contract artifacts.

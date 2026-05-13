@@ -51,7 +51,11 @@ Agent({
        - If VERIFIED_WITH_SKIP: acknowledge the skip reason and assess risk
        - If E2E flows ran (PASS): confirm they cover the changed behavior
        - If E2E flows failed: this should have been caught in Verify -- flag if it wasn't
-
+    - visual_regression machine pre-check (frontend-touching changes):
+       - Read pipeline-state/{task-id}/design-qc/index.json
+       - REJECT the story-level verdict if any route has pixel_diff_ratio > threshold OR vlm_verdict == FAIL
+       - If the visual_regression block is missing on a frontend-touching change, treat as vlm_verdict == BLOCKED and REJECT with reason `visual_regression block missing — producer (vlm-critic) did not run` (AC3+AC4 atomicity guard; see agents/product-reviewer.md § Outcome)
+       - Per-route threshold (routes[*].visual_regression.threshold) overrides default 0.02 when present
     If Design QC screenshots are available (from /design-qc):
     - Visual review: check screenshots against design system compliance
        - No hardcoded colors, spacing follows scale, type scale respected
