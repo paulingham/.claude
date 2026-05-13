@@ -186,5 +186,54 @@ class StartingTickWrittenBeforeExpensiveOp(unittest.TestCase):
                              f"cost JSONL must be 0o600; got {oct(mode)}")
 
 
+class WriteCostEventEmitsJsonlForSoftWarnAndHardTrip(unittest.TestCase):
+    """M21 carryforward — `write_cost_event` emits JSONL for soft-warn
+    AND hard-trip events. The function is the shared writer for both
+    boundary crossings; without coverage of the named events, mutations
+    that drop one branch from the writer survive (e.g. mutation that
+    skips the soft-warn write and only writes hard-trip lines).
+
+    Mode is 0o600 (LOW-B carryforward — same hardening as starting tick).
+    """
+
+    def test_write_cost_event_soft_cap_warn_emits_jsonl(self):
+        from sandbox_cost_meter import write_cost_event
+        with tempfile.TemporaryDirectory() as tmp:
+            jsonl_path = Path(tmp) / "sub" / "sandbox-verify-cost.jsonl"
+            write_cost_event(str(jsonl_path), session_id="s-warn",
+                             event="soft-cap-warn",
+                             payload={"elapsed_usd": 0.55,
+                                      "soft_cap_usd": 0.50})
+            self.assertTrue(jsonl_path.exists())
+            lines = jsonl_path.read_text().strip().splitlines()
+            self.assertEqual(len(lines), 1)
+            record = json.loads(lines[0])
+            self.assertEqual(record["event"], "soft-cap-warn")
+            self.assertEqual(record["session_id"], "s-warn")
+            self.assertEqual(record["elapsed_usd"], 0.55)
+            self.assertEqual(record["soft_cap_usd"], 0.50)
+            self.assertIn("timestamp", record)
+            # LOW-B carryforward: mode 0o600.
+            mode = stat.S_IMODE(os.stat(jsonl_path).st_mode)
+            self.assertEqual(mode, 0o600)
+
+    def test_write_cost_event_hard_trip_emits_jsonl(self):
+        from sandbox_cost_meter import write_cost_event
+        with tempfile.TemporaryDirectory() as tmp:
+            jsonl_path = Path(tmp) / "sandbox-verify-cost.jsonl"
+            write_cost_event(str(jsonl_path), session_id="s-trip",
+                             event="hard-cap-trip",
+                             payload={"elapsed_usd": 2.10,
+                                      "hard_cap_usd": 2.00})
+            self.assertTrue(jsonl_path.exists())
+            lines = jsonl_path.read_text().strip().splitlines()
+            self.assertEqual(len(lines), 1)
+            record = json.loads(lines[0])
+            self.assertEqual(record["event"], "hard-cap-trip")
+            self.assertEqual(record["session_id"], "s-trip")
+            self.assertEqual(record["elapsed_usd"], 2.10)
+            self.assertEqual(record["hard_cap_usd"], 2.00)
+
+
 if __name__ == "__main__":
     unittest.main()

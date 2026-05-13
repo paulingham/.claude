@@ -73,6 +73,40 @@ Flag any of the following:
 | Discipline violation | Files modified outside agent sessions | Orchestrator wrote code |
 | Stale state | Pipeline state timestamp >24h old | Abandoned pipeline |
 
+### Step 3a: Sandbox-Verify Divergence Detection
+
+When the pipeline state contains a `build.md` file with a `## Sandbox Verify` section whose verdict is `SANDBOX_FAILED`, surface the diverging test names AND join them against scratchpad findings categorised as `fragility` whose summary text mentions the test name.
+
+```python
+import sys
+sys.path.insert(0, "$HOME/.claude/hooks/_lib")
+from sandbox_verify_observation import diverging_tests_from_build_md
+from pathlib import Path
+
+build_md_path = Path(f"~/.claude/pipeline-state/{task_id}/build.md").expanduser()
+if build_md_path.is_file():
+    diverging = diverging_tests_from_build_md(build_md_path.read_text())
+    if diverging:
+        # Render under Anomalies; join against scratchpad fragility findings.
+        for test_name in diverging:
+            print(f"- diverged: {test_name}")
+```
+
+Render in the forensic report under Anomalies as a `## Sandbox Divergence` block:
+
+```markdown
+### Sandbox Divergence (verdict: SANDBOX_FAILED)
+
+| Test | Joined scratchpad finding |
+|---|---|
+| `tests/test_x.py::test_a` | `fragility: timing-sensitive payment fixture` |
+| `tests/test_y.py::test_b` | (no scratchpad finding) |
+```
+
+The join key is substring match: a scratchpad finding's summary that contains the test name (or a 5+ character substring of it) attaches to the row. Unmatched divergences are still listed — the verdict + test name alone is forensically valuable.
+
+When no `## Sandbox Verify` section exists OR the verdict is `SANDBOX_VERIFIED` / `SANDBOX_SKIPPED`, the helper returns `[]` and this sub-step renders nothing — silent skip, never an empty header.
+
 ### Step 3b: Hook Protection Lookup
 
 When a hook violation is detected in `metrics/$SID/*-violations.jsonl`, look up the hook's protection annotations:
