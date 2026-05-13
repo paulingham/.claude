@@ -31,7 +31,7 @@ Story 1 (this slice) mints the skill + agent contract, the three verdicts in the
 
 ## Procedure
 
-> **Story-1 scope:** Steps 1, 2 (no-token branch only), and 5 are implemented. Steps 3-4 are stubs that downstream stories will fill in. The contract surface is exercisable today via the no-E2B-token branch and the pure-function diff algorithm at `hooks/_lib/sandbox_verify_diff.py`.
+> **Story-3 scope:** Steps 1-5 are now end-to-end live. Story 4 carryforward: skip-rate forensics, observation schema enrichment, per-language parsers beyond pytest, cost-cap dollar calibration. The contract surface is exercisable today via either the no-token branch (`emit_skip_if_no_token`) or the token-present `provision_and_run` orchestrator.
 
 ### Step 1: Pre-flight — check for `E2B_API_KEY`
 
@@ -50,37 +50,47 @@ print(result['verdict'])
 ```
 
 The helper at `hooks/_lib/sandbox_verify_skip.py:emit_skip_if_no_token(session_id, metrics_dir)` does the work:
+- Runs `session_id` through `_resolve_session_id` — canonical path-traversal regex `[A-Za-z0-9_.-]+`. Reject inputs fall back to `"local"` + stderr warning.
 - Returns `{"verdict": "SANDBOX_SKIPPED", "reason": "no-e2b-token", "timestamp": "<ISO-8601>"}`.
-- Appends one JSON line to `{metrics_dir}/{session_id}/sandbox-verify-skips.jsonl` using `os.open(path, O_WRONLY|O_CREAT|O_APPEND)` + `os.write` (NEVER `>>` from shell — the `bash-write-guard` hook blocks that).
+- Appends one JSON line to `{metrics_dir}/{session_id}/sandbox-verify-skips.jsonl` using `os.open(path, O_WRONLY|O_CREAT|O_APPEND, 0o600)` + `os.write`. Mode 0o600 hardens the Story-1 security LOW; bash-write-guard blocks `>>` from shell.
 - Emit verdict and EXIT — no sandbox provisioning is attempted.
 
-### Step 2: Provision E2B sandbox (Story 3)
+### Step 2: Provision E2B sandbox via stdlib urllib
 
-**Story-1 stub** — `E2B_API_KEY` is set but the provisioning helper does not yet exist. Story 1 emits a placeholder verdict and exits; Story 3 will wire in the actual HTTP/SDK provisioning, cost cap, and retry-once-then-skip logic per the workstream default.
+When `E2B_API_KEY` is present, the caller invokes `provision_and_run` from `hooks/_lib/sandbox_verify_skip.py`:
 
-When Story 3 lands, this step:
-1. Provisions a fresh E2B sandbox via the E2B HTTP API (using `E2B_API_KEY`).
-2. Clones the worktree into the sandbox.
-3. On provision failure (network, quota, API error), emits `SANDBOX_SKIPPED(e2b-provision-failed)` after one retry.
-4. On cost-cap breach, emits `SANDBOX_SKIPPED(cost-cap-exceeded)`.
+```python
+from sandbox_verify_skip import provision_and_run
+import sandbox_e2b_client as e2b
+result = provision_and_run(
+    session_id=session_id,
+    metrics_dir=metrics_dir,
+    test_command="pytest -v",
+    worktree_outcomes=worktree_outcomes,
+    e2b_client=e2b,
+    secrets_allowlist=allowlist,  # from project CLAUDE.md ## Sandbox Secrets
+)
+```
 
-### Step 3: Discover the test runner (Story 2)
+`provision_and_run` orchestrates the full lifecycle:
 
-**Story-1 stub** — `hooks/_lib/sandbox_verify_diff.py:parse_test_outcomes(output, runner='pytest')` returns an empty dict today. Story 2 will:
+1. **State-before-expensive-op tick** — writes a `starting` event to `metrics/{session-id}/sandbox-verify-cost.jsonl` BEFORE the first E2B HTTP call. This is the forensic breadcrumb that lets `/forensics` detect leaked microVMs (a `starting` tick with no matching `teardown` line means the subagent was killed mid-run).
+2. **Provision** via `sandbox_e2b_client.provision_microvm(template)` — pure stdlib `urllib.request`, hardcoded `_API_BASE = "https://api.e2b.dev"` SSRF guard, narrow exception catch on `(TimeoutError, urllib.error.URLError, E2BProvisionError)`. Retry-once-then-skip: first failure sleeps 2s and retries; second failure returns `{"ok": False, "reason": "e2b-unavailable", "attempts": 2}`.
+3. **Provision failure** → `SANDBOX_SKIPPED` with the reason from the envelope (`no-e2b-token` or `e2b-unavailable`).
 
-1. Read `CLAUDE.md` Commands section for the project's canonical test command.
-2. Match against the test-runner enumeration (`pytest`, `npm test`, `bundle exec rspec`, `cargo test`, `go test`, …).
-3. Choose the per-language parser from `parse_test_outcomes(output, runner)`.
+### Step 3: Forward only allowlisted env vars; run tests inside the microVM
 
-If no runner discovered → `SANDBOX_SKIPPED(no-test-runner-discoverable)` (Story 2 adds to enum).
+Secrets policy is **default-deny**. `hooks/_lib/sandbox_secrets_allowlist.py:forward_env(allowlist)` returns ONLY the env vars whose names appear in the allowlist. Empty allowlist → empty dict (zero secrets forwarded). The allowlist is sourced by the caller from the project CLAUDE.md `## Sandbox Secrets` section (the schema is greenfield — no precedent existed before this story).
 
-### Step 4: Run tests in both environments and parse outcomes (Story 2)
+`sandbox_e2b_client.exec_in_microvm(microvm_id, command, env)` runs the test command inside the microVM with the forwarded env. The stdout is parsed by `sandbox_verify_diff.parse_test_outcomes(output, runner='pytest')` — a regex over pytest `-v` output mapping PASSED → `"pass"`, FAILED/ERROR → `"fail"`.
 
-**Story-1 stub.** Story 2 will:
+Cost-cap pre-check: before exec, `sandbox_cost_meter.tick(elapsed_seconds)` returns `{"soft_warn", "hard_trip", "elapsed_usd"}`. Past soft cap → `soft-cap-warn` event written to cost JSONL, run continues. Past hard cap → `hard-cap-trip` event written, exec aborted, `SANDBOX_FAILED` emitted with `reason: "cost-exceeded"`. Env-var overrides: `CLAUDE_SANDBOX_VERIFY_COST_CAP_SOFT_USD` (default 0.50) / `CLAUDE_SANDBOX_VERIFY_COST_CAP_HARD_USD` (default 2.00). Dollar values are placeholders pending Story 4 calibration from real spend data.
 
-1. Run the test command in the worktree → capture output → `parse_test_outcomes(output, runner)` → `dict[str, "pass"|"fail"]`.
-2. Run the same command in the E2B sandbox → capture output → parse → `dict[str, "pass"|"fail"]`.
-3. Pass both dicts to `compare_pass_sets(worktree, sandbox)` (pure function, lives in `hooks/_lib/sandbox_verify_diff.py`).
+### Step 4: Compare pass sets and tear down
+
+After exec, `sandbox_verify_diff.compare_pass_sets(worktree, sandbox)` runs the symmetric-difference algorithm. The verdict (`SANDBOX_VERIFIED` or `SANDBOX_FAILED`) is returned to the caller.
+
+Teardown via `sandbox_e2b_client.destroy_microvm(microvm_id)` runs in a `try/finally` block — the call is guaranteed on EVERY exit path (happy comparison, parser raises, hard-cap trip). A `teardown` event is written to the cost JSONL after destroy. No leaked microVMs.
 
 ### Step 5: Emit verdict
 
@@ -123,7 +133,10 @@ One-line outcome.
 - test_name_2
 
 ## Skip Reason (SANDBOX_SKIPPED only)
-- no-e2b-token | e2b-provision-failed | cost-cap-exceeded
+- no-e2b-token | e2b-unavailable
+
+## Failure Reason (SANDBOX_FAILED only — when not a pass-set divergence)
+- cost-exceeded (cost-cap hard trip; teardown ran, microVM destroyed)
 
 ## Next Phase Input
 On VERIFIED: Build emits BUILD_COMPLETE. On FAILED: fix-engineer dispatched with diverging tests. On SKIPPED: Build advances; reason captured for forensics.
@@ -135,7 +148,7 @@ On VERIFIED: Build emits BUILD_COMPLETE. On FAILED: fix-engineer dispatched with
 |---------|---------|------------|
 | `SANDBOX_VERIFIED` | Worktree pass set equals sandbox pass set. | Build advances to inline code-review step. |
 | `SANDBOX_FAILED` | Pass sets diverge; `diverging_tests` enumerated. | Spawn fix-engineer per `rules/_detail/pipeline-protocol.md` § In-Cycle Fix Rule. |
-| `SANDBOX_SKIPPED` | Sandbox unavailable; reason ∈ Story-1 enum `{no-e2b-token}` (Story 3 extends). | Build advances; skip line logged for forensics. |
+| `SANDBOX_SKIPPED` | Sandbox unavailable; reason ∈ `{no-e2b-token, e2b-unavailable}` (Story 3 extended the enum). | Build advances; skip line logged for forensics. |
 
 The skill emits exactly one verdict per invocation.
 
