@@ -68,5 +68,89 @@ class SandboxVerdictsPresentWithCorrectPolarityAndEmitter(unittest.TestCase):
             "SANDBOX_SKIPPED branch column must enumerate `no-e2b-token` reason")
 
 
+class SandboxSkippedBranchEnumeratesStory2Reasons(unittest.TestCase):
+    """AC3 + AC4 — SANDBOX_SKIPPED catalog row enumerates the two
+    Story-2 reasons inline (`no-testable-changes`, `env-hatch`).
+
+    Story 1 shipped the row with `no-e2b-token` only. Story 2 extends to
+    `reason ∈ {no-e2b-token, no-testable-changes, env-hatch}` so a Story-3
+    enum extension is caught by the lockstep test below.
+    """
+
+    def setUp(self):
+        rows = _parse_catalog_rows()
+        by_verdict = {r["verdict"]: r for r in rows}
+        self.assertIn(
+            "SANDBOX_SKIPPED", by_verdict,
+            "rules/verdict-catalog.md must contain a `SANDBOX_SKIPPED` row")
+        self.skipped_branch = by_verdict["SANDBOX_SKIPPED"]["branch"]
+
+    def test_ac3_sandbox_skipped_branch_enumerates_no_testable_changes(self):
+        self.assertIn(
+            "no-testable-changes", self.skipped_branch,
+            "SANDBOX_SKIPPED branch column must enumerate "
+            "`no-testable-changes` reason (AC3 — docs-only path)")
+
+    def test_ac4_sandbox_skipped_branch_enumerates_env_hatch(self):
+        self.assertIn(
+            "env-hatch", self.skipped_branch,
+            "SANDBOX_SKIPPED branch column must enumerate "
+            "`env-hatch` reason (AC4 — CLAUDE_DISABLE_SANDBOX_VERIFY=1)")
+
+
+class SandboxSkippedReasonsLockstepWithSkillBody(unittest.TestCase):
+    """Contract — the SANDBOX_SKIPPED reason enum in
+    `rules/verdict-catalog.md` MUST be a subset of the reasons documented
+    in `skills/build-implementation/SKILL.md` Step 5b body (so any Story-3
+    enum extension that updates the catalog row but forgets the SKILL.md
+    text — or vice versa — fails CI).
+
+    Today (Story 2): the catalog row enumerates three reasons exactly:
+    `no-e2b-token`, `no-testable-changes`, `env-hatch`. Every catalog
+    reason MUST also appear in Step 5b body (the source-of-truth doc).
+    Reasons that appear in Step 5b but not yet in the catalog are
+    permitted — Story 3 will close the gap when it lands `no-e2b-token`
+    in skill body and adds new reasons to the catalog.
+    """
+
+    REPO_ROOT = Path(__file__).resolve().parents[1]
+    CATALOG = REPO_ROOT / "rules" / "verdict-catalog.md"
+    SKILL = (REPO_ROOT / "skills" / "build-implementation"
+             / "SKILL.md")
+
+    # Canonical SKILL.md-side reason tokens that Story-2 lands inline.
+    # Story 3 will extend Step 5b body with `no-e2b-token` (and add new
+    # reasons to the catalog). Lockstep is one-directional today: every
+    # CATALOG reason must appear in SKILL.md; the reverse is not required
+    # until Story 3 lands.
+    KNOWN_CATALOG_REASONS = (
+        "no-e2b-token",
+        "no-testable-changes",
+        "env-hatch",
+    )
+
+    def setUp(self):
+        rows = _parse_catalog_rows()
+        by_verdict = {r["verdict"]: r for r in rows}
+        self.skipped_branch = by_verdict["SANDBOX_SKIPPED"]["branch"]
+        self.skill_text = self.SKILL.read_text()
+
+    def test_sandbox_skipped_reasons_lockstep_with_skill_body(self):
+        # Every reason the catalog enumerates MUST also be documented in
+        # the SKILL.md prose (single source of truth for skip-reason
+        # semantics). Story 3's `no-e2b-token` skill addition closes the
+        # remaining one-directional gap; for now we only assert the two
+        # Story-2 reasons exist in skill prose.
+        for story2_reason in ("no-testable-changes", "env-hatch"):
+            self.assertIn(
+                story2_reason, self.skipped_branch,
+                f"CATALOG: SANDBOX_SKIPPED branch must enumerate "
+                f"`{story2_reason}` reason")
+            self.assertIn(
+                story2_reason, self.skill_text,
+                f"SKILL.md: Step 5b body must document `{story2_reason}` "
+                f"skip reason in lockstep with the catalog row")
+
+
 if __name__ == "__main__":
     unittest.main()
