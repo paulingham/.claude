@@ -69,15 +69,49 @@ class CompareDivergentPassSetsReturnsFailedWithNames(unittest.TestCase):
 
 
 class ParseTestOutcomesStubReturnsEmptyDict(unittest.TestCase):
-    """Story-1 stub: parser returns empty dict; Story 2 will fill in
-    per-language pytest/jest/rspec parsers. The contract is
-    `dict[str, "pass"|"fail"]`; an empty parser is a valid implementation
-    that the diff algorithm consumes correctly (both empty → VERIFIED)."""
+    """Empty input → empty dict (defensive shape, preserves Story-1 contract).
+    Story 3 adds the real pytest -v regex parser below."""
 
     def test_parse_test_outcomes_returns_dict(self):
         _, parse_test_outcomes = _load()
         result = parse_test_outcomes("", runner="pytest")
         self.assertIsInstance(result, dict)
+
+
+class ParseTestOutcomesPytestVerboseOutput(unittest.TestCase):
+    """AC2 (Story 3): parse pytest `-v` output into
+    `{test_name: "pass"|"fail"}`. PASSED → pass; FAILED/ERROR → fail."""
+
+    def test_parse_test_outcomes_pytest_v_output(self):
+        _, parse_test_outcomes = _load()
+        # Realistic pytest -v output with PASSED, FAILED, ERROR markers.
+        output = (
+            "tests/test_a.py::test_one PASSED                          [ 25%]\n"
+            "tests/test_a.py::test_two PASSED                          [ 50%]\n"
+            "tests/test_b.py::test_three FAILED                        [ 75%]\n"
+            "tests/test_b.py::test_four ERROR                          [100%]\n"
+        )
+        result = parse_test_outcomes(output, runner="pytest")
+
+        self.assertEqual(result.get("tests/test_a.py::test_one"), "pass")
+        self.assertEqual(result.get("tests/test_a.py::test_two"), "pass")
+        self.assertEqual(result.get("tests/test_b.py::test_three"), "fail")
+        # ERROR maps to "fail" per plan.md stub #3 assertion intent.
+        self.assertEqual(result.get("tests/test_b.py::test_four"), "fail")
+
+    def test_parse_test_outcomes_pytest_no_matches_returns_empty(self):
+        _, parse_test_outcomes = _load()
+        result = parse_test_outcomes(
+            "collecting ...\n=========== 0 tests ran ============\n",
+            runner="pytest")
+        self.assertEqual(result, {})
+
+    def test_parse_test_outcomes_unknown_runner_returns_empty(self):
+        """Unknown runner key → empty dict (defensive default)."""
+        _, parse_test_outcomes = _load()
+        result = parse_test_outcomes(
+            "tests/x.py::t PASSED [100%]\n", runner="unknown-runner")
+        self.assertEqual(result, {})
 
 
 if __name__ == "__main__":

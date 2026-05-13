@@ -26,7 +26,10 @@ The validator's value depends on it being a *neutral comparator* between two tes
 ## How to Apply
 
 - When the diff helper reports `diverging_tests: [<names>]`, surface the verdict `SANDBOX_FAILED` with the enumerated list — do NOT retry the sandbox run hoping for convergence.
-- When `E2B_API_KEY` is missing, emit `SANDBOX_SKIPPED` with reason `no-e2b-token` and append a JSONL line to `metrics/{session-id}/sandbox-verify-skips.jsonl` — Story 3 extends the enum to include `cost-cap-exceeded` and `e2b-provision-failed`; this seed instinct refines as those code paths land.
+- When `E2B_API_KEY` is missing, emit `SANDBOX_SKIPPED` with reason `no-e2b-token` and append a JSONL line to `metrics/{session-id}/sandbox-verify-skips.jsonl`.
+- When E2B provisioning fails (retry-once-then-skip exhausted), emit `SANDBOX_SKIPPED` with reason `e2b-unavailable`. The `attempts` count in the envelope MUST be 2 — anything else indicates a bug in the retry wrapper.
+- When the cost-meter hard cap trips, emit `SANDBOX_FAILED` with `reason: "cost-exceeded"` and `diverging_tests: []`. Teardown via `destroy_microvm` MUST still run via the `finally` block — this is the no-leaked-microVM invariant.
+- Before any E2B HTTP call, write the cost-meter `starting` tick. The forensic value lives in the breadcrumb: a `starting` tick with no matching `teardown` line means the subagent died mid-run.
 - When tempted to add Write/Edit to the agent's tools list "just to fix a build artifact in-line", STOP — open a new pipeline with a different role. The read-only constraint is the property; widening tools collapses the role.
 
 ## When NOT to Apply
