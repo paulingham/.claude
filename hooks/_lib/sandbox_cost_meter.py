@@ -17,16 +17,18 @@ Env-var overrides:
 - `CLAUDE_SANDBOX_VERIFY_COST_CAP_SOFT_USD` (default 0.50)
 - `CLAUDE_SANDBOX_VERIFY_COST_CAP_HARD_USD` (default 2.00)
 
-JSONL written via Python `os.open(O_WRONLY|O_CREAT|O_APPEND, 0o600)` because
-the bash-write-guard hook blocks `>>` to `.jsonl` files AND the security LOW
-from Story 1 mandates 0o600 (was 0o644).
+JSONL written via the shared `secure_jsonl.append_secure_jsonl` helper
+(`os.open(O_WRONLY|O_CREAT|O_APPEND, 0o600)`) because the bash-write-guard
+hook blocks `>>` to `.jsonl` files AND the security LOW from Story 1
+mandates 0o600 (was 0o644).
 """
 from __future__ import annotations
 
 import datetime
-import json
 import os
 from pathlib import Path
+
+from secure_jsonl import append_secure_jsonl
 
 # Per-second sandbox cost rate. Placeholder calibration; Story 4 closes the
 # loop with real-spend data from `sandbox-verify-cost.jsonl` aggregations.
@@ -81,17 +83,6 @@ def tick(elapsed_seconds: float, rate_key: str = "default") -> dict:
             "elapsed_usd": elapsed_usd}
 
 
-def _append_secure_jsonl(path: Path, record: dict) -> None:
-    """Append one JSON line with mode 0o600 (bash-write-guard-safe)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    line = json.dumps(record).encode("utf-8") + b"\n"
-    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-    try:
-        os.write(fd, line)
-    finally:
-        os.close(fd)
-
-
 def write_starting_tick(jsonl_path: str, session_id: str) -> None:
     """Persist a `starting` event BEFORE the first E2B HTTP call.
 
@@ -104,7 +95,7 @@ def write_starting_tick(jsonl_path: str, session_id: str) -> None:
         "session_id": session_id,
         "timestamp": _utc_now_iso8601(),
     }
-    _append_secure_jsonl(Path(jsonl_path), record)
+    append_secure_jsonl(Path(jsonl_path), record)
 
 
 def write_cost_event(jsonl_path: str, session_id: str,
@@ -116,4 +107,4 @@ def write_cost_event(jsonl_path: str, session_id: str,
         "timestamp": _utc_now_iso8601(),
         **payload,
     }
-    _append_secure_jsonl(Path(jsonl_path), record)
+    append_secure_jsonl(Path(jsonl_path), record)

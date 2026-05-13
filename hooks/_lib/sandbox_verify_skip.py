@@ -14,22 +14,24 @@ Two public functions:
   Story 3 entry point — replaces the Story-1 `SANDBOX_VERIFIED_TBD`
   placeholder. Orchestrates cost-meter starting tick → secrets forwarding
   → provisioning → exec → parse → compare → teardown (guaranteed via
-  `try/finally`). Three exit paths (happy / parser-raises / hard-cap-trip)
-  all converge on `destroy_microvm` exactly once.
+  `try/finally`). Exit paths (happy / parser-raises / hard-cap-trip /
+  e2b-unavailable) all converge on `destroy_microvm` exactly once.
 
-JSONL writes use `os.open(O_WRONLY|O_CREAT|O_APPEND, 0o600)` to:
+JSONL writes use the shared `secure_jsonl.append_secure_jsonl` helper
+(`os.open(O_WRONLY|O_CREAT|O_APPEND, 0o600)`) to:
 1. Satisfy the bash-write-guard hook that blocks `>>` to `.jsonl`.
 2. Harden the file mode to 0o600 (Story-1 security LOW).
 """
 from __future__ import annotations
 
 import datetime
-import json
 import os
 import re
 import sys
 import time
 from pathlib import Path
+
+from secure_jsonl import append_secure_jsonl
 
 # Path-traversal guard: canonical regex from
 # `instinct-path-traversal-bash-vars.md`. Reject anything outside
@@ -58,22 +60,6 @@ def _resolve_session_id(session_id):
     return "local"
 
 
-def _append_jsonl(path, record):
-    """Append one JSON line to `path` with mode 0o600.
-
-    Uses `os.open` + `os.write` to bypass the bash-write-guard hook
-    that blocks shell `>>` to `.jsonl`. Mode 0o600 hardens the Story-1
-    security LOW (was 0o644).
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    line = json.dumps(record).encode("utf-8") + b"\n"
-    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-    try:
-        os.write(fd, line)
-    finally:
-        os.close(fd)
-
-
 def emit_skip_if_no_token(session_id, metrics_dir):
     """Story-1 contract: emit SANDBOX_SKIPPED when E2B_API_KEY is missing.
 
@@ -98,7 +84,7 @@ def emit_skip_if_no_token(session_id, metrics_dir):
               "session_id": safe_session_id}
     jsonl_path = (Path(metrics_dir) / safe_session_id /
                   "sandbox-verify-skips.jsonl")
-    _append_jsonl(jsonl_path, record)
+    append_secure_jsonl(jsonl_path, record)
     return {"verdict": "SANDBOX_SKIPPED", "reason": "no-e2b-token",
             "timestamp": timestamp}
 
@@ -125,7 +111,7 @@ def _emit_skipped(metrics_dir, safe_session_id, reason):
     timestamp = _utc_now_iso8601()
     record = {"reason": reason, "timestamp": timestamp,
               "session_id": safe_session_id}
-    _append_jsonl(_skip_jsonl_path(metrics_dir, safe_session_id), record)
+    append_secure_jsonl(_skip_jsonl_path(metrics_dir, safe_session_id), record)
     return {"verdict": "SANDBOX_SKIPPED", "reason": reason,
             "timestamp": timestamp}
 
@@ -182,6 +168,7 @@ def provision_and_run(*, session_id, metrics_dir, test_command,
             cost_path=cost_path,
             safe_session_id=safe_session_id,
             write_cost_event=write_cost_event,
+            metrics_dir=metrics_dir,
         )
     finally:
         # Step 6: teardown is ALWAYS attempted, regardless of exit path.
@@ -194,7 +181,8 @@ def provision_and_run(*, session_id, metrics_dir, test_command,
 def _run_and_compare(*, e2b_client, microvm_id, started_at, test_command,
                      worktree_outcomes, secrets_allowlist, forward_env,
                      tick, parse_test_outcomes, compare_pass_sets,
-                     cost_path, safe_session_id, write_cost_event):
+                     cost_path, safe_session_id, write_cost_event,
+                     metrics_dir):
     """Inner body of provision_and_run. Extracted to keep `try/finally`
     body cohesive and to make the hard-cap branch testable in isolation."""
 
@@ -218,9 +206,15 @@ def _run_and_compare(*, e2b_client, microvm_id, started_at, test_command,
     forwarded = forward_env(secrets_allowlist)
 
     # Exec inside microVM. RuntimeError / network failures propagate
-    # through the `finally` block to guarantee teardown.
+    # through the `finally` block to guarantee teardown. Network failures
+    # that the client catches return {"ok": False, ...}: route to
+    # SANDBOX_SKIPPED so worktree-passing tests are not misattributed as
+    # diverging (parse_test_outcomes("")={} would yield a false-positive
+    # SANDBOX_FAILED with every worktree-pass listed).
     exec_result = e2b_client.exec_in_microvm(
         microvm_id, test_command, env=forwarded)
+    if not exec_result.get("ok"):
+        return _emit_skipped(metrics_dir, safe_session_id, "e2b-unavailable")
     sandbox_outcomes = parse_test_outcomes(
         exec_result.get("stdout", ""), runner="pytest")
     return compare_pass_sets(worktree_outcomes, sandbox_outcomes)

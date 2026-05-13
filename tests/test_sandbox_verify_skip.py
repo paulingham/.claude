@@ -16,6 +16,7 @@ import re
 import stat
 import sys
 import tempfile
+import time
 import unittest
 from io import StringIO
 from pathlib import Path
@@ -107,10 +108,17 @@ class TeardownRunsOnEveryExitPath(unittest.TestCase):
         self.metrics_dir = self.tmp
 
     def _make_e2b_stub(self, exec_result=None, exec_raises=None):
-        """Build a mock e2b_client that pretends provisioning succeeded."""
+        """Build a mock e2b_client that pretends provisioning succeeded.
+
+        `started_at` is set to the current wall-clock so `elapsed` stays
+        sub-second; happy-path tests must NOT accidentally trip the
+        hard-cap by stubbing `started_at: 0.0` (≈1.7e9 sec since epoch).
+        Hard-cap tests opt into the trip via `_elapsed_seconds_since`
+        patching.
+        """
         client = MagicMock()
         client.provision_microvm.return_value = {
-            "ok": True, "microvm_id": "vm_test", "started_at": 0.0,
+            "ok": True, "microvm_id": "vm_test", "started_at": time.time(),
             "attempts": 1,
         }
         if exec_raises:
@@ -128,7 +136,7 @@ class TeardownRunsOnEveryExitPath(unittest.TestCase):
                          "stdout": "tests/x.py::t PASSED [100%]\n",
                          "stderr": "", "exit_code": 0})
         with patch.dict(os.environ, {"E2B_API_KEY": "k"}, clear=False):
-            self.mod.provision_and_run(
+            result = self.mod.provision_and_run(
                 session_id="happy",
                 metrics_dir=self.metrics_dir,
                 test_command="pytest -v",
@@ -137,6 +145,9 @@ class TeardownRunsOnEveryExitPath(unittest.TestCase):
             )
         self.assertEqual(client.destroy_microvm.call_count, 1,
                          "happy path must teardown")
+        self.assertEqual(result["verdict"], "SANDBOX_VERIFIED",
+                         "happy path must exercise the verified branch "
+                         "(not a hard-cap trip masquerading as happy path)")
         self._assert_teardown_line_written("happy")
 
     def test_teardown_runs_when_parser_raises(self):
@@ -191,6 +202,65 @@ class TeardownRunsOnEveryExitPath(unittest.TestCase):
         self.assertIn("teardown", events,
                       f"cost JSONL must contain a 'teardown' event "
                       f"for session {session_id!r}; saw {events}")
+
+
+class ExecFailureRoutesToSkipped(unittest.TestCase):
+    """Regression: when `exec_in_microvm` returns `{"ok": False, ...}`
+    (network failure caught by the client envelope), `_run_and_compare`
+    MUST route to SANDBOX_SKIPPED reason=e2b-unavailable.
+
+    Without the ok-check, `parse_test_outcomes("")={}` produces a false
+    SANDBOX_FAILED with every worktree-passing test listed as diverging —
+    artifact-via-noise rather than real divergence. Seed instinct
+    principle 1 ("divergence IS the signal") forbids this.
+    """
+
+    def setUp(self):
+        sys.path.insert(0, str(REPO_ROOT / "hooks" / "_lib"))
+        import sandbox_verify_skip
+        self.mod = sandbox_verify_skip
+        self.tmp = tempfile.mkdtemp()
+        self.metrics_dir = self.tmp
+
+    def test_exec_failure_routes_to_skipped(self):
+        client = MagicMock()
+        client.provision_microvm.return_value = {
+            "ok": True, "microvm_id": "vm_test", "started_at": time.time(),
+            "attempts": 1,
+        }
+        # The e2b client envelope on a transient network failure:
+        client.exec_in_microvm.return_value = {
+            "ok": False, "stdout": "", "stderr": "URLError: timeout",
+            "exit_code": -1,
+        }
+        client.destroy_microvm.return_value = {"ok": True}
+
+        with patch.dict(os.environ, {"E2B_API_KEY": "k"}, clear=False):
+            result = self.mod.provision_and_run(
+                session_id="exec-fail",
+                metrics_dir=self.metrics_dir,
+                test_command="pytest -v",
+                worktree_outcomes={"tests/x.py::t": "pass",
+                                   "tests/y.py::u": "pass"},
+                e2b_client=client,
+            )
+
+        self.assertEqual(result["verdict"], "SANDBOX_SKIPPED",
+                         "exec_in_microvm ok=False must route to skipped, "
+                         "not a fake SANDBOX_FAILED")
+        self.assertEqual(result["reason"], "e2b-unavailable")
+        # Teardown still guaranteed via finally:
+        self.assertEqual(client.destroy_microvm.call_count, 1,
+                         "exec-failure path must still teardown")
+        # Skip-log JSONL line landed in the canonical location:
+        skip_path = (Path(self.metrics_dir) / "exec-fail" /
+                     "sandbox-verify-skips.jsonl")
+        self.assertTrue(skip_path.exists(),
+                        "SANDBOX_SKIPPED must append to skips.jsonl")
+        lines = [json.loads(line) for line in
+                 skip_path.read_text().splitlines() if line.strip()]
+        reasons = {entry.get("reason") for entry in lines}
+        self.assertIn("e2b-unavailable", reasons)
 
 
 if __name__ == "__main__":
