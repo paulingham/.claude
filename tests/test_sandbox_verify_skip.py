@@ -66,6 +66,27 @@ class SessionIdPathTraversalFallsBackToLocal(unittest.TestCase):
             resolved = mod._resolve_session_id("")
         self.assertEqual(resolved, "local")
 
+    def test_session_id_double_dot_falls_back_to_local(self):
+        """`..` alone is a traversal vector (Path(metrics_dir) / '..' walks
+        out one directory level). Both the tightened regex AND the
+        defence-in-depth check must reject it."""
+        mod = _load()
+        captured_err = StringIO()
+        with patch.object(sys, "stderr", captured_err):
+            resolved = mod._resolve_session_id("..")
+        self.assertEqual(resolved, "local")
+        self.assertIn("session_id", captured_err.getvalue().lower())
+
+    def test_session_id_single_dot_falls_back_to_local(self):
+        """`.` alone resolves Path(metrics_dir) / '.' to metrics_dir itself
+        — still outside the per-session sandbox. Rejected for symmetry."""
+        mod = _load()
+        captured_err = StringIO()
+        with patch.object(sys, "stderr", captured_err):
+            resolved = mod._resolve_session_id(".")
+        self.assertEqual(resolved, "local")
+        self.assertIn("session_id", captured_err.getvalue().lower())
+
     def test_session_id_valid_passes_through(self):
         """Valid IDs (alphanumeric + `_.-`) pass through unchanged."""
         mod = _load()

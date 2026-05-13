@@ -34,9 +34,10 @@ from pathlib import Path
 from secure_jsonl import append_secure_jsonl
 
 # Path-traversal guard: canonical regex from
-# `instinct-path-traversal-bash-vars.md`. Reject anything outside
-# `[A-Za-z0-9_.-]+`. Empty string also rejected.
-_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+# `instinct-path-traversal-bash-vars.md`, tightened to forbid leading
+# dot so `..` and `.` cannot pass. Matches the sibling `approval-token.sh`
+# pattern at `hooks/_lib/approval-token.sh:49`. Empty string also rejected.
+_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_-][A-Za-z0-9_.-]*$")
 
 
 def _utc_now_iso8601():
@@ -53,6 +54,11 @@ def _resolve_session_id(session_id):
     JSONL path stays sandboxed under `<metrics_dir>/local/...`.
     """
     if isinstance(session_id, str) and _SESSION_ID_RE.match(session_id):
+        if session_id in {".", ".."}:
+            sys.stderr.write(
+                f"sandbox_verify_skip: rejected session_id {session_id!r} "
+                "(path-traversal guard); falling back to 'local'\n")
+            return "local"
         return session_id
     sys.stderr.write(
         f"sandbox_verify_skip: rejected session_id {session_id!r} "
