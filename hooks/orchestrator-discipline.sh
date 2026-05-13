@@ -29,6 +29,10 @@ SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.subagent_type // empty')
 is_path_allow_listed() {
     [[ -z "$1" || "$1" =~ \.md$ ]] && return 0
     [[ "$1" =~ \.claude/automation/ || "$1" =~ \.claude/hooks/ ]] && return 0
+    # pipeline-state token files (e.g. approval.token) are orchestrator-state,
+    # not source code. Both regular and workstream layouts are covered by the
+    # single regex: any `.token` under any `pipeline-state/` directory.
+    [[ "$1" =~ /pipeline-state/.*\.token$ ]] && return 0
     # Subagent worktrees: only spawned agents write here. The harness does not
     # reliably populate subagent_type on PreToolUse stdin in every flow, and
     # the CWD fallback below fires from the main session CWD — so without this

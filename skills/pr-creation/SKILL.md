@@ -1,8 +1,9 @@
 ---
 name: "pr-creation"
-description: "GitHub pull request workflow with validation, feature branch management, and automated PR creation. Use when completing features to create production-ready pull requests."
+description: "Use when user wants to ship a feature: GitHub pull request workflow with validation, feature branch management, and automated PR creation. Runs the Ship phase after the Final Gate has emitted APPROVED. Produces PR_CREATED or PR_BLOCKED."
 context: fork
 agent: software-engineer
+argument-hint: "Optional: PR title or 'auto' to derive from commit messages"
 ---
 
 # PR Creation Workflow
@@ -21,6 +22,22 @@ Automated pull request creation with validation:
 4. Push to remote
 5. Create GitHub PR with proper formatting
 6. Return PR URL
+
+## Known Misfire Mode
+
+**Symptom**: On the first Ship-phase dispatch the skill returns "standing by" (or an equivalent ack-only response) instead of executing Steps 0-5 below. No branch is created. No PR is opened. The pipeline stalls at the Ship gate with no verdict.
+
+**Suspected root cause (not yet proven)**: the model-invocation routing layer scans the skill `description` field for action cues. Skills that auto-invoke reliably (e.g. `/internal-eval`, `/build-implementation`, `/code-review`, `/security-review`, `/verify`, `/product-acceptance`, `/patch-critique`, `/learn`) all start their description with the literal phrase `"Use when user wants to ..."`. Before this fix the pr-creation description started with `"GitHub pull request workflow ..."` — no `"Use when ..."` cue, no `argument-hint`, no `## Process` anchor. Without those, the skill body may have been loaded as reference documentation rather than an executable procedure.
+
+**Workaround (when the misfire still recurs after the description fix)**:
+1. Orchestrator dispatches a `fix-engineer` directly with a build-style spawn whose prompt is the literal contents of this SKILL.md's Steps 0-5.
+2. Pass `Working directory: <worktree-path>` and the original task-id in the spawn prompt so the approval-token gate + worktree precondition both resolve.
+3. Treat the fix-engineer's PR-URL return value as the `PR_CREATED` verdict for the Ship-phase state file. Manually write `pipeline-state/{task-id}/ship.md` with `verdict: PR_CREATED` and the PR URL.
+
+**Action note for operators investigating recurrences**:
+- Compare this skill's frontmatter + body shape against `~/.claude/skills/internal-eval/SKILL.md` and `~/.claude/skills/learn/SKILL.md` — both auto-invoke reliably.
+- Diff candidates to investigate: `description` prefix wording, presence of `## Process` heading with numbered `### Step N:` sub-headings, presence of `argument-hint`, presence of `disable-model-invocation` (only `deploy` sets this — confirms it's NOT load-bearing for normal dispatch).
+- If you reproduce the misfire and prove the root cause, remove this section and tighten the regression guard in `tests/test_pr_creation_skill_frontmatter.py`.
 
 ## Prerequisites
 
