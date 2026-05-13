@@ -96,28 +96,50 @@ design decisions belong to the architect at Plan phase. Per-poll high-effort
 reasoning would burn token budget on a role that does not need it; `low` keeps
 iteration fast and the role advisory.
 
-## Hook Behavior (Path B — current, log-only)
+## Hook Behavior (Path B — current, log-only at v2.1.140)
 
 The probe in `pipeline-state/opus47-thinking-defaults-scratchpad/build-probe.md`
-selected Path B (validation/block). Empirical reality: the Agent tool input
-schema does not currently expose `thinking`, so a hard block refused every
-orchestrator spawn. The hook is therefore **log-only** until Claude Code lands
-either `modified_tool_input` (Path A) or `thinking` in the Agent schema.
+selected Path B (validation/block). Empirical reality at **v2.1.140**: the
+per-spawn `tool_input.thinking.effort` field is **not yet exposed** in the
+Agent tool input schema, so a hard block would refuse every orchestrator
+spawn. Every historical `hook-injections.jsonl` record confirms the per-spawn
+field is not populated. The hook is therefore **log-only** until Claude Code
+lands either `modified_tool_input` (Path A) or per-spawn `thinking` on the
+Agent input schema.
 
-- **Missing `thinking` field on an Agent spawn**: hook exits 0 and logs the
-  resolved `{effort, display}` to `metrics/{session}/hook-injections.jsonl`
-  with `source: "logged"`. No stderr block message. No spawn refusal.
+What v2.1.140 DOES expose, and what the resolver consumes today:
+
+- `$CLAUDE_EFFORT` env var is consumed via `hooks/_lib/thinking_resolver.py:40`
+  (rule 2a, source token `"claude-effort-env"`). Operators can force effort
+  on a session basis by exporting this variable.
+- `settings.autoMode.effortLevel` session key sets a global default.
+
+What v2.1.140 does NOT expose (and gates promotion-to-enforced):
+
+- Per-spawn `tool_input.thinking.effort` on the Agent PreToolUse input.
+
+Behavioural rules:
+
+- **Missing `thinking` field on an Agent spawn**: resolver resolves effort
+  via the precedence list (env → explicit → claude-effort-env → role →
+  default), the bash wrapper writes one advisory log entry to
+  `metrics/{session}/hook-injections.jsonl` with `source: "logged"`, then
+  exits 0. No stderr block message. No spawn refusal.
 - **Present `thinking` field**: hook exits 0, no validation.
 - **Non-Agent tools**: hook exits 0 immediately.
+- **Resolver crash (e.g. `python3` not on PATH)**: hook exits 0 (defensive
+  `|| exit 0` fallback in `pre-agent-thinking.sh`). The hook MUST NEVER
+  block a spawn it cannot evaluate.
 
 ## Current Status
 
-Path B is currently **log-only** (advisory). The Agent tool input schema does
-not expose `thinking`, so blocking would refuse every orchestrator spawn. The
-hook will be promoted to enforcement (Path A silent injection or hard-block
-Path B) when Claude Code exposes the `thinking` field on Agent inputs. When
-that happens, only `hooks/pre-agent-thinking.sh` flips behavior — the
-resolver, tests, and precedence rules are unchanged.
+Path B remains **log-only** (advisory) at v2.1.140. The per-spawn
+`tool_input.thinking.effort` field is not yet exposed on the Agent tool input
+schema, so blocking would refuse every orchestrator spawn — Iron Law 4
+(REPO_ROOT HEAD STAYS ON main) makes the brick risk catastrophic.
+Promotion-to-enforced is a single-file flip in `hooks/pre-agent-thinking.sh`
+once the per-spawn field lands in a future Claude Code release; the
+resolver, tests, and precedence rules are unchanged by that flip.
 
 ## Environment Variables
 

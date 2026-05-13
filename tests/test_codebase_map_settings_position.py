@@ -17,6 +17,8 @@ import json
 import unittest
 from pathlib import Path
 
+from tests._helpers.settings_hook import effective_command_line
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -43,7 +45,10 @@ class SettingsJsonHookPositionPinned(unittest.TestCase):
         )
 
     def _commands(self):
-        return [h["command"] for h in self.harness_group["hooks"]]
+        # v2.1.139 exec-form: command is the binary, args carries the script path.
+        # Reconstruct the effective command line so substring assertions still
+        # work whether settings.json uses string-form or exec-form.
+        return [effective_command_line(h) for h in self.harness_group["hooks"]]
 
     def test_codebase_map_rebuild_registered(self):
         commands = self._commands()
@@ -110,9 +115,9 @@ class SettingsJsonStopHookRegistered(unittest.TestCase):
         all_commands = []
         for group in self.stop_groups:
             for hook in group.get("hooks", []):
-                cmd = hook.get("command", "")
-                if cmd:
-                    all_commands.append(cmd)
+                effective = effective_command_line(hook)
+                if effective:
+                    all_commands.append(effective)
         joined = " ".join(all_commands)
         self.assertIn(
             "codebase-map-poll.sh",
