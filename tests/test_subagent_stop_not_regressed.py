@@ -16,6 +16,8 @@ import re
 import unittest
 from pathlib import Path
 
+from tests._helpers.settings_hook import effective_command_line
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -36,15 +38,8 @@ class SubagentValidationStillRegistered(unittest.TestCase):
         groups = settings["hooks"]["SubagentStop"]
         # First group is the bash hook batch; second is the hcom poll
         first = groups[0]
-        return [self._basename(self._effective(h))
+        return [self._basename(effective_command_line(h))
                 for h in first["hooks"] if h["type"] == "command"]
-
-    @staticmethod
-    def _effective(hook):
-        # v2.1.139 exec-form: command is the binary, args carries the script path.
-        cmd = hook.get("command", "")
-        args = hook.get("args", []) or []
-        return " ".join([cmd, *args]).strip()
 
     @staticmethod
     def _basename(command):

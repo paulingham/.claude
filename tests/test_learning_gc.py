@@ -23,6 +23,8 @@ sys.path.insert(0, str(REPO_ROOT / "hooks" / "_lib"))
 
 import learning_gc_state  # noqa: E402
 import learning_gc_archive  # noqa: E402
+
+from tests._helpers.settings_hook import effective_command_line  # noqa: E402
 import learning_gc_vacuum  # noqa: E402
 
 
@@ -162,10 +164,7 @@ class SettingsRegistersLearningGcHook(unittest.TestCase):
             if "matcher" in group:
                 continue
             for h in group.get("hooks", []):
-                # v2.1.139 exec-form: command is the binary, args carries the path.
-                cmd = h.get("command", "")
-                args = h.get("args", []) or []
-                commands.append(" ".join([cmd, *args]).strip())
+                commands.append(effective_command_line(h))
         self.assertTrue(
             any("learning-gc.sh" in c for c in commands),
             f"learning-gc.sh not registered; got commands: {commands}")

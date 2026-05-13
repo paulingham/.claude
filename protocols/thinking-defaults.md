@@ -102,7 +102,7 @@ The probe in `pipeline-state/opus47-thinking-defaults-scratchpad/build-probe.md`
 selected Path B (validation/block). Empirical reality at **v2.1.140**: the
 per-spawn `tool_input.thinking.effort` field is **not yet exposed** in the
 Agent tool input schema, so a hard block would refuse every orchestrator
-spawn. 785 historical `hook-injections.jsonl` records confirm the per-spawn
+spawn. Every historical `hook-injections.jsonl` record confirms the per-spawn
 field is not populated. The hook is therefore **log-only** until Claude Code
 lands either `modified_tool_input` (Path A) or per-spawn `thinking` on the
 Agent input schema.

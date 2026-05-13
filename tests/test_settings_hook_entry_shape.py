@@ -25,6 +25,8 @@ import re
 import unittest
 from pathlib import Path
 
+from tests._helpers.settings_hook import is_script_path
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SETTINGS_PATH = REPO_ROOT / "settings.json"
 
@@ -120,9 +122,6 @@ class InlineShellEntriesUseBashDashC(unittest.TestCase):
     silently fails at runtime (bash would treat the pipeline as a $0 script).
     """
 
-    def _is_script_path(self, arg: str) -> bool:
-        return arg.endswith(".sh") or arg.endswith(".sh\"") or ".sh\"" in arg
-
     def test_inline_shell_entries_use_explicit_bash_dash_c(self):
         bash_entries = [
             (event, m_idx, h_idx, hook)
@@ -134,7 +133,7 @@ class InlineShellEntriesUseBashDashC(unittest.TestCase):
         inline_entries = [
             (event, m_idx, h_idx, hook)
             for event, m_idx, h_idx, hook in bash_entries
-            if not (hook.get("args") and self._is_script_path(hook["args"][0]))
+            if not (hook.get("args") and is_script_path(hook["args"][0]))
         ]
         self.assertGreater(
             len(inline_entries), 0,

@@ -19,6 +19,8 @@ import time
 import unittest
 from pathlib import Path
 
+from tests._helpers.settings_hook import effective_command_line
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOOK = REPO_ROOT / "hooks" / "metrics-gc.sh"
 
@@ -198,10 +200,7 @@ class SettingsRegistersMetricsGc(unittest.TestCase):
             if "matcher" in group:
                 continue
             for h in group.get("hooks", []):
-                # v2.1.139 exec-form: command is the binary, args carries the path.
-                cmd = h.get("command", "")
-                args = h.get("args", []) or []
-                effective = " ".join([cmd, *args]).strip()
+                effective = effective_command_line(h)
                 if effective:
                     commands.append(effective)
 
