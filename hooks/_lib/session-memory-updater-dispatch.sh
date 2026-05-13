@@ -25,15 +25,22 @@ if _blank "$_target_section"; then
   exit 1
 fi
 
-case "$_target_section" in
-  codebase-map)
-    # Slice D AC23/AC24: codebase-map.md is generator-owned (rebuilt on every
-    # SessionStart by the codebase-map hook). Refusal is permanent
-    # architecture — generated artifacts are generator-owned regardless of
-    # soak state. Fires BEFORE the seed-on-miss block below so the template
-    # is never copied for a misrouted spawn.
+# Generator-owned sub-files. Slice D AC23/AC24 codified codebase-map as the
+# first such artifact (rebuilt on every SessionStart by the codebase-map
+# hook). Refusal is permanent architecture — generated artifacts are
+# generator-owned regardless of soak state — and adding the next one is a
+# one-line edit to this allowlist. Fires BEFORE the seed-on-miss block
+# below so the template is never copied for a misrouted spawn.
+_GENERATED_ARTIFACTS=("codebase-map")
+
+for _generated in "${_GENERATED_ARTIFACTS[@]}"; do
+  if [[ "$_target_section" == "$_generated" ]]; then
     printf '{"error":"generated_artifact_misroute","field":"targetSection","action":"spawn_refused"}\n' >&2
-    exit 1 ;;
+    exit 1
+  fi
+done
+
+case "$_target_section" in
   build-test|patterns|fragility) ;;
   active-work)
     printf '{"error":"active_work_misroute","field":"targetSection","action":"spawn_refused"}\n' >&2
