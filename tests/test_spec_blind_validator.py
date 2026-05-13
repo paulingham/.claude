@@ -12,6 +12,8 @@ import subprocess
 import unittest
 from pathlib import Path
 
+from tests._helpers.settings_hook import effective_command_line
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -170,7 +172,7 @@ class SettingsJsonRegistersThreeGuardsWithPortablePath(unittest.TestCase):
         for blk in self.pre_blocks:
             if blk.get("matcher") == matcher:
                 for h in blk.get("hooks", []):
-                    out.append(h.get("command", ""))
+                    out.append(effective_command_line(h))
         return out
 
     def test_read_grep_glob_matcher_registers_read_guard(self):

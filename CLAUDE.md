@@ -46,21 +46,39 @@ Every Agent spawn carries a `thinking` field — `effort` (`low|medium|high|xhig
 
 **Postmortem note (May 2026):** the four unconditional promotions reflect both the **Apr 23 2026** cost/quality data — promotion-on-trigger lift was concentrated in stakes-bearing build/design work — AND the **Opus 4.7** adaptive-thinking floor change (manual `budget_tokens` rejected at the API layer; adaptive thinking allocates budget dynamically). Promotion-on-trigger captured the lift; adaptive thinking removed the cost gate that previously rationed xhigh per spawn.
 
-**Note:** the hook is currently **advisory/log-only** — the Agent tool input schema does not yet expose `thinking`, so refusals are logged but no spawn is blocked. Will be promoted to enforcement when the field is exposed.
+**Note:** the hook is **advisory/log-only at v2.1.140** — the per-spawn `tool_input.thinking.effort` field is **not yet exposed** on the Agent tool input schema, so resolved effort/display values are written to `metrics/{session}/hook-injections.jsonl` but no spawn is blocked. `$CLAUDE_EFFORT` env var IS consumed (resolver rule 2a, source token `"claude-effort-env"`); `settings.autoMode.effortLevel` session key sets a global default. Will be promoted to enforcement via a single-file flip in `hooks/pre-agent-thinking.sh` once the per-spawn field is exposed in a future Claude Code release.
 
 ### Advisor-Mode Reviews (Opus 4.7)
 
-`code-reviewer` and `security-engineer` ship with `executor: claude-sonnet-4-6` + `advisor: claude-opus-4-7` in their frontmatter. Sonnet drives the review, Opus is consulted on judgement calls. This is the **intended default** — currently advisory because the Agent input schema does not yet expose `advisor`. The `pre-agent-advisor.sh` PreToolUse hook logs the would-be pairing to `metrics/{session}/advisor-dispatch.jsonl`; no spawn is blocked, no model is downgraded. Will become the enforced default the moment the schema lands.
+`code-reviewer` and `security-engineer` ship with `executor: claude-sonnet-4-6` + `advisor: claude-opus-4-7` in their frontmatter. Sonnet drives the review, Opus is consulted on judgement calls. This is the **intended default** — review pairings remain **advisory at v2.1.140** because the `advisor:` field is **not yet schema-exposed** on the Agent tool input. The `pre-agent-advisor.sh` PreToolUse hook logs the would-be pairing to `metrics/{session}/advisor-dispatch.jsonl`; no spawn is blocked, no model is downgraded. Will become the enforced default the moment the `advisor:` field lands.
 
 **Cost** (PROVISIONAL pending advisor-baseline; see `eval/baselines/{latest}-advisor-baseline.md`): Sonnet+Opus-advisor pairing is roughly ~40% cheaper per review than naive Opus-solo, with quality-equivalence (≥95% verdict-agreement on the regression suite) targeted but not yet measured. Override with `CLAUDE_REVIEW_ADVISOR_DISABLED=1` to force Opus-solo.
 
+### Cost Discipline
+
+The May 8 2026 subagent-summary cache fix delivers roughly ~3× `cache_creation`
+token reduction per subagent dispatch — **only when preambles are cache-stable**
+across spawns. Preamble cache stability depends on stable instinct-injection
+ordering, stable session-memory file contents, and consistent agent-definition
+frontmatter. Drift in any of these voids the cache-creation savings and
+silently doubles per-spawn cost.
+
+This motivates the upcoming prompt-caching breakpoint work: explicit cache
+control headers around the orchestrator → subagent prompt preamble surface
+to make cache-stability a load-bearing invariant rather than an emergent
+property.
+
+See `skills/cost-report/SKILL.md` for the cost-tracking surface,
+`hooks/_lib/cost_estimator.py` for per-spawn token accounting, and
+`metrics/{session}/*.jsonl` per-session records for empirical measurements.
+
 ### Per-Agent Tool Allowlists (Path B)
 
-Every agent's `tools:` frontmatter declares the tools that agent may invoke (YAML list, one tool per line). The `pre-agent-allowlist.sh` PreToolUse hook reads the spawned `subagent_type`, loads the matching frontmatter via `agent_tools_loader`, and computes a subset check against `tool_input.allowed_tools`. Any superset request is logged to `metrics/{session}/tool-allowlist.jsonl` with `source: "path-b-advisory"` — no spawn is refused today because the Agent input schema does not yet expose `allowed_tools`. Disable per-session with `CLAUDE_DISABLE_TOOL_ALLOWLIST=1`; suppressed by `CLAUDE_HOOK_PROFILE=minimal`. Will be promoted to enforcement (exit 2 on `would_block`) the moment the schema lands. See `protocols/agent-protocol.md` § Per-Agent Tool Scoping for the full contract.
+Every agent's `tools:` frontmatter declares the tools that agent may invoke (YAML list, one tool per line). The `pre-agent-allowlist.sh` PreToolUse hook reads the spawned `subagent_type`, loads the matching frontmatter via `agent_tools_loader`, and computes a subset check against `tool_input.allowed_tools`. Any superset request is logged to `metrics/{session}/tool-allowlist.jsonl` with `source: "path-b-advisory"` — allowlist enforcement remains **advisory at v2.1.140** because the `allowed_tools:` field is **not yet schema-exposed** on the Agent tool input. Disable per-session with `CLAUDE_DISABLE_TOOL_ALLOWLIST=1`; suppressed by `CLAUDE_HOOK_PROFILE=minimal`. Will be promoted to enforcement (exit 2 on `would_block`) the moment the `allowed_tools:` field lands. See `protocols/agent-protocol.md` § Per-Agent Tool Scoping for the full contract.
 
 ### Instinct Injection (Path B)
 
-Every agent's `instinct_categories:` frontmatter (YAML list of role-name tokens) determines which `learning/{project-hash}/instincts/*.md` and `learning/instincts/*.md` files apply to that spawn. The `instinct-injector.sh` PreToolUse hook (`Agent` matcher, position 6) loads matching instincts via `instinct_loader.py`, filters by confidence floor (default `0.4`), sorts by confidence DESC, caps at top N (default `5`), and logs the resolution to `metrics/{session}/instinct-injections.jsonl` with `source: "logged"`. The hook is **advisory/log-only today** — the Agent input schema does not yet expose `modified_tool_input`, so the hook cannot patch the spawn prompt. Actual `## Learned Patterns` injection is performed by the orchestrator at spawn time, which writes a paired `source: "orchestrator-injected"` JSONL record. Mismatch (`logged` without paired `orchestrator-injected`) is the Path-B failure surface, detected by `/forensics`. Override with `CLAUDE_INSTINCT_MIN_CONFIDENCE` / `CLAUDE_INSTINCT_TOP_N`; disable via `CLAUDE_DISABLE_INSTINCT_INJECTION=1`; suppressed by `CLAUDE_HOOK_PROFILE=minimal`. Will be promoted to enforcement (single-file flip in `hooks/instinct-injector.sh`) the moment `modified_tool_input` lands. See `protocols/autonomous-intelligence.md` § Instinct Injection for the full contract and `orchestrator/agent-orchestration.md` § Instinct Injection for the caller-side splice.
+Every agent's `instinct_categories:` frontmatter (YAML list of role-name tokens) determines which `learning/{project-hash}/instincts/*.md` and `learning/instincts/*.md` files apply to that spawn. The `instinct-injector.sh` PreToolUse hook (`Agent` matcher, position 6) loads matching instincts via `instinct_loader.py`, filters by confidence floor (default `0.4`), sorts by confidence DESC, caps at top N (default `5`), and logs the resolution to `metrics/{session}/instinct-injections.jsonl` with `source: "logged"`. The hook is **advisory/log-only at v2.1.140** — the `modified_tool_input` field is **not yet schema-exposed** on the PreToolUse Agent surface, so the hook cannot patch the spawn prompt. Actual `## Learned Patterns` injection is performed by the orchestrator at spawn time, which writes a paired `source: "orchestrator-injected"` JSONL record. Mismatch (`logged` without paired `orchestrator-injected`) is the Path-B failure surface, detected by `/forensics`. Override with `CLAUDE_INSTINCT_MIN_CONFIDENCE` / `CLAUDE_INSTINCT_TOP_N`; disable via `CLAUDE_DISABLE_INSTINCT_INJECTION=1`; suppressed by `CLAUDE_HOOK_PROFILE=minimal`. Will be promoted to enforcement (single-file flip in `hooks/instinct-injector.sh`) the moment `modified_tool_input` lands. See `protocols/autonomous-intelligence.md` § Instinct Injection for the full contract and `orchestrator/agent-orchestration.md` § Instinct Injection for the caller-side splice.
 
 ### Agent Team
 

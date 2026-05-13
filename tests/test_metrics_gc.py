@@ -19,6 +19,8 @@ import time
 import unittest
 from pathlib import Path
 
+from tests._helpers.settings_hook import effective_command_line
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOOK = REPO_ROOT / "hooks" / "metrics-gc.sh"
 
@@ -198,9 +200,9 @@ class SettingsRegistersMetricsGc(unittest.TestCase):
             if "matcher" in group:
                 continue
             for h in group.get("hooks", []):
-                cmd = h.get("command", "")
-                if cmd:
-                    commands.append(cmd)
+                effective = effective_command_line(h)
+                if effective:
+                    commands.append(effective)
 
         def index_of(needle: str) -> int:
             for i, c in enumerate(commands):
