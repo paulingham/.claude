@@ -23,12 +23,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HELPER="$SCRIPT_DIR/verdict_consistency.py"
 
 if [ ! -d "$CONFIG_DIR" ]; then
-  echo "missing-in-catalog: <config-dir-not-found>"
+  echo "error: config-dir-not-found"
   exit 1
 fi
 
 if [ ! -f "$HELPER" ]; then
-  echo "missing-in-catalog: <helper-not-found>"
+  echo "error: helper-not-found"
   exit 1
 fi
 

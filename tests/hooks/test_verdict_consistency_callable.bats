@@ -1,15 +1,19 @@
 #!/usr/bin/env bats
 # Slice A — AC4 (callable)
 # Verifies hooks/_lib/verdict-consistency-check.sh behaves as the contract
-# specifies — exit 0 when catalog rows ↔ skill frontmatter verdict enums agree
-# bidirectionally; exit non-zero with a `missing-in-{catalog,skill}: <verdict>`
-# diagnostic when they drift.
+# specifies — exit 0 when catalog rows ↔ skill frontmatter verdict enums
+# agree bidirectionally with the canonical audit semantics; exit non-zero
+# with a single-line diagnostic on drift.
+#
+# Canonical semantics (per tests/test_verdict_catalog_audit._emitter_resolves):
+#   "skill directory containing SKILL.md exists, OR agent file exists" is
+#   sufficient resolution. The callable MUST NOT require the skill frontmatter
+#   to declare the verdict in its enum.
 #
 # The test stages a self-contained CLAUDE_CONFIG_DIR fixture: a minimal catalog
-# with a single ROUTING_UPSHIFTED row, plus a plan-self-validation skill whose
-# frontmatter declares the same verdict. The three @test cases drive (i) the
-# agree path, (ii) drop from skill (missing-in-skill), and (iii) drop from
-# catalog (missing-in-catalog).
+# with a single ROUTING_UPSHIFTED row, plus a plan-self-validation skill
+# directory whose mere existence resolves the emitter. Drift cases (a) drop
+# the skill directory and (b) drop the catalog row.
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
@@ -17,7 +21,6 @@ setup() {
   TMP_FIXTURE="$(mktemp -d -t verdict-consistency-check-XXXXXX)"
   mkdir -p "$TMP_FIXTURE/rules" "$TMP_FIXTURE/skills/plan-self-validation" "$TMP_FIXTURE/agents"
 
-  # Minimal catalog: header + one row.
   cat > "$TMP_FIXTURE/rules/verdict-catalog.md" <<'EOF'
 # Verdict Catalog
 
@@ -28,7 +31,6 @@ setup() {
 | `ROUTING_UPSHIFTED` | info | `plan-self-validation` | plan-validation | Plan-phase re-fingerprint detected tier upshift |
 EOF
 
-  # Minimal skill: frontmatter declaring the verdict.
   cat > "$TMP_FIXTURE/skills/plan-self-validation/SKILL.md" <<'EOF'
 ---
 name: "plan-self-validation"
@@ -55,20 +57,14 @@ teardown() {
   bash -n "$CALLABLE"
 }
 
-@test "exits 0 when catalog and skill frontmatter agree" {
+@test "exits 0 when catalog and skill directory agree" {
   CLAUDE_CONFIG_DIR="$TMP_FIXTURE" run bash "$CALLABLE"
   [ "$status" -eq 0 ]
 }
 
-@test "exits non-zero with missing-in-skill when skill drops the verdict" {
-  cat > "$TMP_FIXTURE/skills/plan-self-validation/SKILL.md" <<'EOF'
----
-name: "plan-self-validation"
-description: "Test fixture (perturbed: verdict frontmatter removed entirely)"
----
-
-# Plan Self-Validation (fixture)
-EOF
+@test "exits non-zero with missing-in-skill when emitter directory is removed" {
+  find "$TMP_FIXTURE/skills/plan-self-validation" -type f -delete
+  rmdir "$TMP_FIXTURE/skills/plan-self-validation"
   CLAUDE_CONFIG_DIR="$TMP_FIXTURE" run bash "$CALLABLE"
   [ "$status" -ne 0 ]
   echo "$output" | grep -qE '^missing-in-skill: ROUTING_UPSHIFTED$'
@@ -88,17 +84,33 @@ EOF
   echo "$output" | grep -qE '^missing-in-catalog: ROUTING_UPSHIFTED$'
 }
 
-@test "diagnostic is single-line" {
-  cat > "$TMP_FIXTURE/skills/plan-self-validation/SKILL.md" <<'EOF'
----
-name: "plan-self-validation"
-description: "Test fixture (perturbed: verdict removed)"
----
-EOF
+@test "diagnostic is single-line on missing-in-skill drift" {
+  find "$TMP_FIXTURE/skills/plan-self-validation" -type f -delete
+  rmdir "$TMP_FIXTURE/skills/plan-self-validation"
   CLAUDE_CONFIG_DIR="$TMP_FIXTURE" run bash "$CALLABLE"
   [ "$status" -ne 0 ]
-  # Output is expected to be exactly one line (single diagnostic).
   local line_count
   line_count=$(printf '%s\n' "$output" | grep -c '^missing-')
   [ "$line_count" -eq 1 ]
+}
+
+@test "exits zero against real repo (canonical-semantics smoke)" {
+  # Regression guard for round 1 CRITICAL-1: a fork of canonical _emitter_resolves
+  # that demanded skill frontmatter declarations would produce 23 false-positive
+  # `missing-in-skill:` diagnostics against the live ~/.claude tree. Point the
+  # callable at the worktree's own root and assert exit 0 — the canonical audit
+  # accepts "skill directory exists" as sufficient.
+  CLAUDE_CONFIG_DIR="$REPO_ROOT" run bash "$CALLABLE"
+  [ "$status" -eq 0 ]
+}
+
+@test "emits error: prefix when config dir is missing" {
+  # Regression guard for round 1 MEDIUM-5: a missing config dir is a tooling
+  # error, not a catalog/skill drift. Diagnostic prefix must be `error:` so
+  # consumers grepping `^missing-in-catalog: [A-Z_]+$` don't confuse it with
+  # a real verdict diagnostic.
+  CLAUDE_CONFIG_DIR=/nonexistent-config-dir-for-test run bash "$CALLABLE"
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -qE '^error: config-dir-not-found$'
+  ! echo "$output" | grep -qE '^missing-in-catalog:'
 }
