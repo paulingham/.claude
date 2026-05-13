@@ -162,7 +162,10 @@ class SettingsRegistersLearningGcHook(unittest.TestCase):
             if "matcher" in group:
                 continue
             for h in group.get("hooks", []):
-                commands.append(h.get("command", ""))
+                # v2.1.139 exec-form: command is the binary, args carries the path.
+                cmd = h.get("command", "")
+                args = h.get("args", []) or []
+                commands.append(" ".join([cmd, *args]).strip())
         self.assertTrue(
             any("learning-gc.sh" in c for c in commands),
             f"learning-gc.sh not registered; got commands: {commands}")

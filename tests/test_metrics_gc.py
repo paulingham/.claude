@@ -198,9 +198,12 @@ class SettingsRegistersMetricsGc(unittest.TestCase):
             if "matcher" in group:
                 continue
             for h in group.get("hooks", []):
+                # v2.1.139 exec-form: command is the binary, args carries the path.
                 cmd = h.get("command", "")
-                if cmd:
-                    commands.append(cmd)
+                args = h.get("args", []) or []
+                effective = " ".join([cmd, *args]).strip()
+                if effective:
+                    commands.append(effective)
 
         def index_of(needle: str) -> int:
             for i, c in enumerate(commands):

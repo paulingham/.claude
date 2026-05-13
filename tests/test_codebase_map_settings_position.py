@@ -20,6 +20,21 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def _effective_command_line(hook: dict) -> str:
+    """Reconstruct an effective shell command line from a hook entry.
+
+    v2.1.139 split string-form `bash foo.sh` into exec-form
+    `command=bash`, `args=[foo.sh]`. Tests that substring-match on the
+    script basename must inspect both fields. Returns "" for non-command
+    typed entries (mcp_tool, agent).
+    """
+    if hook.get("type") != "command":
+        return ""
+    cmd = hook.get("command", "")
+    args = hook.get("args", []) or []
+    return " ".join([cmd, *args]).strip()
+
+
 class SettingsJsonHookPositionPinned(unittest.TestCase):
     """The SessionStart hooks array contains the rebuild hook in pinned slot."""
 
@@ -43,7 +58,10 @@ class SettingsJsonHookPositionPinned(unittest.TestCase):
         )
 
     def _commands(self):
-        return [h["command"] for h in self.harness_group["hooks"]]
+        # v2.1.139 exec-form: command is the binary, args carries the script path.
+        # Reconstruct the effective command line so substring assertions still
+        # work whether settings.json uses string-form or exec-form.
+        return [_effective_command_line(h) for h in self.harness_group["hooks"]]
 
     def test_codebase_map_rebuild_registered(self):
         commands = self._commands()
@@ -110,9 +128,9 @@ class SettingsJsonStopHookRegistered(unittest.TestCase):
         all_commands = []
         for group in self.stop_groups:
             for hook in group.get("hooks", []):
-                cmd = hook.get("command", "")
-                if cmd:
-                    all_commands.append(cmd)
+                effective = _effective_command_line(hook)
+                if effective:
+                    all_commands.append(effective)
         joined = " ".join(all_commands)
         self.assertIn(
             "codebase-map-poll.sh",
