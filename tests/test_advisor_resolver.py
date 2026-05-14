@@ -494,6 +494,18 @@ class ResolveModelConditionalBudget5ReturnsSonnetSolo(unittest.TestCase):
         self.assertEqual(result["advisor"], "none")
 
 
+class ResolveModelConditionalBudget6ReturnsDefaultArm(unittest.TestCase):
+    def test_resolve_model_conditional_budget_6_returns_default_arm(self):
+        """CB=6 must NOT match budget_lt:6 (strictly-less semantics).
+        Kills the budget < budget_lt -> budget <= budget_lt mutation
+        flagged by verify Tier 3 at advisor_resolver.py:64."""
+        result = resolve_model_conditional(_FRONTMATTER_WITH_CONDITIONAL, budget=6)
+        self.assertEqual(result["source"], "default-arm")
+        self.assertEqual(result["model"], "opus")
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+
+
 class ResolveModelConditionalBudget8ReturnsDefaultArm(unittest.TestCase):
     def test_resolve_model_conditional_budget_8_returns_default_arm(self):
         result = resolve_model_conditional(_FRONTMATTER_WITH_CONDITIONAL, budget=8)
