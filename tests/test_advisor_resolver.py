@@ -528,5 +528,37 @@ class AdvisorNoneLiteralTranslatesToPythonNone(unittest.TestCase):
         self.assertIsNone(advisor_none_to_python_none(None))
 
 
+class TestCodeReviewerFrontmatterModelConditional(unittest.TestCase):
+    """Slice B AC-B1/B2/B3: code-reviewer.md gets model_conditional block,
+    existing top-level triple preserved, status flag is structural."""
+
+    def _fm(self):
+        return _read_agent_frontmatter("code-reviewer")
+
+    def test_existing_triple_preserved_and_model_conditional_present(self):
+        fm = self._fm()
+        self.assertEqual(fm["model"], "opus")
+        self.assertEqual(fm["executor"], "claude-sonnet-4-6")
+        self.assertEqual(fm["advisor"], "claude-opus-4-7")
+        self.assertIn("model_conditional", fm,
+                      "code-reviewer.md missing model_conditional block")
+
+    def test_code_reviewer_model_conditional_resolves_cb_5_to_sonnet_solo(self):
+        result = resolve_model_conditional(self._fm(), budget=5)
+        self.assertEqual(result["model"], "sonnet")
+        self.assertEqual(result["advisor"], "none")
+        self.assertEqual(result["source"], "rule-match:budget_lt:6")
+
+    def test_code_reviewer_model_conditional_resolves_cb_8_to_default(self):
+        result = resolve_model_conditional(self._fm(), budget=8)
+        self.assertEqual(result["model"], "opus")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+        self.assertEqual(result["source"], "default-arm")
+
+    def test_code_reviewer_status_flag_is_advisory_structural(self):
+        fm = self._fm()
+        self.assertEqual(fm["model_conditional"]["status"], "advisory")
+
+
 if __name__ == "__main__":
     unittest.main()
