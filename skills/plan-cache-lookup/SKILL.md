@@ -104,16 +104,18 @@ Agent({
 
 ## Outputs
 
-A single JSON line on stdout:
+A single line on stdout, prefixed with the audit-hook marker
+`[PlanCacheLookup]` so the universal-PostToolUse sibling at
+`hooks/plan-cache-audit.sh` (Slice E) can identify and parse it:
 
 ```
-{"verdict":"PLAN_CACHE_MISS","reason":"<reason>","cache_key":"<key-or-empty>"}
+[PlanCacheLookup] {"verdict":"PLAN_CACHE_MISS","reason":"<reason>","cache_key":"<key-or-empty>"}
 ```
 
 or, on HIT:
 
 ```
-{"verdict":"PLAN_CACHE_HIT","cache_key":"<key>"}
+[PlanCacheLookup] {"verdict":"PLAN_CACHE_HIT","cache_key":"<key>"}
 ```
 
 `<reason>` ∈ `{no-template, disabled, shadow-mode}` in Slice B; Slice C adds `adapter-rejected`, `adapter-pending-stale`, `template-corrupt`. Slice F adds `hash-drift`, `key-mismatch`.

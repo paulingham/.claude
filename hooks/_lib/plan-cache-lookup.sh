@@ -51,7 +51,7 @@ _plan_cache_lookup() {
 
 _plan_cache_emit_miss() {
   local reason="$1" key="$2"
-  printf '{"verdict":"PLAN_CACHE_MISS","reason":"%s","cache_key":"%s"}\n' \
+  printf '[PlanCacheLookup] {"verdict":"PLAN_CACHE_MISS","reason":"%s","cache_key":"%s"}\n' \
     "$reason" "$key"
 }
 
@@ -120,7 +120,7 @@ _plan_cache_finalize() {
   local session="${CLAUDE_SESSION_ID:-unknown}"
   if _plan_cache_validate_plan "$plan"; then
     _plan_cache_flip_outcome "$template" success
-    printf '{"verdict":"PLAN_CACHE_HIT","cache_key":"%s"}\n' "$key"
+    printf '[PlanCacheLookup] {"verdict":"PLAN_CACHE_HIT","cache_key":"%s"}\n' "$key"
     return 0
   fi
   rm -f "$plan"
