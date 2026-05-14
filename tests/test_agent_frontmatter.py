@@ -90,7 +90,16 @@ class SliceCModelDemotions(unittest.TestCase):
     def test_planning_agent_model_note_mentions_haiku_and_drops_sonnet(self):
         body = PLANNING_AGENT.read_text()
         self.assertIn("Haiku 4.5 only", body)
-        self.assertNotIn("Sonnet 4.6 only", body)
+        # Broad regex catches any stale "Sonnet 4.6" reference anywhere in the
+        # body (role description, model note, prose) — not just the literal
+        # "Sonnet 4.6 only" string. The advisor-rationale frontmatter comment
+        # is permitted to reference the demotion history ("Demoted from Sonnet
+        # to Haiku") because it lives above the body in frontmatter.
+        self.assertIsNone(
+            re.search(r"Sonnet\s*4\.6", body),
+            "planning-agent.md body must not reference Sonnet 4.6 (stale "
+            "after slice-C demotion to Haiku 4.5)",
+        )
 
     def test_architect_context_recon_is_haiku(self):
         fm = _parse_frontmatter(RECON_AGENT)
