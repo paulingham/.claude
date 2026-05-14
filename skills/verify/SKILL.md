@@ -16,6 +16,16 @@ agent: software-engineer
 
 Proves a feature works correctly beyond just passing tests. Runs three verification tiers and produces a verdict.
 
+## Inputs
+
+| Input | Source |
+|-------|--------|
+| Candidate diff | `git diff main...HEAD` over the build worktree (full unified diff). |
+| Build state | `pipeline-state/{task-id}/build.md` § Sandbox Verify section produced by Build phase Step 5b. |
+| Worktree HEAD | `git -C "$CLAUDE_WORKTREE_PATH" rev-parse HEAD` — written into the new `verification-evidence.json` so downstream gates can compare. |
+
+The verify skill writes `pipeline-state/{task-id}/verification-evidence.json` (see Step 6 below) for the downstream freshness guard.
+
 ## Verification Tiers
 
 | Feature Type | Tier 1 (Contract) | Tier 2 (Smoke) | Tier 3 (Rule-Based Mutation) | Tier 3.5 (LLM-Mutant) | Tier 4 (E2E) |

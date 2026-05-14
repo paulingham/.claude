@@ -51,3 +51,11 @@ _qg_check_contract() {
   case "$rt" in ruby) bundle exec rspec "$dir" &>/dev/null ;; node) npx jest "$dir" &>/dev/null ;; python) pytest "$dir" &>/dev/null ;; *) return 0 ;; esac \
     && { echo "[qg] contract: PASS" >&2; return 0; } || { echo "[qg] contract: FAIL" >&2; return 1; }
 }
+
+_qg_check_freshness() {
+  local task="${CLAUDE_PIPELINE_TASK_ID:-unknown}" path head verdict
+  path="pipeline-state/$task/verification-evidence.json"
+  [[ -f "$path" ]] || { echo "[qg] freshness: FAIL (no evidence)" >&2; return 1; }
+  head=$(jq -r '.git_head' "$path" 2>/dev/null); verdict=$(jq -r '.verdict' "$path" 2>/dev/null)
+  [[ "$head" == "$(git rev-parse HEAD 2>/dev/null)" && "$verdict" =~ ^VERIFIED ]] && { echo "[qg] freshness: PASS" >&2; return 0; }; echo "[qg] freshness: FAIL" >&2; return 1
+}
