@@ -172,15 +172,20 @@ Before invoking `Agent(...)`, the orchestrator MUST resolve and splice the `## L
    from instinct_loader import load_instincts
    from instinct_injector import resolve_for_agent
    from agent_parent_chain import load_expanded_instinct_categories
+   from agent_min_confidence_loader import load_min_confidence
 
    instincts = load_instincts(PROJECT_HASH)
    cats = load_expanded_instinct_categories(subagent_type) or []
-   block = resolve_for_agent(subagent_type, cats, instincts)
+   # Per-agent frontmatter `min_confidence:` overrides env + default;
+   # falls back to env→default (0.4) when the agent declares nothing.
+   floor = load_min_confidence(subagent_type)
+   block = resolve_for_agent(subagent_type, cats, instincts,
+                             floor_override=floor)
    ```
 
    Or invoke the entry script `hooks/_lib/resolve-instincts.py` directly (the same script the hook uses) and read its `RESOLVED {json}` line for the rendered block plus telemetry.
 
-3. **Splice when non-empty**: if `block != ""`, insert it into the spawn prompt at the `## Learned Patterns (from system learning)` insertion point documented in `protocols/parallel-dispatch-protocol.md` § Teammate Prompt Template. If `block == ""`, omit the section silently — do not inject an empty header.
+3. **Splice when non-empty**: if `block != ""`, insert it into the spawn prompt at the `## Learned Patterns (from system learning)` insertion point documented in `protocols/parallel-dispatch-protocol.md` § Teammate Prompt Template. The block sits between the `Context:` block and the `## Session Context` block — this position is unchanged. Note: the upstream persona-end marker (string anchor, immediately after the three persona-read instructions in the template; the literal marker string lives canonically in the Teammate Prompt Template — see that file for the exact bytes) is a documented future contract for the unbuilt `cache_control` breakpoint hook. The current orchestrator splice continues to use the `## Learned Patterns` section-header text as its anchor; downstream tooling that DOES locate the persona-end marker MUST do so by string match rather than line offset, since line numbers are unstable across template re-paginations. If `block == ""`, omit the section silently — do not inject an empty header.
 
 4. **Write the orchestrator-injected JSONL record** (Path-B disclosure surface). After the spawn-prompt write succeeds, append to `metrics/{session-id}/instinct-injections.jsonl`:
 
