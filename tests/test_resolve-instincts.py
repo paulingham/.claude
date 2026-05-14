@@ -23,7 +23,7 @@ class HandleAgentSpawnAlwaysWritesLogged(unittest.TestCase):
     def test_writes_logged_even_when_kept_is_positive(self):
         payload = {"tool_name": "Agent",
                    "tool_input": {"subagent_type": "software-engineer"}}
-        with mock.patch.object(_mod, "load_agent_instinct_categories",
+        with mock.patch.object(_mod, "load_expanded_instinct_categories",
                                return_value=["testing"]), \
              mock.patch.object(_mod, "load_instincts", return_value=[]), \
              mock.patch.object(_mod, "resolve_for_agent",

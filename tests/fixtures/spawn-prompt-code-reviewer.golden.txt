@@ -1,0 +1,8 @@
+<!-- claude:persona-end -->
+Context:
+## Learned Patterns
+## Session Context
+## Pipeline Scratchpad
+Before completing, write
+**Continuous Planning:**
+[CHECKPOINT]
