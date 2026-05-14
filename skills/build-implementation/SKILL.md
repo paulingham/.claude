@@ -77,7 +77,7 @@ Procedure:
 Follow the ATDD Protocol in `protocols/atdd-procedure.md`:
 
 1. **BATCHED RED**: Write every AC test as one batch (the architect's stubs verbatim). Run the suite ONCE. Capture the RED output. Verify each test fails for the right reason — the named behavior is absent. The Tier-0 contract tests authored in Step 1c are also part of this batch (they are still RED unless the contract assertion was implementable in isolation in Step 1c).
-2. **IMPLEMENT CLEANLY**: Write production code that is correct AND well-shaped on the first pass. Cohesion rules (one-thing-per-function, CC ≤ 5, nesting ≤ 2, DRY on 2nd occurrence) apply *as you write*, not in a separate cleanup pass. Choose intent-revealing names from the start; extract duplication on the 2nd occurrence as it appears. Run the suite ONCE when done. Capture the GREEN output.
+2. **IMPLEMENT CLEANLY**: Write production code that is correct AND well-shaped on the first pass. Cohesion rules (one-thing-per-function, CC ≤ 5, nesting ≤ 2, DRY on 2nd occurrence) apply *as you write*, not in a separate cleanup pass. Choose intent-revealing names from the start; extract duplication on the 2nd occurrence as it appears. Run the suite ONCE when done. Capture the GREEN output. After the suite run inside IMPLEMENT CLEANLY, on RED follow Step 4a–4c.
 3. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% required against the **union suite** (architect stubs + adversarials from Step 2b). If <70%, add tests targeting the surviving mutations and return to step 2 — the slice is NOT complete.
 4. **COMMIT** with the three audit artifacts: batched RED output, GREEN output, mutation report.
 
@@ -222,6 +222,50 @@ For small tasks (Complexity Budget 5-8), the build agent performs its own verifi
 3. **Integration check**: If the change wires into an existing component, verify the integration test covers it.
 
 This reduces the need for separate Verify and QA phases on small tasks. For Budget 9+ tasks, separate Verify and QA phases still apply.
+
+### Step 4a: On-RED Branch
+
+After running the suite at the end of Step 2 step (2) IMPLEMENT CLEANLY — or any subsequent same-suite invocation in this slice — if GREEN proceed to Step 5. If RED, enter the iterative-refinement loop (Step 4b). The loop is the Build phase's in-cycle fix mechanism (Iron Law 6); `/bug-fix` is invoked only on exhaustion (Step 4c). Mutation-gate failure at Step 2 step (3) is NOT the trigger for this loop — it has its own remediation (add tests, return to Step 2).
+
+### Step 4b: Iterative Refinement on RED (ReVeal, arXiv 2506.11442)
+
+1. Append a finding to `pipeline-state/{task-id}/scratchpad/{role}-build.md` with `category: test-failure-feedback`. Body:
+   - (a) failing test names,
+   - (b) first 20 lines of failure output,
+   - (c) one-sentence root-cause hypothesis,
+   - (d) attempted-edit summary (file:line ranges).
+   WRITE THIS ENTRY BEFORE EDITING — count of entries IS the counter; writing after the edit double-counts. Agent crash mid-loop counts as a failed iteration (no resume semantics; the counter is durable on disk but the corresponding edit may be absent).
+2. Read the scratchpad — count prior `test-failure-feedback` findings. This count is the `iteration_index` (0-based: first entry = index 0).
+3. If `iteration_index + 1` reaches `MAX_ITER` (the cap from Step 4c env-var), exit to Step 4c.
+4. Author a refined edit informed by the failure output AND every prior `test-failure-feedback` entry. Do NOT re-propose a hypothesis already in the log (the entries are the failed-hypothesis log).
+5. Re-run the suite ONCE — the SAME suite invocation that produced the prior RED (project-default test command unless the slice scoped narrower; do not silently re-scope). GREEN → Step 5. RED → return to step 1.
+
+Each iteration appends exactly one `test-failure-feedback` finding; the count IS the counter. Inspired by ReVeal's iterative test-feedback refinement (arXiv 2506.11442).
+
+### Step 4c: Exhaustion — Route to /bug-fix
+
+```
+MAX_ITER="${CLAUDE_BUILD_ITERATIONS:-3}"
+case "$MAX_ITER" in ''|*[!0-9]*) MAX_ITER=3 ;; esac
+(( MAX_ITER > 10 )) && MAX_ITER=3
+# Enforced bound: 0..10 integer. Non-integer or >10 → default 3.
+# =0 disables the loop entirely.
+```
+
+When the iteration counter reaches `MAX_ITER` (cap exceeded):
+
+1. Write structured handoff to `pipeline-state/{task-id}/build-handoff.md` with sections:
+   - `## Failing Tests`   (names + 20-line excerpts per iteration)
+   - `## Attempted Edits` (chronological, file:line per iteration)
+   - `## Hypotheses Tried` (one bullet per iteration)
+   All derived from the scratchpad `test-failure-feedback` entries.
+2. Emit verdict `BUILD_FAILED` with
+   - `reason: iteration_cap_exhausted`
+   - `handoff: pipeline-state/{task-id}/build-handoff.md`
+   The orchestrator detects this verdict + reason and dispatches `/bug-fix` per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule. The build agent does NOT invoke `/bug-fix` directly (Skill is in the build agent's disallowedTools).
+3. Escape-hatch: `CLAUDE_BUILD_ITERATIONS=0` SKIPS the loop entirely — first RED at Step 4a writes the handoff (single entry: current failure) and emits `BUILD_FAILED reason: iteration_loop_disabled`.
+
+The exhaustion path is NOT deferral — `/bug-fix` runs within the same pipeline per Iron Law 6.
 
 ## Step 5: Inline Code Review (mandatory before BUILD_COMPLETE)
 
