@@ -112,6 +112,21 @@ EOF
   [ "$count" -eq 1 ]
 }
 
+# Branch-coverage: _plan_cache_strip_frontmatter pass-through on input that
+# has no frontmatter block (the awk's done=0 path through every line).
+@test "F3c strip_frontmatter is a no-op on input without frontmatter" {
+  # shellcheck source=/dev/null
+  source "$LIB"
+  local src
+  src="$(mktemp -t plan-nofm-XXXXXX)"
+  printf 'plain line 1\nplain line 2\n' >"$src"
+  run _plan_cache_strip_frontmatter "$src"
+  [ "$status" -eq 0 ]
+  [ "$output" = "plain line 1
+plain line 2" ]
+  rm -f "$src"
+}
+
 # F4 — off mode is a no-op: no read, no write, MISS reason=disabled.
 @test "F4 off mode is no-op" {
   export CLAUDE_PLAN_CACHE_MODE=off
