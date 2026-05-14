@@ -55,6 +55,7 @@ The state file is written by the `/verify` skill at the end of each tier and re-
 3. **Hard staleness (TTL)**: `generated_at` is older than `HARD_TTL_SEC` (default 86400 / 24h) → `would_block` with `reason: hard_staleness`. Soft staleness (`advisory_warn`) is deferred to a follow-up — see § Out of Scope.
 4. **Sandbox staleness**: `sandbox_run.status` is not `SANDBOX_VERIFIED` → `would_block` with `reason: sandbox_staleness`. Sandbox check runs BEFORE `git_head` check; first-failure wins.
 5. **Worktree unresolvable**: neither `$CLAUDE_WORKTREE_PATH` env nor stdin `tool_input.cwd` resolves to a git directory → skip-clean (`action: fresh`, `reason: no_worktree_resolvable`). NEVER block — the orchestrator-env-propagation contract (see `orchestrator/agent-orchestration.md § Worktree Env Propagation`) is the load-bearing fix; the hook must not deadlock spawns that lack a worktree at v1.
+6. **Invalid `task_id`**: `$CLAUDE_PIPELINE_TASK_ID` fails the `^[a-z0-9_-]+$` shape check → `would_block` with `reason: invalid_task_id`. Defence-in-depth against path traversal via the evidence-path interpolation (`os.path.join("pipeline-state", task_id, ...)`); the resolver halts BEFORE any filesystem read on the unvalidated value, and the invalid token is deliberately NOT echoed into the JSONL (no log injection / no info leak).
 
 ### Hook is Path-B-aware
 
@@ -140,6 +141,7 @@ Promotion PR is a single-file change to `hooks/verification-freshness-guard.sh` 
 | `sandbox_staleness` | `[freshness] sandbox verdict missing or pre-empted; re-run sandbox-verify` | Sandbox stale | Re-run `/sandbox-verify` |
 | `state_file_parse_error` | `[freshness] evidence file unparseable; re-verify` | Parse error | Re-run `/verify` |
 | `git_timeout` | `[freshness] git rev-parse hung; investigate worktree state` | git timeout | Inspect worktree `.git/index.lock` |
+| `invalid_task_id` | `[freshness] CLAUDE_PIPELINE_TASK_ID failed [a-z0-9_-]+ validation` | Invalid task_id | Inspect orchestrator dispatch — task_id must match `^[a-z0-9_-]+$` |
 
 ## Out of Scope
 

@@ -12,11 +12,13 @@ The wrapper ALWAYS exits 0 — this resolver only computes the would-be verdict.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
 
 GATED_ROLES = {"patch-critic", "product-reviewer", "pr-creation"}
+TASK_ID_RE = re.compile(r"^[a-z0-9_-]+$")
 try:
     HARD_TTL_SEC = int(os.environ.get("CLAUDE_FRESHNESS_HARD_TTL_SEC", "86400"))
 except ValueError:
@@ -100,6 +102,8 @@ def main():
         _skip()
 
     task_id = os.environ.get("CLAUDE_PIPELINE_TASK_ID", "unknown")
+    if not TASK_ID_RE.fullmatch(task_id):
+        _log("would_block", "invalid_task_id")
     worktree = _resolve_worktree(
         os.environ.get("CLAUDE_WORKTREE_PATH"), tool_input.get("cwd"))
 

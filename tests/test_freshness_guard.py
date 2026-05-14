@@ -11,9 +11,9 @@ Tests cover:
   - Path-B template shape (existence, header annotations)
   - Gating (only patch-critic / product-reviewer / pr-creation; only Agent tool)
   - HEAD resolution rules (env → cwd → skip-clean)
-  - All 8 reason enum values: fresh, state_file_missing, git_head_mismatch,
+  - All 9 reason enum values: fresh, state_file_missing, git_head_mismatch,
     hard_staleness, no_worktree_resolvable, sandbox_staleness,
-    state_file_parse_error, git_timeout
+    state_file_parse_error, git_timeout, invalid_task_id
   - env-hatch + hook-profile suppression
   - Path-traversal safety on CLAUDE_SESSION_ID
   - Headline scenario: fix-engineer re-dispatch invalidates git_head
@@ -512,6 +512,70 @@ class HookInvalidTtlEnvSecurity(unittest.TestCase):
                 # Fresh state file + default TTL fallback → action=fresh.
                 self.assertEqual(entry["resolved"]["action"], "fresh")
                 self.assertEqual(entry["resolved"]["reason"], "fresh")
+            finally:
+                _cleanup(_log_path(session))
+
+
+class HookTaskIdTraversalHardening(unittest.TestCase):
+    """LOW-SEC2: CLAUDE_PIPELINE_TASK_ID must be validated against
+    ``^[a-z0-9_-]+$`` before being interpolated into the evidence file path.
+    Adversarial task_id values (`../../etc/passwd`, slashes, dots) must yield
+    `would_block / invalid_task_id` and must not cause a read outside
+    `pipeline-state/`."""
+
+    def test_invalid_task_id_yields_invalid_task_id_reason(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo, _head = _make_repo_with_commit(Path(tmpdir))
+            session = f"test-bad-tid-{uuid.uuid4()}"
+            try:
+                _run_hook(
+                    {"tool_name": "Agent",
+                     "tool_input": {"subagent_type": GATED}},
+                    env={"CLAUDE_SESSION_ID": session,
+                         "CLAUDE_WORKTREE_PATH": str(repo),
+                         "CLAUDE_PIPELINE_TASK_ID": "../../etc/passwd"})
+                log = _log_path(session)
+                self.assertTrue(log.exists())
+                entry = json.loads(log.read_text().strip().splitlines()[-1])
+                self.assertEqual(entry["resolved"]["action"], "would_block")
+                self.assertEqual(entry["resolved"]["reason"], "invalid_task_id")
+            finally:
+                _cleanup(_log_path(session))
+
+    def test_invalid_task_id_does_not_read_outside_pipeline_state(self):
+        """Plant a sentinel file at a traversal target; the resolver must NOT
+        open it. The sentinel sits OUTSIDE the worktree's pipeline-state dir;
+        if validation is correct, its contents must not appear in the JSONL."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo, _head = _make_repo_with_commit(Path(tmpdir))
+            sentinel_dir = Path(tmpdir) / "sentinel"
+            sentinel_dir.mkdir()
+            sentinel = sentinel_dir / "verification-evidence.json"
+            sentinel.write_text('{"git_head":"ATTACKER","sandbox_run":'
+                                '{"status":"SANDBOX_VERIFIED"}}')
+            # Traversal task_id pointing at the sentinel from inside repo's
+            # pipeline-state/ would be `../../sentinel`.
+            traversal = "../../sentinel"
+            session = f"test-trav-{uuid.uuid4()}"
+            try:
+                _run_hook(
+                    {"tool_name": "Agent",
+                     "tool_input": {"subagent_type": GATED}},
+                    env={"CLAUDE_SESSION_ID": session,
+                         "CLAUDE_WORKTREE_PATH": str(repo),
+                         "CLAUDE_PIPELINE_TASK_ID": traversal})
+                log = _log_path(session)
+                entry = json.loads(log.read_text().strip().splitlines()[-1])
+                # Verdict must be invalid_task_id — NOT git_head_mismatch
+                # (which is what would happen if the resolver read the sentinel
+                # and saw a different git_head).
+                self.assertEqual(entry["resolved"]["reason"],
+                                 "invalid_task_id")
+                self.assertNotIn("ATTACKER", json.dumps(entry),
+                                 "sentinel contents leaked into JSONL — "
+                                 "resolver read outside pipeline-state/")
             finally:
                 _cleanup(_log_path(session))
 
