@@ -85,3 +85,32 @@ _line() {
   if [ "$l_learn" -gt "$max_lhs" ]; then max_lhs="$l_learn"; fi
   [ "$max_lhs" -lt "$l_pr" ]
 }
+
+@test "Step 4d body contains three sub-step headers 4d-i, 4d-ii, 4d-iii" {
+  grep -qE '^#### 4d-i\.'   "$SKILL"
+  grep -qE '^#### 4d-ii\.'  "$SKILL"
+  grep -qE '^#### 4d-iii\.' "$SKILL"
+  li="$(_line "$SKILL" "#### 4d-i.")"
+  lii="$(_line "$SKILL" "#### 4d-ii.")"
+  liii="$(_line "$SKILL" "#### 4d-iii.")"
+  [ "$li" -lt "$lii" ]
+  [ "$lii" -lt "$liii" ]
+}
+
+@test "Step 4d-ii pins synchronous /learn dispatch" {
+  lii="$(_line "$SKILL" "#### 4d-ii.")"
+  liii="$(_line "$SKILL" "#### 4d-iii.")"
+  block="$(sed -n "${lii},$((liii - 1))p" "$SKILL")"
+  echo "$block" | grep -qi "synchronous"
+  echo "$block" | grep -qiE "NOT background|not background-spawn"
+}
+
+@test "Step 4d-iii contains worktree fallback guard bash" {
+  liii="$(_line "$SKILL" "#### 4d-iii.")"
+  next="$(awk -v start="$liii" 'NR>start && /^### / {print NR; exit}' "$SKILL")"
+  block="$(sed -n "${liii},$((next - 1))p" "$SKILL")"
+  echo "$block" | grep -qF 'if [ -d "$WORKTREE/.git" ]; then'
+  echo "$block" | grep -qF 'git -C "$WORKTREE" add learning/'
+  echo "$block" | grep -qF 'git -C "$WORKTREE" commit'
+  echo "$block" | grep -qF 'falling back to post-merge commit on main'
+}
