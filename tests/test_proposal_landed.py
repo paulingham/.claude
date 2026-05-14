@@ -45,7 +45,7 @@ class ProposalRound2Refinements(unittest.TestCase):
                       "Promotion Criterion clause (a) must use the tightened "
                       "NEW-MEDIUM-PR1 wording.")
 
-    def test_proposal_contains_operator_copy_table_9_rows(self):
+    def test_proposal_contains_operator_copy_table_10_rows(self):
         text = PROPOSAL.read_text()
         self.assertIn("## Operator Copy", text)
         # Find the Operator Copy section header and count data rows in the
@@ -56,11 +56,16 @@ class ProposalRound2Refinements(unittest.TestCase):
         section = text[idx:idx + 1 + next_heading.start()] if next_heading else text[idx:]
         rows = [ln for ln in section.splitlines()
                 if ln.startswith("|") and not ln.startswith("|---") and "reason" not in ln.split("|")[1].strip()]
-        # 9 data rows: fresh, state_file_missing, git_head_mismatch, hard_staleness,
+        # 10 data rows: fresh, state_file_missing, git_head_mismatch, hard_staleness,
         # no_worktree_resolvable, sandbox_staleness, state_file_parse_error,
-        # git_timeout, invalid_task_id (LOW-SEC2).
-        self.assertEqual(len(rows), 9,
-                         f"Operator Copy table must have 9 data rows, found {len(rows)}")
+        # git_timeout, invalid_task_id (LOW-SEC2), verdict_not_verified
+        # (final-gate round 1 product-acceptance REJECT-1 refinement).
+        self.assertEqual(len(rows), 10,
+                         f"Operator Copy table must have 10 data rows, found {len(rows)}")
+        # verdict_not_verified row must be present.
+        vnv_row = [r for r in rows if "verdict_not_verified" in r]
+        self.assertEqual(len(vnv_row), 1,
+                         "Operator Copy table must include verdict_not_verified row")
         # LOW-SEC2: invalid_task_id row must be present with the validation regex.
         itid_row = [r for r in rows if "invalid_task_id" in r]
         self.assertEqual(len(itid_row), 1)

@@ -135,6 +135,11 @@ def main():
              staleness_class="hard", task_id=task_id,
              tier_results_summary=evidence.get("verdict", ""))
 
+    verdict = evidence.get("verdict", "")
+    if not verdict.startswith("VERIFIED"):
+        _log("would_block", "verdict_not_verified",
+             verdict=verdict, task_id=task_id)
+
     if _is_hard_stale(evidence.get("generated_at")):
         _log("would_block", "hard_staleness",
              staleness_class="hard", task_id=task_id,

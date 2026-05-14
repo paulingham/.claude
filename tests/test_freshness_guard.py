@@ -280,6 +280,24 @@ class HookEnumReasons(unittest.TestCase):
         finally:
             _cleanup(log)
 
+    def test_verdict_not_verified_yields_would_block(self):
+        """final-gate round 1 product-acceptance REJECT-1: state file with
+        verdict != VERIFIED is an operator-error path distinct from staleness.
+        Symmetry between synchronous gate (_qg_check_freshness) and the
+        async resolver — both surface `verdict_not_verified`."""
+        repo, head = _make_repo_with_commit(self.tmp_path)
+        evidence_dir = _make_evidence_dir(repo, "test-task")
+        _write_evidence(evidence_dir, git_head=head, verdict="UNVERIFIED")
+        session, log = self._spawn(worktree=repo)
+        try:
+            entry = json.loads(log.read_text().strip().splitlines()[-1])
+            self.assertEqual(entry["resolved"]["action"], "would_block")
+            self.assertEqual(entry["resolved"]["reason"],
+                             "verdict_not_verified")
+            self.assertEqual(entry["resolved"].get("verdict"), "UNVERIFIED")
+        finally:
+            _cleanup(log)
+
 
 class HookEscapeHatchAndProfile(unittest.TestCase):
     def test_env_hatch_disables_processing(self):

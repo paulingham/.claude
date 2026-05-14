@@ -142,6 +142,7 @@ Promotion PR is a single-file change to `hooks/verification-freshness-guard.sh` 
 | `state_file_parse_error` | `[freshness] evidence file unparseable; re-verify` | Parse error | Re-run `/verify` |
 | `git_timeout` | `[freshness] git rev-parse hung; investigate worktree state` | git timeout | Inspect worktree `.git/index.lock` |
 | `invalid_task_id` | `[freshness] CLAUDE_PIPELINE_TASK_ID failed [a-z0-9_-]+ validation` | Invalid task_id | Inspect orchestrator dispatch — task_id must match `^[a-z0-9_-]+$` |
+| `verdict_not_verified` | `[freshness] verdict=$verdict; re-verify` | Verdict not VERIFIED | Re-run `/verify` with `--force` if a prior tier failed; if state file was manually edited, restore from `/verify` re-run |
 
 ## Out of Scope
 
