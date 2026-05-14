@@ -1213,6 +1213,13 @@
         "-lc",
         "exec python3 \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/lsp-bridge-server.py\" --language py"
       ]
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@0.26.0"
+      ]
     }
   }
 }

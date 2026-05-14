@@ -13,6 +13,10 @@ tools:
   - Computer
   - mcp_lsp_diagnostics_ts
   - mcp_lsp_diagnostics_py
+  - mcp_chrome_devtools_navigate_page
+  - mcp_chrome_devtools_list_console_messages
+  - mcp_chrome_devtools_list_network_requests
+  - mcp_chrome_devtools_take_screenshot
 model: opus
 executor: claude-sonnet-4-6
 advisor: claude-opus-4-7
