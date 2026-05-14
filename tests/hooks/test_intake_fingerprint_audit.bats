@@ -93,3 +93,40 @@ teardown() {
   grep -q 'task-id-resolution-failed' "$jsonl_path"
   grep -q '"task_id": "<unknown>"' "$jsonl_path"
 }
+
+@test "test_task_id_path_traversal_is_sanitised_to_unknown" {
+  # Security HIGH-1: attacker-controlled tool_response with .. or / in task_id
+  # MUST be rejected by the bash sanitiser ([A-Za-z0-9._-]+ anchor).
+  # The hook MUST replace the malformed id with "<unknown>" before any path interpolation.
+  local input='{"tool_name":"Skill","tool_response":"[Intake] task_id: ../../../../tmp/pwn"}'
+  run bash -c "echo '$input' | bash '$HOOK'"
+  [ "$status" -eq 0 ]
+  local jsonl_path="$CLAUDE_HOOK_LOG_DIR/test-session/intake-overrides.jsonl"
+  [ -f "$jsonl_path" ]
+  # The JSONL record must NOT contain the traversal payload as task_id; it must read "<unknown>".
+  ! grep -q '"task_id": "\.\.' "$jsonl_path"
+  ! grep -q '/tmp/pwn' "$jsonl_path"
+  grep -q '"task_id": "<unknown>"' "$jsonl_path"
+}
+
+@test "test_task_id_with_shell_metachars_is_sanitised_to_unknown" {
+  # Security HIGH-1 (additional): semicolon and $() must be rejected.
+  local input='{"tool_name":"Skill","tool_response":"[Intake] task_id: foo;rm"}'
+  run bash -c "echo '$input' | bash '$HOOK'"
+  [ "$status" -eq 0 ]
+  local jsonl_path="$CLAUDE_HOOK_LOG_DIR/test-session/intake-overrides.jsonl"
+  [ -f "$jsonl_path" ]
+  grep -q '"task_id": "<unknown>"' "$jsonl_path"
+}
+
+@test "test_task_id_with_dotted_segments_is_allowed" {
+  # Code-reviewer LOW-3 + security widened regex: dotted task-ids MUST pass through.
+  mkdir -p "$CLAUDE_CONFIG_DIR/pipeline-state/foo.bar-baz"
+  cp "$CLAUDE_CONFIG_DIR/pipeline-state/foo-bar/intake.md" \
+     "$CLAUDE_CONFIG_DIR/pipeline-state/foo.bar-baz/intake.md"
+  local input='{"tool_name":"Skill","tool_response":"[Intake] task_id: foo.bar-baz"}'
+  run bash -c "echo '$input' | bash '$HOOK'"
+  [ "$status" -eq 0 ]
+  local jsonl_path="$CLAUDE_HOOK_LOG_DIR/test-session/intake-overrides.jsonl"
+  grep -q '"task_id": "foo.bar-baz"' "$jsonl_path"
+}

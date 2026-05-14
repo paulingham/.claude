@@ -4,10 +4,11 @@
 Args (positional, all required):
   metrics_dir  timestamp  task_id  intake_md_path
 
-13-key record per protocols/work-class-routing.md § Forensic logging schema
-and pipeline-state plan.md § C1. Sentinel defaults applied when fields are
-absent (parse_error names the failure mode). Returns 0 on every path
-(advisory contract — hook MUST NOT block).
+12 required + 1 optional (parse_error) — total max 13 keys per line. Schema per
+protocols/work-class-routing.md § Forensic logging schema and pipeline-state
+plan.md § C1. Sentinel defaults applied when fields are absent (parse_error
+names the failure mode). Returns 0 on every path (advisory contract — hook
+MUST NOT block).
 """
 import json
 import os
@@ -28,9 +29,28 @@ SENTINELS = {
 }
 
 
+def _is_path_contained(path):
+    """Security HIGH-1 defence-in-depth: resolve symlinks and reject paths that
+    escape CONFIG_DIR/pipeline-state/. Returns True only if the realpath of
+    `path` is inside the canonical pipeline-state root."""
+    config_dir = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(
+        os.path.expanduser("~"), ".claude"
+    )
+    root = os.path.realpath(os.path.join(config_dir, "pipeline-state"))
+    try:
+        resolved = os.path.realpath(path)
+    except OSError:
+        return False
+    return resolved == root or resolved.startswith(root + os.sep)
+
+
 def parse_frontmatter(path):
     """Read intake.md frontmatter; return (fields, error_code).
-    error_code in {None, intake-md-missing, intake-md-malformed, frontmatter-key-missing}."""
+    error_code in {None, intake-md-missing, intake-md-malformed, frontmatter-key-missing}.
+    Realpath of `path` MUST stay inside CONFIG_DIR/pipeline-state/ — out-of-tree
+    paths return ({}, 'intake-md-missing') (never read; HIGH-1 defence-in-depth)."""
+    if not _is_path_contained(path):
+        return {}, "intake-md-missing"
     if not os.path.isfile(path):
         return {}, "intake-md-missing"
     with open(path, "r", encoding="utf-8") as f:
@@ -59,7 +79,7 @@ _SCALAR_LITERALS = {"": None, "null": None, "true": True, "false": False}
 
 
 def _coerce_scalar(raw):
-    """Bool/null/int/quoted-string/bare-string. Returns sentinel _NOT_SCALAR for lists."""
+    """Coerce a YAML scalar value: null/bool/int/quoted/bare."""
     lowered = raw.lower()
     if lowered in _SCALAR_LITERALS:
         return _SCALAR_LITERALS[lowered]
@@ -81,23 +101,40 @@ def _coerce(raw):
     return _coerce_scalar(raw)
 
 
+def _cap(value, str_n=1024, list_n=100):
+    """Security MED-2 DoS guard: cap strings at str_n chars, lists at list_n items.
+    Recurses into list items so a single mega-string inside a list is also capped."""
+    if isinstance(value, str):
+        return value[:str_n]
+    if isinstance(value, list):
+        return [_cap(v, str_n, list_n) for v in value[:list_n]]
+    return value
+
+
 def build_record(fields, error_code, timestamp, task_id):
     """Compose the 13-key JSONL record dict per plan § C1. Sentinel defaults
-    for missing keys. String caps applied defensively at 1024 chars."""
+    for missing keys. String fields capped at 1024 chars; list fields capped at
+    100 items (DoS guard against attacker-controlled frontmatter)."""
     record = {"timestamp": timestamp, "task_id": task_id}
     for key in REQUIRED_KEYS:
-        record[key] = fields.get(key, SENTINELS[key])
+        record[key] = _cap(fields.get(key, SENTINELS[key]))
     if error_code is not None:
         record["parse_error"] = error_code
     return record
 
 
 def append_jsonl(path, record):
-    """Append json.dumps(record) + newline to path. Standard open(a) works for
-    metrics/**/*.jsonl post-2026-05-09 per feedback_reflect_phase_quirks.md §1."""
+    """Append json.dumps(record) + newline to path. Uses O_NOFOLLOW to refuse
+    to follow symlinks at the target (security MED-1: prevents attacker-planted
+    symlinks redirecting JSONL writes to sensitive files)."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record) + "\n")
+    fd = os.open(
+        path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o644
+    )
+    try:
+        os.write(fd, (json.dumps(record) + "\n").encode("utf-8"))
+    finally:
+        os.close(fd)
 
 
 def main(argv):

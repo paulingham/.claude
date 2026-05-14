@@ -17,7 +17,7 @@ TOOL=$(printf '%s' "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null)
 
 RESPONSE=$(printf '%s' "$INPUT" | jq -r '.tool_response // ""' 2>/dev/null)
 TASK_ID=$(printf '%s' "$RESPONSE" | grep -oE '\[Intake\] task_id: [^[:space:]\\]+' | tail -1 | sed 's/^\[Intake\] task_id: //')
-[[ -z "$TASK_ID" ]] && TASK_ID="<unknown>"
+if [[ ! "$TASK_ID" =~ ^[A-Za-z0-9._-]+$ ]]; then TASK_ID="<unknown>"; fi
 
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 SID_RAW="${CLAUDE_SESSION_ID:-local-$$}"

@@ -32,7 +32,15 @@ def _load_module():
 class ParseFrontmatterTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
-        self.path = os.path.join(self.tmp, "intake.md")
+        # Plant intake.md inside a synthetic CONFIG_DIR/pipeline-state/<task>/ tree
+        # so the realpath containment gate (HIGH-1 defence-in-depth) accepts it.
+        os.environ["CLAUDE_CONFIG_DIR"] = self.tmp
+        task_dir = os.path.join(self.tmp, "pipeline-state", "foo-bar")
+        os.makedirs(task_dir)
+        self.path = os.path.join(task_dir, "intake.md")
+
+    def tearDown(self):
+        os.environ.pop("CLAUDE_CONFIG_DIR", None)
 
     def test_parse_frontmatter_unit_well_formed(self):
         mod = _load_module()
@@ -68,6 +76,28 @@ class ParseFrontmatterTest(unittest.TestCase):
             f.write("not a yaml block\nrandom garbage\n")
         fields, err = mod.parse_frontmatter(self.path)
         self.assertEqual(err, "intake-md-malformed")
+
+    def test_parse_frontmatter_frontmatter_key_missing(self):
+        """Code-review MEDIUM: explicit coverage of frontmatter-key-missing branch.
+
+        A frontmatter block with valid --- delimiters but none of REQUIRED_KEYS
+        present must return (fields, "frontmatter-key-missing"). 3 of 4 parse_error
+        modes are otherwise tested; this closes the gap.
+        """
+        mod = _load_module()
+        with open(self.path, "w") as f:
+            f.write(
+                "---\n"
+                "task_id: foo-bar\n"
+                "some_unrelated_key: value\n"
+                "another_unrelated_key: 42\n"
+                "---\n"
+            )
+        fields, err = mod.parse_frontmatter(self.path)
+        self.assertEqual(err, "frontmatter-key-missing")
+        # Present non-required keys still carried through (per § C1).
+        self.assertEqual(fields.get("task_id"), "foo-bar")
+        self.assertEqual(fields.get("another_unrelated_key"), 42)
 
 
 class BuildRecordTest(unittest.TestCase):
@@ -248,29 +278,33 @@ class UnknownTaskIdRoutingTest(unittest.TestCase):
 class FrontmatterRegexTest(unittest.TestCase):
     """Mutation-killer: frontmatter regex MUST anchor at line start (^---)."""
 
+    def setUp(self):
+        # Plant the fixture inside a synthetic CONFIG_DIR/pipeline-state/ tree
+        # so the realpath containment gate (HIGH-1 defence-in-depth) accepts it.
+        self.tmp = tempfile.mkdtemp()
+        os.environ["CLAUDE_CONFIG_DIR"] = self.tmp
+        task_dir = os.path.join(self.tmp, "pipeline-state", "foo-bar")
+        os.makedirs(task_dir)
+        self.path = os.path.join(task_dir, "intake.md")
+
+    def tearDown(self):
+        os.environ.pop("CLAUDE_CONFIG_DIR", None)
+
     def test_frontmatter_must_start_at_line_zero(self):
         mod = _load_module()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+        with open(self.path, "w") as f:
             # Leading content BEFORE --- — must be treated as malformed
             f.write("preamble\n---\ntier_emitted: T5\n---\n")
-            path = f.name
-        try:
-            fields, err = mod.parse_frontmatter(path)
-            self.assertEqual(err, "intake-md-malformed")
-        finally:
-            os.unlink(path)
+        fields, err = mod.parse_frontmatter(self.path)
+        self.assertEqual(err, "intake-md-malformed")
 
     def test_well_formed_frontmatter_parses(self):
         mod = _load_module()
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+        with open(self.path, "w") as f:
             f.write("---\ntier_emitted: T5\n---\n")
-            path = f.name
-        try:
-            fields, err = mod.parse_frontmatter(path)
-            self.assertIsNone(err)
-            self.assertEqual(fields["tier_emitted"], "T5")
-        finally:
-            os.unlink(path)
+        fields, err = mod.parse_frontmatter(self.path)
+        self.assertIsNone(err)
+        self.assertEqual(fields["tier_emitted"], "T5")
 
 
 class JsonlNewlineTest(unittest.TestCase):
@@ -296,6 +330,157 @@ class JsonlNewlineTest(unittest.TestCase):
             with open(path) as f:
                 lines = [json.loads(line) for line in f if line.strip()]
             self.assertEqual(len(lines), 2)
+
+
+class ParseFrontmatterContainmentTest(unittest.TestCase):
+    """Security HIGH-1 (Python defence-in-depth): parse_frontmatter MUST refuse
+    to read paths that escape CLAUDE_CONFIG_DIR/pipeline-state/ via symlink or ..
+
+    The bash sanitiser is the primary gate; this Python gate is defence-in-depth
+    so direct invocation of the helper (e.g., via tests or future callers) cannot
+    bypass containment.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.config_dir = os.path.join(self.tmp, "config")
+        os.makedirs(os.path.join(self.config_dir, "pipeline-state", "foo-bar"))
+        # Plant a sensitive file OUTSIDE the pipeline-state tree.
+        self.outside = os.path.join(self.tmp, "outside.md")
+        with open(self.outside, "w") as f:
+            f.write(
+                "---\n"
+                "tier_emitted: T6\n"
+                "tier_initial: T6\n"
+                "detector_phase: rules\n"
+                "detector_confidence: high\n"
+                "user_phrasing_signals: []\n"
+                "phrasing_honoured: true\n"
+                "override_token: null\n"
+                "safety_override_fired: true\n"
+                "predicted_files: []\n"
+                "fingerprint_cost_tokens: 0\n"
+                "---\n"
+            )
+        os.environ["CLAUDE_CONFIG_DIR"] = self.config_dir
+
+    def tearDown(self):
+        os.environ.pop("CLAUDE_CONFIG_DIR", None)
+
+    def test_path_escaping_via_dotdot_returns_missing(self):
+        """A realpath escaping CLAUDE_CONFIG_DIR/pipeline-state/ MUST be rejected
+        as intake-md-missing (never read out-of-tree)."""
+        mod = _load_module()
+        # Craft a path that resolves outside the pipeline-state tree.
+        escape_path = os.path.join(
+            self.config_dir, "pipeline-state", "..", "..", "outside.md"
+        )
+        fields, err = mod.parse_frontmatter(escape_path)
+        self.assertEqual(err, "intake-md-missing")
+        # Frontmatter must NOT have been read.
+        self.assertNotIn("tier_emitted", fields)
+
+    def test_symlink_pointing_outside_returns_missing(self):
+        """A symlinked intake.md whose realpath escapes the tree is rejected."""
+        mod = _load_module()
+        symlink_path = os.path.join(
+            self.config_dir, "pipeline-state", "foo-bar", "intake.md"
+        )
+        os.symlink(self.outside, symlink_path)
+        fields, err = mod.parse_frontmatter(symlink_path)
+        self.assertEqual(err, "intake-md-missing")
+        self.assertNotIn("tier_emitted", fields)
+
+    def test_legitimate_intake_md_still_reads(self):
+        """Containment gate MUST NOT block legitimate in-tree paths."""
+        mod = _load_module()
+        legit = os.path.join(self.config_dir, "pipeline-state", "foo-bar", "intake.md")
+        with open(legit, "w") as f:
+            f.write(
+                "---\n"
+                "tier_emitted: T5\n"
+                "tier_initial: T5\n"
+                "detector_phase: rules\n"
+                "detector_confidence: high\n"
+                "user_phrasing_signals: []\n"
+                "phrasing_honoured: true\n"
+                "override_token: null\n"
+                "safety_override_fired: false\n"
+                "predicted_files: []\n"
+                "fingerprint_cost_tokens: 0\n"
+                "---\n"
+            )
+        fields, err = mod.parse_frontmatter(legit)
+        self.assertIsNone(err)
+        self.assertEqual(fields["tier_emitted"], "T5")
+
+
+class AppendJsonlNoFollowTest(unittest.TestCase):
+    """Security MED-1: append_jsonl MUST refuse to follow symlinks (O_NOFOLLOW)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        # Plant a symlink at the JSONL target pointing somewhere else.
+        self.target = os.path.join(self.tmp, "actual-target.txt")
+        with open(self.target, "w") as f:
+            f.write("pre-existing content\n")
+        self.symlink_path = os.path.join(self.tmp, "intake-overrides.jsonl")
+        os.symlink(self.target, self.symlink_path)
+
+    def test_append_jsonl_refuses_to_follow_symlink(self):
+        mod = _load_module()
+        # Must raise OSError (ELOOP via O_NOFOLLOW) when the path is a symlink.
+        with self.assertRaises(OSError):
+            mod.append_jsonl(self.symlink_path, {"a": 1})
+        # Critically: the symlink target must NOT have been mutated.
+        with open(self.target) as f:
+            content = f.read()
+        self.assertEqual(content, "pre-existing content\n")
+
+    def test_append_jsonl_works_on_regular_file(self):
+        mod = _load_module()
+        regular_path = os.path.join(self.tmp, "regular.jsonl")
+        mod.append_jsonl(regular_path, {"a": 1})
+        mod.append_jsonl(regular_path, {"b": 2})
+        with open(regular_path) as f:
+            lines = f.readlines()
+        self.assertEqual(len(lines), 2)
+
+
+class BuildRecordCapTest(unittest.TestCase):
+    """Security MED-2: build_record MUST enforce the 1024-char string cap and
+    100-element list cap claimed by its docstring. Prevents DoS via attacker-
+    controlled frontmatter fields with mega-strings or mega-lists."""
+
+    def test_string_field_is_capped_at_1024_chars(self):
+        mod = _load_module()
+        huge = "x" * 100_000
+        fields = {"tier_emitted": huge}
+        rec = mod.build_record(fields, None, "ts", "foo")
+        self.assertEqual(len(rec["tier_emitted"]), 1024)
+        self.assertTrue(rec["tier_emitted"].startswith("x"))
+
+    def test_list_field_is_capped_at_100_items(self):
+        mod = _load_module()
+        huge_list = [f"signal-{i}" for i in range(10_000)]
+        fields = {"user_phrasing_signals": huge_list}
+        rec = mod.build_record(fields, None, "ts", "foo")
+        self.assertEqual(len(rec["user_phrasing_signals"]), 100)
+        self.assertEqual(rec["user_phrasing_signals"][0], "signal-0")
+
+    def test_list_items_themselves_are_capped(self):
+        mod = _load_module()
+        fields = {"predicted_files": ["y" * 10_000]}
+        rec = mod.build_record(fields, None, "ts", "foo")
+        self.assertEqual(len(rec["predicted_files"]), 1)
+        self.assertEqual(len(rec["predicted_files"][0]), 1024)
+
+    def test_small_values_pass_through_unchanged(self):
+        mod = _load_module()
+        fields = {"tier_emitted": "T5", "user_phrasing_signals": ["a", "b"]}
+        rec = mod.build_record(fields, None, "ts", "foo")
+        self.assertEqual(rec["tier_emitted"], "T5")
+        self.assertEqual(rec["user_phrasing_signals"], ["a", "b"])
 
 
 if __name__ == "__main__":
