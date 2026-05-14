@@ -52,6 +52,37 @@ class HookSourceLinesUseConfigDirIndirection(unittest.TestCase):
             "Drift: " + "; ".join(offenders))
 
 
+class CacheBreakpointInjectorUsesPortableConfigDir(unittest.TestCase):
+    """Slice B AC-B6 — new hook + helper must honour the CLAUDE_CONFIG_DIR mandate.
+
+    Mirrors the generic drift test above with a NAMED assertion specifically
+    against the new artefacts so the AC has a dedicated test rather than
+    relying on a generic glob loop.
+    """
+
+    def test_cache_breakpoint_injector_uses_portable_config_dir(self):
+        hook = REPO_ROOT / "hooks" / "cache-breakpoint-injector.sh"
+        helper = REPO_ROOT / "hooks" / "_lib" / "resolve-cache-breakpoints.py"
+        self.assertTrue(
+            hook.is_file(),
+            f"hooks/cache-breakpoint-injector.sh missing at {hook}")
+        self.assertTrue(
+            helper.is_file(),
+            f"hooks/_lib/resolve-cache-breakpoints.py missing at {helper}")
+        for path in (hook, helper):
+            text = path.read_text()
+            offenders = [
+                f"{path.relative_to(REPO_ROOT)}:{i + 1}: {line.strip()}"
+                for i, line in enumerate(text.splitlines())
+                if "~/.claude/" in line
+                and "CLAUDE_CONFIG_DIR" not in line
+                and not line.strip().startswith("#")
+            ]
+            self.assertEqual(
+                offenders, [],
+                f"Bare `~/.claude/` references in {path.name}: {offenders}")
+
+
 class SettingsJsonHookCommandsUseConfigDirIndirection(unittest.TestCase):
     def test_no_bare_tilde_or_home_in_hook_commands(self):
         settings = json.loads((REPO_ROOT / "settings.json").read_text())
