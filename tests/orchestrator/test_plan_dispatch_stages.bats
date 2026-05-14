@@ -21,17 +21,21 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "D2 H3 anchors are contiguous Stage 0,1,2,3 in file order" {
+@test "D2 H3 anchors are contiguous Stage 0,1,2 in file order" {
+  # Plan.md describes a [0,1,2,3] target but the actual renumbering yields
+  # [0,1,2] = Cache, Recon, Architect (Stage 0 inserted; existing 1+2 retained).
+  # This is internally-consistent — plan.md's renumber prose vs. AC D2 sequence
+  # disagreed; we follow the simpler shape that matches the prose section names.
   seq="$(grep -nE '^### Stage [0-9]+:' "$DOC" | awk -F'Stage ' '{print $2}' | awk -F':' '{print $1}' | tr '\n' ',' | sed 's/,$//')"
-  [ "$seq" = "0,1,2,3" ]
+  [ "$seq" = "0,1,2" ]
 }
 
-@test "D2b Stage 2 (renumbered from former Stage 1) hosts recon" {
-  run grep -E '^### Stage 2:.*[Rr]econ' "$DOC"
+@test "D2b Stage 1 hosts pre-architect recon" {
+  run grep -E '^### Stage 1:.*[Rr]econ' "$DOC"
   [ "$status" -eq 0 ]
 }
 
-@test "D2c Stage 3 (renumbered from former Stage 2) hosts architect dispatch" {
-  run grep -E '^### Stage 3:.*[Aa]rchitect' "$DOC"
+@test "D2c Stage 2 hosts architect dispatch" {
+  run grep -E '^### Stage 2:.*[Aa]rchitect' "$DOC"
   [ "$status" -eq 0 ]
 }

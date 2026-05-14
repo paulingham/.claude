@@ -28,12 +28,14 @@ setup() {
 }
 
 @test "D5 architect spawn prompt does NOT inject cache_hit marker" {
-  # Identify the architect Agent({ ... }) spawn block by its subagent_type line,
-  # extract from that line to the closing }) and assert zero cache_hit occurrences.
+  # Extract the architect Agent({ ... }) spawn block, scoped exactly from the
+  # subagent_type line down to the first '})' close marker, and assert zero
+  # cache_hit occurrences inside the spawn directive itself.
   start="$(grep -n 'subagent_type: "architect"' "$DOC" | head -1 | cut -d: -f1)"
   [ -n "$start" ]
-  # The spawn block in this doc closes within ~25 lines (prompt + Output + })
-  end=$((start + 25))
+  # First '})' line at or after $start closes the spawn directive.
+  end="$(awk -v s="$start" 'NR>=s && /^\}\)/{print NR; exit}' "$DOC")"
+  [ -n "$end" ]
   run sed -n "${start},${end}p" "$DOC"
   [ "$status" -eq 0 ]
   ! echo "$output" | grep -q 'cache_hit'

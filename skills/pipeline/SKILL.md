@@ -190,6 +190,17 @@ If the project CLAUDE.md contains a `## Service Context` section with upstream/d
 2. If the current change modifies a contract file (OpenAPI spec, Protobuf, event schema): invoke `/cross-service-pipeline` BEFORE the Build phase to verify compatibility and generate a deployment plan
 3. After Ship phase, if cross-service deployment is needed: output the deployment plan with service order and flag any manual coordination required
 
+### Step 2c-bis: Plan Cache Lookup (Stage 0 of Plan Phase)
+
+BEFORE dispatching architect or recon, invoke `skills/plan-cache-lookup/SKILL.md`. The skill resolves `CLAUDE_PLAN_CACHE_MODE`, computes the `(task_class, repo_hash, tier, critical)` cache key, and emits exactly one of:
+
+- `PLAN_CACHE_HIT` — the Haiku adapter has written `pipeline-state/{task-id}/plan.md` with `cache_hit: true` and the resume-safety stub `pipeline-state/{task-id}/architect-context.md`. Skip Stage 1 (recon) and Stage 2 (architect); advance directly to Step 2d (Plan Validation). Plan Validation challengers MUST skip the citation-alignment grader on `cache_hit: true` plans (Domain D7).
+- `PLAN_CACHE_MISS` — `reason ∈ {no-template, disabled, shadow-mode, adapter-rejected, ...}`. Fall through to the normal Plan Phase Dispatch (Stage 1 recon + Stage 2 architect) IN THIS SAME PIPELINE. Iron Law 6: `adapter-rejected` is never deferred to a follow-up pipeline.
+
+Until Slice F flips `CLAUDE_PLAN_CACHE_MODE` to `shadow`, the resolver hard-defaults to `off` and the skill short-circuits to `MISS reason=disabled` — partial-merge-safe by construction (LOW-eng-3).
+
+Full wiring: `orchestrator/parallel-dispatch-details.md` § Plan Phase Dispatch (Stage 0).
+
 ### Step 2d: Plan Validation Gate (ALL pipelines)
 
 After the architect produces a plan, validate it before proceeding to Build.

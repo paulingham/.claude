@@ -54,9 +54,9 @@ Call `_plan_cache_lookup task_class tier critical`. The function:
 1. Calls `_repo_hash` (from `hooks/_lib/repo-hash.sh`) — `sha256(git ls-tree --name-only -r HEAD <stable-dirs>) ⊕ sha256(CLAUDE.md)`.
 2. Calls `_plan_cache_key task_class repo_hash tier critical` — sha256 of canonical-JSON `{critical, repo_hash, task_class, tier}` (jq's `-cn --arg` builder fixes key order).
 3. Checks `[[ -f "$cache_dir/$key.md" ]]`.
-4. Branches:
+4. Branches (this `_plan_cache_lookup` entry point covers the off / shadow-mode branches only; the on-mode HIT path is in place in Slice C and is driven by the orchestrator via the four steps in § HIT Path Dispatch below — NOT through this lookup function):
    - File absent → emit `PLAN_CACHE_MISS reason=no-template`.
-   - File present + Slice B (MISS-only) → emit `PLAN_CACHE_MISS reason=shadow-mode`. The HIT path is implemented in Slice C.
+   - File present + mode ∈ {off, shadow} → emit `PLAN_CACHE_MISS reason=shadow-mode` (mode=off was already short-circuited at Step 1; this branch is reached only in shadow). See § HIT Path Dispatch for the on-mode flow.
 
 ### Step 4 — Read pipeline state when callers need task_id
 

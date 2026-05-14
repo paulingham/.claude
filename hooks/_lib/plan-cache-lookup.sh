@@ -41,7 +41,11 @@ _plan_cache_lookup() {
   key=$(_plan_cache_key "$task_class" "$(_repo_hash)" "$tier" "$critical") || return 1
   dir=$(_plan_cache_dir)
   [[ -f "$dir/$key.md" ]] || { _plan_cache_emit_miss no-template "$key"; return; }
-  # Slice B MISS-only: HIT path lands in Slice C. Until then, key-present = MISS.
+  # Slice C: HIT dispatch is in place but driven by the orchestrator wiring
+  # (Slice D — orchestrator/parallel-dispatch-details.md § Stage 0) calling
+  # _plan_cache_write_pending / _plan_cache_write_resume_stub / spawn-adapter /
+  # _plan_cache_finalize directly. This lookup entry covers off + shadow only;
+  # on-mode key-present reaches the HIT helpers via the skill body, not here.
   _plan_cache_emit_miss shadow-mode "$key"
 }
 
