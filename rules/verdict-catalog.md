@@ -23,6 +23,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `STORY_READY` | info | `story-writing` | plan | `/build-implementation` |
 | `RECON_COMPLETE` | info | `architect-context-recon` (agent) | plan | Architect reads concatenated `architect-context.md` before drafting |
 | `RECON_NULL` | info | `architect-context-recon` (agent) | plan | Architect proceeds with greenfield assumption; output file still written (anti-findings only) |
+| `PLAN_CACHE_MISS` | info | `plan-cache-lookup` | plan | Continue to Stage 1 recon dispatch — reason ∈ {`no-template`, `disabled`, `shadow-mode`} in Slice B; Slice C adds `adapter-rejected`, `adapter-pending-stale`, `template-corrupt`; Slice F adds `hash-drift`, `key-mismatch` |
 | `SPIKE_COMPLETE` | info | `tech-spike` | utility | Findings feed back into planning |
 | `PLAN_APPROVED` | success | `plan-self-validation` | plan-validation | `/build-implementation` |
 | `PLAN_HOLES` | failure | `plan-self-validation` | plan-validation | Architect re-plans (max 1 revision, then escalate to heavy challengers) |

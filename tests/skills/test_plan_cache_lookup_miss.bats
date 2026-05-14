@@ -64,6 +64,34 @@ teardown() {
   [[ "$output" != *"learning//plans"* ]]
 }
 
+# Branch-coverage: off mode short-circuits with reason=disabled.
+@test "B1b mode=off short-circuits with reason=disabled" {
+  export CLAUDE_PLAN_CACHE_MODE=off
+  # shellcheck source=/dev/null
+  source "$LIB"
+  run _plan_cache_lookup demo-task feature T5 false
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"reason":"disabled"'* ]]
+}
+
+# Branch-coverage: template present in shadow mode emits reason=shadow-mode
+# (HIT path lands in Slice C; Slice B keeps the file-present branch MISS-only).
+@test "B1c template present + shadow mode emits reason=shadow-mode" {
+  export CLAUDE_PLAN_CACHE_MODE=shadow
+  # shellcheck source=/dev/null
+  source "$LIB"
+  # Compute key the same way the helper does, then plant the file.
+  local rh key dir
+  rh=$(_repo_hash)
+  key=$(_plan_cache_key feature "$rh" T5 false)
+  dir=$(_plan_cache_dir)
+  mkdir -p "$dir"
+  printf 'stub\n' >"$dir/$key.md"
+  run _plan_cache_lookup feature T5 false
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"reason":"shadow-mode"'* ]]
+}
+
 # B5 — lookup uses _psp_find_active_pipelines canonical reader, not bare [ -f ].
 # Contract: the skill body and the lookup helper MUST reference the union helper.
 @test "B5 skill uses pipeline-state union helper" {
