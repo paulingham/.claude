@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>dom-smoke failing-route fixture</title>
+</head>
+<body>
+  <div id="app">failing-route fixture</div>
+  <script>
+    // AC12 — fixture mounts and emits a literal console.error('boom').
+    // The Step 2d ignore-list regex does NOT match "boom", so this triggers
+    // DOM_SMOKE_FAILED with payload:
+    //   {"route": "/", "errors": [{"type": "console", "message": "boom", "url": null, "status": null}]}
+    console.error('boom');
+  </script>
+</body>
+</html>
