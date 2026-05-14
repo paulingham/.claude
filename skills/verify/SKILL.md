@@ -176,6 +176,10 @@ Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mob
 
 ### 5. Produce Verification Report
 
+### 6. Write Verification Evidence State File
+
+The verifier MUST write `pipeline-state/{task-id}/verification-evidence.json` at the end of every tier-completion using `os.replace` (atomic rename — write to `verification-evidence.json.tmp` first, then `os.replace` to the canonical path). Resolve the write target via `_psp_verification_evidence_path "${CLAUDE_PIPELINE_TASK_ID}" "${CLAUDE_WORKSTREAM:-}"` relative to `$CLAUDE_REPO_ROOT` (NEVER relative to cwd — `/verify` runs inside the build worktree but the state-file path must resolve against the repo root). Schema: `{schema_version: 1, task_id, git_head, generated_at, verdict, tier_results, sandbox_run}` — see `protocols/_proposals/2026-05-14-iron-law-2-freshness-hook.md` for the field definitions. The Path-B advisory hook `hooks/verification-freshness-guard.sh` reads this file on every gated spawn (patch-critic, product-reviewer, pr-creation) and compares the recorded `git_head` to the current worktree HEAD.
+
 ## Output Format
 
 ```markdown

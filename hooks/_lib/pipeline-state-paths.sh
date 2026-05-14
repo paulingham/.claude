@@ -21,6 +21,12 @@ _psp_legacy_state_path() {
   printf 'pipeline-state/%s-%s.md\n' "$task" "$phase"
 }
 
+_psp_verification_evidence_path() {
+  local task="$1" ws="${2:-}"
+  [[ -n "$ws" ]] && { printf 'pipeline-state/workstreams/%s/%s/verification-evidence.json\n' "$ws" "$task"; return; }
+  printf 'pipeline-state/%s/verification-evidence.json\n' "$task"
+}
+
 _psp_find_active_pipelines() {
   local dir="${1:-${HOME}/.claude/pipeline-state}"
   PSP_DIR="$dir" python3 "$(dirname "${BASH_SOURCE[0]}")/pipeline_state_paths_cli.py" find
