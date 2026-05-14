@@ -175,11 +175,11 @@ Where `user_override` is true when the user's request contains the literal token
 #### PDR-RTV Flag
 
 Derive `pdr_rtv`:
-`pdr_rtv = budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-9} OR critical == true`
+`pdr_rtv = budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-10} AND critical == true`
 
-The default trigger floor is `budget >= 9` (matches the "must decompose" threshold per `protocols/operational-protocol.md`), NOT `budget >= 7`. The `CLAUDE_PDR_RTV_BUDGET_FLOOR` env var (range 5–15) provides opt-in override for operators wanting an empirical lower-floor experiment. Migration plan to drop the default floor to 7 is documented in `skills/pdr-rtv/SKILL.md` § Anti-Patterns: only after `/eval-model-effectiveness` confirms ≥5% Pass@1 lift on the harness regression suite at the lower floor.
+The default trigger floor is `budget >= 10` AND `critical == true` (both clauses required), NOT `budget >= 9 OR critical` (the prior OR-clause empirically over-spent on non-critical mid-budget work). The `CLAUDE_PDR_RTV_BUDGET_FLOOR` env var (range 5–15) provides opt-in override for operators wanting an empirical lower-floor experiment, but the AND-clause still requires `critical == true` regardless of floor. Migration plan to relax the trigger (e.g. back to OR semantics, or floor below 10) is documented in `skills/pdr-rtv/SKILL.md` § Anti-Patterns: only after `/eval-model-effectiveness` confirms ≥5% Pass@1 lift on the harness regression suite at the relaxed trigger.
 
-PDR-RTV is mutually exclusive with Best-of-N at dispatch time (when both fire, PDR-RTV wins as the strictly stronger variant). The cost is roughly 4-5× standard Build (vs Best-of-N's 2-3×) — justifying the higher trigger floor.
+PDR-RTV is mutually exclusive with Best-of-N at dispatch time (when both fire, PDR-RTV wins as the strictly stronger variant). The cost is roughly 4-5× standard Build (vs Best-of-N's 2-3×) — justifying the tightened conjunctive trigger.
 
 #### Output
 
@@ -194,7 +194,7 @@ or:
 
 Always print one of:
 ```
-[Intake] PDR-RTV: enabled (reason: critical | budget>=9)
+[Intake] PDR-RTV: enabled (reason: critical AND budget>=10)
 ```
 or:
 ```
