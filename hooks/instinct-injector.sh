@@ -6,6 +6,17 @@
 # prompt content from a hook, so the orchestrator-side caller is responsible
 # for the actual prompt-string splice. Mirrors pre-agent-thinking.sh shape.
 #
+# DO NOT FLIP TO EXIT 2:
+#   Unlike pre-agent-allowlist.sh (flipped 2026-05-14), this hook is
+#   mutation-only — its value-add is splicing a `## Learned Patterns` block
+#   into the prompt, NOT denying a spawn. There is no DECISION branch in
+#   the shell layer (the resolver runs unconditionally; see line below),
+#   and the delivery path is orchestrator-side splice, not the Agent
+#   matcher. Promoting this to exit 2 would refuse every legitimate
+#   spawn that the orchestrator should be enriching with instincts.
+#   See learning/instincts/hook-enforcement-semantics.md for the
+#   pure-deny vs mutation-semantic split.
+#
 # enforces: protocols/autonomous-intelligence.md:Instinct Injection
 # protects: learn, build-implementation
 
