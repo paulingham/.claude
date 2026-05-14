@@ -132,6 +132,27 @@ Update the **Anomalies table** schema to include a `Rule Protected` column:
 
 This traceability lets forensics readers immediately see which rule and which skill the hook was guarding when it fired — eliminating the "what does this hook protect?" question.
 
+### Step 3b.1: Verification Freshness Drift
+
+Iron Law 2 enforcement (mechanical at v2.1.141 via `hooks/verification-freshness-guard.sh`) emits one JSONL line per gated Agent spawn to `metrics/{session}/freshness-guard.jsonl`. Surface every `would_block` record:
+
+```bash
+# Pull the path-b-advisory would_block records — these are the spawns that
+# WOULD have been blocked once permissionDecision ships on Agent matcher.
+jq -c 'select(.resolved.action == "would_block" and .source == "path-b-advisory")' \
+  ~/.claude/metrics/{session-id}/freshness-guard.jsonl 2>/dev/null
+```
+
+Render in the Anomalies table with `Rule Protected: rules/core.md:Iron Law 2`:
+
+```markdown
+| # | Type | Description | Root Cause | Rule Protected |
+|---|------|------------|------------|----------------|
+| N | Stale verification evidence | `freshness-guard` logged `would_block`/`{reason}` on `{agent_role}` spawn | See § Operator Copy in proposal | `rules/core.md:Iron Law 2` (verify, patch-critique, pr-creation, product-acceptance) |
+```
+
+Recurring `no_worktree_resolvable` records are an orchestrator-side dispatch-env drift — operators should check `orchestrator/agent-orchestration.md § Worktree Env Propagation` for the load-bearing contract and verify `$CLAUDE_WORKTREE_PATH` is set on every Build-onward Agent dispatch.
+
 ### Step 3c: Tool Output Size Warnings
 
 Auto-compact thrash precursor: a single tool result returning enough tokens to push the buffer past compaction threshold. The `tool-output-bytes.sh` PostToolUse hook records `char_count` and `estimated_tokens` per call, so this regression class is detectable in forensics.

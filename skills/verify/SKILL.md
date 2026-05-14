@@ -17,6 +17,16 @@ verdict: VERIFIED|VERIFIED_WITH_SKIP|UNVERIFIED|E2E_SKIP_NO_ENV
 
 Proves a feature works correctly beyond just passing tests. Runs three verification tiers and produces a verdict.
 
+## Inputs
+
+| Input | Source |
+|-------|--------|
+| Candidate diff | `git diff main...HEAD` over the build worktree (full unified diff). |
+| Build state | `pipeline-state/{task-id}/build.md` § Sandbox Verify section produced by Build phase Step 5b. |
+| Worktree HEAD | `git -C "$CLAUDE_WORKTREE_PATH" rev-parse HEAD` — written into the new `verification-evidence.json` so downstream gates can compare. |
+
+The verify skill writes `pipeline-state/{task-id}/verification-evidence.json` (see Step 6 below) for the downstream freshness guard.
+
 ## Verification Tiers
 
 | Feature Type | Tier 1 (Contract) | Tier 2 (Smoke) | Tier 3 (Rule-Based Mutation) | Tier 3.5 (LLM-Mutant) | Tier 4 (E2E) |
@@ -177,6 +187,10 @@ Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mob
 6. **First-fire release note**: on first web-target fire for a project (no prior `pipeline-state/{task_id}/scratchpad/qa-engineer-verify-screenshots/` history), emit one line in the verify report: "Web E2E gating now active because <reason>".
 
 ### 5. Produce Verification Report
+
+### 6. Write Verification Evidence State File
+
+The verifier MUST write `pipeline-state/{task-id}/verification-evidence.json` at the end of every tier-completion using `os.replace` (atomic rename — write to `verification-evidence.json.tmp` first, then `os.replace` to the canonical path). Resolve the write target via `_psp_verification_evidence_path "${CLAUDE_PIPELINE_TASK_ID}" "${CLAUDE_WORKSTREAM:-}"` relative to `$CLAUDE_REPO_ROOT` (NEVER relative to cwd — `/verify` runs inside the build worktree but the state-file path must resolve against the repo root). Schema: `{schema_version: 1, task_id, git_head, generated_at, verdict, tier_results, sandbox_run}` — see `protocols/_proposals/2026-05-14-iron-law-2-freshness-hook.md` for the field definitions. The Path-B advisory hook `hooks/verification-freshness-guard.sh` reads this file on every gated spawn (patch-critic, product-reviewer, pr-creation) and compares the recorded `git_head` to the current worktree HEAD.
 
 ## Output Format
 
