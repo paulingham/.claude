@@ -16,6 +16,36 @@ The autonomous conductor for the delivery pipeline. Takes a task, determines whi
 
 ## Process
 
+### Step 1.0: Tier Guard (MANDATORY first step)
+
+Before any pipeline work, read `tier_emitted` from `pipeline-state/{task-id}/intake.md` frontmatter (set by `/intake` Step 1.5 Fingerprint per `protocols/work-class-routing.md`). The tier determines whether `/pipeline` continues or exits with a re-route.
+
+| Tier | Route | Status |
+|---|---|---|
+| **T0** (Question / Spike) | Re-route to direct answer or `/tech-spike` | Pipeline halts (NO state file created) |
+| **T1** (Doc-only) | Re-route to orchestrator direct `.md` edit (Iron Law 3 exception) | Pipeline halts (NO state file created) |
+| **T2** (Config-only) | Re-route to `/harness-config` | Pipeline halts (NO state file created) |
+| **T3** (Mechanical sweep) | Re-route to `/batch-pipeline` | Pipeline halts (NO state file created) |
+| **T4** (Bug fix) | Continue to Step 1 (lightweight pipeline) | Pipeline proceeds |
+| **T5** (Standard feature) | Continue to Step 1 (standard pipeline) | Pipeline proceeds |
+| **T6** (Critical / cross-cutting) | Continue to Step 1 (heavy: Best-of-N or PDR-RTV) | Pipeline proceeds |
+
+Status line — always emit one of:
+
+```
+[Pipeline] Tier guard: T0 → direct answer / /tech-spike
+[Pipeline] Tier guard: T1 → orchestrator direct .md edit
+[Pipeline] Tier guard: T2 → /harness-config
+[Pipeline] Tier guard: T3 → /batch-pipeline
+[Pipeline] Tier guard: T4 → /pipeline (lightweight)
+[Pipeline] Tier guard: T5 → /pipeline (standard)
+[Pipeline] Tier guard: T6 → /pipeline (heavy)
+```
+
+For T0-T3, **Pipeline halts (NO state file created)** — the dispatch target (direct answer / `/harness-config` / `/batch-pipeline` / direct `.md` edit) is invoked instead. Pipeline state file (`pipeline-state/{task-id}/pipeline.md`) is created only at Step 2c (which runs for T4-T6 only). This Step 1.0 is the cost-discipline lever — T1 doc edits no longer burn ~12-15 subagent spawns through a full pipeline shape.
+
+If `tier_emitted` is missing from intake.md (legacy intake or fingerprint error), default to T4+ behaviour (safety-bias — never under-dispatch). Log the missing-tier condition to the pipeline state file once it is created.
+
 ### Step 1: Classify Work and Determine Pipeline
 
 | Work Type | Entry Skill | Pipeline Phases |

@@ -8,7 +8,7 @@ Verdict semantics for every entry below are defined in `rules/verdict-catalog.md
 
 | Skill | When to Invoke | Verdict |
 |-------|----------------|---------|
-| `/intake` | **Entry point** — first skill for any user request | ROUTED |
+| `/intake` | **Entry point** — first skill for any user request; emits Step 1.5 fingerprint (tier T0..T6) alongside criticality/budget | ROUTED |
 | `/pipeline` | **Conductor** — drives all phases in sequence | PIPELINE_COMPLETE |
 | `/epic-breakdown` | Decomposing epics into stories | STORIES_READY |
 | `/estimation` | Sizing stories with Complexity Budget | ESTIMATED |
@@ -27,7 +27,7 @@ Verdict semantics for every entry below are defined in `rules/verdict-catalog.md
 | `/tech-spike` | Time-boxed technical research | SPIKE_COMPLETE |
 | `/project-setup` | Scaffolding project-level CLAUDE.md | PROJECT_SETUP_COMPLETE |
 | `/pipeline-resume` | Resume interrupted pipeline from state files | RESUMED |
-| `/plan-self-validation` | Lightweight Plan Validation: architect re-reads its own plan against a structured holes-finding rubric. Used when `critical == false AND Budget < 7` | PLAN_APPROVED / PLAN_HOLES |
+| `/plan-self-validation` | Lightweight Plan Validation: architect re-reads its own plan against a structured holes-finding rubric. Used when `critical == false AND Budget < 7`; runs re-fingerprint sanity check on architect plan | PLAN_APPROVED / PLAN_HOLES / ROUTING_UPSHIFTED |
 | `/harness-config` | Modify hooks, settings.json, non-.md config | CONFIG_APPLIED |
 | `/deploy` | CD phase: staging/production deploy with rollback | DEPLOYED / ROLLED_BACK |
 | `/infra-scaffold` | Generate Dockerfile, docker-compose, CI/CD, health endpoints | INFRA_SCAFFOLDED |
