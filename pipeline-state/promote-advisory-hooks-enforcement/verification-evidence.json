@@ -4,7 +4,11 @@
   "verifier_role": "qa-engineer",
   "branch": "agent-7a4c27e7",
   "base_sha": "1f06df9",
-  "worktree_head": "2526bc4",
+  "worktree_head": "ff2f31c3f111f1b8fdc9df97b09371a8fa295214",
+  "git_head": "ff2f31c3f111f1b8fdc9df97b09371a8fa295214",
+  "verdict": "VERIFIED",
+  "evidence_refresh_timestamp": "2026-05-14T21:57:00Z",
+  "evidence_refresh_reason": "post-verify chore commit ff2f31c (learning instincts only — no source-code changes) added during Ship-phase Reflect 4d-iii; re-stamp HEAD for freshness gate. Original verification at 2526bc4 covered all source-code changes; the chore commit only adds two .md instinct files under learning/{project-hash}/instincts/ which are not in any test surface.",
   "tiers": {
     "tier_1_contract": {
       "verdict": "PASS",
