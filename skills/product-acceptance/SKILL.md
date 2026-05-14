@@ -114,6 +114,7 @@ bash "$HOME/.claude/hooks/_lib/write-approval-token.sh" \
 - [ ] Business stakeholder would understand what was built from the PR description
 - [ ] If VERIFIED_WITH_SKIP: E2E skip reason acknowledged and risk assessed (see `protocols/e2e-protocol.md`)
 - [ ] If E2E flows exist for changed behavior: confirm they passed in verification report
+- [ ] Verification evidence state file present (`pipeline-state/{task-id}/verification-evidence.json`). If absent OR `hooks/verification-freshness-guard.sh` logged a `would_block` record for this dispatch, note the staleness risk in the per-AC notes — but do NOT REJECT solely on this signal. The hard gate is at patch-critic and pr-creation; product-reviewer's role is to acknowledge the risk.
 
 ## Prerequisite
 

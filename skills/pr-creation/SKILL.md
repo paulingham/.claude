@@ -70,6 +70,10 @@ bash "$WORKTREE/skills/pr-creation/lib/check-approval-token.sh"
 
 Cross-references: `hooks/auto-pr.sh` performs an advisory read of the same token and suppresses its PR suggestion when the gate is closed.
 
+## Verification Freshness Dependency
+
+`hooks/quality-gate.sh` runs on `gh pr create` and includes the new `_qg_check_freshness` check (extension landed in this slice). The check reads `pipeline-state/{task-id}/verification-evidence.json` written by `/verify` Step 6 and FAILs (rc=1 → quality-gate exit 2) when the recorded `git_head` does not match the current worktree HEAD, the file is missing, or the verdict is not `VERIFIED` / `VERIFIED_WITH_SKIP`. Operators must re-run `/verify` before re-attempting `gh pr create` in that case.
+
 ## Worktree Precondition (HARD GATE)
 
 This skill mutates HEAD-bearing state (creates branches, runs `gh pr create` which pushes the current branch). It MUST run inside a worktree, never against REPO_ROOT directly. Resolve the worktree path at skill entry:

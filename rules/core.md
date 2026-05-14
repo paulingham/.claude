@@ -7,7 +7,7 @@ Always-loaded by every agent on every spawn. The smallest set of facts every spa
 These are absolutes. No exceptions. No "just this once."
 
 1. **NO ACCEPTANCE CRITERION SHIPS WITHOUT (a) a failing-then-passing test for that AC in the diff and (b) mutation score ≥ 70% on changed lines.** (Full ATDD cycle: `protocols/atdd-procedure.md`.)
-2. **NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.** Stale test output from earlier in the session is not evidence — re-run before claiming done.
+2. **NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.** Stale test output from earlier in the session is not evidence — re-run before claiming done. (Enforcement: `hooks/verification-freshness-guard.sh`, log-only at v2.1.141, blocks once `permissionDecision` ships on Agent matcher.)
 3. **THE ORCHESTRATOR NEVER WRITES SOURCE CODE.** The orchestrator coordinates agents; it does not Edit, Write, or shell-pipe into source files. Config exception: `.md` files in `.claude/`, `memory/`, `rules/` for documentation/state tracking only. (Detail: `protocols/agent-protocol.md`.)
 4. **REPO_ROOT HEAD STAYS ON `main` FOR THE ENTIRE DURATION OF EVERY PIPELINE RUN.** All HEAD-mutating git commands run via worktree delegation (`git -C "$WORKTREE" …` or `(cd "$WORKTREE" && …)`). Bare `git checkout`, `git switch`, `git reset --hard`, `git merge`, `git rebase`, `gh pr create` are blocked by `hooks/main-branch-guard.sh`. (Allowed/forbidden surface: `protocols/agent-protocol.md` § Main-Branch Invariant.)
 5. **NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.** Every pipeline phase runs the corresponding skill; verdicts gate advancement. (Detail: `protocols/pipeline-protocol.md`.)

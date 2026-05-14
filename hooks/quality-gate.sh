@@ -28,7 +28,7 @@ source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/jsonl-emit.sh"
 
 RT=$(_qg_detect_runtime)
 ANY_FAILED=0
-for check in tests lint audit shape contract; do
+for check in tests lint audit shape contract freshness; do
   _qg_check_${check} "$RT"
   rc=$?
   [[ $rc -ne 0 ]] && ANY_FAILED=1

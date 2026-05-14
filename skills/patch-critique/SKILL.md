@@ -33,6 +33,7 @@ The orchestrator MUST provide all three in the spawn prompt:
 | Candidate diff | `git diff main...HEAD` (full unified diff) |
 | Test output | Most recent fresh test-suite run (PASS/FAIL counts, failed test names) |
 | Intake spec | Task description from `/intake` — what the patch is supposed to do |
+| Verification evidence | `pipeline-state/{task-id}/verification-evidence.json` written by `/verify` Step 6. Freshness validated by `hooks/verification-freshness-guard.sh` (Path-B advisory at v2.1.141); orchestrator MUST re-run `/verify` BEFORE re-dispatch if the hook logs `would_block` with `reason: git_head_mismatch`. Absent → `PATCH_REJECTED` with `reason: missing input: verification-evidence.json`. |
 | A11y index (optional) | `pipeline-state/{task-id}/design-qc/index.json` produced by `/design-qc` § 6.25. Drives rubric § 5. Absent → § 5 omitted from output (silent SKIP). |
 
 If any of the three required inputs is missing, the critic returns PATCH_REJECTED with reason `missing input: {name}`. Do NOT guess at missing inputs. The a11y index is optional; absence triggers § 5 SKIP semantics, not PATCH_REJECTED.
