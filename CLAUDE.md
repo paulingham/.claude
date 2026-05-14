@@ -50,35 +50,19 @@ Every Agent spawn carries a `thinking` field — `effort` (`low|medium|high|xhig
 
 ### Advisor-Mode Reviews (Opus 4.7)
 
-`code-reviewer` and `security-engineer` ship with `executor: claude-sonnet-4-6` + `advisor: claude-opus-4-7` in their frontmatter. Sonnet drives the review, Opus is consulted on judgement calls. This is the **intended default** — review pairings remain **advisory at v2.1.140** because the `advisor:` field is **not yet schema-exposed** on the Agent tool input. The `pre-agent-advisor.sh` PreToolUse hook logs the would-be pairing to `metrics/{session}/advisor-dispatch.jsonl`; no spawn is blocked, no model is downgraded. Will become the enforced default the moment the `advisor:` field lands.
-
-**Cost** (PROVISIONAL pending advisor-baseline; see `eval/baselines/{latest}-advisor-baseline.md`): Sonnet+Opus-advisor pairing is roughly ~40% cheaper per review than naive Opus-solo, with quality-equivalence (≥95% verdict-agreement on the regression suite) targeted but not yet measured. Override with `CLAUDE_REVIEW_ADVISOR_DISABLED=1` to force Opus-solo.
+Sonnet-executor + Opus-advisor pairing for `code-reviewer` and `security-engineer`; advisory at v2.1.140. Full mechanism, status, cost estimate, and operator controls: `protocols/advisor-mode.md`.
 
 ### Cost Discipline
 
-The May 8 2026 subagent-summary cache fix delivers roughly ~3× `cache_creation`
-token reduction per subagent dispatch — **only when preambles are cache-stable**
-across spawns. Preamble cache stability depends on stable instinct-injection
-ordering, stable session-memory file contents, and consistent agent-definition
-frontmatter. Drift in any of these voids the cache-creation savings and
-silently doubles per-spawn cost.
-
-This motivates the upcoming prompt-caching breakpoint work: explicit cache
-control headers around the orchestrator → subagent prompt preamble surface
-to make cache-stability a load-bearing invariant rather than an emergent
-property.
-
-See `skills/cost-report/SKILL.md` for the cost-tracking surface,
-`hooks/_lib/cost_estimator.py` for per-spawn token accounting, and
-`metrics/{session}/*.jsonl` per-session records for empirical measurements.
+May 8 2026 subagent-summary cache fix delivers ~3× `cache_creation` reduction when preambles are cache-stable. Full mechanism, drift surface, and measurement controls: `protocols/cost-discipline.md`.
 
 ### Per-Agent Tool Allowlists (Path B)
 
-Every agent's `tools:` frontmatter declares the tools that agent may invoke (YAML list, one tool per line). The `pre-agent-allowlist.sh` PreToolUse hook reads the spawned `subagent_type`, loads the matching frontmatter via `agent_tools_loader`, and computes a subset check against `tool_input.allowed_tools`. Any superset request is logged to `metrics/{session}/tool-allowlist.jsonl` with `source: "path-b-advisory"` — allowlist enforcement remains **advisory at v2.1.140** because the `allowed_tools:` field is **not yet schema-exposed** on the Agent tool input. Disable per-session with `CLAUDE_DISABLE_TOOL_ALLOWLIST=1`; suppressed by `CLAUDE_HOOK_PROFILE=minimal`. Will be promoted to enforcement (exit 2 on `would_block`) the moment the `allowed_tools:` field lands. See `protocols/agent-protocol.md` § Per-Agent Tool Scoping for the full contract.
+`tools:` frontmatter declares per-agent tool allowlist; `pre-agent-allowlist.sh` checks subset against `tool_input.allowed_tools` (advisory at v2.1.140). Full contract: `protocols/agent-tool-allowlists.md` and `protocols/agent-protocol.md` § Per-Agent Tool Scoping.
 
 ### Instinct Injection (Path B)
 
-Every agent's `instinct_categories:` frontmatter (YAML list of role-name tokens) determines which `learning/{project-hash}/instincts/*.md` and `learning/instincts/*.md` files apply to that spawn. The `instinct-injector.sh` PreToolUse hook (`Agent` matcher, position 6) loads matching instincts via `instinct_loader.py`, filters by confidence floor (default `0.4`), sorts by confidence DESC, caps at top N (default `5`), and logs the resolution to `metrics/{session}/instinct-injections.jsonl` with `source: "logged"`. The hook is **advisory/log-only at v2.1.140** — the `modified_tool_input` field is **not yet schema-exposed** on the PreToolUse Agent surface, so the hook cannot patch the spawn prompt. Actual `## Learned Patterns` injection is performed by the orchestrator at spawn time, which writes a paired `source: "orchestrator-injected"` JSONL record. Mismatch (`logged` without paired `orchestrator-injected`) is the Path-B failure surface, detected by `/forensics`. Override with `CLAUDE_INSTINCT_MIN_CONFIDENCE` / `CLAUDE_INSTINCT_TOP_N`; disable via `CLAUDE_DISABLE_INSTINCT_INJECTION=1`; suppressed by `CLAUDE_HOOK_PROFILE=minimal`. Will be promoted to enforcement (single-file flip in `hooks/instinct-injector.sh`) the moment `modified_tool_input` lands. See `protocols/autonomous-intelligence.md` § Instinct Injection for the full contract and `orchestrator/agent-orchestration.md` § Instinct Injection for the caller-side splice.
+`instinct_categories:` frontmatter selects instincts per spawn; `instinct-injector.sh` resolves and logs (advisory at v2.1.140), orchestrator splices the `## Learned Patterns` block. Full contract: `protocols/autonomous-intelligence.md` § Instinct Injection and `orchestrator/agent-orchestration.md` § Instinct Injection.
 
 ### Agent Team
 
@@ -119,40 +103,7 @@ Parallelizable phases dispatch as **parallel subagent calls in a single message*
 
 ### How the System Works
 
-The orchestrator (Claude) coordinates work. It never writes code, reads source files, or runs tests.
-
-**Flow (parallel-subagents default):**
-```
-User → /intake (classify + score) → /pipeline (drive phases)
-  → Sequential subagent phases (Plan, single-slice Build, Ship, Deploy):
-    → Skill tool or Agent tool → agent works → returns verdict
-  → Parallelizable phases (multi-slice Build, Review, Final Gate):
-    → Single message with N parallel Agent calls
-    → Each agent reads its skill file, works, returns verdict
-    → Orchestrator collects all verdicts before advancing
-
-  Visible mode (opt-in: CLAUDE_VISIBLE_TEAMS=1 or /pipeline --visible):
-    → TeamCreate("pipeline-{task-id}") + spawn teammates into team
-    → Tmux panes show parallel work in real time
-    → Teammates shut down after phase
-```
-
-**Dispatch mechanisms:**
-
-| Mechanism | When | Visible? |
-|-----------|------|----------|
-| **Skill tool** | Sequential read-only phases | No |
-| **Subagent** (Agent + worktree) | Default for every phase, including parallel fan-outs | No |
-| **Team** (TeamCreate + teammates) | Opt-in for human-observable runs only | Yes (tmux) |
-
-**Orchestrator boundaries:**
-
-| ONLY does | NEVER does |
-|-----------|------------|
-| Invoke skills, spawn agents/teammates | Read source files (`.ts`, `.tsx`, `.js`, etc.) |
-| Run `git` commands (status, log, diff, merge) | Run tests, linters, or build commands |
-| Manage teams (create, assign, shutdown) | Use Explore or general-purpose agents |
-| Track pipeline state + report progress | Compute analysis or make code decisions |
+Orchestrator coordinates; never writes code/tests. Flow, dispatch mechanisms (Skill/Subagent/Team), and orchestrator boundaries: `protocols/pipeline-overview.md` § How the System Works.
 
 ### Delivery Pipeline
 
@@ -187,67 +138,7 @@ Tracing is off by default (`CLAUDE_ENABLE_TRACE=0` in `settings.json`). Enable p
 
 ### Skill Directory
 
-| Skill | When to Invoke | Verdict |
-|-------|----------------|---------|
-| `/intake` | **Entry point** — first skill for any user request | ROUTED |
-| `/pipeline` | **Conductor** — drives all phases in sequence | PIPELINE_COMPLETE |
-| `/epic-breakdown` | Decomposing epics into stories | STORIES_READY |
-| `/estimation` | Sizing stories with Complexity Budget | ESTIMATED |
-| `/story-writing` | Writing individual user stories | STORY_READY |
-| `/build-implementation` | Build phase: incremental TDD + shape checks (default). When intake sets `bestofn: true` (critical, OR `[best-of-n]` user override), the pipeline dispatches Build as a Best-of-N Team variant — see `orchestrator/parallel-dispatch-details.md` § Best-of-N Build Team Dispatch | BUILD_COMPLETE |
-| `/pdr-rtv` | Build dispatch variant — Parallel-Diverse-Refine + Recursive-Tournament-Verification (arXiv:2604.16529). When intake sets `pdr_rtv: true` (`budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-9} OR critical`), the pipeline dispatches Build as a PDR-RTV Team variant — T=2 iterations of N parallel rollouts, summary-based refinement, and pairwise tournament selection. Strictly stronger than Best-of-N when both fire. Tunable: No. See `orchestrator/parallel-dispatch-details.md` § PDR-RTV Build Team Dispatch | PDR_WINNER_SELECTED / PDR_NO_CONSENSUS |
-| `/refactor` | Build phase: safe refactoring workflow | REFACTOR_COMPLETE |
-| `/bug-fix` | Build phase: root cause analysis + TDD fix | BUG_FIXED |
-| `/code-review` | Review phase: SOLID/DRY/quality audit | APPROVE / CHANGES_REQUESTED |
-| `/security-review` | Review phase: OWASP/secrets/auth (parallel) | APPROVE / CHANGES_REQUESTED |
-| `/verify` | Verify phase: contract + smoke + mutation | VERIFIED / UNVERIFIED |
-| `/qa-test-strategy` | Test phase: coverage analysis + gap filling | COVERED / GAPS_FOUND |
-| `/product-acceptance` | Accept phase: AC validation + UX | APPROVED / REJECTED |
-| `/patch-critique` | Final Gate: critic step scoring patch by test results + diff (NOT SOLID — that is `/code-review`'s job). Inspired by SWE-bench top scaffolds | PATCH_APPROVED / PATCH_REJECTED |
-| `/pr-creation` | Ship phase: PR creation with narrative | PR_CREATED / PR_BLOCKED |
-| `/tech-spike` | Time-boxed technical research | SPIKE_COMPLETE |
-| `/project-setup` | Scaffolding project-level CLAUDE.md | PROJECT_SETUP_COMPLETE |
-| `/pipeline-resume` | Resume interrupted pipeline from state files | RESUMED |
-| `/plan-self-validation` | Lightweight Plan Validation: architect re-reads its own plan against a structured holes-finding rubric. Used when `critical == false AND Budget < 7` | PLAN_APPROVED / PLAN_HOLES |
-| `/harness-config` | Modify hooks, settings.json, non-.md config | CONFIG_APPLIED |
-| `/deploy` | CD phase: staging/production deploy with rollback | DEPLOYED / ROLLED_BACK |
-| `/infra-scaffold` | Generate Dockerfile, docker-compose, CI/CD, health endpoints | INFRA_SCAFFOLDED |
-| `/api-scaffold` | Generate API endpoints, validation, pagination, rate limiting | API_SCAFFOLDED |
-| `/db-migration` | Schema changes, zero-downtime migrations, reversibility | MIGRATION_COMPLETE |
-| `/observability-setup` | Logging, metrics, tracing, alerting, dashboards | OBSERVABILITY_CONFIGURED |
-| `/web-frontend-patterns` | React/Next.js patterns, state, a11y, performance, caching | PATTERNS_APPLIED |
-| `/deployment-verification` | Post-deploy health checks, smoke tests, auto-rollback | DEPLOYMENT_VERIFIED |
-| `/load-test` | Performance testing: load, stress, baselines, SLA verification | PERFORMANCE_VERIFIED |
-| `/module-extraction` | Extract a bounded context into an in-process module with an explicit port (same repo, no forcing function) | BOUNDARY_READY / MODULE_EXTRACTED / EXTRACTION_BLOCKED / WRONG_SKILL |
-| `/debug` | Persistent debug state for complex, multi-session bugs | DEBUG_RESOLVED |
-| `/debug-trace` | Toggle prompt tracing for the current session (`on` / `off`) | TRACE_TOGGLED |
-| `/forensics` | Post-incident pipeline investigation | CLEAN / ANOMALIES_FOUND |
-| `/workstream` | Manage isolated workstreams for parallel development | WORKSTREAM_CREATED |
-| `/batch-pipeline` | Pre-planned batch work (waves, bulk fixes) — lightweight pipeline with state tracking | BATCH_COMPLETE |
-| `/polish` | Mechanical cleanup between Build and Review (Haiku) | POLISHED |
-| `/design-qc` | Visual QA screenshots for product acceptance | SCREENSHOTS_CAPTURED |
-| `/learn` | Analyze observations, extract instincts (learned patterns) | LEARNED |
-| `/health-scan` | Proactive codebase health: security, deps, coverage, tech debt | HEALTHY / CRITICAL_ISSUES |
-| `/eval-model-effectiveness` | Advisory analysis of agent model efficiency from observations + costs | RECOMMENDATIONS_READY |
-| `/internal-eval` | Eval phase: suite execution, baseline capture, regression diff | EVAL_PASSED / EVAL_FAILED / EVAL_BASELINE_CAPTURED / INSUFFICIENT_CASES |
-| `/greenfield-scaffold` | Full project bootstrap from scratch: discovery, tech stack, UI architecture, framework init, DevX, design, infra, seed data | GREENFIELD_SCAFFOLD_COMPLETE |
-| `/creative-direction` | Pre-build design thinking: brand brief → fonts, palette, layout, interaction paradigm | CREATIVE_DIRECTION_COMPLETE |
-| `/design-system-init` | Generate design tokens, primitives, dark mode for a project | DESIGN_SYSTEM_READY |
-| `/tool-synthesis` | Build phase: author a one-shot scratch tool inside the worktree (codebase-specific search, AST query, custom lint) when standard tools are insufficient. Tool lives in `.claude-scratch-tools/`, never merged. Inspired by Live-SWE-agent (arXiv 2511.13646) | TOOL_SYNTHESISED / TOOL_UNNECESSARY |
-| `/property-based-test` | Build phase: author Tier 1.5 PBTs for changed-line public functions with typed signatures (auto-invoked from /build-implementation Step 1d). Time-box 60s/function. Frozen counterexamples freeze inline as Tier 1 regressions using harness-native syntax. Inspired by arXiv 2510.09907 | PBT_AUTHORED / PBT_SKIPPED / PBT_BLOCKED |
-| `/spec-blind-validate` | Final Gate: 5th teammate that authors black-box behavioural tests from ACs only, no source — never reads `src/` internals. Three PreToolUse hooks (read-guard / write-guard / Bash content-leak guard) enforce the spec-blind property. Catches the SWE-Bench-Pro-vs-Verified failure mode where build-time tests codify the same misconceptions as production code. Inspired by SWE-Bench Pro | SPEC_BLIND_VALIDATED / SPEC_BLIND_FAILED / SPEC_BLIND_INSUFFICIENT_SURFACE / SPEC_BLIND_BLOCKED |
-
-#### Deferred (forcing-function required)
-
-These skills live under `skills/_deferred/` and are invoked only when a forcing function from `protocols/module-boundaries-protocol.md` is named (service / multi-repo work) or a domain-specific channel is in scope (voice). The pipeline routes automatically — you do not invoke them directly. `/microservices-scaffold` enforces the FF gate at its Step 0.
-
-| Skill | When to Invoke | Verdict |
-|-------|----------------|---------|
-| `/service-extraction` | Extract module to own repo (FF required) | SERVICE_EXTRACTED |
-| `/microservices-scaffold` | New microservice (FF required; Step 0 gate) | SERVICE_SCAFFOLDED / WRONG_SKILL |
-| `/cross-service-pipeline` | Cross-repo contract + deploy coordination | CROSS_SERVICE_VERIFIED |
-| `/bff-scaffold` | Channel-specific BFF layer | BFF_SCAFFOLDED |
-| `/voice-scaffold` | Scaffold voice skill/action (Alexa, Google, Twilio IVR) | VOICE_SCAFFOLDED |
+Full catalog of every user-invocable skill (active + forcing-function-deferred) with entry conditions and verdicts: `protocols/skill-directory.md`. Verdict semantics: `rules/verdict-catalog.md`.
 
 ### Definition of Done
 
@@ -277,24 +168,4 @@ See `protocols/multi-repo-protocol.md` for full details.
 
 ## Detailed Protocols
 
-**Two-tier rules layout.** Auto-load is `rules/core.md` only — load-bearing invariants every spawn needs (Iron Laws, code shape limits, worktree + commit protocol, pipeline phase order, where-to-look-next index). Full protocols live in `protocols/<topic>.md` and are pulled in by skills/agents only when the phase needs them. The original `rules/<topic>.md` files are stubs that preserve backwards-compatible references.
-
-### Skill-Loaded Protocols (read on demand by specific skills/agents)
-- `protocols/agent-protocol.md` — Worktree isolation, commit protocol, scratchpad, agent memory, fix-receiving rules, dynamic agents, resource bounds, per-agent tool scoping
-- `protocols/pipeline-protocol.md` — Pipeline phases, review loop with in-cycle fix detail, environment-dependent debugging loop, enforcement
-- `protocols/engineering-invariants.md` — Engineering baseline: shape decomposition rules, naming, SOLID, error handling, dependency resolution, testing standards, security baseline
-- `protocols/atdd-procedure.md` — Full ATDD cycle, mutation gate, per-behaviour TDD exceptions (loaded by `/build-implementation` and `/bug-fix`)
-- `protocols/operational-protocol.md` — Complexity Budget, error recovery principles, escalation decision tree
-- `protocols/parallel-dispatch-protocol.md` — Hybrid dispatch: teams for Build/Review/Final Gate, subagents for Plan/Ship/Deploy, Best-of-N team variant
-- `protocols/module-boundaries-protocol.md` — Modular monolith default, canonical forcing-function list (FF1–FF5)
-- `protocols/multi-repo-protocol.md` — Project manifests, multi-repo pipelines, GitHub service config, linked PRs, deploy ordering
-- `protocols/e2e-protocol.md` — Multi-target E2E trigger matrix (mobile via Maestro, web via Playwright/Cypress) and prerequisites
-- `protocols/reflection-protocol.md` — Post-pipeline reflection, observation capture, auto-learn gate, session-memory + scratchpad cleanup
-- `protocols/autonomous-intelligence.md` — Pipeline scratchpad, session memory, continuous learning loop, instinct injection, prompt tracing
-- `protocols/thinking-defaults.md` — Default `effort`/`display` resolution, role layer rules, xhigh allocation policy
-
-### Orchestrator-Only Protocols (not auto-loaded, read when needed)
-- `orchestrator/pipeline-orchestration.md` — State tracking, continuity, progress reporting, anti-patterns
-- `orchestrator/agent-orchestration.md` — Agent selection, team management, orchestrator discipline
-- `orchestrator/operational-details.md` — Escalation procedures, error recovery details
-- `orchestrator/parallel-dispatch-details.md` — Team dispatch procedure, review loop with persistent reviewers, audit trail
+Two-tier layout: auto-load is `rules/core.md` only (Iron Laws, code shape limits, worktree + commit protocol, pipeline phase order). Full protocol index (skill-loaded + orchestrator-only): `protocols/pipeline-overview.md` § Detailed Protocols.
