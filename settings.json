@@ -1213,6 +1213,15 @@
         "-lc",
         "exec python3 \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/lsp-bridge-server.py\" --language py"
       ]
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "--ignore-scripts",
+        "chrome-devtools-mcp@0.26.0"
+      ],
+      "_comment": "Pinned to 0.26.0. Future hardening: replace npx with npm ci against committed lockfile under ~/.claude/mcp-servers/chrome-devtools/ — tracked separately. Provenance: github.com/ChromeDevTools/chrome-devtools-mcp (Google org)."
     }
   }
 }

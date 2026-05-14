@@ -428,79 +428,15 @@ After Accept phase completes (APPROVED), check whether the codebase has grown to
 
 This assessment is zero-cost — it reads the existing review output. No additional analysis needed.
 
-### Step 4c: Multi-Repo Ship (Automatic When Manifest Exists)
+### Step 4d: Reflect-write (Pre-Ship)
 
-When the pipeline has a manifest (multi-repo mode):
+**MANDATORY** between Final Gate completion and Step 4c (Multi-Repo Ship / `/pr-creation`). Relocates the two file-producing Reflect sub-steps (observation append + `/learn`) to before `gh pr create` so the learning artifacts land inside the feature branch and ship with the PR — instead of as orphan `chore(learning):` commits stranded on local `main` while other PRs merge ahead.
 
-1. **Create PRs per repo** in dependency order (providers first):
-   - For each repo with changes, run `/pr-creation` in that repo's working directory
-   - Each PR body includes `## Related PRs` with cross-references
-   - Track all PRs in the pipeline state's `## PR Manifest` section
-2. **Merge order enforcement**:
-   - Provider PRs merge first (no dependencies)
-   - Wait for CI to pass on merged provider
-   - Consumer PRs merge after their dependencies are satisfied
-3. **All PRs tracked** in pipeline state — the orchestrator monitors status via `gh pr view`
+Three sub-steps, in strict order. Each must complete before the next begins.
 
-If single-repo mode (no manifest) → existing Ship behavior (one PR, no cross-references).
+#### 4d-i. Per-Pipeline Observation Capture
 
-### Step 5: Deploy (Automatic for Medium/Large)
-
-After Ship phase returns PR_CREATED:
-
-1. Check PR merge status: `gh pr view [PR_NUMBER] --json state -q '.state'`
-2. If `MERGED`: automatically invoke `/deploy` → `/deployment-verification`
-3. If `OPEN`: inform user PR is ready for review. The deploy phase will run when the user returns after merge — `/pipeline-resume` detects Ship=completed + Deploy=pending and auto-continues.
-
-For micro/small pipelines: deploy is optional (inform user, don't auto-invoke).
-
-#### Multi-Service Deploy (When Manifest Exists)
-
-When the pipeline has a manifest with multiple repos and deploy targets:
-
-1. Read `## Deploy Order` from manifest
-2. Deploy in dependency order: providers first, then consumers
-3. After each service deploys: run health check, verify `/deployment-verification`
-4. Only proceed to next service after current is DEPLOYMENT_VERIFIED
-5. If any service fails: halt remaining deploys, rollback in reverse order
-6. Cross-service smoke tests after all services deployed
-7. Track per-service deploy status in pipeline state
-
-Single-repo mode: existing behavior (one deploy, no cross-service checks).
-
-### Step 6: Completion
-
-When all phases are complete (including Deploy if applicable):
-1. Update pipeline-state file: mark all phases as `completed`, record PR URL and deploy URL
-2. Report PR URL (and deploy URL if deployed) to user
-3. Output final pipeline summary with all agent contributions
-4. Clean up pipeline-state file (see Step 7d for the canonical Reflect cleanup snippet — dual-form during the DUAL_PATH soak)
-
-### Step 7: Reflect
-
-**MANDATORY** after every pipeline. Three sub-steps, in order:
-
-#### 7a. Pipeline Analytics (before cleanup)
-
-Capture quantitative pipeline metrics before state files are deleted:
-```bash
-bash ~/.claude/hooks/pipeline-analytics.sh {task-id}
-```
-This aggregates phase verdicts, agent counts, and review rounds into `metrics/pipelines.jsonl`. Must run before state file cleanup in Step 6.
-
-#### 7b. Qualitative Reflection
-
-Run the reflection checklist from `protocols/reflection-protocol.md`.
-
-If the pipeline experienced failures, >2 review rounds, or any recovery loop: invoke `/forensics` before reflection. The forensics report provides evidence-based findings for the reflection checklist.
-
-1. Review the pipeline execution for issues, surprises, and validated patterns
-2. Identify improvements to rules, project CLAUDE.md, global CLAUDE.md, agent definitions, skills, or memory
-3. Apply identified changes (delegate source file changes to agents)
-
-#### 7b-bis. Per-Pipeline Observation Capture
-
-**MANDATORY** before invoking `/learn`. Appends a single `record_type: "pipeline"` JSON record to `learning/{project-hash}/observations.jsonl` so the auto-learn gate (`auto-learn-gate.sh` Stop hook) and `mine_anti_patterns` consumer in `/learn` see this pipeline.
+Appends a single `record_type: "pipeline"` JSON record to `learning/{project-hash}/observations.jsonl` so the auto-learn gate (`auto-learn-gate.sh` Stop hook) and `mine_anti_patterns` consumer in `/learn` see this pipeline.
 
 Schema source of truth: `protocols/autonomous-intelligence.md` § Field reference. The `phases.patch_critic` block shape and the `persona_rejections` invariants are documented there; this step is the producer surface for the regular pipeline (the `batch-pipeline` skill writes the same shape from its Step 6).
 
@@ -592,11 +528,13 @@ finally:
 PY
 ```
 
-Append must complete BEFORE Step 7c (`/learn` reads `observations.jsonl` from disk) and BEFORE Step 7d (cleanup). The auto-learn-gate Stop hook reads new appended lines via a file-offset cursor; the sequencing is load-bearing.
+Append must complete BEFORE 4d-ii (`/learn` reads `observations.jsonl` from disk) and BEFORE 4d-iii (feature-branch commit). The auto-learn-gate Stop hook reads new appended lines via a file-offset cursor; the sequencing is load-bearing.
 
-#### 7c. Learning Extraction (automatic)
+#### 4d-ii. Learning Extraction (synchronous)
 
-Invoke `/learn` to analyze session observations, pipeline analytics, and review findings. This:
+Invoke `/learn` **synchronously** (NOT background-spawn) so the instinct `.md` files are flushed to disk before 4d-iii commits. This is a deliberate deviation from `protocols/reflection-protocol.md` § 6b's async dispatch — § 6b describes the legacy post-Ship variant; Step 4d is the pre-Ship variant and is synchronous by design to avoid a race between `/learn`'s file writes and the worktree commit below.
+
+`/learn` analyzes session observations, pipeline analytics, and review findings. This:
 1. Reads enriched observations for this session (tool usage with phase, role, outcome)
 2. Reads pipeline analytics for this project (last N pipelines from `metrics/pipelines.jsonl`)
 3. Reads review findings from the current pipeline's review state file (if it exists, before cleanup)
@@ -606,6 +544,102 @@ Invoke `/learn` to analyze session observations, pipeline analytics, and review 
 7. Reports new/updated instincts to the orchestrator
 
 The orchestrator reports learnings to the user (skip if nothing actionable). Every pipeline — whether it had rework or ran clean — feeds the learning flywheel.
+
+#### 4d-iii. Feature-branch Commit (with fallback guard)
+
+After 4d-i and 4d-ii complete, the orchestrator commits the newly-written learning files to the feature-branch worktree. The `learning/` path is partially `.gitignore`d (per `.gitignore` lines 53-58: only `learning/instincts/**` is tracked; per-project `learning/{project-hash}/observations.jsonl` is ignored). The `git add learning/` below picks up only the tracked instinct files; the ignored observations.jsonl is intentionally excluded — observations are local-only state.
+
+```bash
+if [ -d "$WORKTREE/.git" ]; then
+  git -C "$WORKTREE" add learning/
+  git -C "$WORKTREE" diff --cached --quiet || \
+    git -C "$WORKTREE" commit -m "chore(learning): observation + instincts for {task-id}"
+else
+  echo "[reflect-write] worktree gone; falling back to post-merge commit on main" >&2
+fi
+```
+
+The fallback guard preserves today's post-merge behaviour if the worktree was torn down before Step 4d ran. Iron Law 4 is honoured — all HEAD-mutating commands run via `git -C "$WORKTREE"`.
+
+### Step 4c: Multi-Repo Ship (Automatic When Manifest Exists)
+
+**Prerequisite**: Step 4d (Reflect-write) must have committed observation + instinct files to the feature branch before this step invokes `/pr-creation`. Skipping Step 4d strands `chore(learning):` commits on local `main` post-merge — exactly the divergence symptom this ordering prevents.
+
+When the pipeline has a manifest (multi-repo mode):
+
+1. **Create PRs per repo** in dependency order (providers first):
+   - For each repo with changes, run `/pr-creation` in that repo's working directory
+   - Each PR body includes `## Related PRs` with cross-references
+   - Track all PRs in the pipeline state's `## PR Manifest` section
+2. **Merge order enforcement**:
+   - Provider PRs merge first (no dependencies)
+   - Wait for CI to pass on merged provider
+   - Consumer PRs merge after their dependencies are satisfied
+3. **All PRs tracked** in pipeline state — the orchestrator monitors status via `gh pr view`
+
+If single-repo mode (no manifest) → existing Ship behavior (one PR, no cross-references).
+
+### Step 5: Deploy (Automatic for Medium/Large)
+
+After Ship phase returns PR_CREATED:
+
+1. Check PR merge status: `gh pr view [PR_NUMBER] --json state -q '.state'`
+2. If `MERGED`: automatically invoke `/deploy` → `/deployment-verification`
+3. If `OPEN`: inform user PR is ready for review. The deploy phase will run when the user returns after merge — `/pipeline-resume` detects Ship=completed + Deploy=pending and auto-continues.
+
+For micro/small pipelines: deploy is optional (inform user, don't auto-invoke).
+
+#### Multi-Service Deploy (When Manifest Exists)
+
+When the pipeline has a manifest with multiple repos and deploy targets:
+
+1. Read `## Deploy Order` from manifest
+2. Deploy in dependency order: providers first, then consumers
+3. After each service deploys: run health check, verify `/deployment-verification`
+4. Only proceed to next service after current is DEPLOYMENT_VERIFIED
+5. If any service fails: halt remaining deploys, rollback in reverse order
+6. Cross-service smoke tests after all services deployed
+7. Track per-service deploy status in pipeline state
+
+Single-repo mode: existing behavior (one deploy, no cross-service checks).
+
+### Step 6: Completion
+
+When all phases are complete (including Deploy if applicable):
+1. Update pipeline-state file: mark all phases as `completed`, record PR URL and deploy URL
+2. Report PR URL (and deploy URL if deployed) to user
+3. Output final pipeline summary with all agent contributions
+4. Clean up pipeline-state file (see Step 7d for the canonical Reflect cleanup snippet — dual-form during the DUAL_PATH soak)
+
+### Step 7: Reflect
+
+**MANDATORY** after every pipeline. Three sub-steps, in order:
+
+#### 7a. Pipeline Analytics (before cleanup)
+
+Capture quantitative pipeline metrics before state files are deleted:
+```bash
+bash ~/.claude/hooks/pipeline-analytics.sh {task-id}
+```
+This aggregates phase verdicts, agent counts, and review rounds into `metrics/pipelines.jsonl`. Must run before state file cleanup in Step 6.
+
+#### 7b. Qualitative Reflection
+
+Run the reflection checklist from `protocols/reflection-protocol.md`.
+
+If the pipeline experienced failures, >2 review rounds, or any recovery loop: invoke `/forensics` before reflection. The forensics report provides evidence-based findings for the reflection checklist.
+
+1. Review the pipeline execution for issues, surprises, and validated patterns
+2. Identify improvements to rules, project CLAUDE.md, global CLAUDE.md, agent definitions, skills, or memory
+3. Apply identified changes (delegate source file changes to agents)
+
+#### 7b-bis. Per-Pipeline Observation Capture — RELOCATED to Step 4d-i
+
+This sub-step has moved to Step 4d-i (Reflect-write, pre-Ship). The observation append now runs BEFORE `/pr-creation` so the producer surface is captured on the feature branch and ships inside the PR. See Step 4d for the full body (JSON template, mode invariant, sandbox-safe append).
+
+#### 7c. Learning Extraction — RELOCATED to Step 4d-ii
+
+This sub-step has moved to Step 4d-ii (Reflect-write, pre-Ship) and is now invoked **synchronously** (NOT background-spawn). The synchronous dispatch is a deliberate deviation from `protocols/reflection-protocol.md` § 6b's async path — § 6b describes the legacy post-Ship variant; the pre-Ship variant in Step 4d must complete before the 4d-iii feature-branch commit so instinct `.md` files are flushed to disk before being staged.
 
 #### 7d. Reflect Cleanup (Dual-Form During DUAL_PATH Soak)
 

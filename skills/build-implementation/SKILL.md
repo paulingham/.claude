@@ -122,6 +122,95 @@ Walk these 5 categories IN ORDER:
 
 After adversarials are GREEN, return to Step 2's MUTATION GATE on the **union suite** (architect stubs + adversarials).
 
+### Step 2d: DOM Smoke
+
+Inserted between Step 2b and Step 3. Authors a runtime smoke check via Chrome DevTools MCP: navigate each changed route, fail Build on console `level: error` or network `status >= 400` (after the inline ignore-list filter). Default ON. The escape hatch is `CLAUDE_DOM_SMOKE=0`. Triad verdicts: `DOM_SMOKE_PASSED`, `DOM_SMOKE_SKIPPED`, `DOM_SMOKE_FAILED`.
+
+**2am breadcrumb.** If DOM smoke fails on every Build and nothing in the diff explains it → (1) check the ignore-list regex below, (2) check `.claude/dom-smoke-ignore.json`, (3) check sentinel state `pipeline-state/{task-id}/.dom-smoke-warm`, (4) set `CLAUDE_DOM_SMOKE=0` to confirm Step 2d is the offender.
+
+Note: `mcp__chrome-devtools__*` tool calls outside the four-entry allowlist are advisory-blocked only (v2.1.140); enforcement promotes to hard-block when the per-spawn `thinking` field exposure ships.
+
+**Procedure.**
+
+1. **Escape hatch.** If `CLAUDE_DOM_SMOKE=0` is set → emit `DOM_SMOKE_SKIPPED reason=env-hatch` and return. Default ON.
+
+2. **Comparison base.** Compute the changed-files list against the slice's actual delta from `main`:
+
+   ```bash
+   CHANGED=$(git diff --name-only $(git merge-base HEAD main)...HEAD)
+   ```
+
+   The `merge-base ...HEAD` form is REQUIRED — it pins the comparison to the slice's true delta against `main`, even when the worktree contains cherry-picked prior-slice commits. Diffing against bare `HEAD` (no merge-base, no revision-range) is FORBIDDEN — it returns only uncommitted changes and misses every committed file in the slice.
+
+3. **Path-glob trigger.** Match `$CHANGED` against the five frontend globs. If none match → `DOM_SMOKE_SKIPPED reason=no-changed-routes` and return.
+
+   - `app/**`
+   - `src/**`
+   - `pages/**`
+   - `components/**`
+   - `**/*.{tsx,jsx,vue,svelte,html,css}`
+
+4. **Resolve routes.** Use the project's route resolver (Next.js `app/`, Vite router, Astro `src/pages/`, etc., per `skills/design-qc/SKILL.md` § Step 5) to map matched files to URL routes. Always include `/`. If no resolver applies → `DOM_SMOKE_SKIPPED reason=no-route-resolver` and return.
+
+5. **Dev-server lifecycle.** Install, build, start the dev server bound to loopback only, poll the health endpoint, capture the process group for SIGKILL-safe teardown:
+
+   ```bash
+   # DUPLICATES skills/design-qc/SKILL.md:46-90 — see plan chrome-devtools-mcp-wire M2
+   # rationale; future helper extraction is a separate pipeline.
+   HOST=127.0.0.1 npm install && npm run build
+   # Use setsid so we can kill the process group on cleanup (SIGKILL-safe).
+   HOST=127.0.0.1 setsid npm run dev > /dev/null 2>&1 &
+   DEV_PID=$!
+   echo "$DEV_PID" > "pipeline-state/{task-id}/.dev-server.pid"
+   for i in $(seq 1 30); do
+     curl -fsS http://127.0.0.1:3000/ >/dev/null 2>&1 && break
+     sleep 1
+   done
+   trap 'kill -- -$DEV_PID 2>/dev/null; rm -f "pipeline-state/{task-id}/.dev-server.pid"' EXIT
+   ```
+
+   Framework-specific overrides: Vite `--host 127.0.0.1`, Nuxt `NITRO_HOST=127.0.0.1`, Astro `--host 127.0.0.1`. Step 2d MUST verify dev server is bound to loopback only — if `ss -tlnp` (or `lsof -iTCP -sTCP:LISTEN`) shows 0.0.0.0 binding, emit `DOM_SMOKE_FAILED reason=dev-server-non-loopback`.
+
+   Reflect phase reaps stale `.dev-server.pid` files across `pipeline-state/*` directories.
+
+6. **MCP unavailable — sentinel escalation.** On first invocation:
+   - If `npx -y chrome-devtools-mcp@0.26.0` exceeds 90s OR the MCP server returns "server unavailable" → emit `DOM_SMOKE_SKIPPED reason=mcp-unavailable-first-run` AND `touch pipeline-state/{task-id}/.dom-smoke-warm` (the sentinel). Return.
+   - On any subsequent invocation: if `pipeline-state/{task-id}/.dom-smoke-warm` exists AND MCP is unavailable → emit `DOM_SMOKE_FAILED reason=mcp-unavailable-after-warm`. HALT Build. (No silent skip — the sentinel proves MCP worked once in this task.)
+
+7. **Per-route smoke.** For each resolved route, invoke the Chrome DevTools MCP tools in **invocation form** (double-underscore + hyphen, server segment `chrome-devtools` matching the npm package name):
+
+   - `mcp__chrome-devtools__navigate_page` — navigate the running dev server to the route.
+   - `mcp__chrome-devtools__list_console_messages` — read the console event stream.
+   - `mcp__chrome-devtools__list_network_requests` — read the network event stream.
+
+   Note: this is the *invocation* form. The allowlist form `mcp_chrome_devtools_*` (underscore-flat) lives in `agents/frontend-engineer.md` frontmatter and is NOT interchangeable with the invocation form.
+
+8. **Inline ignore-list regex** (applied to console `message` and network `url` BEFORE the failure check). False positives are fixed in-cycle by extending this list — no follow-up tickets:
+
+   - `^Warning: ReactDOM\.render`
+   - `^Warning: .* is deprecated`
+   - `\[HMR\]`
+   - `Download the React DevTools`
+   - `\[Fast Refresh\]`
+   - `Lighthouse`
+   - Network URLs matching `://[^/]*\.(googletagmanager|google-analytics|doubleclick|hotjar)\.`
+   - `data:` and `blob:` scheme URLs
+
+   Project-level extensions live in `.claude/dom-smoke-ignore.json` (additive).
+
+   **Validate ignore-list patterns.** Before applying any pattern (inline or from `.claude/dom-smoke-ignore.json`), reject patterns matching `^(\.\*|\.\+|\^|\$|\.|)$` (overbroad neuters). On detection → emit `DOM_SMOKE_FAILED reason=ignore-list-overbroad` and HALT Build. This prevents a malicious or careless commit from silently disabling the gate.
+
+9. **Failure semantics.** After the ignore-filter:
+
+   - Any console message with `level: error` → `DOM_SMOKE_FAILED`.
+   - Any network request with `status >= 400` → `DOM_SMOKE_FAILED`.
+
+   Payload shape: `{route, errors: [{type, message, url, status}]}` where `type ∈ {console, network}`, `message` is the literal console text (console errors set `url=null`, `status=null`), and `url`/`status` carry the network request data (network errors set `message=null`). Kill the dev server (`kill $DEV_PID`) and HALT Build.
+
+10. **Success.** All routes clean → `DOM_SMOKE_PASSED`. Kill the dev server. Proceed to Step 3.
+
+11. **Audit trail.** Write `pipeline-state/{task-id}/build-artifacts/dom-smoke-report.json` with `{routes_checked, verdict, payload, sentinel_present, comparison_base}` on every invocation (PASSED, SKIPPED, FAILED).
+
 ### Step 3: Shape Check After Every File
 
 After completing or modifying ANY file, verify the cohesion-based shape rules in `protocols/engineering-invariants.md` § Code Shape:

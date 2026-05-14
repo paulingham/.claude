@@ -75,6 +75,8 @@ After reflection steps 1-5, execute these in order:
 
 Append a structured observation to `learning/{project-hash}/observations.jsonl`. Every pipeline produces one observation — successes and failures both. Include: phase verdicts, review rounds, scratchpad findings summary, rework flag, complexity budget. Format in `rules/autonomous-intelligence.md` § Observation Capture.
 
+**Ordering note (Step 4d relocation):** for the regular delivery pipeline, the observation append runs at `skills/pipeline/SKILL.md` **Step 4d-i (Reflect-write, pre-Ship)** — BEFORE `/pr-creation` — so the artifacts ship inside the feature-branch PR rather than landing as orphan `chore(learning):` commits on local `main` post-merge. The `record_type: "pipeline"` JSON template, mode invariants, and sandbox-safe Python `os.open` append snippet live in Step 4d-i. This § 6a entry remains the canonical schema reference; Step 4d-i is the canonical producer site.
+
 ### 6b. Auto-Learn Gate Check
 
 The gate fires automatically via the `auto-learn-gate.sh` Stop hook — the orchestrator does not need to evaluate conditions. When thresholds are met (≥3 new pipeline observations, ≥3 pipelines or ≥24h since last run, pipeline-id idempotency), the hook emits a visible "Triggered" banner on stdout.
@@ -115,6 +117,8 @@ Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1` suppresses the hook.
 
 See `rules/autonomous-intelligence.md` § Consolidation Gate for full semantics.
 
+**Synchronous variant (Step 4d-ii):** the regular delivery pipeline now invokes `/learn` **synchronously** at `skills/pipeline/SKILL.md` Step 4d-ii (Reflect-write, pre-Ship) — NOT background-spawn — so the instinct `.md` files are flushed to disk before Step 4d-iii commits them to the feature-branch worktree. The async dispatch documented above is the legacy post-Ship variant, retained as the contract source for batch/utility callers that do not need pre-Ship commit semantics. The integration-test snapshot `DocsRecordBackgroundSpawnContract` continues to assert the literal phrases `Pipeline must NOT block on /learn completion` and `run_in_background: true` — those still apply to background-spawn callers, not to Step 4d-ii.
+
 ### 6b-bis. Model-Efficiency Check (Every 10 Observations OR Weekly, whichever fires first)
 
 Invoke `/eval-model-effectiveness` to refresh the model recommendation report when EITHER trigger fires:
@@ -133,6 +137,11 @@ Spawn a `session-memory-updater` agent (Agent tool, `subagent_type: session-memo
 Delete BOTH the new-layout scratchpad subdir `pipeline-state/{task-id}/scratchpad/` AND any legacy `pipeline-state/{task-id}-scratchpad/` directory alongside the pipeline state files. During the DUAL_PATH soak, both forms may coexist — see `skills/pipeline/SKILL.md` § 7d for the canonical dual-form cleanup snippet (uses `_psp_phase_list` enumeration to avoid bare globs that would match prefix neighbours).
 
 ### 6e. Commit Persistent Harness State
+
+**Split contract (post Step 4d relocation):** harness state commits are split by file family:
+
+- **`learning/` (instinct files):** committed during **Step 4d-iii (feature-branch worktree)** — see `skills/pipeline/SKILL.md` Step 4d. The learning files are pipeline output and ship inside the PR. This § 6e snippet does NOT commit `learning/`; it would duplicate the Step 4d-iii commit and re-introduce the divergence symptom this ordering eliminates.
+- **`agent-memory/` and `session-memory/`:** committed here, post-merge to `main`. These are harness state — not pipeline output — and remain on the post-merge path.
 
 After the pipeline's PR is merged and scratchpad is cleaned up, commit any changes to `agent-memory/` and `session-memory/` directly to `main`:
 

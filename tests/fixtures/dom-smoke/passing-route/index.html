@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>dom-smoke passing-route fixture</title>
+</head>
+<body>
+  <div id="app">passing-route fixture</div>
+  <!-- XHR status=200 -->
+  <script>
+    // AC13 — fixture mounts cleanly (no console.error) and emits exactly one
+    // XHR with HTTP 200 status. The HTML comment above is the declarative
+    // marker the Step 2d mock shim parses (see tests/test_dom_smoke_passing_fixture.sh).
+    // Documented contract: zero console errors + zero status>=400 → DOM_SMOKE_PASSED.
+    fetch('/api/health').then(function (response) {
+      // Real Chrome would record this as a network entry with status=200.
+      // The fixture documents the intent via the comment above so the test
+      // mock does not need a live HTTP server.
+    });
+  </script>
+</body>
+</html>
