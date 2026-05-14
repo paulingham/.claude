@@ -61,7 +61,7 @@ teardown() {
   printf 'rejected plan, missing required sections\n' >"$PLAN_FILE"
 
   _plan_cache_write_pending "$TEMPLATE"
-  run _plan_cache_finalize "$TEMPLATE" "$PLAN_FILE" feature T5 false demo-task "$KEY"
+  run _plan_cache_finalize "$TEMPLATE" "$PLAN_FILE" "$KEY"
   [ "$status" -eq 0 ]
 
   # Observable (a): both JSONL lines present in the session file.

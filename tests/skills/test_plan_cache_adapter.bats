@@ -79,7 +79,7 @@ teardown() {
   PLAN_FILE="$TMP_DIR/pipeline-state/demo-task/plan.md"
   printf 'no required sections here\n' >"$PLAN_FILE"
   _plan_cache_write_pending "$TEMPLATE"
-  run _plan_cache_finalize "$TEMPLATE" "$PLAN_FILE" feature T5 false demo-task "$KEY"
+  run _plan_cache_finalize "$TEMPLATE" "$PLAN_FILE" "$KEY"
   [ "$status" -eq 0 ]
   [[ "$output" == *'"verdict":"PLAN_CACHE_MISS"'* ]]
   [[ "$output" == *'"reason":"adapter-rejected"'* ]]
@@ -88,16 +88,19 @@ teardown() {
 }
 
 # C4 — Contract assertion (MEDIUM-eng-1 downgrade): SKILL.md body documents
-# exactly one Agent-spawn directive on the HIT path and no retry construct
-# in the surrounding context. We assert by greppable directive markers in
-# the doc rather than mocking the Agent tool itself.
+# exactly one Agent-spawn directive on the HIT path and no retry/loop construct
+# in the surrounding HIT-path section. We assert by greppable directive markers
+# in the doc rather than mocking the Agent tool itself.
 @test "C4 skill body contains exactly one Agent-spawn directive and zero retry constructs over it" {
-  # Exactly one fenced "Agent({" block on the HIT path.
+  # Exactly one fenced "Agent({" block in SKILL.md.
   spawn_count=$(grep -cE '^Agent\(\{' "$SKILL")
   [ "$spawn_count" -eq 1 ]
-  # No `for`/`while`/`until`/`retry` tokens anywhere in SKILL.md body
-  # (the lib's HIT path is single-shot per Iron Law 6).
-  ! grep -qE '\b(for |while |until |retry)\b' "$SKILL"
+  # Extract the HIT Path Dispatch section (the section containing the Agent
+  # spawn directive) and assert no loop/retry control tokens in it. The
+  # surrounding context is bounded by H2 anchors so prose elsewhere in the
+  # file (`for safety`, `until Slice D`, etc.) is not in scope.
+  hit_section=$(awk '/^## HIT Path Dispatch/{flag=1; next} /^## /{flag=0} flag' "$SKILL")
+  ! echo "$hit_section" | grep -qE '\b(for |while |until |retry)\b'
 }
 
 # C5 — Adapted plan must contain the cache_hit: true marker; validator
@@ -116,6 +119,24 @@ body
 EOF
   run _plan_cache_validate_plan "$PLAN_FILE"
   [ "$status" -eq 0 ]
+
+  # HIT branch coverage: a valid plan returns HIT verdict + outcome=success.
+  PLAN_FILE="$TMP_DIR/pipeline-state/demo-task/plan-ok.md"
+  cat >"$PLAN_FILE" <<EOF
+---
+cache_hit: true
+---
+## Slices
+## Alternatives Considered
+## Codebase Ground-Truth Citations
+## Pre-Mortem
+EOF
+  _plan_cache_write_pending "$TEMPLATE"
+  run _plan_cache_finalize "$TEMPLATE" "$PLAN_FILE" "$KEY"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"verdict":"PLAN_CACHE_HIT"'* ]]
+  [ -f "$PLAN_FILE" ]
+  grep -q '^last_adapt_outcome: success$' "$TEMPLATE"
 
   # Plan without the marker fails the validator.
   cat >"$PLAN_FILE" <<EOF

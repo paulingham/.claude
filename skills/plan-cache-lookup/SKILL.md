@@ -62,6 +62,46 @@ Call `_plan_cache_lookup task_class tier critical`. The function:
 
 When the orchestrator wires this skill in Slice D, the caller MUST locate the active pipeline file via `_psp_find_active_pipelines` (NOT a bare `[ -f ]` test). The skill body's reference to `_psp_find_active_pipelines` documents this contract — Slice D's wiring will route `task_id`, `task_class`, `tier`, and `critical` into the entry call by reading the active intake/plan state located through this helper.
 
+## HIT Path Dispatch
+
+On a key match (mode=`on`, template present), the skill performs four
+single-shot steps. On validator rejection the path falls through in-cycle to
+Stage 1+2 per Iron Law 6; the adapter is not re-invoked in this pipeline.
+
+1. Mutate template frontmatter via `_plan_cache_write_pending TEMPLATE`
+   (tmp+mv atomic). Sets `last_adapted_at=now()` and
+   `last_adapt_outcome=pending` BEFORE adapter spawn (state-before-expensive-op,
+   Memory M5). Crash mid-adapter leaves the `pending` marker on disk so the
+   next entry treats the template as stale.
+2. Write the resume-safety stub via `_plan_cache_write_resume_stub TASK_ID`
+   (AC C8). Creates `pipeline-state/{task-id}/architect-context.md` with
+   body `<!-- cache_hit: true, recon-skipped -->` so `/pipeline-resume`
+   readers don't stall on the missing recon output.
+3. Spawn the adapter agent (one Agent directive — single-shot, no loop):
+
+```
+Agent({
+  subagent_type: "plan-cache-adapter",
+  model: "haiku",
+  maxTurns: 8,
+  prompt: "Read ~/.claude/agents/plan-cache-adapter.md.
+    Cached template: {template-path}.
+    Current ACs: {ACs from pipeline-state/{task-id}/intake.md}.
+    Write adapted plan to pipeline-state/{task-id}/plan.md with `cache_hit: true`
+    in the frontmatter and preserve the four required H2 sections:
+    ## Slices, ## Alternatives Considered, ## Codebase Ground-Truth Citations,
+    ## Pre-Mortem."
+})
+```
+
+4. Call `_plan_cache_finalize TEMPLATE PLAN KEY`.
+   Pass → flips outcome=success, emits `PLAN_CACHE_HIT`.
+   Reject → DELETES the produced plan.md, flips outcome=failed, appends both
+   `verdict=PLAN_CACHE_MISS reason=adapter-rejected` and
+   `event=PLAN_CACHE_FALLTHROUGH` to `metrics/{session}/plan-cache.jsonl`,
+   emits `PLAN_CACHE_MISS reason=adapter-rejected`. The orchestrator MUST then
+   run Stage 1+2 in the same pipeline (Iron Law 6: no deferral, no follow-up).
+
 ## Outputs
 
 A single JSON line on stdout:
@@ -70,7 +110,13 @@ A single JSON line on stdout:
 {"verdict":"PLAN_CACHE_MISS","reason":"<reason>","cache_key":"<key-or-empty>"}
 ```
 
-`<reason>` ∈ `{no-template, disabled, shadow-mode}` in Slice B. Slice C adds `adapter-rejected`, `adapter-pending-stale`, `template-corrupt`. Slice F adds `hash-drift`, `key-mismatch`.
+or, on HIT:
+
+```
+{"verdict":"PLAN_CACHE_HIT","cache_key":"<key>"}
+```
+
+`<reason>` ∈ `{no-template, disabled, shadow-mode}` in Slice B; Slice C adds `adapter-rejected`, `adapter-pending-stale`, `template-corrupt`. Slice F adds `hash-drift`, `key-mismatch`.
 
 ## Verdicts
 
