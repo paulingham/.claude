@@ -281,7 +281,7 @@ Read `pdr_rtv` and `bestofn` from the pipeline state frontmatter (mirrored from 
 
 ##### PDR-RTV Check (runs first)
 
-- If `pdr_rtv == true` (computed by intake Step 2d-bis as `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-9} OR critical == true`): dispatch via the **PDR-RTV Build Team** variant (see `orchestrator/parallel-dispatch-details.md` § PDR-RTV Build Team Dispatch). PDR-RTV runs T=2 iterations of N parallel rollouts (peak concurrent worktrees = N = 4 due to strict iteration serialisation), summary-based refinement, and pairwise tournament selection. The winner still proceeds through the normal Review → Final Gate → Ship gates.
+- If `pdr_rtv == true` (computed by intake Step 2d-bis as `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-10} AND critical == true`): dispatch via the **PDR-RTV Build Team** variant (see `orchestrator/parallel-dispatch-details.md` § PDR-RTV Build Team Dispatch). PDR-RTV runs T=2 iterations of N parallel rollouts (peak concurrent worktrees = N = 4 due to strict iteration serialisation), summary-based refinement, and pairwise tournament selection. The winner still proceeds through the normal Review → Final Gate → Ship gates.
 - If `pdr_rtv == true AND bestofn == true`: PDR-RTV wins (strictly stronger). Log re-route to `pipeline-state/{task-id}/pipeline.md` § Re-routes.
 - Otherwise: fall through to the Best-of-N Check below.
 
