@@ -53,9 +53,12 @@ _qg_check_contract() {
 }
 
 _qg_check_freshness() {
-  local task="${CLAUDE_PIPELINE_TASK_ID:-unknown}" path head verdict
+  [[ "${CLAUDE_DISABLE_FRESHNESS_QG:-0}" == "1" ]] && return 0
+  local task="${CLAUDE_PIPELINE_TASK_ID:-unknown}" path head worktree verdict
   path="pipeline-state/$task/verification-evidence.json"
-  [[ -f "$path" ]] || { echo "[qg] freshness: FAIL (no evidence)" >&2; return 1; }
-  head=$(jq -r '.git_head' "$path" 2>/dev/null); verdict=$(jq -r '.verdict' "$path" 2>/dev/null)
-  [[ "$head" == "$(git rev-parse HEAD 2>/dev/null)" && "$verdict" =~ ^VERIFIED ]] && { echo "[qg] freshness: PASS" >&2; return 0; }; echo "[qg] freshness: FAIL" >&2; return 1
+  [[ -f "$path" ]] || { echo "[freshness] no verification-evidence; run /verify" >&2; return 1; }
+  head=$(jq -r '.git_head' "$path" 2>/dev/null); verdict=$(jq -r '.verdict' "$path" 2>/dev/null); worktree=$(git rev-parse HEAD 2>/dev/null)
+  [[ "$head" != "$worktree" ]] && { echo "[freshness] state=$head worktree=$worktree; HEAD moved since /verify" >&2; return 1; }
+  [[ "$verdict" =~ ^VERIFIED ]] || { echo "[freshness] verdict=$verdict; re-verify" >&2; return 1; }
+  echo "[freshness] PASS" >&2; return 0
 }

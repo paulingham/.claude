@@ -73,13 +73,37 @@ class QgFreshnessCheck(unittest.TestCase):
             repo, _ = _make_repo_with_commit(Path(tmpdir))
             r = _run_qg_freshness(repo, env={"CLAUDE_PIPELINE_TASK_ID": "test-task"})
             self.assertEqual(r.returncode, 1)
+            self.assertIn("[freshness] no verification-evidence", r.stderr)
 
     def test_qg_check_freshness_returns_1_when_head_mismatch(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            repo, _ = _make_repo_with_commit(Path(tmpdir))
+            repo, head = _make_repo_with_commit(Path(tmpdir))
             _write_evidence(repo, "test-task", git_head="deadbeef" * 5)
             r = _run_qg_freshness(repo, env={"CLAUDE_PIPELINE_TASK_ID": "test-task"})
             self.assertEqual(r.returncode, 1)
+            # Operator Copy mandates BOTH heads echoed: state=X worktree=Y.
+            self.assertIn(f"state={'deadbeef' * 5}", r.stderr)
+            self.assertIn(f"worktree={head}", r.stderr)
+
+    def test_qg_check_freshness_returns_1_when_verdict_not_verified(self):
+        """Operator-error path: state file exists, head matches, but verdict
+        is not VERIFIED. Distinct stderr message + verdict echoed."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo, head = _make_repo_with_commit(Path(tmpdir))
+            _write_evidence(repo, "test-task", git_head=head, verdict="UNVERIFIED")
+            r = _run_qg_freshness(repo, env={"CLAUDE_PIPELINE_TASK_ID": "test-task"})
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("verdict=UNVERIFIED", r.stderr)
+
+    def test_qg_check_freshness_env_hatch_disables_processing(self):
+        """CLAUDE_DISABLE_FRESHNESS_QG=1 short-circuits to rc=0 even with no
+        state file (mirrors CLAUDE_DISABLE_FRESHNESS_GUARD on the Agent hook)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo, _ = _make_repo_with_commit(Path(tmpdir))
+            r = _run_qg_freshness(repo, env={"CLAUDE_PIPELINE_TASK_ID": "test-task",
+                                              "CLAUDE_DISABLE_FRESHNESS_QG": "1"})
+            self.assertEqual(r.returncode, 0,
+                             f"env hatch must bypass freshness gate; stderr={r.stderr}")
 
     def test_qg_check_freshness_uses_jq_not_python3(self):
         """HIGH-SE2: matches existing _qg_* style (jq delegations, no python3 -c)."""
