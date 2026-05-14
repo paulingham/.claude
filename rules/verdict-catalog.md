@@ -55,6 +55,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `ORCHESTRATOR_APPLY_REQUIRED` | failure | `fix-engineer` | review | Fix-engineer hit the harness Edit-denial path (≥2 denials, no PreToolUse hook fired) and returned a structured `{file_path, old_string, new_string}` payload. Orchestrator applies each pair via its `.md`-allowed Edit pathway, then re-dispatches the raising reviewer (counts as 1 round). Fix-engineer is NOT spawned again on the same finding after this verdict |
 | `VERIFIED` | success | `verify` | final-gate | Pipeline advances to Test phase |
 | `VERIFIED_WITH_SKIP` | info | `verify` | final-gate | Tier skipped with documented reason; advances |
+| `E2E_SKIP_NO_ENV` | info | `verify` | final-gate | Side-channel verdict emitted alongside the composite when Tier 4 web target = `SKIP` (driver config present but real-environment stack unavailable, per `protocols/e2e-protocol.md` § Pass/Fail Criteria). Pipeline advances; Final Gate summary renders the loud yellow line `E2E: SKIPPED (no execution environment) — UI/API changes shipped without browser verification`; product-reviewer MUST acknowledge the skip in its verdict body — failure to acknowledge → CHANGES REQUESTED |
 | `UNVERIFIED` | failure | `verify` | final-gate | Halt; back to Build to address tier failures |
 | `COVERED` | success | `qa-test-strategy` | final-gate | Pipeline advances to Accept phase |
 | `GAPS_FOUND` | failure | `qa-test-strategy` | final-gate | Spawn fix-engineer to fill test gaps |
