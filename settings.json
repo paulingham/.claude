@@ -700,6 +700,15 @@
             "command": "bash",
             "args": [
               "-lc",
+              "exec \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/cache-breakpoint-injector.sh\""
+            ],
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
               "exec \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/verification-freshness-guard.sh\""
             ],
             "timeout": 5000

@@ -99,6 +99,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `INSUFFICIENT_DATA` | info | `eval-model-effectiveness` | utility | Skip; need more observations |
 | `NO_CHANGE` | info | `eval-model-effectiveness` | utility | Recommendations unchanged from prior run |
 | `COST_REPORT_READY` | info | `cost-report` | utility | Advisory report written to `metrics/reports/{date}-cost.md`; human reviews |
+| `CACHE_AUDIT_READY` | info | `cache-audit` | utility | Advisory report written to `metrics/reports/{date}-cache.md`; human reviews |
 | `EVAL_PASSED` | success | `internal-eval` | utility | Harness PR can merge |
 | `EVAL_FAILED` | failure | `internal-eval` | utility | Harness PR blocked; regressions on deterministic cases |
 | `EVAL_BASELINE_CAPTURED` | info | `internal-eval` | utility | Baseline written; subsequent runs diff against it |
