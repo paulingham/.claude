@@ -23,7 +23,6 @@ SID_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SID="${SID_RAW//[^A-Za-z0-9_-]/}"
 [[ -z "$SID" ]] && SID="local-$$"
 METRICS_DIR="${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}/$SID"
-CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 
 _dispatch_pv() {
   local pv_verdict
@@ -49,7 +48,7 @@ _dispatch_lookup() {
   python3 "${HOOK_DIR}/_lib/plan-cache-audit-emit.py" \
     lookup "$METRICS_DIR" "$TS" "$task_id" "$SID" \
     "$verdict" "$cache_key" "$miss_reason" \
-    "${CLAUDE_PLAN_CACHE_ADAPTER_TOKENS:-0}" "$CONFIG_DIR" 2>/dev/null || true
+    "${CLAUDE_PLAN_CACHE_ADAPTER_TOKENS:-0}" 2>/dev/null || true
 }
 
 if printf '%s' "$RESPONSE" | grep -q '\[PlanValidationOutcome\]'; then

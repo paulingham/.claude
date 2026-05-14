@@ -4,7 +4,7 @@
 Two invocation modes (mode arg is positional):
 
   lookup  metrics_dir timestamp task_id session_id verdict cache_key
-          miss_reason adapter_tokens config_dir
+          miss_reason adapter_tokens
             -> appends one record with all 9 REQUIRED_KEYS to
                metrics_dir/plan-cache.jsonl.
 
@@ -26,7 +26,7 @@ import sys
 PENDING_PV = "<pending>"
 
 
-def _read_template_metadata(config_dir, project_hash, cache_key):
+def _read_template_metadata(project_hash, cache_key):
     """Best-effort lookup of hit_template_path + hit_count_after.
 
     Returns (template_path_or_empty, hit_count_after_int).
@@ -57,16 +57,14 @@ def _resolve_project_hash():
 
 def _build_record(argv):
     """Compose the 9-key record for one /plan-cache-lookup invocation."""
-    (metrics_dir, ts, task_id, session_id, verdict, cache_key,
-     miss_reason, adapter_tokens, config_dir) = argv[2:11]
+    (_metrics_dir, ts, task_id, session_id, verdict, cache_key,
+     miss_reason, adapter_tokens) = argv[2:10]
     try:
         tokens_numeric = int(adapter_tokens) if adapter_tokens else 0
     except (TypeError, ValueError):
         tokens_numeric = 0
     project_hash = _resolve_project_hash()
-    template_path, hit_count = _read_template_metadata(
-        config_dir, project_hash, cache_key
-    )
+    template_path, hit_count = _read_template_metadata(project_hash, cache_key)
     return {
         "task_id": task_id or "<unknown>",
         "cache_key": cache_key or "",
@@ -119,7 +117,7 @@ def _find_last_pending(lines):
 
 
 def _mode_lookup(argv):
-    if len(argv) < 11:
+    if len(argv) < 10:
         return 0
     record = _build_record(argv)
     metrics_dir = argv[2]
