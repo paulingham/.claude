@@ -28,14 +28,15 @@ def _read_ratio(read, create, inp):
 
 
 def _build_record(argv):
+    inp, read, create = int(argv[5]), int(argv[6]), int(argv[7])
     return {
         "ts": argv[3],
         "session_id": argv[2],
         "agent_role": argv[4],
-        "input_tokens": int(argv[5]),
-        "cache_read_input_tokens": int(argv[6]),
-        "cache_creation_input_tokens": int(argv[7]),
-        "read_ratio": round(_read_ratio(int(argv[6]), int(argv[7]), int(argv[5])), 6),
+        "input_tokens": inp,
+        "cache_read_input_tokens": read,
+        "cache_creation_input_tokens": create,
+        "read_ratio": round(_read_ratio(read, create, inp), 6),
     }
 
 
