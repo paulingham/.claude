@@ -113,5 +113,91 @@ class SliceCModelDemotions(unittest.TestCase):
             self.assertIn(token, body)
 
 
+# ---------------------------------------------------------------------------
+# Slice E2 (model-demotion-pass-2026-05): hard-lock invariant tests.
+#
+# These tests are *invariants*, not behaviour-change tests: they go GREEN on
+# author and stay GREEN as long as the locked frontmatter values do not drift.
+# A future commit that demotes architect or security-engineer off Opus, or
+# introduces a `model_conditional` block on those two roles, or breaks the
+# review-role uniformity contract, will turn one of these RED.
+#
+# `model_conditional` is *explicitly excluded* from the uniformity comparison
+# so that slice B's later addition of `model_conditional` to code-reviewer.md
+# (and only code-reviewer.md) does not break this lock. See plan Q4 / MED-6.
+# ---------------------------------------------------------------------------
+
+REVIEW_ROLE_AGENTS = (
+    "code-reviewer",
+    "security-engineer",
+    "patch-critic",
+    "spec-blind-validator",
+)
+
+UNIFORMITY_FIELDS = ("min_confidence", "memory")
+
+
+def _frontmatter_for(agent_name: str) -> dict:
+    return _parse_frontmatter(AGENTS_DIR / f"{agent_name}.md")
+
+
+class ArchitectAndSecurityEngineerModelLocks(unittest.TestCase):
+    """architect and security-engineer are hard-locked at Opus and may NOT
+    carry a `model_conditional` block — design and security judgement are
+    monolithic and never demoted on a budget threshold.
+    """
+
+    def test_architect_model_locked_opus(self):
+        fm = _frontmatter_for("architect")
+        self.assertEqual(
+            fm.get("model"), "opus",
+            "agents/architect.md: model MUST remain 'opus'; architect is "
+            "hard-locked per CLAUDE.md § Agent Team and plan AC-E2-1.",
+        )
+        self.assertNotIn(
+            "model_conditional", fm,
+            "agents/architect.md: must NOT declare a 'model_conditional' "
+            "block. Architect is never demoted on Complexity Budget.",
+        )
+
+    def test_security_engineer_model_locked_opus(self):
+        fm = _frontmatter_for("security-engineer")
+        self.assertEqual(
+            fm.get("model"), "opus",
+            "agents/security-engineer.md: model MUST remain 'opus'; "
+            "security-engineer is hard-locked per CLAUDE.md § Agent Team "
+            "and plan AC-E2-1.",
+        )
+        self.assertNotIn(
+            "model_conditional", fm,
+            "agents/security-engineer.md: must NOT declare a "
+            "'model_conditional' block. Security review is never demoted "
+            "on Complexity Budget.",
+        )
+
+
+class ReviewRoleFrontmatterUniformity(unittest.TestCase):
+    """The four review-role agents share `min_confidence` + `memory`. The
+    `model_conditional` field is intentionally excluded so that slice B can
+    add it to code-reviewer.md alone without tripping uniformity.
+    """
+
+    def test_review_role_frontmatter_uniformity_preserved(self):
+        observed = {
+            agent: {field: _frontmatter_for(agent).get(field)
+                    for field in UNIFORMITY_FIELDS}
+            for agent in REVIEW_ROLE_AGENTS
+        }
+        for field in UNIFORMITY_FIELDS:
+            values = {agent: observed[agent][field] for agent in REVIEW_ROLE_AGENTS}
+            unique = set(values.values())
+            self.assertEqual(
+                len(unique), 1,
+                f"Review-role uniformity violated on '{field}': {values!r}. "
+                f"The four review roles {list(REVIEW_ROLE_AGENTS)} must share "
+                f"this field. 'model_conditional' is excluded by design.",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
