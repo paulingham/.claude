@@ -73,7 +73,7 @@ Every finding you record carries a severity bucket. The bucket determines whethe
 
 A dimension is PASS iff every finding on that dimension is LOW or INFO. A single MEDIUM-or-greater finding flips the dimension to FAIL.
 
-The severity scheme is universal — single-critic mode and the multi-persona variant both use it. The aggregation rule (PATCH_APPROVED vs PATCH_REJECTED) is at the agent level in single-critic mode (any FAIL → REJECT) and at the orchestrator level in variant mode (any persona's REJECT → REJECT). See § Multi-Persona Variant below.
+The severity scheme is universal — every persona uses it. The aggregation rule (PATCH_APPROVED vs PATCH_REJECTED) is at the agent level (any FAIL → this persona emits REJECT). On the escalation path the orchestrator then aggregates across personas via majority-of-3 (operator-overridable to OR via `CLAUDE_PATCH_CRITIC_AGGREGATION=or`). See § Multi-Persona Variant below.
 
 ## Rubric (the four dimensions you score)
 
@@ -190,15 +190,15 @@ Tournament mode is mutually exclusive with single-critic mode and with the multi
 
 A spawn carrying BOTH `Mode: tournament` AND `Persona:` tokens is `MODE_AMBIGUOUS` — the spawn-handling code path rejects it before you receive it (see `hooks/_lib/mode_token_validator.py`). If you ever observe both tokens in your prompt, halt and report — that is a harness bug, not a valid input. The orchestrator surfaces `MODE_AMBIGUOUS` as `PATCH_REJECTED` and writes a forensic JSONL line at `metrics/{session}/advisor-dispatch.jsonl` with `source: "mode-ambiguous"`.
 
-## Multi-Persona Variant (critical OR Budget >= 7)
+## Multi-Persona Variant (uncertainty-escalated)
 
-When the orchestrator dispatches three patch-critic spawns in parallel — one per persona — each spawn receives a `Persona:` token in its prompt selecting `correctness`, `regression-risk`, or `scope-creep`. The dispatch contract (gate condition, parallel-spawn shape, aggregation, partial-completion handling, audit artifact) lives in `orchestrator/parallel-dispatch-details.md` § Multi-Persona Patch Critic Dispatch. Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) where multiple persona-critics escape single-agent confirmation bias.
+The orchestrator dispatches patch-critic in a **persona-1-first, escalate-on-uncertainty** shape. Default dispatch is ONE persona-1 spawn (Persona: `correctness`). If persona-1 returns `uncertainty: true`, the orchestrator spawns TWO additional personas in parallel (`regression-risk` and `scope-creep`). The dispatch contract (parallel-spawn shape, majority aggregation, partial-completion handling, audit artifact, rollback path) lives in `orchestrator/parallel-dispatch-details.md` § Multi-Persona Patch Critic Dispatch. Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) where multiple persona-critics escape single-agent confirmation bias; the trim from "always 3" to "1 + escalate" recovers the cost of unconditional multi-persona spend.
 
 **Per-persona behavior:**
 
-- You score **every** rubric dimension, the same as single-critic mode. Overlapping coverage is the design — confirmation-bias escape requires all three personas to attempt the full rubric independently.
-- Your specialty determines which dimensions you weight heaviest and where you spend search effort.
-- You do **not** see the other personas' outputs. Independent contexts are mandatory.
+- You score **every** rubric dimension, the same as single-critic mode. Overlapping coverage is the design — confirmation-bias escape requires every persona to attempt the full rubric independently.
+- Your `Persona:` token determines which dimensions you weight heaviest and where you spend search effort.
+- You do **not** see the other personas' outputs (persona-1 does not see escalation personas; escalation personas do not see persona-1 or each other). Independent contexts are mandatory.
 
 | Persona | Specialty dimensions | Search emphasis |
 |---|---|---|
@@ -206,11 +206,31 @@ When the orchestrator dispatches three patch-critic spawns in parallel — one p
 | `regression-risk` | § 3 No obvious regressions visible from diff | "What worked before this diff that could break now? Removed null guards, weakened validation, broadened catches that swallow errors, lost edge-case branches, removed tests, changed defaults that callers rely on." |
 | `scope-creep` | § 2 Diff minimal vs spec, § 4 No incidental refactor | "What is in this diff that the spec did NOT ask for? Renames, moves, reorgs, drive-by cleanups, opportunistic typing tweaks." |
 
-**Per-persona verdict** in variant mode: `PATCH_APPROVED` (all dimensions PASS) or `PATCH_REJECTED` (any MEDIUM+ severity finding on any dimension). The orchestrator OR-aggregates across personas — any single persona's REJECT triggers `PATCH_REJECTED` for the whole gate. You do NOT consult or anticipate the other personas.
+**Per-persona verdict**: `PATCH_APPROVED` (all dimensions PASS) or `PATCH_REJECTED` (any MEDIUM+ severity finding on any dimension). Aggregation differs by mode (see orchestrator dispatch contract):
+- `mode=persona-1` (default, no escalation): persona-1's verdict IS the gate verdict.
+- `mode=escalated` (persona-1 returned `uncertainty: true`): majority-of-3 across persona-1 + escalation personas. Operator override `CLAUDE_PATCH_CRITIC_AGGREGATION=or` reverts to OR-aggregation.
 
-**Default mode** (`!critical AND Budget < 7`): the persona prompt token is absent. You score the full rubric without specialty weighting. Behavior is identical to the pre-variant patch-critic.
+You do NOT consult or anticipate the other personas. Your single job: score the rubric independently and emit the structured output.
 
-**Composition note**: this variant is complementary to the C8 anti-pattern mining loop. Multi-persona catches in-cycle (during this gate); C8 mines cross-pipeline patterns from observation rounds-counts after pipelines close. The schema extension in `protocols/autonomous-intelligence.md` § Observation Capture (`phases.patch_critic.rounds`) wires variant rejections into C8's mining gate so consistently-caught-but-not-by-code-review patterns become anti-pattern instincts over time.
+### Uncertainty signal (persona-1 only — but escalation personas MAY set it too)
+
+Every patch-critic spawn emits an `uncertainty: bool` field in its structured output. The semantic is identical across all personas:
+
+- `uncertainty: false` — you can confidently emit your verdict. The rubric findings (or absence thereof) speak for themselves.
+- `uncertainty: true` — you cannot confidently emit `PATCH_APPROVED` or `PATCH_REJECTED`. You still emit ONE of the two verdicts (the field that gates the pipeline), but the bool signals to the orchestrator that a second opinion is warranted.
+
+**Canonical uncertainty reasons** (emit one in `uncertainty_reason: string`):
+
+| Reason | Use when |
+|---|---|
+| `ambiguous diff` | The diff is large, touches multiple concerns, or uses idioms you cannot map confidently to the spec scope. You can score the rubric but the FAIL/PASS calls are close to the severity threshold. |
+| `incomplete test coverage assessment` | You cannot determine whether every behaviour-changing hunk has a corresponding test, OR the tests in the diff assert on state you cannot confirm is load-bearing. § 1 verdict is a coin flip. |
+
+Free-form reasons are allowed alongside the canonical enum — the orchestrator's audit artifact records the raw string verbatim. Persona-1 readers (`/learn`, `/forensics`) cluster by canonical reason; novel reasons surface as calibration targets.
+
+**Close-call bias guidance (load-bearing)**: when you are between confident-PASS and confident-FAIL on any rubric dimension, set `uncertainty: true`. The cost of the escalation path (2 additional spawns) is the prior multi-persona baseline cost — escalating is the SAME spend as the system used to pay unconditionally. Under-escalating is the failure mode, NOT over-escalating. Operator forensics will detect over-escalation via the `uncertainty_fired` rate; biased-toward-uncertainty is the correct local choice.
+
+**Composition note**: this variant remains complementary to the C8 anti-pattern mining loop. The escalation path catches in-cycle (during this gate); C8 mines cross-pipeline patterns from observation rounds-counts after pipelines close. The schema extension in `protocols/autonomous-intelligence.md` § Observation Capture (`phases.patch_critic.rounds`, `phases.patch_critic.uncertainty_fired`) wires variant rejections AND uncertainty signals into C8's mining gate.
 
 ## Output Format
 
@@ -218,6 +238,8 @@ When the orchestrator dispatches three patch-critic spawns in parallel — one p
 ## Patch Critique: [task-id] [Persona: correctness | regression-risk | scope-creep | —]
 
 ### Verdict: PATCH_APPROVED / PATCH_REJECTED
+### Uncertainty: true | false
+### Uncertainty Reason: ambiguous diff | incomplete test coverage assessment | <free-form string> | —
 
 ### Rubric
 | Dimension | Verdict | Justification |
@@ -232,7 +254,12 @@ When the orchestrator dispatches three patch-critic spawns in parallel — one p
 - [HIGH] § 3 — null guard removed at auth/middleware.ts:42; downstream callers rely on the guard for unauthenticated requests
 - [LOW] § 4 — variable rename in unrelated file utils/format.ts:8
 
-The `Persona:` slot is `—` in single-critic mode and the persona name in variant mode. Severity prefixes (`[CRITICAL] | [HIGH] | [MEDIUM] | [LOW] | [INFO]`) are required on every finding.
+The `Persona:` slot is `—` only in legacy single-critic dispatch (no `Persona:` token in prompt); under current dispatch every spawn carries a persona. Severity prefixes (`[CRITICAL] | [HIGH] | [MEDIUM] | [LOW] | [INFO]`) are required on every finding.
+
+**Uncertainty field contract**:
+- `Uncertainty: true | false` is REQUIRED on every output (single-critic, persona-1, and escalation personas alike). Missing the field is a structured-output violation — orchestrator parses absent as `uncertainty: true` (conservative default → escalates).
+- `Uncertainty Reason:` is REQUIRED when `Uncertainty: true`; omit (or emit `—`) when `Uncertainty: false`. Canonical reasons: `ambiguous diff` | `incomplete test coverage assessment`. Free-form strings are allowed and recorded verbatim.
+- Setting `Uncertainty: true` does NOT abstain — you still emit ONE of `PATCH_APPROVED` / `PATCH_REJECTED`, and that verdict counts toward aggregation on the escalation path.
 
 ### Test Result Summary
 - Passed: N

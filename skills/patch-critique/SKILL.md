@@ -78,39 +78,98 @@ The critic explicitly excludes SOLID-style design audits. If a finding sounds li
 
 The orchestrator hands the three inputs in the spawn prompt. If any is missing, return PATCH_REJECTED immediately.
 
-### 2. Spawn Patch Critic
+### 2. Spawn Persona-1 (default — always runs)
+
+Dispatch is **persona-1-first, escalate-on-uncertainty**. Persona-1 (Persona: `correctness`) runs on every Final Gate dispatch, alongside `/verify`, `/qa-test-strategy`, and `/product-acceptance`. No criticality or budget gate.
 
 ```
 Agent({
   subagent_type: "patch-critic",
   team_name: "pipeline-{task-id}",
-  name: "patch-critic",
+  name: "patch-critic-correctness",
   prompt: "Read ~/.claude/skills/patch-critique/SKILL.md and execute fully.
            Read ~/.claude/agents/patch-critic.md for your role definition.
+
+           Persona: correctness
 
            Inputs:
            - Candidate diff: [git diff main...HEAD output]
            - Test output: [latest fresh test run summary]
            - Intake spec: [intake task description]
+           - Verification evidence: pipeline-state/{task-id}/verification-evidence.json
+           - A11y index (optional): pipeline-state/{task-id}/design-qc/index.json
 
-           Score the four-dimension rubric. Produce PATCH_APPROVED or
-           PATCH_REJECTED with file:line citations for any FAIL."
+           Score the five-dimension rubric. Emit:
+             Verdict: PATCH_APPROVED or PATCH_REJECTED with file:line citations
+             Uncertainty: true | false
+             Uncertainty Reason: (when Uncertainty=true) per the canonical enum
+                                 in agents/patch-critic.md § Uncertainty signal."
 })
 ```
 
 No `isolation: "worktree"` — patch-critic is read-only.
 
-### 3. Process Verdict
+### 3. Read Persona-1 Output
+
+Parse the structured output for `Verdict` AND `Uncertainty`:
+
+- `Uncertainty: false` + `Verdict: PATCH_APPROVED` → gate verdict `PATCH_APPROVED`. **Skip step 4.** A confident persona-1 approval gates Ship.
+- `Uncertainty: false` + `Verdict: PATCH_REJECTED` → gate verdict `PATCH_REJECTED`. **Skip step 4.** Forward persona-1 findings to fix-engineer (in-cycle, per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule).
+- `Uncertainty: true` (regardless of `Verdict`) → proceed to step 4 (escalation). Persona-1's verdict still counts as one vote in the eventual aggregation.
+
+If the output omits the `Uncertainty` field entirely, treat as `Uncertainty: true` (conservative default — over-escalation is the correct local choice; see `agents/patch-critic.md` § Close-call bias guidance).
+
+### 4. Escalate (only when Uncertainty: true)
+
+Spawn two additional personas in PARALLEL (single message, two `Agent({…})` calls). Independent context — neither sees persona-1's output nor the other escalation persona's output.
+
+```
+Agent({
+  subagent_type: "patch-critic",
+  team_name: "pipeline-{task-id}",
+  name: "patch-critic-regression-risk",
+  prompt: "Persona: regression-risk
+           [same inputs as persona-1, identical diff/tests/spec/a11y context]"
+})
+
+Agent({
+  subagent_type: "patch-critic",
+  team_name: "pipeline-{task-id}",
+  name: "patch-critic-scope-creep",
+  prompt: "Persona: scope-creep
+           [same inputs as persona-1]"
+})
+```
+
+Full spawn templates with `Persona:` token semantics and search-emphasis prompts live in `orchestrator/parallel-dispatch-details.md` § Multi-Persona Patch Critic Dispatch.
+
+### 5. Aggregate (escalation path only — majority-of-3)
+
+On the escalation path, apply majority-of-3 across persona-1 + 2 escalation personas:
+
+- ≥2 `PATCH_APPROVED` → gate `PATCH_APPROVED`.
+- ≥2 `PATCH_REJECTED` → gate `PATCH_REJECTED`. Forward findings from ALL rejecting personas to fix-engineer.
+
+Operator override: `CLAUDE_PATCH_CRITIC_AGGREGATION=or` reverts to OR-aggregation (any REJECT → gate REJECT) on the escalation path. Default is `majority`.
+
+### 6. Process Verdict
 
 - **PATCH_APPROVED**: Ship gate satisfied for this dimension. Combined with VERIFIED + COVERED + APPROVED, advance to `/pr-creation`.
-- **PATCH_REJECTED**: Spawn fix-engineer with the rubric findings. Re-run `/patch-critique` (and any other failed Final Gate skills) on the combined diff. Max 2 rounds, same as Review.
+- **PATCH_REJECTED**: Spawn fix-engineer with rubric findings. Re-run `/patch-critique` (and any other failed Final Gate skills) on the combined diff. Re-critique dispatch shape depends on the rejection mode:
+  - Rejected at `mode=persona-1` (no escalation fired) → re-dispatch persona-1 only.
+  - Rejected at `mode=escalated` → re-dispatch ALL three personas (fix may have introduced a new issue in another persona's territory).
+  Max 2 rounds, same as Review.
 
 ## Output Format
 
+Each persona spawn emits the structured output below. The orchestrator-aggregated artifact at `pipeline-state/{task-id}/patch-critic.md` concatenates one such block per persona that ran (1 when `mode=persona-1`, 3 when `mode=escalated`).
+
 ```markdown
-## Patch Critique: [task-id]
+## Patch Critique: [task-id] [Persona: correctness | regression-risk | scope-creep]
 
 ### Verdict: PATCH_APPROVED / PATCH_REJECTED
+### Uncertainty: true | false
+### Uncertainty Reason: ambiguous diff | incomplete test coverage assessment | <free-form> | —
 
 ### Rubric
 | Dimension | Verdict | Justification |
@@ -119,6 +178,7 @@ No `isolation: "worktree"` — patch-critic is read-only.
 | Diff minimal vs spec | PASS / FAIL | one line |
 | No obvious regressions | PASS / FAIL | one line |
 | No incidental refactor | PASS / FAIL | one line |
+| § 5 Accessibility | PASS / SKIP / FAIL | one line; SKIP allowed per § 5 SKIP semantics |
 
 ### Findings
 - `file:line` — [description]
@@ -132,6 +192,8 @@ No `isolation: "worktree"` — patch-critic is read-only.
 - Lines added/removed: +X / -Y
 - Spec scope alignment: [one sentence]
 ```
+
+Frontmatter of the aggregated artifact: `task_id, phase=final-gate, verdict, timestamp, mode=persona-1 | escalated, uncertainty_fired: bool, aggregation: majority | or`.
 
 ## Parallel Execution
 
@@ -161,6 +223,13 @@ Agent summary: [patch-critic 2-3 sentence summary]
 ## Severity Grading
 
 Patch-critique is rubric-binary (PASS/FAIL per dimension). Severity grading from `/code-review` does NOT apply here — every FAIL is gating. There is no "minor critic finding"; either the rubric passes or the patch goes back to fix-engineer.
+
+## Anti-Patterns
+
+- **Reinstating the always-3 dispatch**: don't. The prior shape spent 3x patch-critic cost on every critical/Budget>=7 Final Gate; the trimmed shape spends 1x by default and recovers the full safety net via the `uncertainty` signal. A single confident persona-1 CAN ship — that is intentional. The uncertainty bool is the safety valve.
+- **Over-confident persona-1**: persona-1 must bias toward `uncertainty: true` on close calls (see `agents/patch-critic.md` § Close-call bias guidance). Under-escalation is the failure mode, not over-escalation; the escalation cost is the prior multi-persona baseline cost.
+- **Treating `uncertainty: true` as an abstention**: persona-1 STILL emits one of PATCH_APPROVED / PATCH_REJECTED when uncertain; that verdict counts as one vote in the majority-of-3 aggregation on the escalation path. The bool is a request for second opinions, NOT a withholding of the first opinion.
+- **Skipping the structured output**: missing `Uncertainty:` field is parsed as `Uncertainty: true` (conservative default). Persona spawns MUST emit the field on every run, including legacy single-critic dispatch.
 
 ## In-Cycle Fix Rule
 
