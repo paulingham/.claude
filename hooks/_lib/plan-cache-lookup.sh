@@ -11,8 +11,9 @@ _PLAN_CACHE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_PLAN_CACHE_LIB_DIR/project-hash.sh"
 # shellcheck source=./repo-hash.sh
 source "$_PLAN_CACHE_LIB_DIR/repo-hash.sh"
-# shellcheck source=./pipeline-state-paths.sh
-source "$_PLAN_CACHE_LIB_DIR/pipeline-state-paths.sh"
+# Note: pipeline-state-paths.sh (_psp_find_active_pipelines) is sourced and
+# invoked by the orchestrator at lookup time to discover task_id; the lib
+# itself takes (task_class, tier, critical) and does not need that import.
 
 _plan_cache_mode() {
   case "${CLAUDE_PLAN_CACHE_MODE:-off}" in

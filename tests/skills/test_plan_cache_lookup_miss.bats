@@ -35,7 +35,7 @@ teardown() {
   export CLAUDE_PLAN_CACHE_MODE=shadow
   # shellcheck source=/dev/null
   source "$LIB"
-  run _plan_cache_lookup demo-task feature T5 false
+  run _plan_cache_lookup feature T5 false
   [ "$status" -eq 0 ]
   [[ "$output" == *'"verdict":"PLAN_CACHE_MISS"'* ]]
   [[ "$output" == *'"reason":"no-template"'* ]]
@@ -69,7 +69,7 @@ teardown() {
   export CLAUDE_PLAN_CACHE_MODE=off
   # shellcheck source=/dev/null
   source "$LIB"
-  run _plan_cache_lookup demo-task feature T5 false
+  run _plan_cache_lookup feature T5 false
   [ "$status" -eq 0 ]
   [[ "$output" == *'"reason":"disabled"'* ]]
 }
@@ -92,10 +92,23 @@ teardown() {
   [[ "$output" == *'"reason":"shadow-mode"'* ]]
 }
 
-# B5 — lookup uses _psp_find_active_pipelines canonical reader, not bare [ -f ].
-# Contract: the skill body and the lookup helper MUST reference the union helper.
+# B1d — non-zero exit when key-compute fails (e.g. missing jq). Contract
+# per SKILL.md: orchestrator MUST treat non-zero exit as MISS (fall through).
+@test "B1d _plan_cache_lookup returns non-zero on key-compute failure" {
+  export CLAUDE_PLAN_CACHE_MODE=shadow
+  # shellcheck source=/dev/null
+  source "$LIB"
+  # Override _plan_cache_key in the bats shell to simulate jq-missing failure.
+  _plan_cache_key() { return 1; }
+  run _plan_cache_lookup feature T5 false
+  [ "$status" -ne 0 ]
+}
+
+# B5 — skill documents the canonical pipeline-state reader contract.
+# The lookup lib takes (task_class, tier, critical) directly; task_id
+# discovery via _psp_find_active_pipelines is the orchestrator's job at
+# call-site, per SKILL.md.
 @test "B5 skill uses pipeline-state union helper" {
   SKILL="$REPO_ROOT/skills/plan-cache-lookup/SKILL.md"
   grep -q "_psp_find_active_pipelines" "$SKILL"
-  grep -q "_psp_find_active_pipelines" "$LIB"
 }
