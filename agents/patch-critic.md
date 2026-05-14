@@ -11,6 +11,7 @@ executor: claude-sonnet-4-6
 advisor: claude-opus-4-7
 memory: project
 maxTurns: 30
+min_confidence: 0.5
 instinct_categories:
   - patch-critic
   - patch-critic-correctness

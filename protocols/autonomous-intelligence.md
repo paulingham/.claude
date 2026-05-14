@@ -374,6 +374,7 @@ Mismatch (a `logged` record without a paired `orchestrator-injected` record for 
 | `CLAUDE_AGENTS_DIR` | unset | Test-only override of the agents directory used by `agent_instinct_categories_loader`. |
 | `CLAUDE_DISABLE_INSTINCT_INJECTION` | unset | Set to `1` to fast-exit the hook (per-session escape hatch). |
 | `CLAUDE_HOOK_PROFILE` | `standard` | When set to `minimal`, the hook fast-exits — matches the suppression pattern of the four sibling Path-B hooks. |
+| `min_confidence:` (per-agent frontmatter) | unset (inherits env→default 0.4) | Per-agent confidence floor loaded by `agent_min_confidence_loader.py`. Declared today by `code-reviewer`, `security-engineer`, `patch-critic`, `spec-blind-validator` (all `0.5`). Precedence: frontmatter > `CLAUDE_INSTINCT_MIN_CONFIDENCE` > default. Worked example: if env=0.3 and frontmatter=0.5, frontmatter wins → effective floor 0.5. Global escape hatch is `CLAUDE_DISABLE_INSTINCT_INJECTION=1` (suppresses the hook entirely). |
 
 #### Executor Override (prefer_opus)
 

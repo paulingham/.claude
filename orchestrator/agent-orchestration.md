@@ -172,10 +172,15 @@ Before invoking `Agent(...)`, the orchestrator MUST resolve and splice the `## L
    from instinct_loader import load_instincts
    from instinct_injector import resolve_for_agent
    from agent_parent_chain import load_expanded_instinct_categories
+   from agent_min_confidence_loader import load_min_confidence
 
    instincts = load_instincts(PROJECT_HASH)
    cats = load_expanded_instinct_categories(subagent_type) or []
-   block = resolve_for_agent(subagent_type, cats, instincts)
+   # Per-agent frontmatter `min_confidence:` overrides env + default;
+   # falls back to env→default (0.4) when the agent declares nothing.
+   floor = load_min_confidence(subagent_type)
+   block = resolve_for_agent(subagent_type, cats, instincts,
+                             floor_override=floor)
    ```
 
    Or invoke the entry script `hooks/_lib/resolve-instincts.py` directly (the same script the hook uses) and read its `RESOLVED {json}` line for the rendered block plus telemetry.

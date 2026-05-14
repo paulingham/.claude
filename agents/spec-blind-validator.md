@@ -13,6 +13,7 @@ advisor: claude-opus-4-7
 # advisor-rationale: Sonnet drives the test-authoring loop (cheap, fast, deterministic against the AC list); Opus is consulted on judgement calls where the public surface under-specifies an AC. Same Path-B status as code-reviewer / security-engineer / patch-critic — currently advisory until the Agent input schema exposes `advisor`.
 memory: project
 maxTurns: 60
+min_confidence: 0.5
 instinct_categories:
   - qa-engineer
   - spec-blind-validator
