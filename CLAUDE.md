@@ -56,9 +56,20 @@ Sonnet-executor + Opus-advisor pairing for `code-reviewer` and `security-enginee
 
 May 8 2026 subagent-summary cache fix delivers ~3× `cache_creation` reduction when preambles are cache-stable. Full mechanism, drift surface, and measurement controls: `protocols/cost-discipline.md`.
 
-### Per-Agent Tool Allowlists (Path B)
+### Per-Agent Tool Allowlists (ENFORCING since 2026-05-14)
 
-`tools:` frontmatter declares per-agent tool allowlist; `pre-agent-allowlist.sh` checks subset against `tool_input.allowed_tools` (advisory at v2.1.140). Full contract: `protocols/agent-tool-allowlists.md` and `protocols/agent-protocol.md` § Per-Agent Tool Scoping.
+`tools:` frontmatter declares per-agent tool allowlist; `pre-agent-allowlist.sh` checks subset against `tool_input.allowed_tools`. As of 2026-05-14 the hook **enforces** via `exit 2 + stderr` when `$RESOLVED.action == "would_block"` — the pure-deny path requires no `modified_tool_input` schema. Audit trail logged with `action: "blocked"` to `metrics/{session}/tool-allowlist.jsonl` before the exit. Reversibility: `CLAUDE_DISABLE_TOOL_ALLOWLIST=1`. Full contract: `protocols/agent-tool-allowlists.md` and `protocols/agent-protocol.md` § Per-Agent Tool Scoping.
+
+### Reversibility Escapes (PreToolUse Agent hooks)
+
+Run-time toggles to short-circuit a specific gate to `exit 0` without editing the hook file or settings.json. Use when an enforcement flip mis-classifies a legitimate spawn; investigate, then unset.
+
+| Env var | Hook | Effect when set to `1` |
+|---|---|---|
+| `CLAUDE_DISABLE_TOOL_ALLOWLIST` | `pre-agent-allowlist.sh` | Skip allowlist subset check; no JSONL line; hook exits 0. |
+| `CLAUDE_DISABLE_THINKING_GATE` | `pre-agent-thinking.sh` | Skip thinking-defaults resolver; no `hook-injections.jsonl` line; hook exits 0. |
+| `CLAUDE_DISABLE_ADVISOR_GATE` | `pre-agent-advisor.sh` | Skip advisor-pairing resolver; no `advisor-dispatch.jsonl` line; hook exits 0. |
+| `CLAUDE_DISABLE_INSTINCT_INJECTION` | `instinct-injector.sh` | Skip instinct resolution; no JSONL line; hook exits 0. |
 
 ### Instinct Injection (Path B)
 

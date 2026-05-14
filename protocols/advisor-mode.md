@@ -22,6 +22,7 @@ Pending advisor-baseline measurement (see `eval/baselines/{latest}-advisor-basel
 ## Operator Controls
 
 - `CLAUDE_REVIEW_ADVISOR_DISABLED=1` — force Opus-solo for the current session (escape hatch when the advisor pairing produces noisy verdicts on a specific run).
+- `CLAUDE_DISABLE_ADVISOR_GATE=1` — short-circuit `hooks/pre-agent-advisor.sh` to `exit 0` before invoking the resolver. Mirrors `CLAUDE_DISABLE_TOOL_ALLOWLIST` and `CLAUDE_DISABLE_THINKING_GATE`. Use when a future enforcement flip mis-classifies a legitimate spawn; the hook becomes inert for the affected session and no `advisor-dispatch.jsonl` line is appended.
 
 ## Scope
 
