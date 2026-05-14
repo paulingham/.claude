@@ -20,6 +20,19 @@ Creates and maintains persistent debug state for complex bugs that require multi
 
 ## Process
 
+### Step 0: AssertFlip Reproducer (MANDATORY, BEFORE state file)
+
+Before any hypothesis work, author a failing reproducer using the **AssertFlip** technique (arXiv 2507.17542, 43.6% fail-to-pass on SWT-Bench-Verified):
+
+1. Write a *passing* test that captures the buggy code's current (wrong) behaviour.
+2. **Invert the assertions** so the test now fails on the bug.
+3. Run the suite once; confirm RED for the right reason (not import error, not fixture typo).
+4. Record the reproducer test path in the debug state file frontmatter as `reproducer_artifact: <path>` AND in the `### Environment Evidence` section.
+
+This artifact is a required field on the eventual `BUG_FIXED` (or `DEBUG_RESOLVED`) verdict payload. If a reproducer cannot be authored (e.g. bug only reproduces in a non-test environment), set `reproducer_artifact: env-only` and document why in the state file — this exemption is reviewed at resolution.
+
+AssertFlip eliminates the "test fails for the wrong reason" failure mode that ordinary RED-first authoring is prone to, especially in long debug loops where hypothesis churn produces brittle tests.
+
 ### Step 1: Create or Load Debug State
 
 Check for existing debug state (covers both layouts during the DUAL_PATH soak):
@@ -41,6 +54,7 @@ phase: debugging
 status: active
 created: {ISO 8601}
 updated: {ISO 8601}
+reproducer_artifact: {path/to/assertflip-test | env-only}
 ---
 
 ## Debug: {bug description}
@@ -127,5 +141,6 @@ Next: If RESOLVED → resume pipeline from Review phase
       If ESCALATED → user decides next steps
       If ACTIVE → continue debugging loop
 State: pipeline-state/{task-id}/debug.md
+Reproducer artifact: <path/to/test | env-only> (REQUIRED on DEBUG_RESOLVED — Step 0 AssertFlip output)
 ```
 $ARGUMENTS

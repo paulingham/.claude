@@ -16,7 +16,8 @@ Follow root cause analysis methodology with per-behaviour RED-GREEN-REFACTOR (th
 
 ## Process
 
-1. **Reproduce (MANDATORY RED)**: Write a single failing test that demonstrates the bug. Run the suite ONCE. Capture the RED output. Verify it fails for the actual bug — not a syntax error, not a missing import. The RED output is the audit artifact that proves the bug existed; without it, you have not reproduced anything.
+0. **Step 0 — AssertFlip Reproducer (MANDATORY, BEFORE anything else)**: Write a *passing* test against the buggy code that captures its current (wrong) behaviour, then **invert the assertions** so the test fails on the bug. This guarantees a failing-for-the-right-reason reproducer before any fix attempt. Capture the path to this test file as the **reproducer artifact** — it is a required payload field on `BUG_FIXED`. Technique: arXiv 2507.17542 (AssertFlip), 43.6% fail-to-pass on SWT-Bench-Verified. Do NOT skip this in favour of a free-hand failing test — AssertFlip eliminates the "test fails for the wrong reason" failure mode (missing import, wrong fixture, typo) that ordinary RED-first authoring is prone to.
+1. **Reproduce (MANDATORY RED)**: Run the suite ONCE with the Step 0 test in place. Capture the RED output. Verify it fails for the actual bug — not a syntax error, not a missing import. The RED output + the reproducer test path together are the audit artifact that proves the bug existed; without both, you have not reproduced anything.
 2. **Root Cause Analysis**: Trace the issue to the exact source
 3. **Regression Test**: Ensure the failing test covers the exact bug scenario
 4. **Fix**: Write minimum code to make the test pass
@@ -98,7 +99,7 @@ Read the project's tech stack pattern file for language-specific and framework-s
 ## Verdict
 
 After the fix verification checklist passes, produce:
-- **BUG_FIXED**: Regression test written, fix minimal, all tests green, root cause documented.
+- **BUG_FIXED**: Regression test written, fix minimal, all tests green, root cause documented. Payload MUST include `reproducer_artifact: <path>` pointing at the Step 0 AssertFlip test that observed RED before the fix. Verdict without this field is rejected as incomplete.
 - **BUG_UNRESOLVED**: Cannot reproduce, or fix introduces regressions. Document findings.
 
 ## Phase Output
@@ -106,6 +107,7 @@ After the fix verification checklist passes, produce:
 ```
 Verdict: BUG_FIXED / BUG_UNRESOLVED
 Next: /code-review + /security-review (parallel, single message)
+Reproducer artifact: <path/to/test> (REQUIRED on BUG_FIXED — AssertFlip Step 0 output)
 Artifacts: [list of changed/created files, regression test file]
 Root cause: [1-2 sentence summary]
 Agent summaries: [engineer's 2-3 sentence contribution summary]
