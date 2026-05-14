@@ -3,6 +3,7 @@ name: "verify"
 description: "Use when user wants to Structured verification workflow: contract tests, smoke tests, mutation testing. Produces a tiered verification report with VERIFIED/UNVERIFIED verdict. Use after implementation to prove correctness beyond passing tests."
 context: fork
 agent: software-engineer
+verdict: VERIFIED|VERIFIED_WITH_SKIP|UNVERIFIED|E2E_SKIP_NO_ENV
 ---
 
 # Verification Workflow
@@ -171,6 +172,7 @@ Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mob
    - Any target = SKIP and no FAILs → VERIFIED_WITH_SKIP
    - All fired targets = PASS → VERIFIED
    - All N/A → VERIFIED
+   - **Side-channel emit (independent of composite)**: when Tier 4 web target status = `SKIP`, additionally emit `E2E_SKIP_NO_ENV` (info-level, per `rules/verdict-catalog.md`). This does NOT change the composite verdict — it travels alongside it so the Final Gate summary can render the loud yellow line and the product-reviewer can acknowledge.
 
 6. **First-fire release note**: on first web-target fire for a project (no prior `pipeline-state/{task_id}/scratchpad/qa-engineer-verify-screenshots/` history), emit one line in the verify report: "Web E2E gating now active because <reason>".
 
@@ -207,6 +209,7 @@ Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mob
 - **Per-target status**:
   - Mobile (Maestro): PASS / FAIL / SKIP / N/A
   - Web (Playwright/Cypress): PASS / FAIL / SKIP / N/A
+- **Loud-skip line** (rendered when web target = SKIP): `E2E: SKIPPED (no execution environment) — UI/API changes shipped without browser verification`
 - **Composite (after coerce-then-compose)**: VERIFIED / VERIFIED_WITH_SKIP / UNVERIFIED
 - **Mobile flows run**: [list of executed Maestro flow files]
 - **Web driver**: Playwright | Cypress | (none — N/A)
@@ -238,5 +241,6 @@ Next: If VERIFIED → /qa-test-strategy
       If VERIFIED_WITH_SKIP → /qa-test-strategy (product-reviewer must acknowledge skip in Accept phase)
       If UNVERIFIED → return to Build phase to fix failing tiers, then re-review
 Tier results: Tier 1: [PASS/FAIL] | Tier 2: [PASS/FAIL] | Tier 3: [PASS/FAIL/N/A] | Tier 3.5: [PASS/FAIL/SKIP/N/A] | Tier 4: [PASS/FAIL/SKIP/N/A]
+Side-channel verdict: E2E_SKIP_NO_ENV emitted when Tier 4 web = SKIP (acknowledge required at Accept).
 Agent summaries: [verification summary]
 ```

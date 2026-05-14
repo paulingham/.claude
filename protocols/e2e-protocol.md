@@ -176,6 +176,8 @@ At least ONE of the following must be wired up before the web suite can satisfy 
 
 If NONE of these is available AND no driver config is present, the web target status is `N/A` (no driver, no run). If a driver config is present but the stack is unavailable, status is `SKIP` (parallel to mobile's "prerequisites not met"). SKIP is NOT a hard blocker but the product-reviewer must acknowledge it.
 
+When web target = SKIP for this reason, `/verify` emits the side-channel info-level verdict `E2E_SKIP_NO_ENV` (see `rules/verdict-catalog.md`). The Final Gate summary renders the loud yellow line `E2E: SKIPPED (no execution environment) — UI/API changes shipped without browser verification`, and the product-reviewer MUST acknowledge the skip in its verdict body — failing to acknowledge → CHANGES REQUESTED.
+
 #### Driver Selection
 
 | Driver | Selection rule |
