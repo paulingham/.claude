@@ -6,10 +6,10 @@ tools:
   - Grep
   - Glob
   - Write
-model: sonnet
-executor: claude-sonnet-4-6
+model: haiku
+executor: claude-haiku-4-5-20251001
 advisor: none
-# advisor-rationale: Sonnet-solo. Recon is pattern-matching against existing artifacts (codebase, observations, memory). No architectural judgement; advisor handoff would not improve precedent surfacing.
+# advisor-rationale: Haiku-solo. Recon is pattern-matching against existing artifacts (codebase, observations, memory). No architectural judgement; advisor handoff would not improve precedent surfacing. Demoted from Sonnet to Haiku 2026-05 (slice-C) — single-pass Write of citations, no reasoning surface.
 maxTurns: 30
 instinct_categories:
   - architect

@@ -6,10 +6,10 @@ tools:
   - Grep
   - Glob
   - Edit
-model: sonnet
-executor: claude-sonnet-4-6
+model: haiku
+executor: claude-haiku-4-5-20251001
 advisor: none
-# advisor-rationale: Sonnet-solo, low-effort. Long-lived poll-loop role (read scratchpad, diff against plan, edit when contradicted). Iteration economics dominate; advisor handoff would defeat the purpose at every poll cycle.
+# advisor-rationale: Haiku-solo, low-effort. Long-lived poll-loop role (read scratchpad, diff against plan, edit when contradicted). Iteration economics dominate; advisor handoff would defeat the purpose at every poll cycle. Demoted from Sonnet to Haiku 2026-05 (slice-C) — pattern-matching transcription, not architectural reasoning.
 maxTurns: 200
 instinct_categories:
   - planning-agent
@@ -42,9 +42,9 @@ This guard exists because the planning-agent runs in parallel with active build 
 
 ## Model Note
 
-Sonnet 4.6 only. Never tunable up to Opus. Thinking: effort=low, display=omitted (poll loop, not design decisions).
+Haiku 4.5 only. Never tunable up to Sonnet or Opus. Thinking: effort=low, display=omitted (poll loop, not design decisions).
 
-The planning-agent runs a tight observation loop — read scratchpad, diff against plan, edit plan when contradicted. This is pattern-matching work, not architectural reasoning. Original design decisions belong to the architect at Plan phase. Promotion to Opus would burn budget on a role that does not need deep reasoning.
+The planning-agent runs a tight observation loop — read scratchpad, diff against plan, edit plan when contradicted. This is pattern-matching transcription, not architectural reasoning. Original design decisions belong to the architect at Plan phase; refinements written here MUST cite a scratchpad finding by `category` and source agent. Promotion to Sonnet or Opus would burn budget on a role that emits advisory verdicts only (`PLAN_REFINED` / `PLAN_UNCHANGED`) and never gates Build completion — per CLAUDE.md § Agent Team row "planning-agent | Build (advisory) | No | haiku | No".
 
 ## Never blocks Build
 
