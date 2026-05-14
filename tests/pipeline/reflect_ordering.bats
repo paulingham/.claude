@@ -65,17 +65,22 @@ _line() {
   [ "$output" -ge 1 ]
 }
 
-@test "observation append and /learn precede /pr-creation in SKILL.md" {
-  # observation append: the first observations.jsonl mention is in Step 4d.
+@test "observation append and /learn precede Step 4c Ship invocation in SKILL.md" {
+  # Anchor the RHS to the Step 4c body — the Ship-phase invocation site —
+  # not bare /pr-creation grep, which matches recovery-loop back-references
+  # and Step 4d narrative mentions that pre-date the actual Ship action.
   l_obs="$(_line "$SKILL" "observations.jsonl")"
-  # /learn invocation: first 'Invoke `/learn`' line is in Step 4d-ii.
   l_learn="$(_line "$SKILL" "Invoke \`/learn\`")"
-  # /pr-creation: Step 4c body invokes it.
-  l_pr="$(_line "$SKILL" "/pr-creation")"
+  l_4c="$(_line "$SKILL" "### Step 4c: Multi-Repo Ship")"
+  # The Step 4c BODY's first /pr-creation reference (numbered list item that
+  # actually invokes the skill in each repo's working directory).
+  l_pr="$(awk -v start="$l_4c" 'NR>start && /run `\/pr-creation`/ {print NR; exit}' "$SKILL")"
   [ -n "$l_obs" ]
   [ -n "$l_learn" ]
+  [ -n "$l_4c" ]
   [ -n "$l_pr" ]
-  # max(obs, learn) < pr
+  # observation and /learn both live inside Step 4d, which is positionally
+  # before Step 4c. Assert max(obs, learn) < Step-4c Ship invocation.
   max_lhs="$l_obs"
   if [ "$l_learn" -gt "$max_lhs" ]; then max_lhs="$l_learn"; fi
   [ "$max_lhs" -lt "$l_pr" ]
