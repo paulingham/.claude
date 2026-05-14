@@ -193,6 +193,24 @@ applies *after* the pre-check has passed.
   engineering. Includes any visual_regression REJECT outcome from the
   pre-check above.
 
+#### E2E_SKIP_NO_ENV acknowledgement (mandatory)
+
+When the verify report carries the side-channel verdict `E2E_SKIP_NO_ENV`
+(Tier 4 web target = `SKIP` because no real-environment stack was
+available — see `rules/verdict-catalog.md` and `protocols/e2e-protocol.md`),
+the product-reviewer MUST acknowledge the skip explicitly in the verdict
+body. This mirrors the existing Tier 3.5 SKIP acknowledgement pattern.
+
+Acknowledgement format: a sentence in the verdict body naming the
+skipped target and noting that "UI/API changes shipped without browser
+verification". For example:
+
+> Acknowledged: web E2E target SKIPPED (no execution environment) —
+> UI/API changes shipped without browser verification.
+
+Failure to include this acknowledgement → CHANGES REQUESTED, regardless
+of how every other AC scored.
+
 ## Output Format
 
 ```markdown
