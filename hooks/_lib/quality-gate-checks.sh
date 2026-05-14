@@ -52,9 +52,30 @@ _qg_check_contract() {
     && { echo "[qg] contract: PASS" >&2; return 0; } || { echo "[qg] contract: FAIL" >&2; return 1; }
 }
 
+_qg_resolve_intake_path() {
+  local task="$1" ws="${CLAUDE_WORKSTREAM:-}" candidate
+  if [[ -n "$ws" ]]; then
+    candidate="pipeline-state/workstreams/$ws/$task/intake.md"
+    [[ -f "$candidate" ]] && { printf '%s\n' "$candidate"; return; }
+  fi
+  printf 'pipeline-state/%s/intake.md\n' "$task"
+}
+
+_qg_extract_intake_tier() {
+  # Reads `tier_emitted: Tn` (preferred) or `tier: Tn` (short form) from
+  # intake.md frontmatter. Tolerates whitespace and quoted values. Anchored
+  # to line-start so `tier_initial:` cannot match.
+  local intake="$1"
+  [[ -f "$intake" ]] || return 0
+  sed -n -E 's/^[[:space:]]*tier_emitted:[[:space:]]*"?(T[0-6])"?[[:space:]]*$/\1/p; s/^[[:space:]]*tier:[[:space:]]*"?(T[0-6])"?[[:space:]]*$/\1/p' \
+    "$intake" | head -n 1
+}
+
 _qg_check_freshness() {
   [[ "${CLAUDE_DISABLE_FRESHNESS_QG:-0}" == "1" ]] && return 0
-  local task="${CLAUDE_PIPELINE_TASK_ID:-unknown}" path head worktree verdict
+  local task="${CLAUDE_PIPELINE_TASK_ID:-unknown}" path head worktree verdict intake tier
+  intake=$(_qg_resolve_intake_path "$task"); tier=$(_qg_extract_intake_tier "$intake")
+  [[ "$tier" == "T0" || "$tier" == "T1" ]] && { echo "[freshness] PASS (tier=$tier; docs-only, /verify not applicable)" >&2; return 0; }
   path="pipeline-state/$task/verification-evidence.json"
   [[ -f "$path" ]] || { echo "[freshness] no verification-evidence; run /verify" >&2; return 1; }
   head=$(jq -r '.git_head' "$path" 2>/dev/null); verdict=$(jq -r '.verdict' "$path" 2>/dev/null); worktree=$(git rev-parse HEAD 2>/dev/null)
