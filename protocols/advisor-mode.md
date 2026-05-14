@@ -26,3 +26,31 @@ Pending advisor-baseline measurement (see `eval/baselines/{latest}-advisor-basel
 ## Scope
 
 Applies only to `code-reviewer` and `security-engineer`. All other review/critic roles (`patch-critic`, `product-reviewer`, `qa-engineer`) ship without an advisor pairing — their default models are governed by `protocols/thinking-defaults.md` and the Agent Team table in CLAUDE.md.
+
+## model_conditional Schema
+
+The `model_conditional` frontmatter block layers complexity-budget-aware model routing on top of the static `model:` / `executor:` / `advisor:` triple. The block is **advisory at v2.1.140** — the resolver function `resolve_model_conditional()` in `hooks/_lib/advisor_resolver.py` is pure and exercised by unit tests, but no caller wires it into spawn dispatch yet (see the named follow-up in `protocols/_proposals/2026-05-14-observation-length-cap.md`).
+
+### Frontmatter fields
+
+| Field | Type | Purpose |
+|---|---|---|
+| `default` | object | Arm returned when no rule matches OR budget is unavailable. Shape: `{model, executor, advisor}`. |
+| `rules[]` | list | Ordered list of conditional arms; first match wins. |
+| `rules[].when` | object | Match predicate. Currently supports `budget_lt: N` only. |
+| `rules[].model` / `executor` / `advisor` | strings | Arm contents. `advisor: none` (literal string) drops the advisor pairing for this arm. |
+| `status` | string | One of `advisory` (log-only) or `enforced`. v2.1.140 ships `advisory` only. |
+
+### Resolver source enum
+
+`resolve_model_conditional(frontmatter, budget)` returns `{model, executor, advisor, source}` where `source` is one of:
+
+- `no-conditional` — frontmatter has no `model_conditional` key; top-level triple is returned.
+- `no-budget` — budget is `None` / unavailable; the `default` arm is returned.
+- `rule-match:budget_lt:N` — the first `rules[]` entry whose `when.budget_lt = N` matched.
+- `default-arm` — `model_conditional` was present and budget was known, but no rule matched.
+
+### Reference implementation
+
+The canonical resolver lives at `hooks/_lib/advisor_resolver.py::resolve_model_conditional`. It is pure (no `open`, no `subprocess`, no `os.environ` reads) so it can be unit-tested directly via `inspect.getsource`. Bash-wrapper integration into `pre-agent-advisor.sh` is the named follow-up tracked in the slice-A companion proposal.
+

@@ -418,5 +418,28 @@ class ProvisionalMarkingPresentAtEveryDocTouchpoint(unittest.TestCase):
                           f"{path.name}:{idx+1}: cost figure missing advisor-baseline reference within 10 lines")
 
 
+class TestModelConditionalSchemaDoc(unittest.TestCase):
+    """Slice A AC-A1: advisor-mode.md documents the model_conditional schema."""
+
+    def test_model_conditional_schema_section_in_advisor_mode_md(self):
+        path = Path(__file__).resolve().parents[1] / "protocols" / "advisor-mode.md"
+        body = path.read_text()
+        self.assertIn("## model_conditional Schema", body,
+                      "advisor-mode.md missing '## model_conditional Schema' heading")
+        # 5 frontmatter field names
+        for field in ("default", "rules", "when", "budget_lt", "status"):
+            self.assertIn(field, body,
+                          f"advisor-mode.md schema section missing field: {field}")
+        # 4-source resolver enum
+        for src in ("no-conditional", "no-budget", "rule-match:budget_lt:", "default-arm"):
+            self.assertIn(src, body,
+                          f"advisor-mode.md missing resolver source: {src}")
+        # Reference to resolver function
+        self.assertIn("resolve_model_conditional", body,
+                      "advisor-mode.md missing reference to resolve_model_conditional")
+        self.assertIn("hooks/_lib/advisor_resolver.py", body,
+                      "advisor-mode.md missing resolver file path reference")
+
+
 if __name__ == "__main__":
     unittest.main()
