@@ -31,7 +31,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `BUILD_FAILED` | failure | `build-implementation` | build | Halt; user escalation or re-dispatch |
 | `REFACTOR_COMPLETE` | success | `refactor` | build | `/code-review` + `/security-review` |
 | `REFACTOR_FAILED` | failure | `refactor` | build | Halt; user escalation |
-| `BUG_FIXED` | success | `bug-fix` | build | `/code-review` + `/security-review` |
+| `BUG_FIXED` | success | `bug-fix` | build | `/code-review` + `/security-review` — payload MUST include `reproducer_artifact: <path>` pointing at the AssertFlip Step 0 test (arXiv 2507.17542); verdict without this field is rejected as incomplete |
 | `BUG_UNRESOLVED` | failure | `bug-fix` | build | Halt; user escalation with hypothesis log |
 | `TOOL_SYNTHESISED` | info | `tool-synthesis` | build | Build agent uses the scratch tool, deletes after use |
 | `TOOL_SYNTHESISED_PROMOTABLE` | info | `tool-synthesis` | build | Same as TOOL_SYNTHESISED + flagged as reusable across pipelines; `/learn` counts cross-pipeline recurrences and scaffolds a permanent skill on the third hit (human review gate) |
@@ -107,7 +107,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `ANOMALIES_FOUND` | info | `forensics` | utility | Anomalies surfaced; report written for human review |
 | `INVESTIGATION_INCOMPLETE` | info | `forensics` | utility | More data needed; user instructed |
 | `DEBUG_ACTIVE` | info | `debug` | utility | Persistent debug state created/updated |
-| `DEBUG_RESOLVED` | success | `debug` | utility | Bug resolved; pipeline resumes from Review |
+| `DEBUG_RESOLVED` | success | `debug` | utility | Bug resolved; pipeline resumes from Review — payload MUST include `reproducer_artifact: <path \| env-only>` (AssertFlip Step 0 test; `env-only` permitted when bug reproduces only in non-test environment with documented justification) |
 | `DEBUG_ESCALATED` | failure | `debug` | utility | Iteration cap hit; user escalation |
 | `TRACE_TOGGLED` | info | `debug-trace` | utility | Per-session prompt tracing on/off |
 | `HEALTHY` | info | `harness-audit`, `health-scan` | utility | No issues |
