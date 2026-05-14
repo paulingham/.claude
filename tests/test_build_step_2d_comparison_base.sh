@@ -44,6 +44,15 @@ else
   echo "  ok: bare 'git diff --name-only HEAD' form absent"; PASS=$((PASS + 1))
 fi
 
+# Bare `HEAD~N...HEAD` form (without merge-base) MUST NOT appear either.
+# This catches the variant where a commit-count shortcut replaces the
+# merge-base call — equally wrong because it doesn't pin to the branch base.
+if printf '%s' "$STEP_BODY" | grep -qE 'git diff --name-only HEAD~[0-9]+\.\.\.HEAD'; then
+  echo "  FAIL: bare 'git diff --name-only HEAD~N...HEAD' form present (forbidden)"; FAIL=$((FAIL + 1))
+else
+  echo "  ok: bare 'git diff --name-only HEAD~N...HEAD' form absent"; PASS=$((PASS + 1))
+fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]] || exit 1

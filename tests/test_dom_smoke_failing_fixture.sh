@@ -15,6 +15,7 @@ set -uo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 FIXTURE="$REPO_ROOT/tests/fixtures/dom-smoke/failing-route/index.html"
+SKILL="$REPO_ROOT/skills/build-implementation/SKILL.md"
 
 PASS=0; FAIL=0
 
@@ -56,18 +57,71 @@ else
 fi
 
 # Verdict routing: level:error (no ignore-list match) → DOM_SMOKE_FAILED.
-# Mock ignore-filter check — "boom" matches none of the documented ignore patterns.
+# Ignore-list is parsed dynamically from SKILL.md Step 2d sub-step 8 — if the
+# SKILL drops a regex, the dynamic list shrinks and a previously-ignored
+# message becomes a failure (this is the contract AC12 enforces).
+#
+# Extract regex tokens from lines of the form `   - \`<regex>\`` inside the
+# "Inline ignore-list regex" block (header line .. next blank line at depth 0).
+load_console_ignore_patterns() {
+  awk '
+    /^[0-9]+\. \*\*Inline ignore-list regex\*\*/ { in_block=1; next }
+    in_block && /^[0-9]+\. / { in_block=0 }
+    in_block && /^[[:space:]]+- `[^`]+`[[:space:]]*$/ {
+      # Skip URL-pattern lines described in prose form, not bare-regex form
+      # (those are network ignores, handled by the network branch elsewhere).
+      if ($0 ~ /Network URLs/ || $0 ~ /scheme URLs/) next
+      line = $0
+      sub(/^[[:space:]]+- `/, "", line)
+      sub(/`[[:space:]]*$/, "", line)
+      print line
+    }
+  ' "$SKILL"
+}
+
+IGNORE_PATTERNS=$(load_console_ignore_patterns)
+assert "ignore-list parsed from SKILL.md (non-empty)" test -n "$IGNORE_PATTERNS"
+
 classify() {
   local msg=$1
-  case "$msg" in
-    Warning:*ReactDOM.render*|Warning:*deprecated*|*'[HMR]'*|*'Download the React DevTools'*|*'[Fast Refresh]'*|*Lighthouse*)
-      echo IGNORED ;;
-    *)
-      echo FAIL ;;
-  esac
+  local pat
+  while IFS= read -r pat; do
+    [[ -z "$pat" ]] && continue
+    if [[ "$msg" =~ $pat ]]; then echo IGNORED; return; fi
+  done <<< "$IGNORE_PATTERNS"
+  echo FAIL
 }
 VERDICT_REASON=$(classify "$FIRST_MSG")
 assert "console error 'boom' classified as FAIL (not ignored)" test "$VERDICT_REASON" = FAIL
+
+# Per-pattern coverage: each documented regex must actually ignore a
+# representative matching message. If SKILL.md drops a regex, the parsed
+# list shrinks and the corresponding sample below classifies as FAIL,
+# surfacing the drift. This is what closes the AC12 tautology: classify()
+# now sources the list from SKILL.md AND each documented entry has a live
+# assertion against its expected ignore behaviour.
+assert_ignored() {
+  local label=$1 sample=$2 got
+  got=$(classify "$sample")
+  if [[ "$got" == IGNORED ]]; then
+    echo "  ok: $label"; PASS=$((PASS + 1))
+  else
+    echo "  FAIL: $label (got $got, ignore-list = $IGNORE_PATTERNS)"; FAIL=$((FAIL + 1))
+  fi
+}
+
+assert_ignored "ignores 'Warning: ReactDOM.render' samples" \
+  "Warning: ReactDOM.render is no longer supported"
+assert_ignored "ignores 'Warning: ... is deprecated' samples" \
+  "Warning: componentWillMount is deprecated"
+assert_ignored "ignores '[HMR]' samples" \
+  "[HMR] connected"
+assert_ignored "ignores 'Download the React DevTools' samples" \
+  "Download the React DevTools for a better development experience"
+assert_ignored "ignores '[Fast Refresh]' samples" \
+  "[Fast Refresh] rebuilding"
+assert_ignored "ignores 'Lighthouse' samples" \
+  "Lighthouse audit completed"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
