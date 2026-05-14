@@ -40,3 +40,18 @@ def test_caller_contract_step3_references_persona_end_marker():
         "(literal `<!-- claude:persona-end -->` or phrase `persona-end marker`). "
         f"Step 3 body was:\n{step3}"
     )
+
+
+def test_caller_contract_step2_shows_loader_and_floor_override():
+    """AC10b — Step 2 Python snippet wires the loader + floor_override kwarg."""
+    section = _instinct_injection_section()
+    step2 = _step_block(section, 2)
+    assert "agent_min_confidence_loader" in step2, (
+        "Caller contract Step 2 must reference `agent_min_confidence_loader` "
+        f"(documented loader for per-agent min_confidence frontmatter). "
+        f"Step 2 body was:\n{step2}"
+    )
+    assert "floor_override=" in step2, (
+        "Caller contract Step 2 must show `floor_override=` kwarg pass to "
+        f"resolve_for_agent. Step 2 body was:\n{step2}"
+    )
