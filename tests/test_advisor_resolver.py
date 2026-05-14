@@ -16,6 +16,12 @@ from pathlib import Path
 import advisor_resolver
 from advisor_resolver import parse_frontmatter, resolve
 
+try:
+    from advisor_resolver import resolve_model_conditional, advisor_none_to_python_none
+except ImportError:  # not yet implemented — RED phase
+    resolve_model_conditional = None
+    advisor_none_to_python_none = None
+
 RESOLVER_SCRIPT = Path(__file__).resolve().parents[1] / "hooks" / "_lib" / "resolve-advisor.py"
 HOOK = Path(__file__).resolve().parents[1] / "hooks" / "pre-agent-advisor.sh"
 
@@ -439,6 +445,87 @@ class TestModelConditionalSchemaDoc(unittest.TestCase):
                       "advisor-mode.md missing reference to resolve_model_conditional")
         self.assertIn("hooks/_lib/advisor_resolver.py", body,
                       "advisor-mode.md missing resolver file path reference")
+
+
+_TOP_LEVEL_TRIPLE_ONLY = {
+    "model": "opus",
+    "executor": "claude-sonnet-4-6",
+    "advisor": "claude-opus-4-7",
+}
+
+_FRONTMATTER_WITH_CONDITIONAL = {
+    "model": "opus",
+    "executor": "claude-sonnet-4-6",
+    "advisor": "claude-opus-4-7",
+    "model_conditional": {
+        "default": {
+            "model": "opus",
+            "executor": "claude-sonnet-4-6",
+            "advisor": "claude-opus-4-7",
+        },
+        "rules": [
+            {
+                "when": {"budget_lt": 6},
+                "model": "sonnet",
+                "executor": "claude-sonnet-4-6",
+                "advisor": "none",
+            },
+        ],
+        "status": "advisory",
+    },
+}
+
+
+class ResolveModelConditionalReturnsTopLevelWhenNoBlock(unittest.TestCase):
+    def test_resolve_model_conditional_returns_top_level_when_no_block(self):
+        result = resolve_model_conditional(_TOP_LEVEL_TRIPLE_ONLY, budget=5)
+        self.assertEqual(result["source"], "no-conditional")
+        self.assertEqual(result["model"], "opus")
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+
+
+class ResolveModelConditionalBudget5ReturnsSonnetSolo(unittest.TestCase):
+    def test_resolve_model_conditional_budget_5_returns_sonnet_solo(self):
+        result = resolve_model_conditional(_FRONTMATTER_WITH_CONDITIONAL, budget=5)
+        self.assertEqual(result["source"], "rule-match:budget_lt:6")
+        self.assertEqual(result["model"], "sonnet")
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "none")
+
+
+class ResolveModelConditionalBudget8ReturnsDefaultArm(unittest.TestCase):
+    def test_resolve_model_conditional_budget_8_returns_default_arm(self):
+        result = resolve_model_conditional(_FRONTMATTER_WITH_CONDITIONAL, budget=8)
+        self.assertEqual(result["source"], "default-arm")
+        self.assertEqual(result["model"], "opus")
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+
+
+class ResolveModelConditionalNoBudgetReturnsDefaultArm(unittest.TestCase):
+    def test_resolve_model_conditional_no_budget_returns_default_arm(self):
+        result = resolve_model_conditional(_FRONTMATTER_WITH_CONDITIONAL, budget=None)
+        self.assertEqual(result["source"], "no-budget")
+        self.assertEqual(result["model"], "opus")
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+
+
+class ResolveModelConditionalIsPure(unittest.TestCase):
+    def test_resolve_model_conditional_is_pure(self):
+        source = inspect.getsource(resolve_model_conditional)
+        self.assertNotIn("open(", source)
+        self.assertNotIn("subprocess", source)
+        self.assertNotIn("os.environ", source)
+
+
+class AdvisorNoneLiteralTranslatesToPythonNone(unittest.TestCase):
+    def test_advisor_none_literal_translates_to_python_none(self):
+        self.assertIsNone(advisor_none_to_python_none("none"))
+        self.assertEqual(
+            advisor_none_to_python_none("claude-opus-4-7"), "claude-opus-4-7")
+        self.assertIsNone(advisor_none_to_python_none(None))
 
 
 if __name__ == "__main__":
