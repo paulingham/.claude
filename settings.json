@@ -179,6 +179,15 @@
               "exec \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/tool-output-bytes.sh\""
             ],
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/intake-fingerprint-audit.sh\""
+            ],
+            "timeout": 5000
           }
         ]
       },

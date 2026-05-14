@@ -25,6 +25,32 @@ This skill is NOT used in interactive mode — interactive mode asks the user.
 
 ## Process
 
+### Step 0: Re-fingerprint sanity check (MANDATORY before rubric)
+
+Before scoring the rubric, re-run the fingerprint detectors from `protocols/work-class-routing.md` § Fingerprint against the architect plan's `## Affected Files` section. The intake fingerprint runs on the user prompt; the architect's Plan reveals the actual scope. Catches the failure mode where the user says "tidy docs" but the plan touches source files.
+
+**Steps**:
+
+1. Read `tier_initial` from `pipeline-state/{task-id}/intake.md` frontmatter (set by `/intake` Step 1.5 Fingerprint).
+2. Read the architect plan's `## Affected Files` list.
+3. **Re-run Phase 1 detectors** (T1_doc_only / T2_config_only / T3_mechanical_sweep glob/regex matchers) against that list.
+4. **Re-run Phase 2 safety override** including the rules/core.md path-pattern check: if any affected file matches `rules/core.md` / `protocols/atdd-procedure.md` / `rules/verdict-catalog.md` / `hooks/*.sh` body / `auth/*` / `secrets/*` / `*crypto*` / `*.env` / test files / auth-payment-crypto keywords → upshift to T6 (or T4 minimum for non-Iron-Law-surface). This is the HIGH-1 conservative check.
+5. Compute `tier_replanned` from steps 3-4.
+
+**Verdict**:
+
+- If `tier_replanned > tier_initial` → emit `ROUTING_UPSHIFTED`, set `routing_upshifted: true`, write the state file, halt validation. Pipeline re-dispatches downstream phases at the new tier.
+- If `tier_replanned <= tier_initial` → set `routing_upshifted: false`, proceed to Step 1.
+
+**Monotonic-once invariant**: re-fingerprint upshift is **monotonic-once** per pipeline (Memory M10 / plan R3). If the state file already shows `routing_upshifted: true`, Step 0 refuses to fire again — a second upshift indicates the upstream re-dispatch failed to take effect, and the pipeline halts with operator escalation. Downshifts at this stage are not honoured.
+
+**Status line**:
+
+```
+[PlanSelfValidation] Re-fingerprint: T{n}->T{m}        (upshift detected)
+[PlanSelfValidation] Re-fingerprint: unchanged          (T{n} preserved)
+```
+
 ### Step 1: Read the Plan
 
 Read `pipeline-state/{task-id}/plan.md` end to end. The architect spawned for this skill is the same architect role that wrote the plan, but a fresh spawn — no carry-over context. The fresh read is load-bearing.
@@ -46,6 +72,7 @@ For each rubric item, write a one-line verdict (`OK` / `HOLE: {what is missing}`
 
 ### Step 3: Verdict
 
+- **Step 0 upshift detected** → `ROUTING_UPSHIFTED`. Write the upshift fields (`tier_initial`, `tier_replanned`, `routing_upshifted: true`) to `pipeline-state/{task-id}/plan-validation.md` and return. The pipeline re-dispatches downstream phases at the new tier.
 - **All items OK** → `PLAN_APPROVED`. Write a one-line confirmation to `pipeline-state/{task-id}/plan-validation.md` and return.
 - **One or more HOLE entries** → `PLAN_HOLES`. Write the hole list to `pipeline-state/{task-id}/plan-validation.md` and return. The pipeline returns the plan to architect with the hole list for ONE revision pass. If holes persist after that pass, the pipeline escalates to heavy challengers (product-reviewer + software-engineer team) per `protocols/pipeline-protocol.md`.
 
@@ -58,7 +85,10 @@ Write `pipeline-state/{task-id}/plan-validation.md`:
 task_id: {task-id}
 phase: plan-validation
 mode: light
-verdict: PLAN_APPROVED | PLAN_HOLES
+verdict: PLAN_APPROVED | PLAN_HOLES | ROUTING_UPSHIFTED
+tier_initial: T0|T1|T2|T3|T4|T5|T6
+tier_replanned: T0|T1|T2|T3|T4|T5|T6
+routing_upshifted: true|false
 timestamp: {ISO 8601}
 ---
 
@@ -85,10 +115,11 @@ timestamp: {ISO 8601}
 ## Phase Output
 
 ```
-Verdict: PLAN_APPROVED | PLAN_HOLES
+Verdict: PLAN_APPROVED | PLAN_HOLES | ROUTING_UPSHIFTED
 Mode: light
 Holes: {N}
-Next: Build (if APPROVED) | Architect revision (if HOLES)
+Tier: T{initial}->T{replanned}  (when ROUTING_UPSHIFTED)
+Next: Build (if APPROVED) | Architect revision (if HOLES) | Pipeline re-dispatch (if ROUTING_UPSHIFTED)
 ```
 
 ## Why a Skill, Not a Team
