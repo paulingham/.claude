@@ -27,7 +27,7 @@ The Build phase has three dispatch variants. Routing precedence is `pdr_rtv > be
 | Flag combination | Dispatch | Why |
 |---|---|---|
 | `pdr_rtv == true AND bestofn == true` | **PDR-RTV wins** (strictly stronger). Logged as a re-route. | PDR-RTV's T=2 iterations + summary-based tournament dominates Best-of-N's T=1 + code-reviewer rubric on the same parallel-build budget. |
-| `pdr_rtv == true AND bestofn == false` | PDR-RTV. | Triggered by `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-9} OR critical`. |
+| `pdr_rtv == true AND bestofn == false` | PDR-RTV. | Triggered by `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-10} AND critical`. |
 | `pdr_rtv == false AND bestofn == true` | Best-of-N (existing path, unchanged). | Triggered by `critical OR user_override`. |
 | `pdr_rtv == false AND bestofn == false` | Standard Build (single engineer, or multi-slice parallel engineers). | Default. |
 
