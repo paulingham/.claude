@@ -199,5 +199,67 @@ class ReviewRoleFrontmatterUniformity(unittest.TestCase):
             )
 
 
+# ---------------------------------------------------------------------------
+# Slice E1 (model-demotion-pass-2026-05): CLAUDE.md Agent Team table contract.
+#
+# AC-E1: planning-agent row Default Model = haiku.
+# AC-E2: code-reviewer row Default Model = "opus [1]" + footnote referencing
+#        model_conditional and resolve_model_conditional.
+# ---------------------------------------------------------------------------
+
+CLAUDE_MD = REPO_ROOT / "CLAUDE.md"
+
+
+def _agent_team_row(agent: str) -> str:
+    """Return the Agent Team table row for `agent` (raw markdown line)."""
+    text = CLAUDE_MD.read_text()
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("|") and f"| {agent} |" in stripped:
+            return stripped
+    raise AssertionError(f"CLAUDE.md: no Agent Team row found for {agent!r}")
+
+
+class SliceE1ClaudeMdAgentTeamTable(unittest.TestCase):
+    def test_claude_md_planning_agent_row_is_haiku(self):
+        row = _agent_team_row("planning-agent")
+        cells = [cell.strip() for cell in row.strip("|").split("|")]
+        # Expected columns: Agent | Phase | Worktree | Default Model | Tunable
+        self.assertEqual(cells[0], "planning-agent")
+        self.assertEqual(
+            cells[1], "Build (advisory)",
+            f"planning-agent row Phase column drifted: {cells!r}",
+        )
+        self.assertEqual(
+            cells[3], "haiku",
+            f"planning-agent row Default Model column must be 'haiku' "
+            f"(case-sensitive); got {cells[3]!r}",
+        )
+        self.assertEqual(
+            cells[4], "No",
+            f"planning-agent row Tunable column drifted: {cells!r}",
+        )
+
+    def test_claude_md_code_reviewer_row_has_footnote(self):
+        row = _agent_team_row("code-reviewer")
+        self.assertIn(
+            "opus [1]", row,
+            f"code-reviewer row Default Model must read 'opus [1]'; "
+            f"got row: {row!r}",
+        )
+        text = CLAUDE_MD.read_text()
+        # Footnote must appear below the Agent Team table and reference both
+        # the agent frontmatter field and the resolver implementation.
+        self.assertIn(
+            "model_conditional", text,
+            "CLAUDE.md: footnote [1] must reference 'model_conditional'",
+        )
+        self.assertIn(
+            "resolve_model_conditional", text,
+            "CLAUDE.md: footnote [1] must reference "
+            "'resolve_model_conditional'",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
