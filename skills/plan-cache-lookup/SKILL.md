@@ -120,6 +120,25 @@ or, on HIT:
 
 `<reason>` ∈ `{no-template, disabled, shadow-mode}` in Slice B; Slice C adds `adapter-rejected`, `adapter-pending-stale`, `template-corrupt`. Slice F adds `hash-drift`, `key-mismatch`.
 
+## Status Line Copy (Slice F)
+
+Each verdict pairs the `[PlanCacheLookup]` JSON audit marker with one
+user-facing console line (or stays silent). Strings below are VERBATIM
+per `pipeline-state/plan-cache-agentic/plan.md` § Status Line Copy and are
+emitted by `_plan_cache_status_line` (`hooks/_lib/plan-cache-lookup.sh`).
+
+| State | Console string |
+|---|---|
+| MISS reason=`shadow-mode` | `[plan-cache] shadow-mode active (cache observable, not serving) — recon+architect running as normal` |
+| MISS reason=`no-template` | `[plan-cache] no cached plan for this task signature — recon+architect running as normal` |
+| MISS reason=`disabled` | (silent — no console line; JSON marker only) |
+| HIT served | `[plan-cache] cache HIT — Haiku adapted in {N}s, estimated savings ~${cost}; verify slices against current repo before Build` |
+| MISS reason=`adapter-rejected` | `[plan-cache] adapter output rejected by validator — falling through to recon+architect in this pipeline (Iron Law 6)` |
+
+`{N}` and `{cost}` are interpolated from `CLAUDE_PLAN_CACHE_ADAPT_SECS`
+and `CLAUDE_PLAN_CACHE_SAVINGS_USD` (set by the orchestrator wiring around
+the adapter spawn).
+
 ## Verdicts
 
 - `PLAN_CACHE_MISS` (info, plan, emitter=plan-cache-lookup) — fall through to Stage 1 recon + Stage 2 architect in the same pipeline (Iron Law 6 on `adapter-rejected`).

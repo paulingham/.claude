@@ -19,8 +19,11 @@ source "$_PLAN_CACHE_LIB_DIR/repo-hash.sh"
 # itself takes (task_class, tier, critical) and does not need that import.
 
 _plan_cache_mode() {
-  case "${CLAUDE_PLAN_CACHE_MODE:-off}" in
-    off|shadow|on) printf '%s\n' "${CLAUDE_PLAN_CACHE_MODE:-off}" ;;
+  # Slice F: default flipped off → shadow (LOW-eng-3 satisfied — slices B-E
+  # have shipped; partial-merge subset without F now stays in shadow which is
+  # cache-observable but not HIT-serving).
+  case "${CLAUDE_PLAN_CACHE_MODE:-shadow}" in
+    off|shadow|on) printf '%s\n' "${CLAUDE_PLAN_CACHE_MODE:-shadow}" ;;
     *) printf 'off\n' ;;
   esac
 }
@@ -53,6 +56,78 @@ _plan_cache_emit_miss() {
   local reason="$1" key="$2"
   printf '[PlanCacheLookup] {"verdict":"PLAN_CACHE_MISS","reason":"%s","cache_key":"%s"}\n' \
     "$reason" "$key"
+  _plan_cache_status_line MISS "$reason"
+}
+
+# Slice F — verbatim Status Line Copy (plan.md § Status Line Copy).
+# One-line, user-facing console output that rides alongside the JSON audit
+# marker. `disabled` is intentionally silent (no output).
+_plan_cache_status_line() {
+  local verdict="$1" reason="$2"
+  case "$verdict:$reason" in
+    MISS:shadow-mode) printf '[plan-cache] shadow-mode active (cache observable, not serving) — recon+architect running as normal\n' ;;
+    MISS:no-template) printf '[plan-cache] no cached plan for this task signature — recon+architect running as normal\n' ;;
+    MISS:adapter-rejected) printf '[plan-cache] adapter output rejected by validator — falling through to recon+architect in this pipeline (Iron Law 6)\n' ;;
+    HIT:*) _plan_cache_hit_status_line ;;
+  esac
+}
+
+# Helper isolates HIT-specific env-var reads so _plan_cache_status_line stays
+# CC ≤ 5. Placeholders {N} and {cost} interpolate from caller-provided env
+# (set by the orchestrator wiring around the adapter spawn).
+_plan_cache_hit_status_line() {
+  local secs="${CLAUDE_PLAN_CACHE_ADAPT_SECS:-?}"
+  local cost="${CLAUDE_PLAN_CACHE_SAVINGS_USD:-?}"
+  printf '[plan-cache] cache HIT — Haiku adapted in %ss, estimated savings ~$%s; verify slices against current repo before Build\n' \
+    "$secs" "$cost"
+}
+
+# Slice F — write-on-MISS path. After Plan Validation emits PLAN_APPROVED,
+# the orchestrator caches the current pipeline's plan.md under
+# learning/{project-hash}/plans/{key}.md so future pipelines with the same
+# task signature get a HIT in mode=on. Atomic (tmp+mv), idempotent.
+# Args: PLAN_PATH KEY TASK_CLASS TIER CRITICAL REPO_HASH SOURCE_TASK_ID.
+_plan_cache_write_template() {
+  local plan="$1" key="$2" task_class="$3" tier="$4" critical="$5"
+  local repo_hash="$6" source_task_id="$7"
+  local dir tmp out now
+  dir=$(_plan_cache_dir)
+  mkdir -p "$dir"
+  out="$dir/$key.md"
+  tmp="$(mktemp -t plan-cache-tmpl-XXXXXX)"
+  now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  _plan_cache_render_template "$plan" "$key" "$task_class" "$tier" \
+    "$critical" "$repo_hash" "$source_task_id" "$now" >"$tmp" && mv "$tmp" "$out"
+}
+
+# Renders a cached template: frontmatter (per plan.md § On-disk template schema)
+# + body copied from the source plan.md without its own frontmatter block.
+_plan_cache_render_template() {
+  local plan="$1" key="$2" task_class="$3" tier="$4" critical="$5"
+  local repo_hash="$6" source_task_id="$7" now="$8"
+  printf -- '---\n'
+  printf 'cache_key: %s\n' "$key"
+  printf 'task_class: %s\n' "$task_class"
+  printf 'tier: %s\n' "$tier"
+  printf 'critical: %s\n' "$critical"
+  printf 'repo_hash: %s\n' "$repo_hash"
+  printf 'created_at: %s\n' "$now"
+  printf 'hit_count: 0\n'
+  printf 'last_adapted_at: null\n'
+  printf 'last_adapt_outcome: null\n'
+  printf 'source_pipeline: %s\n' "$source_task_id"
+  printf -- '---\n'
+  _plan_cache_strip_frontmatter "$plan"
+}
+
+# Strip a YAML frontmatter block (--- ... ---) from the head of a file.
+# Idempotent: files without frontmatter pass through unchanged.
+_plan_cache_strip_frontmatter() {
+  awk 'BEGIN{drop=0; done=0}
+    !done && NR==1 && /^---$/ { drop=1; next }
+    drop && /^---$/ { drop=0; done=1; next }
+    drop { next }
+    { print }' "$1"
 }
 
 # Slice C — HIT path helpers.
@@ -121,6 +196,7 @@ _plan_cache_finalize() {
   if _plan_cache_validate_plan "$plan"; then
     _plan_cache_flip_outcome "$template" success
     printf '[PlanCacheLookup] {"verdict":"PLAN_CACHE_HIT","cache_key":"%s"}\n' "$key"
+    _plan_cache_status_line HIT served
     return 0
   fi
   rm -f "$plan"
