@@ -17,6 +17,10 @@ Returns 0 on every path (advisory contract — hook MUST NOT block).
 REQUIRED_KEYS (plan.md § Slice slice-e-audit-and-measurement):
   task_id, cache_key, verdict, adapter_cost_tokens, miss_reason,
   hit_template_path, hit_count_after, pv_outcome, session_id.
+
+Slice-G adds a 10th forensic key — `saved_architect_tokens_estimate` —
+required by `hooks/_lib/plan-cache-rollout-gate.py` cost_delta computation.
+Set to SAVED_TOKENS_PER_HIT (10000) on HIT, 0 otherwise.
 """
 import json
 import os
@@ -24,6 +28,9 @@ import re
 import sys
 
 PENDING_PV = "<pending>"
+SAVED_TOKENS_PER_HIT = 10000  # Slice G cost_delta input; conservative estimate
+# of recon+architect token spend skipped on HIT path. Subject to revision
+# after first 30-pipeline measurement window (plan.md § Slice slice-g).
 
 
 def _read_template_metadata(project_hash, cache_key):
@@ -65,6 +72,7 @@ def _build_record(argv):
         tokens_numeric = 0
     project_hash = _resolve_project_hash()
     template_path, hit_count = _read_template_metadata(project_hash, cache_key)
+    saved = SAVED_TOKENS_PER_HIT if verdict == "PLAN_CACHE_HIT" else 0
     return {
         "task_id": task_id or "<unknown>",
         "cache_key": cache_key or "",
@@ -76,6 +84,7 @@ def _build_record(argv):
         "pv_outcome": PENDING_PV,
         "session_id": session_id or "<unknown>",
         "timestamp": ts,
+        "saved_architect_tokens_estimate": saved,
     }
 
 

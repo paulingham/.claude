@@ -99,6 +99,9 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `NO_OBSERVATIONS` | info | `learn` | reflect | No observations available; skip |
 | `RECOMMENDATIONS_READY` | info | `eval-model-effectiveness` | utility | Advisory report written; human reviews |
 | `INSUFFICIENT_DATA` | info | `eval-model-effectiveness` | utility | Skip; need more observations |
+| `INSUFFICIENT_DATA` | info | `plan-cache-rollout-gate` | utility | Fewer than 30 pipelines AND <14 days of `plan-cache.jsonl` records; gate refuses to grade. Re-run after more data arrives. |
+| `ROLLOUT_GATE_PASS` | success | `plan-cache-rollout-gate` | utility | All three thresholds met (`hit_rate >= 0.10` AND `pv_pass_rate_on_hit >= 0.95` AND `cost_delta > 0`); operator may author a flip-to-`on` PR citing the PASS payload as evidence (HIGH-prod-1). |
+| `ROLLOUT_GATE_FAIL` | failure | `plan-cache-rollout-gate` | utility | One or more thresholds not met; payload `failed_thresholds[]` cites which. Flip-to-`on` PR must NOT merge until a re-run returns PASS. |
 | `NO_CHANGE` | info | `eval-model-effectiveness` | utility | Recommendations unchanged from prior run |
 | `COST_REPORT_READY` | info | `cost-report` | utility | Advisory report written to `metrics/reports/{date}-cost.md`; human reviews |
 | `CACHE_AUDIT_READY` | info | `cache-audit` | utility | Advisory report written to `metrics/reports/{date}-cache.md`; human reviews |

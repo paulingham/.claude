@@ -162,6 +162,40 @@ open('$METRICS_DIR/$sid/plan-cache.jsonl','a').write(json.dumps(rec)+'\n')
   echo "$output" | grep -q 'cost_delta'
 }
 
+@test "G_bc1 malformed jsonl line is skipped, valid lines still counted" {
+  # Mix valid records with garbage; gate must not crash.
+  for i in $(seq 1 30); do
+    _emit "s$i" 1 PLAN_CACHE_HIT "" PLAN_APPROVED 100 10000
+  done
+  printf 'not-json\n{"verdict":"PLAN_CACHE_HIT"\n' >> "$METRICS_DIR/s1/plan-cache.jsonl"
+  run python3 "$GATE" --metrics-dir "$METRICS_DIR"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '"verdict": "ROLLOUT_GATE_PASS"'
+}
+
+@test "G_bc2 empty metrics dir -> INSUFFICIENT_DATA, no crash" {
+  run python3 "$GATE" --metrics-dir "$METRICS_DIR"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '"verdict": "INSUFFICIENT_DATA"'
+  echo "$output" | grep -q '"sessions_seen": 0'
+}
+
+@test "G_bc3 record with unparseable timestamp does not crash days_span" {
+  for i in $(seq 1 30); do
+    _emit "s$i" 1 PLAN_CACHE_HIT "" PLAN_APPROVED 100 10000
+  done
+  python3 -c "
+import json
+rec={'verdict':'PLAN_CACHE_HIT','session_id':'sBAD','timestamp':'NOT-A-DATE',
+     'pv_outcome':'PLAN_APPROVED','adapter_cost_tokens':100,
+     'saved_architect_tokens_estimate':10000,'miss_reason':''}
+import os; os.makedirs('$METRICS_DIR/sBAD',exist_ok=True)
+open('$METRICS_DIR/sBAD/plan-cache.jsonl','w').write(json.dumps(rec)+'\n')
+"
+  run python3 "$GATE" --metrics-dir "$METRICS_DIR"
+  [ "$status" -eq 0 ]
+}
+
 @test "G7b 14-day window with >=30 records ALSO passes data-sufficiency" {
   # Only 1 session id but 30 records spread in last 14 days? Actually
   # sessions_seen counts session dirs. Use 14 sessions each within window
