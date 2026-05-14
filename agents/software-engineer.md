@@ -188,3 +188,11 @@ When approaching your turn limit (within last 20 turns):
 2. Include in the commit message: completed ACs, remaining ACs, current test count, any known issues
 3. Run tests before committing — only commit if tests pass (or note failures in message)
 4. This allows a continuation agent to pick up from committed state instead of starting fresh
+
+## Iterative Refinement on RED (Build Phase)
+
+When test execution returns RED at the end of Step 2 step (2) IMPLEMENT CLEANLY during a Build slice, follow `skills/build-implementation/SKILL.md` Step 4a-4c. Before authoring a refined edit:
+
+1. Read `pipeline-state/{task-id}/scratchpad/{your-role}-build.md` — every prior `test-failure-feedback` entry is a failed hypothesis. Do NOT re-propose a hypothesis already in the log.
+2. Write one new `test-failure-feedback` entry (failing tests, failure excerpt, hypothesis, attempted-edit summary) BEFORE re-editing. The write order matters — the count of entries IS the iteration counter; writing after the edit double-counts. A crash between the write and the re-edit counts as a failed iteration (no resume).
+3. Respect `CLAUDE_BUILD_ITERATIONS` (default 3, enforced range 0..10). When the counter reaches the cap, emit `BUILD_FAILED` with `reason: iteration_cap_exhausted` plus the handoff file path. Do NOT invoke `/bug-fix` directly (Skill is in your disallowedTools); the orchestrator dispatches it.
