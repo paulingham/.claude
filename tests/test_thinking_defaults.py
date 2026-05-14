@@ -118,53 +118,125 @@ class PlanningAgentLowDefault(unittest.TestCase):
         self.assertEqual(result["source"], "role")
 
 
-# ---------------- AC2g–AC2i: implementation roles unconditionally promoted to xhigh ----------------
+# ---------------- AC2g–AC2i: implementation roles gated to xhigh on `critical OR budget>=7` ----------------
+# Policy change (PR #124, narrow-xhigh-promotion 2026-05-14): software-engineer,
+# frontend-engineer, infrastructure-engineer are no longer unconditionally
+# elevated to xhigh. Each is gated on `critical OR budget>=7`. Defends against
+# `or`→`and` mutation by exercising the critical-low-budget branch (T5/T6/T7).
 
 
-class SoftwareEngineerUnconditionalXhigh(unittest.TestCase):
-    """AC2: software-engineer is unconditionally promoted to xhigh by rule 3a.
+class SoftwareEngineerNonCriticalLowBudgetYieldsHigh(unittest.TestCase):
+    """AC1: software-engineer below the gate threshold falls through to the
+    rule-4 hardcoded `high` floor (source="default"). The role layer returns
+    None — `_is_xhigh` is False (critical=False, budget<7) and
+    `_role_downgrade` returns None (software-engineer not in
+    `_DOWNGRADE_TO_HIGH`)."""
 
-    Was previously in `_DOWNGRADE_TO_HIGH` (Sonnet executor); after the
-    May 2026 Opus 4.7 adaptive-thinking floor change, primary build roles
-    are unconditionally elevated. The Apr 23 2026 postmortem captured the
-    promotion-on-trigger lift; adaptive thinking moved the floor.
-    """
-
-    def test_software_engineer_neutral_yields_xhigh(self):
+    def test_software_engineer_non_critical_low_budget_yields_high(self):
         tool_input = {"subagent_type": "software-engineer"}
-        result = resolve(tool_input=tool_input, env={}, state={})
+        state = {"critical": False, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "default")
+
+
+class SoftwareEngineerNonCriticalBudget7YieldsXhigh(unittest.TestCase):
+    """AC1: software-engineer on the OR threshold (budget=7, critical=False)
+    promotes to xhigh. Locks the `>=7` boundary AND defends against an
+    `or`→`and` mutation: under conjunction semantics this case would fall to
+    `high` because critical=False."""
+
+    def test_software_engineer_non_critical_budget_7_yields_xhigh(self):
+        tool_input = {"subagent_type": "software-engineer"}
+        state = {"critical": False, "budget": 7}
+        result = resolve(tool_input=tool_input, env={}, state=state)
         self.assertEqual(result["effort"], "xhigh")
         self.assertEqual(result["source"], "role")
 
-    def test_software_engineer_elevated_yields_xhigh(self):
-        # Promotion fires regardless of critical/budget — same xhigh outcome.
+
+class SoftwareEngineerCriticalLowBudgetYieldsXhigh(unittest.TestCase):
+    """AC1: software-engineer on critical (budget=5) promotes to xhigh via the
+    OR-with-critical branch. Defends the `critical` arm of the disjunction."""
+
+    def test_software_engineer_critical_low_budget_yields_xhigh(self):
         tool_input = {"subagent_type": "software-engineer"}
-        result = resolve(tool_input=tool_input, env={},
-                         state={"critical": True, "budget": 10})
+        state = {"critical": True, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
         self.assertEqual(result["effort"], "xhigh")
         self.assertEqual(result["source"], "role")
 
 
-class FrontendEngineerUnconditionalXhigh(unittest.TestCase):
-    """AC3: frontend-engineer is unconditionally promoted to xhigh."""
+class FrontendEngineerNonCriticalLowBudgetYieldsHigh(unittest.TestCase):
+    """AC1: frontend-engineer below the gate threshold falls through to the
+    rule-4 hardcoded `high` floor (source="default"). Same gate semantics as
+    software-engineer (`critical OR budget>=7`)."""
 
-    def test_frontend_engineer_neutral_yields_xhigh(self):
+    def test_frontend_engineer_non_critical_low_budget_yields_high(self):
         tool_input = {"subagent_type": "frontend-engineer"}
-        result = resolve(tool_input=tool_input, env={}, state={})
+        state = {"critical": False, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "default")
+
+
+class FrontendEngineerNonCriticalBudget7YieldsXhigh(unittest.TestCase):
+    """AC1: frontend-engineer at OR threshold (budget=7) promotes to xhigh.
+    Defends against `or`→`and` mutation on the frontend-engineer clause."""
+
+    def test_frontend_engineer_non_critical_budget_7_yields_xhigh(self):
+        tool_input = {"subagent_type": "frontend-engineer"}
+        state = {"critical": False, "budget": 7}
+        result = resolve(tool_input=tool_input, env={}, state=state)
         self.assertEqual(result["effort"], "xhigh")
         self.assertEqual(result["source"], "role")
 
 
-class InfrastructureEngineerUnconditionalXhigh(unittest.TestCase):
-    """AC4: infrastructure-engineer is unconditionally promoted to xhigh.
+class FrontendEngineerCriticalLowBudgetYieldsXhigh(unittest.TestCase):
+    """AC1: frontend-engineer on critical (budget=5) promotes to xhigh via the
+    OR-with-critical branch."""
 
-    Note: source flipped from `default` to `role` because rule 3a now fires
-    instead of falling through to rule 4 fallback.
-    """
+    def test_frontend_engineer_critical_low_budget_yields_xhigh(self):
+        tool_input = {"subagent_type": "frontend-engineer"}
+        state = {"critical": True, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "role")
 
-    def test_infrastructure_engineer_neutral_yields_xhigh(self):
+
+class InfrastructureEngineerNonCriticalLowBudgetYieldsHigh(unittest.TestCase):
+    """AC1: infrastructure-engineer below the gate threshold falls through to
+    the rule-4 hardcoded `high` floor (source="default"). Same gate semantics
+    as software-engineer (`critical OR budget>=7`)."""
+
+    def test_infrastructure_engineer_non_critical_low_budget_yields_high(self):
         tool_input = {"subagent_type": "infrastructure-engineer"}
-        result = resolve(tool_input=tool_input, env={}, state={})
+        state = {"critical": False, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "default")
+
+
+class InfrastructureEngineerNonCriticalBudget7YieldsXhigh(unittest.TestCase):
+    """AC1: infrastructure-engineer at OR threshold (budget=7) promotes to
+    xhigh. Defends against `or`→`and` mutation on the infrastructure-engineer
+    clause."""
+
+    def test_infrastructure_engineer_non_critical_budget_7_yields_xhigh(self):
+        tool_input = {"subagent_type": "infrastructure-engineer"}
+        state = {"critical": False, "budget": 7}
+        result = resolve(tool_input=tool_input, env={}, state=state)
+        self.assertEqual(result["effort"], "xhigh")
+        self.assertEqual(result["source"], "role")
+
+
+class InfrastructureEngineerCriticalLowBudgetYieldsXhigh(unittest.TestCase):
+    """AC1: infrastructure-engineer on critical (budget=5) promotes to xhigh
+    via the OR-with-critical branch."""
+
+    def test_infrastructure_engineer_critical_low_budget_yields_xhigh(self):
+        tool_input = {"subagent_type": "infrastructure-engineer"}
+        state = {"critical": True, "budget": 5}
+        result = resolve(tool_input=tool_input, env={}, state=state)
         self.assertEqual(result["effort"], "xhigh")
         self.assertEqual(result["source"], "role")
 
@@ -198,14 +270,13 @@ class ArchitectNonCriticalBudget7YieldsXhigh(unittest.TestCase):
         self.assertEqual(result["source"], "role")
 
 
-class ArchitectBelowThresholdYieldsXhigh(unittest.TestCase):
-    """AC1: architect promotion to xhigh is now unconditional.
+class ArchitectNonCriticalBudget6YieldsXhigh(unittest.TestCase):
+    """AC1: architect on the OR threshold (budget=6, critical=False) promotes
+    to xhigh. Locks the per-role boundary at 6 for architect — distinct from
+    the other three build/design roles whose threshold is 7. Defends against
+    a threshold-off-by-one mutation (`budget >= 6` → `budget >= 7`)."""
 
-    The previous gate (`critical=true OR budget>=7`) is removed — architect
-    always elevates regardless of state.
-    """
-
-    def test_architect_below_threshold_yields_xhigh(self):
+    def test_architect_non_critical_budget_6_yields_xhigh(self):
         tool_input = {"subagent_type": "architect"}
         state = {"critical": False, "budget": 6}
         result = resolve(tool_input=tool_input, env={}, state=state)
@@ -213,15 +284,18 @@ class ArchitectBelowThresholdYieldsXhigh(unittest.TestCase):
         self.assertEqual(result["source"], "role")
 
 
-class ArchitectUnconditionalXhigh(unittest.TestCase):
-    """AC1: architect at the lowest non-critical state still resolves to xhigh."""
+class ArchitectNonCriticalLowBudgetYieldsHigh(unittest.TestCase):
+    """AC1: architect below the gate threshold falls through to the rule-4
+    hardcoded `high` floor (source="default"). The role layer returns None —
+    `_is_xhigh` is False (critical=False, budget<6) and `_role_downgrade`
+    returns None (architect not in `_DOWNGRADE_TO_HIGH`)."""
 
-    def test_architect_low_budget_non_critical_yields_xhigh(self):
+    def test_architect_non_critical_low_budget_yields_high(self):
         tool_input = {"subagent_type": "architect"}
         state = {"critical": False, "budget": 5}
         result = resolve(tool_input=tool_input, env={}, state=state)
-        self.assertEqual(result["effort"], "xhigh")
-        self.assertEqual(result["source"], "role")
+        self.assertEqual(result["effort"], "high")
+        self.assertEqual(result["source"], "default")
 
 
 # ---------------- AC3c–AC3d: security-engineer promotion + downgrade ----------------
@@ -257,13 +331,14 @@ class BestOfNCandidateXhigh(unittest.TestCase):
         self.assertEqual(result["source"], "role")
 
 
-class BestOfNCandidateLowBudgetSoftwareEngineerStillXhigh(unittest.TestCase):
-    """`boN-` software-engineer at budget=5 now resolves to xhigh because the
-    rule-3a promotion (unconditional for software-engineer) short-circuits
-    in `_is_xhigh()` BEFORE the Best-of-N budget gate is evaluated. Captures
-    the precedence ordering inside `role_effort()` after AC2."""
+class BestOfNSoftwareEngineerCriticalStillXhigh(unittest.TestCase):
+    """`boN-` software-engineer at budget=5 with critical=True still resolves
+    to xhigh — but for a different reason after PR #124. The Best-of-N gate
+    (`budget>=7`) does NOT fire at budget=5; the software-engineer role gate
+    (`critical OR budget>=7`) fires because critical=True. Tests that the
+    critical-arm of the SE clause carries the boN spawn at low budget."""
 
-    def test_best_of_n_low_budget_software_engineer_yields_xhigh(self):
+    def test_best_of_n_software_engineer_critical_yields_xhigh(self):
         tool_input = {"subagent_type": "software-engineer", "name": "boN-opus"}
         state = {"critical": True, "budget": 5}
         result = resolve(tool_input=tool_input, env={}, state=state)
@@ -432,17 +507,19 @@ class DowngradesPreservedAfterPromotion(unittest.TestCase):
 
 
 class PromoteToXhighListMatchesAgentFrontmatter(unittest.TestCase):
-    """AC7: pins `_PROMOTE_TO_XHIGH` to exactly the four roles that the May
-    2026 Opus 4.7 adaptive-thinking change unconditionally elevated.
-    Counterpart to `DowngradeListMatchesAgentFrontmatter` — drift in either
-    direction fails CI: a missing entry silently downgrades a build role,
-    an extra entry silently inflates cost on a non-build role.
+    """AC7: pins `_PROMOTE_TO_XHIGH` to the empty set after PR #124
+    (narrow-xhigh-promotion 2026-05-14). The four roles previously listed
+    unconditionally (`architect`, `software-engineer`, `frontend-engineer`,
+    `infrastructure-engineer`) moved onto gated promotion inlined in
+    `_is_xhigh()` — see proposal at
+    `protocols/_proposals/2026-05-14-narrow-xhigh-promotion.md`. The class
+    name and import surface are retained so that a future re-population of
+    the roster surfaces immediately. The disjoint-from-downgrade invariant is
+    preserved (trivially true for the empty set; load-bearing if any role is
+    re-added).
     """
 
-    EXPECTED_PROMOTIONS = {
-        "architect", "software-engineer",
-        "frontend-engineer", "infrastructure-engineer",
-    }
+    EXPECTED_PROMOTIONS = set()
 
     def test_promote_set_matches_unconditional_xhigh_roles(self):
         from thinking_role import _PROMOTE_TO_XHIGH
@@ -456,6 +533,28 @@ class PromoteToXhighListMatchesAgentFrontmatter(unittest.TestCase):
         overlap = set(_PROMOTE_TO_XHIGH) & downgraded
         self.assertEqual(overlap, set(),
                          f"Role(s) cannot be both promoted and downgraded: {overlap}")
+
+
+class AgentFrontmatterHasNoDefaultEffortField(unittest.TestCase):
+    """AC5: no agent frontmatter declares `default_effort:`. The single source
+    of truth for thinking-effort defaults is `hooks/_lib/thinking_role.py`.
+    Introducing a frontmatter field would create dual-source-of-truth drift —
+    this test pins the invariant against accidental future introduction
+    (PR #124 narrow-xhigh-promotion 2026-05-14)."""
+
+    def test_no_agent_frontmatter_declares_default_effort(self):
+        agent_dir = REPO_ROOT / "agents"
+        offenders = []
+        for path in sorted(agent_dir.glob("*.md")):
+            text = path.read_text()
+            match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+            if match and "default_effort" in match.group(1):
+                offenders.append(path.name)
+        self.assertEqual(
+            offenders, [],
+            f"Agent frontmatter must not declare `default_effort:` — found "
+            f"in: {offenders}. Single source of truth is "
+            f"`hooks/_lib/thinking_role.py`.")
 
 
 # ---------------- Pipeline-state / debug-display regression tests ----------------
@@ -610,24 +709,32 @@ class HookLogsOnlyDoesNotBlock(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
 
     def test_missing_thinking_writes_log_line(self):
-        # Architect spawns now resolve to xhigh unconditionally via rule 3a
-        # (`_PROMOTE_TO_XHIGH`); verifies the hook logs the new floor.
+        # Architect spawns with NO state (critical=False, budget=0) fall
+        # through the role layer to the rule-4 fallback (`high`, `default`)
+        # after PR #124. `_is_xhigh` is False (`False or 0>=6` is False) and
+        # `_role_downgrade("architect")` returns None — `role_effort` returns
+        # None, resolver picks the hardcoded `high` floor with source=default.
+        # `CLAUDE_PIPELINE_STATE_DIR` points at an empty tmp dir so the
+        # ambient pipeline-state file does not leak `critical`/`budget` into
+        # the subprocess and confound the no-state assertion.
         session = f"test-{uuid.uuid4()}"
         log_path = (Path.home() / ".claude" / "metrics" / session
                     / "hook-injections.jsonl")
         try:
-            result = _run_hook(
-                {"tool_name": "Agent",
-                 "tool_input": {"subagent_type": "architect"}},
-                env={"CLAUDE_SESSION_ID": session})
+            with tempfile.TemporaryDirectory() as empty_state_dir:
+                result = _run_hook(
+                    {"tool_name": "Agent",
+                     "tool_input": {"subagent_type": "architect"}},
+                    env={"CLAUDE_SESSION_ID": session,
+                         "CLAUDE_PIPELINE_STATE_DIR": empty_state_dir})
             self.assertEqual(result.returncode, 0)
             self.assertTrue(log_path.exists(),
                             f"expected log at {log_path}")
             line = log_path.read_text().strip().splitlines()[-1]
             entry = json.loads(line)
             self.assertEqual(entry["agent_role"], "architect")
-            self.assertEqual(entry["resolved"]["effort"], "xhigh")
-            self.assertEqual(entry["resolved"]["source"], "role")
+            self.assertEqual(entry["resolved"]["effort"], "high")
+            self.assertEqual(entry["resolved"]["source"], "default")
         finally:
             _cleanup_metric_session(session)
 
