@@ -1,31 +1,31 @@
 """Role + state evaluation for thinking defaults. Pure functions.
 
-Two role sets pin the policy after the May 2026 Opus 4.7 adaptive-thinking
-floor change:
+Policy (PR #124 narrow-xhigh-promotion 2026-05-14): primary build/design
+roles promote to xhigh on a stakes-bearing trigger, not unconditionally.
+Each clause is inlined in `_is_xhigh()` with a per-role threshold. The
+disjunctive (OR) gate fires on either a critical pipeline or a budget at
+or above the role's threshold. One role (the security clause) retains its
+existing conjunctive (AND) gate — distinct operator. See proposal at
+`protocols/_proposals/2026-05-14-narrow-xhigh-promotion.md` for cost
+rationale and rollback guidance.
 
-1. `_PROMOTE_TO_XHIGH` — primary build/design roles unconditionally elevated
-   to xhigh. Apr 23 2026 cost/quality data captured the promotion-on-trigger
-   lift; adaptive thinking changed the cost floor, so the gate is removed
-   for these roles.
-2. `_DOWNGRADE_TO_HIGH` / `_DOWNGRADE_TO_LOW` — review/critic/database/
-   poll-loop roles whose iteration economics make xhigh wasteful.
+The `_PROMOTE_TO_XHIGH` frozenset is retained as the empty set so the
+snapshot test in `tests/test_thinking_defaults.py` continues to flag any
+future re-population of the unconditional roster.
 
-Drift vs `agents/<role>.md` frontmatter is locked by snapshot tests
-(`PromoteToXhighListMatchesAgentFrontmatter`,
-`DowngradeListMatchesAgentFrontmatter`) in `tests/test_thinking_defaults.py`.
+`_DOWNGRADE_TO_HIGH` / `_DOWNGRADE_TO_LOW` pin review/critic/database and
+poll-loop roles whose iteration economics make xhigh wasteful; drift is
+locked by `DowngradeListMatchesAgentFrontmatter`.
 """
 
-# Build/design roles unconditionally promoted to xhigh per May 2026 policy.
-# These four short-circuit `_is_xhigh()` regardless of `critical`/`budget`,
-# overriding the historical conditional architect gate.
-_PROMOTE_TO_XHIGH = frozenset({
-    "architect", "software-engineer",
-    "frontend-engineer", "infrastructure-engineer",
-})
+# Empty after PR #124. Kept as the import surface for the snapshot test
+# `PromoteToXhighListMatchesAgentFrontmatter` — a non-empty value here would
+# surface immediately as a snapshot mismatch. Per-role promotion is now
+# expressed inline in `_is_xhigh()` with explicit thresholds.
+_PROMOTE_TO_XHIGH = frozenset()
 
-# Review / critic / database roles that retain the high floor. SE+FE were
-# removed in May 2026 — they now ride `_PROMOTE_TO_XHIGH` instead. Drift
-# pinned by `DowngradeListMatchesAgentFrontmatter`.
+# Review / critic / database roles that retain the high floor. Drift pinned
+# by `DowngradeListMatchesAgentFrontmatter`.
 _DOWNGRADE_TO_HIGH = frozenset({
     "code-reviewer", "qa-engineer", "product-reviewer",
     "patch-critic", "database-engineer", "security-engineer",
@@ -37,8 +37,14 @@ _DOWNGRADE_TO_LOW = frozenset({"planning-agent"})
 
 
 def _is_xhigh(role, critical, budget):
-    if role in _PROMOTE_TO_XHIGH:
-        return True
+    if role == "architect":
+        return critical or budget >= 6
+    if role == "software-engineer":
+        return critical or budget >= 7
+    if role == "frontend-engineer":
+        return critical or budget >= 7
+    if role == "infrastructure-engineer":
+        return critical or budget >= 7
     return role == "security-engineer" and critical and budget >= 7
 
 
