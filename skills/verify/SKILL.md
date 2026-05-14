@@ -29,14 +29,16 @@ The verify skill writes `pipeline-state/{task-id}/verification-evidence.json` (s
 
 ## Verification Tiers
 
-| Feature Type | Tier 1 (Contract) | Tier 2 (Smoke) | Tier 3 (Rule-Based Mutation) | Tier 3.5 (LLM-Mutant) | Tier 4 (E2E) |
-|-------------|-------------------|----------------|------------------------------|------------------------|--------------|
-| Backend API | Hit real endpoint, verify response shape | curl + DB state check + log check | Mutate handler logic | ≥60% kill rate | N/A |
-| Frontend | Props match API response shape | Playwright/browser screenshot | Mutate component logic | ≥60% kill rate | N/A |
-| Mobile/WebView | Hook/service contract tests | Component render + prop verification | Mutation testing on lib/ business logic | ≥60% kill rate | Maestro (mobile) AND/OR Playwright/Cypress (web) — multi-target dispatch per `protocols/e2e-protocol.md` |
-| Web (browser) | API contract tests against real endpoint | Curl + DOM snapshot + log check | Mutate handler/component logic | ≥60% kill rate | Playwright/Cypress against deployed preview / docker-compose / cloud ephemeral env (conditional per `protocols/e2e-protocol.md`) |
-| Database | Schema constraint tests | Migrate up+down, verify integrity | N/A | N/A | N/A |
-| Infrastructure | Health endpoint responds | Readiness probe passes | N/A | N/A | N/A |
+| Feature Type | Tier 1 (Contract) | Tier 2 (Smoke) | Tier 3 (Rule-Based Mutation) | Tier 3.5 (LLM-Mutant) | Tier 4 (E2E) | Tier 5 (External Oracle) |
+|-------------|-------------------|----------------|------------------------------|------------------------|--------------|--------------------------|
+| Backend API | Hit real endpoint, verify response shape | curl + DB state check + log check | Mutate handler logic | ≥60% kill rate | N/A | Reference impl / spec server diff (if available) |
+| Frontend | Props match API response shape | Playwright/browser screenshot | Mutate component logic | ≥60% kill rate | N/A | N/A (typically no oracle) |
+| Mobile/WebView | Hook/service contract tests | Component render + prop verification | Mutation testing on lib/ business logic | ≥60% kill rate | Maestro (mobile) AND/OR Playwright/Cypress (web) — multi-target dispatch per `protocols/e2e-protocol.md` | N/A |
+| Web (browser) | API contract tests against real endpoint | Curl + DOM snapshot + log check | Mutate handler/component logic | ≥60% kill rate | Playwright/Cypress against deployed preview / docker-compose / cloud ephemeral env (conditional per `protocols/e2e-protocol.md`) | N/A |
+| Database | Schema constraint tests | Migrate up+down, verify integrity | N/A | N/A | N/A | Compare SQL execution result against upstream engine (e.g. PostgreSQL `psql`) on identical inputs |
+| Infrastructure | Health endpoint responds | Readiness probe passes | N/A | N/A | N/A | N/A |
+| Parser / Compiler / Codegen | AST shape matches grammar | Round-trip parse → emit → parse | Mutate production/precedence logic | ≥60% kill rate | N/A | Differential test vs reference (e.g. GCC, official parser, ANTLR-generated parser) |
+| JSON / Schema-bound payload | Field-presence tests | Real consumer parses output | Mutate validator logic | ≥60% kill rate | N/A | `ajv` / `jsonschema` / language-native validator diff |
 
 ## Process
 
@@ -186,6 +188,47 @@ Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mob
 
 6. **First-fire release note**: on first web-target fire for a project (no prior `pipeline-state/{task_id}/scratchpad/qa-engineer-verify-screenshots/` history), emit one line in the verify report: "Web E2E gating now active because <reason>".
 
+### 4.75. Run Tier 5: External Oracle (Conditional, HARD GATE when oracle exists)
+
+> **Tier 5 is conditional**: it only fires when a known-good external comparator exists for the change. When it fires, oracle-match is required for `VERIFIED`. When no oracle applies, Tier 5 = N/A and the composite verdict is unaffected.
+
+**Motivation**: Anthropic's C-compiler post documented the "GCC-as-oracle" differential-testing pattern — comparing a candidate implementation's output against a battle-tested reference is the cheapest, sharpest correctness signal available. Where an oracle exists, *not using it* is leaving free verification on the table. Tier 5 institutionalises the pattern.
+
+**Detection — does an oracle apply?**
+
+An oracle applies when ALL of the following hold:
+1. The change has a *deterministic, comparable output* — a parse tree, a SQL row set, a validation pass/fail, an emitted artifact, a numeric result — not a UX flow or a side-effecting workflow.
+2. A *known-good external comparator* is available locally or via a trusted dependency: a reference parser, a reference SQL engine, a schema validator binary, a published reference implementation, a prior frozen version of the same library.
+3. The oracle is *independent* of the code under test — not the same library wrapped differently, not a fork of the candidate.
+
+If any clause fails → Tier 5 = **N/A** (not SKIP).
+
+**Examples (non-exhaustive):**
+- Hand-written parser → diff AST against ANTLR-generated parser or upstream grammar.
+- SQL builder / query DSL → execute generated SQL via `psql` against the same fixture data; diff result sets.
+- JSON schema validation logic → run identical payloads through `ajv` (or language-native equivalent); diff verdict + error path.
+- Codegen / template emitter → emit and compile/parse with the target toolchain (e.g. `tsc --noEmit`, `gcc -fsyntax-only`); diff diagnostics.
+- Reimplementation of a published algorithm → diff against the reference implementation on a corpus of inputs.
+
+**Procedure:**
+
+1. **Identify the oracle.** Name it explicitly in the report (binary/version, library/version, or source URL). If selection is non-obvious, prefer the most widely-deployed reference.
+2. **Define the input corpus.** Reuse existing fixtures where possible. Minimum 1 input; ≥10 inputs preferred for non-trivial changes. Inputs should cover changed-line behaviour, not the full surface.
+3. **Run candidate and oracle on identical inputs**, in isolated workspaces.
+4. **Diff outputs** with a stable serializer (canonical JSON, sorted result set, normalised whitespace). Record every divergence verbatim.
+5. **Classify divergences:**
+   - **Match** — candidate output equals oracle output (after canonical normalisation).
+   - **Documented divergence** — candidate intentionally differs from oracle (e.g. extending grammar, fixing a known oracle bug); MUST be accompanied by a one-line justification AND a passing test that locks in the new behaviour.
+   - **Bug** — undocumented divergence.
+6. **Gate:** ZERO undocumented divergences (no "bug" entries) → Tier 5 = **PASS**. Any bug entry → Tier 5 = **FAIL** → composite `UNVERIFIED`, slice returns to Build with the divergence list as targeted gaps.
+
+**Cost guardrail:** Tier 5 input corpus is bounded to changed-line behaviour. Do not run the oracle on the entire test fixture set — that is Tier 1's job. If the oracle setup takes >5 minutes to install/configure and no pre-existing harness fixture is available, Tier 5 = **N/A** with the reason "oracle-setup-prohibitive" documented in the report; do not SKIP — N/A means the gate does not apply.
+
+**SKIP vs N/A:** Tier 5 emits **SKIP** only when an oracle *applies* (clauses 1–3 above all hold) but execution failed (oracle binary crashed, version mismatch unresolvable, environment unavailable). SKIP → composite verdict becomes `VERIFIED_WITH_SKIP`. N/A means no oracle applies — composite verdict unaffected.
+
+**Citation:**
+- Anthropic engineering blog — GCC-as-oracle differential testing applied to a from-scratch C compiler. The pattern generalises: where a reference implementation exists, differential testing dominates ad-hoc unit assertions on correctness-shape questions.
+
 ### 5. Produce Verification Report
 
 ### 6. Write Verification Evidence State File
@@ -232,12 +275,21 @@ The verifier MUST write `pipeline-state/{task-id}/verification-evidence.json` at
 - **Screenshots**: `pipeline-state/{task_id}/scratchpad/qa-engineer-verify-screenshots/` (web only)
 - **Evidence**: [pass/fail per flow + per-spec, retry attempts, skip reason if applicable]
 
+### Tier 5: External Oracle
+- **Status**: PASS / FAIL / SKIP / N/A
+- **Oracle**: [binary/library name + version OR source URL; "no oracle applies" if N/A]
+- **Input corpus**: [N inputs, source/path]
+- **Divergences**: [count of match / documented / bug entries]
+- **Bugs**: [verbatim divergence list — empty when PASS]
+- **N/A reason** (if N/A): [non-comparable output | no oracle available | oracle-not-independent | oracle-setup-prohibitive]
+- **Skip reason** (if SKIP): [oracle binary crash | version unresolvable | env unavailable]
+
 ### Verdict: VERIFIED / VERIFIED_WITH_SKIP / UNVERIFIED
 
 **Verdict semantics**:
-- **VERIFIED** — Tier 3 (≥70% rule-based) AND Tier 3.5 (≥60% LLM-mutant) both PASS (or both N/A per the tier matrix). Tier 4 fired and PASSED (or all N/A).
-- **VERIFIED_WITH_SKIP** — at least one tier was SKIP (Tier 3.5 SKIP on Claude-call failure; Tier 4 SKIP per E2E protocol prerequisites unmet) AND no tier FAILED. Product-reviewer must acknowledge the skip in the Accept phase.
-- **UNVERIFIED** — any tier FAILED. Slice returns to Build with the failing tier's evidence (surviving-mutant list, failing E2E flows) as targeted gaps.
+- **VERIFIED** — Tier 3 (≥70% rule-based) AND Tier 3.5 (≥60% LLM-mutant) both PASS (or both N/A per the tier matrix). Tier 4 fired and PASSED (or all N/A). **AND Tier 5 PASSED where an oracle applies (or N/A when none applies).** Oracle-match is required for VERIFIED whenever a known-good external comparator exists for the change.
+- **VERIFIED_WITH_SKIP** — at least one tier was SKIP (Tier 3.5 SKIP on Claude-call failure; Tier 4 SKIP per E2E protocol prerequisites unmet; Tier 5 SKIP when an oracle applies but execution failed) AND no tier FAILED. Tier 5 = N/A (no oracle applies) does NOT cause VERIFIED_WITH_SKIP — it leaves the composite verdict unaffected. Product-reviewer must acknowledge any SKIP in the Accept phase.
+- **UNVERIFIED** — any tier FAILED. Slice returns to Build with the failing tier's evidence (surviving-mutant list, failing E2E flows, **oracle divergence list**) as targeted gaps.
 
 [If VERIFIED_WITH_SKIP: name which tier was SKIP and why -- product-reviewer must acknowledge]
 [If UNVERIFIED: which tier failed and why]
@@ -254,7 +306,7 @@ Verdict: VERIFIED / VERIFIED_WITH_SKIP / UNVERIFIED
 Next: If VERIFIED → /qa-test-strategy
       If VERIFIED_WITH_SKIP → /qa-test-strategy (product-reviewer must acknowledge skip in Accept phase)
       If UNVERIFIED → return to Build phase to fix failing tiers, then re-review
-Tier results: Tier 1: [PASS/FAIL] | Tier 2: [PASS/FAIL] | Tier 3: [PASS/FAIL/N/A] | Tier 3.5: [PASS/FAIL/SKIP/N/A] | Tier 4: [PASS/FAIL/SKIP/N/A]
+Tier results: Tier 1: [PASS/FAIL] | Tier 2: [PASS/FAIL] | Tier 3: [PASS/FAIL/N/A] | Tier 3.5: [PASS/FAIL/SKIP/N/A] | Tier 4: [PASS/FAIL/SKIP/N/A] | Tier 5: [PASS/FAIL/SKIP/N/A]
 Side-channel verdict: E2E_SKIP_NO_ENV emitted when Tier 4 web = SKIP (acknowledge required at Accept).
 Agent summaries: [verification summary]
 ```
