@@ -640,7 +640,7 @@ The previous threshold (`task_class=="feature" AND Budget>=5`) was tightened to 
 
 ### PDR-RTV Build Team Dispatch (conditional — `pdr_rtv:true` from intake)
 
-When `/intake` has tagged the task `pdr_rtv: true` (computed in Step 2d-bis as `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-9} OR critical == true`), the Build phase dispatches as a Team variant that scales test-time compute via T=2 iterations of N parallel rollouts, summary-based refinement, and pairwise tournament selection (arXiv:2604.16529). PDR-RTV is mutually exclusive with Best-of-N — when both flags fire, PDR-RTV wins as the strictly stronger variant (log re-route to pipeline state's `## Re-routes`). The winner still faces the normal Review → Final Gate → Ship gates; tournament selects *which* candidate faces those gates, it does not substitute for them.
+When `/intake` has tagged the task `pdr_rtv: true` (computed in Step 2d-bis as `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-10} AND critical == true`), the Build phase dispatches as a Team variant that scales test-time compute via T=2 iterations of N parallel rollouts, summary-based refinement, and pairwise tournament selection (arXiv:2604.16529). PDR-RTV is mutually exclusive with Best-of-N — when both flags fire, PDR-RTV wins as the strictly stronger variant (log re-route to pipeline state's `## Re-routes`). The winner still faces the normal Review → Final Gate → Ship gates; tournament selects *which* candidate faces those gates, it does not substitute for them.
 
 The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastructure (`config.json` roster, `external-runner.sh`, `score.sh::check_worktree_capacity`).
 
