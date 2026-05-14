@@ -344,6 +344,16 @@ After pipeline completes:
 3. Task list at `~/.claude/tasks/pipeline-{task-id}/` auto-clean
 4. Check for orphaned tmux sessions: `tmux list-sessions`
 
+## Worktree Env Propagation (Automatic)
+
+The orchestrator MUST set `$CLAUDE_WORKTREE_PATH` on every Build-onward Agent dispatch (Build, Code Review, Security Review, Final Gate, Ship, Deploy). For agents without a worktree (orchestrator-context: `code-reviewer`, `security-engineer`, `patch-critic`, `product-reviewer`, `pr-creation`), the env points at the Build-phase worktree that produced the candidate diff.
+
+Failure to propagate yields `metrics/{session}/freshness-guard.jsonl` records with `reason: "no_worktree_resolvable"` — operators read these as orchestrator drift, NOT legitimate skips.
+
+This contract is the load-bearing fallback for HEAD resolution in `hooks/verification-freshness-guard.sh` (`rules/core.md` Iron Law 2 enforcement at v2.1.141 advisory + post-promotion blocking).
+
+**Cross-references**: `rules/core.md` § Iron Law 2; `protocols/_proposals/2026-05-14-iron-law-2-freshness-hook.md` § Promotion Criterion.
+
 ## Spawn Procedure
 
 Every Agent spawn (subagent or teammate) propagates `CLAUDE_SUBAGENT_DEPTH`
