@@ -417,5 +417,70 @@ class HookEmitsAdvisorySourceToken(unittest.TestCase):
                 _cleanup(_log_path(session))
 
 
+class HookHeadResolutionPrecedence(unittest.TestCase):
+    """Adversarial: env beats cwd. Without this test, a swap of the rule order
+    would survive — only the env path is set in most other tests."""
+
+    def test_env_takes_precedence_over_cwd_when_both_resolve(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            # Repo A is the env-pointed worktree; repo B is the cwd. Their
+            # HEADs differ. State file is in REPO A; HEAD in REPO A matches.
+            # If rule order is correctly env-first, action=fresh.
+            # If swapped to cwd-first, the hook would point at REPO B which
+            # has no evidence file under repo-B/pipeline-state/{task}/...
+            # → state_file_missing (different action).
+            repo_a, head_a = _make_repo_with_commit(Path(a), "A")
+            repo_b, _head_b = _make_repo_with_commit(Path(b), "B")
+            evidence_dir = _make_evidence_dir(repo_a, "test-task")
+            _write_evidence(evidence_dir, git_head=head_a)
+            session = f"test-prec-{uuid.uuid4()}"
+            try:
+                _run_hook(
+                    {"tool_name": "Agent",
+                     "tool_input": {"subagent_type": GATED,
+                                    "cwd": str(repo_b)}},
+                    env={"CLAUDE_SESSION_ID": session,
+                         "CLAUDE_WORKTREE_PATH": str(repo_a),
+                         "CLAUDE_PIPELINE_TASK_ID": "test-task"})
+                log = _log_path(session)
+                entry = json.loads(log.read_text().strip().splitlines()[-1])
+                # Env-first → action=fresh on repo_a's matching HEAD.
+                self.assertEqual(entry["resolved"]["action"], "fresh")
+                self.assertEqual(entry["resolved"]["worktree_head"], head_a)
+            finally:
+                _cleanup(_log_path(session))
+
+
+class HookTtlBoundary(unittest.TestCase):
+    """Adversarial: TTL comparison `>` not `>=`. With short TTL, exactly-on-
+    boundary should NOT trigger hard_staleness; a couple seconds past should."""
+
+    def test_ttl_threshold_is_strict_greater_than(self):
+        """An evidence file 2s old should not be hard-stale with TTL=3600."""
+        import tempfile
+        from datetime import datetime, timezone, timedelta
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo, head = _make_repo_with_commit(Path(tmpdir))
+            evidence_dir = _make_evidence_dir(repo, "test-task")
+            ts = (datetime.now(timezone.utc) - timedelta(seconds=2)).strftime(
+                "%Y-%m-%dT%H:%M:%SZ")
+            _write_evidence(evidence_dir, git_head=head, generated_at=ts)
+            session = f"test-ttl-{uuid.uuid4()}"
+            try:
+                _run_hook(
+                    {"tool_name": "Agent",
+                     "tool_input": {"subagent_type": GATED}},
+                    env={"CLAUDE_SESSION_ID": session,
+                         "CLAUDE_WORKTREE_PATH": str(repo),
+                         "CLAUDE_PIPELINE_TASK_ID": "test-task",
+                         "CLAUDE_FRESHNESS_HARD_TTL_SEC": "3600"})
+                log = _log_path(session)
+                entry = json.loads(log.read_text().strip().splitlines()[-1])
+                self.assertEqual(entry["resolved"]["action"], "fresh")
+            finally:
+                _cleanup(_log_path(session))
+
+
 if __name__ == "__main__":
     unittest.main()
