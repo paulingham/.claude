@@ -114,3 +114,20 @@ EOF
   echo "$output" | grep -qE '^error: config-dir-not-found$'
   ! echo "$output" | grep -qE '^missing-in-catalog:'
 }
+
+@test "emits error: prefix when python helper is missing" {
+  # Gap-fill (QA Final Gate): the callable explicitly handles the case where
+  # the Python helper alongside it is absent (lines 30-33 of the .sh). No
+  # existing test exercises this path. Stage a self-contained copy of the
+  # callable in the fixture but omit the helper; assert the `error:`-prefixed
+  # diagnostic so consumers don't conflate tooling drift with verdict drift.
+  local HELPER_FIXTURE="$TMP_FIXTURE/hooks-no-helper"
+  mkdir -p "$HELPER_FIXTURE"
+  cp "$CALLABLE" "$HELPER_FIXTURE/verdict-consistency-check.sh"
+  # NOTE: deliberately do NOT copy verdict_consistency.py — that is the
+  # condition under test.
+  CLAUDE_CONFIG_DIR="$TMP_FIXTURE" run bash "$HELPER_FIXTURE/verdict-consistency-check.sh"
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -qE '^error: helper-not-found$'
+  ! echo "$output" | grep -qE '^missing-in-(catalog|skill):'
+}
