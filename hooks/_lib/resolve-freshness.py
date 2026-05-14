@@ -17,7 +17,10 @@ import sys
 from datetime import datetime, timezone
 
 GATED_ROLES = {"patch-critic", "product-reviewer", "pr-creation"}
-HARD_TTL_SEC = int(os.environ.get("CLAUDE_FRESHNESS_HARD_TTL_SEC", "86400"))
+try:
+    HARD_TTL_SEC = int(os.environ.get("CLAUDE_FRESHNESS_HARD_TTL_SEC", "86400"))
+except ValueError:
+    HARD_TTL_SEC = 86400
 
 
 def _emit(decision, resolved):

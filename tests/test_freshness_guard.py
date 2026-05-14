@@ -482,5 +482,39 @@ class HookTtlBoundary(unittest.TestCase):
                 _cleanup(_log_path(session))
 
 
+class HookInvalidTtlEnvSecurity(unittest.TestCase):
+    """LOW-SEC1: a non-integer CLAUDE_FRESHNESS_HARD_TTL_SEC must not crash the
+    resolver at import time. The bash wrapper exits 0 either way, but a crash
+    silently loses the would_block signal — the resolver must fall back to the
+    default TTL and emit a normal verdict."""
+
+    def test_invalid_ttl_env_falls_back_to_default(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo, head = _make_repo_with_commit(Path(tmpdir))
+            evidence_dir = _make_evidence_dir(repo, "test-task")
+            _write_evidence(evidence_dir, git_head=head)
+            session = f"test-bad-ttl-{uuid.uuid4()}"
+            try:
+                result = _run_hook(
+                    {"tool_name": "Agent",
+                     "tool_input": {"subagent_type": GATED}},
+                    env={"CLAUDE_SESSION_ID": session,
+                         "CLAUDE_WORKTREE_PATH": str(repo),
+                         "CLAUDE_PIPELINE_TASK_ID": "test-task",
+                         "CLAUDE_FRESHNESS_HARD_TTL_SEC": "abc-not-an-int"})
+                self.assertEqual(result.returncode, 0)
+                log = _log_path(session)
+                self.assertTrue(log.exists(),
+                                "resolver must still emit a JSONL line; "
+                                "crash on bad TTL silently loses signal")
+                entry = json.loads(log.read_text().strip().splitlines()[-1])
+                # Fresh state file + default TTL fallback → action=fresh.
+                self.assertEqual(entry["resolved"]["action"], "fresh")
+                self.assertEqual(entry["resolved"]["reason"], "fresh")
+            finally:
+                _cleanup(_log_path(session))
+
+
 if __name__ == "__main__":
     unittest.main()
