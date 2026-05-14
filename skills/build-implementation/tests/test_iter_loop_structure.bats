@@ -32,3 +32,11 @@ setup() {
   block="$(awk '/^### Step 4b/,/^### Step 4c/' "$SKILL_PATH")"
   grep -q 'arXiv 2506.11442' <<<"$block"
 }
+
+@test "AC1: Step 2 IMPLEMENT CLEANLY forward-references Step 4a-4c on RED" {
+  block="$(awk '/^### Step 2:/,/^### Step 3:/' "$SKILL_PATH")"
+  grep -q "IMPLEMENT CLEANLY" <<<"$block"
+  # Forward-reference must appear in the same Step-2 section.
+  # Accept either en-dash, hyphen, or "4a-4c" / "4a–4c" forms.
+  grep -qE "Step 4a[-–]4c" <<<"$block"
+}

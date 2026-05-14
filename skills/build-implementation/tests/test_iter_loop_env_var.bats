@@ -25,3 +25,8 @@ setup() {
   grep -q '\*\[!0-9\]\*' <<<"$block"
   grep -q 'MAX_ITER > 10' <<<"$block"
 }
+
+@test "AC2: iteration_loop_disabled reason pinned for =0 hatch in Step 4c" {
+  block="$(awk '/^### Step 4c/,/^## Step 5/' "$SKILL_PATH")"
+  grep -q 'iteration_loop_disabled' <<<"$block"
+}
