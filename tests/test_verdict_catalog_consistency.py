@@ -36,6 +36,38 @@ def _parse_catalog_rows():
     return rows
 
 
+class CacheAuditReadyRowPresentAndWellFormed(unittest.TestCase):
+    """Slice C AC-C1 — `CACHE_AUDIT_READY` row present with 5-column shape.
+
+    Expected row:
+      | `CACHE_AUDIT_READY` | info | `cache-audit` | utility |
+      Advisory report written to `metrics/reports/{date}-cache.md`; human reviews |
+    """
+
+    def test_cache_audit_ready_row_present_and_well_formed(self):
+        rows = _parse_catalog_rows()
+        by_verdict = {r["verdict"]: r for r in rows}
+        self.assertIn(
+            "CACHE_AUDIT_READY", by_verdict,
+            "rules/verdict-catalog.md must contain CACHE_AUDIT_READY row")
+        row = by_verdict["CACHE_AUDIT_READY"]
+        self.assertEqual(
+            row["polarity"], "info",
+            "CACHE_AUDIT_READY must be polarity=info")
+        self.assertIn(
+            "cache-audit", row["emitters"],
+            "CACHE_AUDIT_READY emitter must be cache-audit")
+        self.assertEqual(
+            row["phase"], "utility",
+            "CACHE_AUDIT_READY phase must be utility")
+        self.assertIn(
+            "metrics/reports/", row["branch"],
+            "CACHE_AUDIT_READY branch must name the report path")
+        self.assertIn(
+            "cache.md", row["branch"],
+            "CACHE_AUDIT_READY branch must reference cache.md filename")
+
+
 class PdrRtvVerdictsPresentAndValid(unittest.TestCase):
     """AC9 — `PDR_WINNER_SELECTED` (success) + `PDR_NO_CONSENSUS` (failure)
     rows exist with correct polarity and emitter `pdr-rtv`.

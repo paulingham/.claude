@@ -28,6 +28,9 @@ EXPECTED_ORDER = [
     "pre-agent-advisor",
     "pre-agent-allowlist",
     "instinct-injector",
+    # Slice B (prompt-caching-breakpoints) inserts cache-breakpoint-injector
+    # at index 6, shifting verification-freshness-guard to index 7.
+    "cache-breakpoint-injector",
     "verification-freshness-guard",
     "scratchpad-bytes",
     "depth-guard",

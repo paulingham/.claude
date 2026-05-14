@@ -1,6 +1,10 @@
-"""Slice 3: settings.json must register verification-freshness-guard.sh at
-PreToolUse Agent index 6 (after instinct-injector at index 5, before
-scratchpad-bytes at index 7).
+"""Slice 3 + Slice B AC-B7b: settings.json must register
+verification-freshness-guard.sh at PreToolUse Agent index 7 (after
+cache-breakpoint-injector at index 6, before scratchpad-bytes at index 8).
+
+Originally placed at index 6 (Slice 3). When Slice B
+(prompt-caching-breakpoints) inserts cache-breakpoint-injector.sh at index 6,
+freshness-guard shifts to index 7 and scratchpad-bytes shifts to index 8.
 
 Mirrors tests/test_settings_registers_allowlist_hook.py shape.
 """
@@ -30,13 +34,13 @@ def _hook_basenames():
 
 
 class SettingsRegistersFreshnessHook(unittest.TestCase):
-    def test_freshness_guard_registered_at_index_6(self):
+    def test_freshness_guard_registered_at_index_7_after_new_cache_breakpoint_hook(self):
         names = _hook_basenames()
         self.assertIn("verification-freshness-guard", names,
                       "verification-freshness-guard.sh not registered")
-        self.assertEqual(names.index("verification-freshness-guard"), 6,
-                         "freshness-guard MUST sit at PreToolUse Agent index 6 "
-                         "(after instinct-injector, before scratchpad-bytes)")
+        self.assertEqual(names.index("verification-freshness-guard"), 7,
+                         "freshness-guard MUST sit at PreToolUse Agent index 7 "
+                         "(after cache-breakpoint-injector at 6, before scratchpad-bytes)")
 
     def test_freshness_guard_sits_after_instinct_injector_before_scratchpad_bytes(self):
         names = _hook_basenames()

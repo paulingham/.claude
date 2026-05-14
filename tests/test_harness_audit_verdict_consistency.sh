@@ -44,6 +44,32 @@ for verdict in DOM_SMOKE_PASSED DOM_SMOKE_SKIPPED DOM_SMOKE_FAILED; do
   fi
 done
 
+# Slice C AC-C2 — CACHE_AUDIT_READY catalog row and cache-audit skill verdict
+# are bidirectionally consistent. The reverse check (catalog → emitter resolves)
+# is asserted by verdict-consistency-check.sh above; we add a forward sanity
+# probe here: catalog row exists AND emitter cell names `cache-audit`.
+echo "Test cache_audit_ready_bidirectional"
+if grep -qE "^\\| \`CACHE_AUDIT_READY\`" "$CATALOG"; then
+  echo "  ok: catalog row present: CACHE_AUDIT_READY"; PASS=$((PASS + 1))
+else
+  echo "  FAIL: catalog row missing: CACHE_AUDIT_READY"; FAIL=$((FAIL + 1))
+fi
+if grep -E "^\\| \`CACHE_AUDIT_READY\`" "$CATALOG" | grep -q '`cache-audit`'; then
+  echo "  ok: CACHE_AUDIT_READY emitter cell names cache-audit"; PASS=$((PASS + 1))
+else
+  echo "  FAIL: CACHE_AUDIT_READY emitter cell does not name cache-audit"; FAIL=$((FAIL + 1))
+fi
+SKILL_FILE="$REPO_ROOT/skills/cache-audit/SKILL.md"
+if [ -f "$SKILL_FILE" ]; then
+  if grep -qE '^verdict:\s*"?CACHE_AUDIT_READY"?' "$SKILL_FILE"; then
+    echo "  ok: skills/cache-audit/SKILL.md declares verdict CACHE_AUDIT_READY"; PASS=$((PASS + 1))
+  else
+    echo "  FAIL: skills/cache-audit/SKILL.md missing verdict declaration"; FAIL=$((FAIL + 1))
+  fi
+else
+  echo "  FAIL: skills/cache-audit/SKILL.md not found"; FAIL=$((FAIL + 1))
+fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]] || exit 1

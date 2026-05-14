@@ -1,0 +1,35 @@
+=== GREEN EVIDENCE — COMMIT 2 (Slice B) ===
+Generated: 2026-05-14T14:28:12Z
+
+=== Slice B Python tests ===
+rootdir: /Users/Paul.Ingham/.claude/.claude/worktrees/agent-ae42228f
+configfile: pyproject.toml
+collected 15 items
+
+tests/test_resolve_cache_breakpoints.py ...                              [ 20%]
+tests/test_settings_registers_cache_breakpoint_hook.py ..                [ 33%]
+tests/test_settings_registers_freshness_hook.py ..                       [ 46%]
+tests/test_settings_registers_instinct_hook.py ...                       [ 66%]
+tests/test_settings_registers_allowlist_hook.py ..                       [ 80%]
+tests/test_portable_config_dir.py ...                                    [100%]
+
+============================== 15 passed in 0.42s ==============================
+
+=== Slice B BATS tests ===
+1..5
+ok 1 cache-breakpoint-injector.sh exits 0 on empty stdin AND is executable
+ok 2 cache-breakpoint-injector.sh logs cache-injections.jsonl record on valid Agent envelope
+ok 3 cache-breakpoint-injector.sh no-ops when tool_name is not Agent
+ok 4 cache-breakpoint-injector.sh short-circuits under CLAUDE_HOOK_PROFILE=minimal
+ok 5 cache-breakpoint-injector.sh body ≤35 lines
+
+=== File line counts (cohesion) ===
+      32 hooks/cache-breakpoint-injector.sh
+      70 hooks/_lib/resolve-cache-breakpoints.py
+      62 hooks/_lib/cache-jsonl-emit.py
+     164 total
+
+=== Hook executable bit ===
+-rw-r--r--@ 1 Paul.Ingham  staff  1817 14 May 15:17 hooks/_lib/cache-jsonl-emit.py
+-rw-r--r--@ 1 Paul.Ingham  staff  2069 14 May 15:24 hooks/_lib/resolve-cache-breakpoints.py
+-rwxr-xr-x@ 1 Paul.Ingham  staff  1434 14 May 15:25 hooks/cache-breakpoint-injector.sh

@@ -141,6 +141,43 @@ class CacheReadTokensBilledAtCheaperRate(unittest.TestCase):
         usd = estimate_cost_usd([record])
         self.assertTrue(_approx_eq(usd, 5.0), f"got {usd}")
 
+    def test_cache_creation_tokens_bill_at_input_rate_characterization(self):
+        """Slice A AC-A7 — characterization test for already-shipped behaviour.
+
+        Pins `_record_cost_usd` cache_creation path at the input rate against
+        fixtures. NO source change to `_lib/cost_estimator.py` — this test
+        adds coverage of existing logic only. If `_record_cost_usd` ever
+        regresses cache_creation to a different rate, this test catches it.
+
+        Mixed-token fixture: regular input + cache_creation + cache_read +
+        output. Cost = (input + cache_create) * 5/M + output * 25/M
+        + cache_read * 0.5/M.
+        """
+        record = {
+            "model": "claude-opus-4-7",
+            "input_tokens": 100_000,           # 100K * $5/M = $0.50
+            "output_tokens": 50_000,           #  50K * $25/M = $1.25
+            "cache_creation_input_tokens": 200_000,  # 200K * $5/M = $1.00
+            "cache_read_input_tokens": 1_000_000,    # 1M * $0.50/M = $0.50
+        }
+        usd = estimate_cost_usd([record])
+        # Total: 0.50 + 1.25 + 1.00 + 0.50 = $3.25
+        self.assertTrue(_approx_eq(usd, 3.25), f"got {usd}")
+        # Cross-check: 1M cache_creation tokens alone at Opus should equal
+        # 1M input tokens alone — same rate.
+        creation_only = estimate_cost_usd([{
+            "model": "claude-opus-4-7",
+            "cache_creation_input_tokens": 1_000_000,
+        }])
+        input_only = estimate_cost_usd([{
+            "model": "claude-opus-4-7",
+            "input_tokens": 1_000_000,
+        }])
+        self.assertTrue(_approx_eq(creation_only, input_only),
+                        f"cache_creation ({creation_only}) must equal "
+                        f"input rate ({input_only}) per Anthropic prompt-cache "
+                        f"convention")
+
 
 class EstimateCostPerPipelineAggregation(unittest.TestCase):
     """AC2: estimate_cost_usd_per_pipeline groups records by task_id."""

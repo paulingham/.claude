@@ -11,6 +11,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GLOBAL_CLAUDE_MD = REPO_ROOT / "CLAUDE.md"
+SKILL_DIRECTORY_PROTOCOL = REPO_ROOT / "protocols" / "skill-directory.md"
 
 
 def _skill_directory_section() -> str:
@@ -18,6 +19,15 @@ def _skill_directory_section() -> str:
     text = GLOBAL_CLAUDE_MD.read_text()
     match = re.search(
         r"###\s+Skill Directory(.+?)(?=\n###\s+|\n##\s+|\Z)",
+        text, re.DOTALL)
+    return match.group(1) if match else ""
+
+
+def _active_skills_section() -> str:
+    """Return the `## Active Skills` table body from protocols/skill-directory.md."""
+    text = SKILL_DIRECTORY_PROTOCOL.read_text()
+    match = re.search(
+        r"##\s*Active Skills\s*\n(.+?)(?=\n##\s|\Z)",
         text, re.DOTALL)
     return match.group(1) if match else ""
 
@@ -51,6 +61,29 @@ class PdrRtvInGlobalSkillTable(unittest.TestCase):
                     "/pdr-rtv row must list PDR_NO_CONSENSUS verdict")
                 return
         self.fail("/pdr-rtv row not found")
+
+
+class CacheAuditSkillListedInActiveTableWithCorrectVerdict(unittest.TestCase):
+    """Slice C AC-C5 — /cache-audit row in `protocols/skill-directory.md`
+    Active Skills table tied to verdict `CACHE_AUDIT_READY`.
+    """
+
+    def test_cache_audit_skill_listed_in_active_table_with_correct_verdict(self):
+        section = _active_skills_section()
+        self.assertTrue(
+            section,
+            "protocols/skill-directory.md must have an `## Active Skills` section")
+        cache_audit_row = None
+        for line in section.splitlines():
+            if "/cache-audit" in line and line.lstrip().startswith("|"):
+                cache_audit_row = line
+                break
+        self.assertIsNotNone(
+            cache_audit_row,
+            "protocols/skill-directory.md Active Skills must list `/cache-audit`")
+        self.assertIn(
+            "CACHE_AUDIT_READY", cache_audit_row,
+            "/cache-audit row must list verdict `CACHE_AUDIT_READY`")
 
 
 if __name__ == "__main__":
