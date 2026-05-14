@@ -31,6 +31,9 @@ assert "args contains literal chrome-devtools-mcp@0.26.0" \
 assert "args does NOT contain @latest" \
   bash -c "! printf '%s' \"$ARGS_JOINED\" | grep -qF '@latest'"
 
+assert "args contains --ignore-scripts (supply-chain hardening)" \
+  bash -c "printf '%s' \"$ARGS_JOINED\" | grep -qF -- '--ignore-scripts'"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]] || exit 1

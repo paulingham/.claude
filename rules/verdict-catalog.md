@@ -41,7 +41,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `PBT_BLOCKED` | failure | `property-based-test` | build | Build halts; reason ∈ {`harness-crash`, `unrecoverable-error`}; recovery = set CLAUDE_PBT=0 and re-run; does NOT count against retry-twice-then-escalate budget per `protocols/operational-protocol.md` |
 | `DOM_SMOKE_PASSED` | success | `build-implementation` | build | All routes loaded with no console errors and no 4xx/5xx XHR; Build proceeds to Step 3 |
 | `DOM_SMOKE_SKIPPED` | info | `build-implementation` | build | Step skipped; reason ∈ {`env-hatch`, `no-changed-routes`, `no-route-resolver`, `mcp-unavailable-first-run`}; Build proceeds |
-| `DOM_SMOKE_FAILED` | failure | `build-implementation` | build | Console error or 4xx/5xx XHR detected after ignore-filter, OR `mcp-unavailable-after-warm`; payload `{route, errors: [{type, message, url, status}]}`; HALT Build, spawn fix-engineer in-cycle |
+| `DOM_SMOKE_FAILED` | failure | `build-implementation` | build | Console error or 4xx/5xx XHR detected after ignore-filter, OR `mcp-unavailable-after-warm`, OR `ignore-list-overbroad`, OR `dev-server-non-loopback`; payload `{route, errors: [{type, message, url, status}]}`; HALT Build, spawn fix-engineer in-cycle |
 | `PLAN_REFINED` | info | `continuous-planning` | build | Build agents re-read plan; never gates Build completion |
 | `PLAN_UNCHANGED` | info | `continuous-planning` | build | No effect; Build proceeds |
 | `BoN_WINNER_SELECTED` | success | `best-of-n` | build | `/code-review` + `/security-review` |

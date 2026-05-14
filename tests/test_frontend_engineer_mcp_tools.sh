@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# AC2 — agents/frontend-engineer.md tools: allowlist includes the four
+# AC2 — agents/frontend-engineer.md tools: allowlist includes the three
 # mcp_chrome_devtools_* entries (underscore-flat allowlist form).
-# Assertions: each of the four tool names appears in the frontmatter tools: list,
-# AND none of them appear in disallowedTools:.
+# take_screenshot is INTENTIONALLY ABSENT (security CRITICAL-2 over-grant fix —
+# Step 2d does not use it; design-qc owns screenshot capture via its own pathway).
+# Assertions: the three required tool names appear in the frontmatter tools: list,
+# none appear in disallowedTools:, AND take_screenshot is absent from tools:.
 set -uo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -14,8 +16,8 @@ TOOLS=(
   mcp_chrome_devtools_navigate_page
   mcp_chrome_devtools_list_console_messages
   mcp_chrome_devtools_list_network_requests
-  mcp_chrome_devtools_take_screenshot
 )
+ABSENT_TOOL=mcp_chrome_devtools_take_screenshot
 
 # Extract the frontmatter block (between the first two --- lines).
 FRONTMATTER=$(awk '/^---$/{c++; next} c==1' "$AGENT")
@@ -47,6 +49,20 @@ for tool in "${TOOLS[@]}"; do
     echo "  ok: disallowedTools: clean of $tool"; PASS=$((PASS + 1))
   fi
 done
+
+if printf '%s\n' "$TOOLS_BLOCK" | grep -qE "^  - ${ABSENT_TOOL}$"; then
+  echo "  FAIL: tools: must NOT contain $ABSENT_TOOL (security CRITICAL-2 over-grant)"; FAIL=$((FAIL + 1))
+else
+  echo "  ok: tools: clean of $ABSENT_TOOL"; PASS=$((PASS + 1))
+fi
+
+# Ensure exactly three mcp_chrome_devtools_* entries in tools: block.
+CHROME_COUNT=$(printf '%s\n' "$TOOLS_BLOCK" | grep -cE "^  - mcp_chrome_devtools_" || true)
+if [[ "$CHROME_COUNT" -eq 3 ]]; then
+  echo "  ok: tools: contains exactly 3 mcp_chrome_devtools_* entries"; PASS=$((PASS + 1))
+else
+  echo "  FAIL: tools: expected 3 mcp_chrome_devtools_* entries, found $CHROME_COUNT"; FAIL=$((FAIL + 1))
+fi
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
