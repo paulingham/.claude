@@ -48,6 +48,33 @@ teardown() {
     sys.exit(0 if rec.get('pv_outcome')=='PLAN_APPROVED' else 1)"
 }
 
+@test "E6c PV marker without preceding HIT is a no-op (no jsonl file created)" {
+  # Branch coverage: _writeback_pv early-return on missing jsonl.
+  local pv='[PlanValidationOutcome] verdict: PLAN_APPROVED'
+  local pv_input
+  pv_input=$(jq -cn --arg r "$pv" '{tool_name:"Skill",tool_response:$r}')
+  run bash -c "printf '%s' '$pv_input' | bash '$HOOK'"
+  [ "$status" -eq 0 ]
+  local jsonl_path="$CLAUDE_HOOK_LOG_DIR/pv-session/plan-cache.jsonl"
+  [ ! -f "$jsonl_path" ]
+}
+
+@test "E6d invalid PV verdict string is ignored (regex anchor)" {
+  # Branch coverage: pv_verdict regex rejects non-canonical verdicts.
+  local hit='[PlanCacheLookup] {"verdict":"PLAN_CACHE_HIT","cache_key":"kIgn"}'
+  local hit_input pv_input
+  hit_input=$(jq -cn --arg r "$hit" '{tool_name:"Skill",tool_response:$r}')
+  run bash -c "printf '%s' '$hit_input' | bash '$HOOK'"
+  [ "$status" -eq 0 ]
+  local pv='[PlanValidationOutcome] verdict: BOGUS_VERDICT'
+  pv_input=$(jq -cn --arg r "$pv" '{tool_name:"Skill",tool_response:$r}')
+  run bash -c "printf '%s' '$pv_input' | bash '$HOOK'"
+  [ "$status" -eq 0 ]
+  local jsonl_path="$CLAUDE_HOOK_LOG_DIR/pv-session/plan-cache.jsonl"
+  python3 -c "import json,sys; rec=json.loads(open('$jsonl_path').read().strip()); \
+    sys.exit(0 if rec.get('pv_outcome')=='<pending>' else 1)"
+}
+
 @test "E6b pv_outcome=PLAN_HOLES is accepted as a valid PV verdict" {
   local hit='[PlanCacheLookup] {"verdict":"PLAN_CACHE_HIT","cache_key":"kHoles"}'
   local hit_input pv_input
