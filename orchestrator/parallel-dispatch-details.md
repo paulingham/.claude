@@ -950,9 +950,10 @@ Agent({
     minimal-and-tested diff; PATCH_REJECTED returns to fix-engineer
     (in-cycle, no user escalation per protocols/pipeline-protocol.md
     § In-Cycle Fix Rule).
-    Note: when critical OR Budget >= 7, the orchestrator dispatches the
-    multi-persona variant instead of this single-critic shape — see
-    § Multi-Persona Patch Critic Dispatch below."
+    Output schema includes `uncertainty: bool` (with optional
+    `uncertainty_reason: string`). When uncertainty=true, the orchestrator
+    escalates to the multi-persona variant by spawning two additional
+    personas in parallel — see § Multi-Persona Patch Critic Dispatch below."
 })
 
 Agent({
@@ -997,24 +998,22 @@ The orchestrator collects the five verdicts and emits a one-line-per-teammate su
 
 Same convention as the existing per-verdict summary lines. The `SPEC_BLIND_BLOCKED` line is operator-actionable (HALT routing per `rules/verdict-catalog.md`) — `/pr-creation` will refuse to advance until the blocker is resolved.
 
-## Multi-Persona Patch Critic Dispatch (critical OR Budget >= 7)
+## Multi-Persona Patch Critic Dispatch (uncertainty-escalated)
 
-The patch-critic role in the Final Gate Team has two dispatch modes selected by criticality + budget. The other three Final Gate roles (verify + test + accept) are unchanged.
+The patch-critic role in the Final Gate Team uses a default-one + escalate-on-uncertainty dispatch. The other three Final Gate roles (verify + test + accept) are unchanged.
 
-| Mode | Gate condition | Spawn shape |
+| Mode | Trigger | Spawn shape |
 |---|---|---|
-| single-critic (default) | `!critical AND Budget < 7` | one `patch-critic` Agent call alongside verifier/test-analyst/product-reviewer |
-| multi-persona variant | `critical == true OR Budget >= 7` | three parallel `patch-critic` Agent calls, one per persona, alongside verifier/test-analyst/product-reviewer |
+| persona-1 (default, always) | every Final Gate dispatch | one `patch-critic` Agent call (Persona: correctness) alongside verifier/test-analyst/product-reviewer |
+| escalation (conditional) | persona-1 returns `uncertainty: true` | two additional `patch-critic` Agent calls (Persona: regression-risk, Persona: scope-creep) spawned in PARALLEL in a single message |
 
-Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) where multiple persona-critics escape single-agent confirmation bias. Cost is ~3x patch-critic spend; the gate already runs in parallel with verify+test+accept and is a rounding error vs build/review spend on critical work.
+Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) where multiple persona-critics escape single-agent confirmation bias. The earlier "always 3 personas when critical OR Budget>=7" shape spent the 3x cost unconditionally; the trimmed shape spends 1x by default and recovers the full 3-persona safety net on the escalation path. Estimated saving: ~2 xhigh patch-critic spawns per Critical Final Gate. The criticality / budget gate is removed — uncertainty is a strictly stronger signal because it comes from a critic that already looked at this specific diff.
 
-**Composition with C8 anti-pattern mining (#80)**: complementary, not redundant. Multi-persona catches in-cycle (during this gate); C8 mines cross-pipeline patterns from observation rounds-counts after pipelines close. The schema extension in `protocols/autonomous-intelligence.md` § Observation Capture (`phases.patch_critic.rounds`) wires the variant's rejections into C8's mining gate so consistently-caught-but-not-by-code-review patterns become anti-pattern instincts over time. They cover different time horizons.
+**Composition with C8 anti-pattern mining (#80)**: unchanged — complementary, not redundant. The escalation path catches in-cycle (during this gate) when persona-1 was unsure; C8 mines cross-pipeline patterns from observation rounds-counts after pipelines close. The schema extension in `protocols/autonomous-intelligence.md` § Observation Capture (`phases.patch_critic.rounds`) still wires rejections into C8's mining gate. The new `phases.patch_critic.uncertainty_fired: bool` field records whether the escalation path ran.
 
-**Procedure (variant mode):**
+**Procedure:**
 
-1. **Gate check**: read pipeline state. If `critical != true AND Budget < 7`, dispatch single-critic and skip the rest of this procedure.
-
-2. **Spawn three personas in a single message** (parallel — no persona sees another persona's output):
+1. **Spawn persona-1** (alongside verify + test + accept in the Final Gate parallel message):
 
    ```
    Agent({
@@ -1028,8 +1027,14 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
        Search emphasis: 'Did the diff actually solve the spec? Are tests load-bearing
        for the behavior change?'
 
-       You score every rubric dimension regardless of specialty. You do NOT see the
-       other personas' outputs. Independent context is the design.
+       You score every rubric dimension regardless of specialty.
+
+       Output schema includes `uncertainty: bool` and optional
+       `uncertainty_reason: string`. Set uncertainty=true when you cannot
+       confidently emit PATCH_APPROVED or PATCH_REJECTED — canonical reasons:
+       'ambiguous diff' | 'incomplete test coverage assessment'. Bias toward
+       uncertainty=true on close calls; the escalation cost is the prior
+       baseline, not new spend.
 
        Context: branch feature/X, base main.
        Candidate diff: [git diff main...HEAD]
@@ -1038,7 +1043,17 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
        A11y index (if present): pipeline-state/{task-id}/design-qc/index.json
        ## Execution Evidence  # ← optional block — conditionally injected only when CLAUDE_PATCH_CRITIC_EXEC_LAYER=1 AND Steps 1-3 all succeed; absent by default"
    })
+   ```
 
+2. **Read persona-1 output**. Parse `uncertainty` from the structured output (per `agents/patch-critic.md` § Output Format).
+
+   - `uncertainty == false` AND verdict `PATCH_APPROVED` → gate verdict `PATCH_APPROVED`. Skip steps 3–4. Persona-1 alone gates Ship.
+   - `uncertainty == false` AND verdict `PATCH_REJECTED` → gate verdict `PATCH_REJECTED`. Forward persona-1 findings to fix-engineer. Skip steps 3–4 — a confident rejection from a single critic does not need second opinions to act on.
+   - `uncertainty == true` → proceed to step 3 (escalation).
+
+3. **Escalate: spawn two additional personas in PARALLEL** (single message, two `Agent({…})` calls — no persona sees another persona's output; persona-1's output is also NOT shared with the escalation personas, independent context is the design):
+
+   ```
    Agent({
      name: "patch-critic-regression-risk",
      team_name: "pipeline-{task-id}",
@@ -1052,8 +1067,11 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
        errors, lost edge-case branches, removed tests, changed defaults that
        callers rely on.'
 
-       You score every rubric dimension regardless of specialty. You do NOT see the
-       other personas' outputs. Independent context is the design.
+       You score every rubric dimension regardless of specialty. You do NOT see
+       other personas' outputs. Independent context is the design. Set
+       `uncertainty` per the schema — but note that escalation personas are
+       the second opinion; persistent uncertainty across all three personas
+       does NOT loop back to a fourth.
 
        Context: branch feature/X, base main.
        Candidate diff: [git diff main...HEAD]
@@ -1073,7 +1091,7 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
        Search emphasis: 'What is in this diff that the spec did NOT ask for?
        Renames, moves, reorgs, drive-by cleanups, opportunistic typing tweaks.'
 
-       You score every rubric dimension regardless of specialty. You do NOT see the
+       You score every rubric dimension regardless of specialty. You do NOT see
        other personas' outputs. Independent context is the design.
 
        Context: branch feature/X, base main.
@@ -1084,26 +1102,31 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
    })
    ```
 
-3. **Aggregation rule (OR)**:
-   - All three personas return `PATCH_APPROVED` → gate verdict `PATCH_APPROVED`.
-   - Any persona returns `PATCH_REJECTED` (any MEDIUM+ severity finding on any dimension) → gate verdict `PATCH_REJECTED`. Forward findings from ALL rejecting personas to fix-engineer.
-   - The orchestrator MUST NOT silently override a single-persona MEDIUM+ rejection because the other two passed. OR-aggregation is the design, not a soft hint.
+4. **Aggregation rule (majority-of-3 on the escalation path)**:
+   - Compute verdict-only counts across the three personas (persona-1 + 2 escalation). Each persona's `verdict` field counts as one vote (`PATCH_APPROVED` or `PATCH_REJECTED`); `uncertainty: true` does NOT abstain — the persona still emits one of the two verdicts and that verdict counts.
+   - **Majority wins (2-of-3)**: ≥2 `PATCH_APPROVED` → gate `PATCH_APPROVED`. ≥2 `PATCH_REJECTED` → gate `PATCH_REJECTED`. Forward findings from ALL rejecting personas to fix-engineer.
+   - The escalation path's majority rule is intentionally less conservative than the previous always-3 OR-aggregation. Rationale: persona-1's `uncertainty: true` already biased the gate toward extra scrutiny; a single dissenting voice among three personas does not warrant blocking when the other two agree.
+   - **Operator override**: when stricter aggregation is desired for a specific pipeline (e.g. an Iron-Law-surface change), an operator can set `CLAUDE_PATCH_CRITIC_AGGREGATION=or` to revert to OR-aggregation (any REJECT → gate REJECT) on the escalation path. Default is `majority`.
 
-4. **Audit artifact**: write `pipeline-state/{task-id}/patch-critic.md` with frontmatter (`task_id, phase=final-gate, verdict, timestamp, mode=multi-persona`) and three sections (one per persona). Include each persona's full Rubric table + Findings list verbatim. The orchestrator-aggregated verdict appears in frontmatter and at the top of the file.
+5. **Audit artifact**: write `pipeline-state/{task-id}/patch-critic.md` with frontmatter (`task_id, phase=final-gate, verdict, timestamp, mode=persona-1 | escalated, uncertainty_fired: bool, aggregation: majority | or`). When `mode=persona-1`, include one section (persona-1's Rubric table + Findings). When `mode=escalated`, include three sections (one per persona). The orchestrator-aggregated verdict appears in frontmatter and at the top of the file.
 
-5. **Divergence record on split votes** (one persona REJECTs, others PASS — i.e., not unanimous): append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/patch-critic-divergence.md`. Pattern matches Best-of-N's divergence record. Body includes: rejecting persona, dimension, severity, finding text, file:line. `/learn` mines split-vote dimensions over time; consistently-split dimensions are calibration targets (rubric clarity issue, not a persona problem).
+6. **Divergence record on split votes** (mode=escalated AND not-unanimous): append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/patch-critic-divergence.md`. Body includes: dissenting persona(s), dimension(s), severity, finding text, file:line, and `uncertainty_reason` from persona-1 if set. `/learn` mines split-vote dimensions over time; consistently-split dimensions are rubric-clarity calibration targets.
 
-6. **PATCH_REJECTED → fix → re-critique ALL personas** (NOT just the rejecting persona). Differs from existing Review pattern (re-dispatch only the rejecting reviewer). The fix may have introduced a new issue in another persona's territory. Cost is acceptable on critical/Budget>=7 work. Maximum 2 total rounds (initial + 1 re-critique), matching the existing Review cap. After 2 rounds with persistent rejection → escalate to user. Should be rare under the In-Cycle Fix Rule.
+7. **PATCH_REJECTED → fix → re-critique**:
+   - If `mode=persona-1` at rejection → re-dispatch persona-1 only on the updated diff (same shape as existing Review pattern: re-dispatch the raising reviewer).
+   - If `mode=escalated` at rejection → re-dispatch ALL three personas (persona-1 + 2 escalation) on the updated diff, because the fix may have introduced a new issue in another persona's territory. Maximum 2 total rounds (initial + 1 re-critique), matching the existing Review cap. After 2 rounds with persistent rejection → escalate to user.
 
-7. **Partial completion contract**: if a persona fails to return within timeout (`CLAUDE_SUBAGENT_MAX_RUNTIME`, default 1800s), treat as `PATCH_REJECTED` with reason `persona-timeout`. Re-dispatch only the missing persona (1 retry). After 2 timeouts on the same persona → escalate per retry-twice-then-escalate. Do NOT silently skip a timed-out persona — a missing verdict is not an approval.
+8. **Partial completion contract**: if persona-1 fails to return within timeout (`CLAUDE_SUBAGENT_MAX_RUNTIME`, default 1800s), treat as `PATCH_REJECTED` with reason `persona-timeout`. Re-dispatch persona-1 (1 retry); after 2 timeouts → escalate per retry-twice-then-escalate. If an escalation persona times out, treat that persona's vote as `PATCH_REJECTED` for aggregation purposes (a missing verdict is not an approval); record `persona-timeout` in the audit artifact and proceed to step 4 with the remaining 2 votes. Do NOT silently skip a timed-out persona.
 
-8. **Observation capture** (Reflect step): record per-persona verdicts and rejecting findings in `phases.patch_critic` per `protocols/autonomous-intelligence.md` § Observation Capture. The `rounds` count and `persona_rejections` array feed C8 anti-pattern mining on subsequent pipelines.
+9. **Observation capture** (Reflect step): record `phases.patch_critic.uncertainty_fired: bool`, `phases.patch_critic.mode: persona-1 | escalated`, per-persona verdicts (when escalated), and rejecting findings per `protocols/autonomous-intelligence.md` § Observation Capture. The `rounds` count and `persona_rejections` array feed C8 anti-pattern mining on subsequent pipelines. The `uncertainty_fired` rate is the primary calibration metric — see § Hedges below.
 
-**Why no debate round (vs the paper)**: patch-critique is closed-form (fixed rubric, fixed dimensions, binary-per-finding-after-severity). The paper's debate coordinator targets open-ended reflexion (HotPotQA answers, HumanEval code generation). Three independent strict scorers + OR-aggregation captures the "different priors → different blind spots" lift without the 2x debate-round overhead.
+**Why no debate round (vs the paper)**: unchanged from the prior dispatch. Patch-critique is closed-form (fixed rubric, fixed dimensions, binary-per-finding-after-severity). Independent strict scorers + majority aggregation on the escalation path captures the "different priors → different blind spots" lift without debate-round overhead.
 
 ### Execution Evidence (optional, default off)
 
-OPTIONAL enrichment that prepends a short `## Execution Evidence` block to every persona spawn prompt before dispatch. Inspired by Agentic Verifier (arXiv 2602.04254), where giving the verifier execution traces of the candidate against discriminative inputs catches a class of regression that diff-only review misses. The path is purely additive — when the flag is unset OR any of three downstream steps silently skip, the dispatch falls through to the existing #93 procedure exactly (`1. Gate check` → `2. Spawn three personas` → `3. Aggregation rule (OR)` → … unchanged).
+OPTIONAL enrichment that prepends a short `## Execution Evidence` block to every persona spawn prompt before dispatch. Inspired by Agentic Verifier (arXiv 2602.04254), where giving the verifier execution traces of the candidate against discriminative inputs catches a class of regression that diff-only review misses. The path is purely additive — when the flag is unset OR any of three downstream steps silently skip, the dispatch falls through to the procedure above exactly (`1. Spawn persona-1` → `2. Read output` → `3. Escalate if uncertain` → `4. Aggregate` → … unchanged).
+
+**Interaction with persona-1 + escalation dispatch**: evidence generates once-per-slice BEFORE persona-1 spawns. The same evidence block is appended to persona-1's prompt always; if persona-1 returns `uncertainty: true` and the escalation personas spawn, the SAME block (no regeneration — the diff has not changed within a single Final Gate round) is appended to both escalation prompts. On re-critique after PATCH_REJECTED, the diff has changed, so evidence regenerates from scratch per the existing "Re-critique semantics" clause below.
 
 **Step 0 — Env-var probe**:
 
@@ -1204,7 +1227,7 @@ OPTIONAL enrichment that prepends a short `## Execution Evidence` block to every
   ...
   ```
 
-**Once-per-slice contract**: when the flag is on AND the path proceeds, the orchestrator generates discriminative test inputs ONCE per slice, runs them ONCE, formats the result into a single `## Execution Evidence` block, and APPENDS the SAME block VERBATIM to each of the three persona spawn prompts. Evidence is shared across personas because (a) inputs are derived from the diff and the diff is identical across personas, so per-persona inputs would be identical too, and (b) persona differentiation already lives in the existing search-emphasis prompts (rubric-dimension weighting), not in raw evidence. The once-per-slice scope is both 3x cheaper and signal-equivalent — per-persona generation would produce identical inputs (the diff is identical), wasting the spend.
+**Once-per-slice contract**: when the flag is on AND the path proceeds, the orchestrator generates discriminative test inputs ONCE per slice, runs them ONCE, formats the result into a single `## Execution Evidence` block, and APPENDS the SAME block VERBATIM to each persona spawn prompt that fires this cycle (persona-1 always; the two escalation personas conditionally on `uncertainty: true`). Evidence is shared across personas because (a) inputs are derived from the diff and the diff is identical across personas, so per-persona inputs would be identical too, and (b) persona differentiation already lives in the existing search-emphasis prompts (rubric-dimension weighting), not in raw evidence. The once-per-slice scope is both 3x cheaper and signal-equivalent — per-persona generation would produce identical inputs (the diff is identical), wasting the spend.
 
 **Three silent skip points** — any one collapses to identical diff-only dispatch (no error surfaced, no log noise, persona spawns unchanged):
 
@@ -1222,10 +1245,11 @@ Slices 2 and 3 land Steps 1-3 (input generation, sandboxed run, prompt-append po
 
 **Hedges (PROVISIONAL until baseline run)**:
 
-- Variant gated on `critical OR Budget >= 7`. Single-critic remains the default for routine work — DO NOT enable for `!critical AND Budget < 7`.
-- OR-aggregation is intentionally conservative (biased toward false positives). Fix-engineer absorbs the rework cost; a missed regression at Final Gate costs more than an extra fix-engineer round.
-- Disagreement rate is the kill-switch metric. If `/forensics` reports < 5% persona disagreement over a 30-pipeline window, drop back to single critic — the variant is no longer earning its 3x spend. If disagreement is > 30%, the personas are catching distinct things — variant justified. The 5–30% band is the working range.
-- Empirical baseline is REQUIRED before promoting from PROVISIONAL. Baseline establishes false-positive rate vs single-critic on the harness regression suite (`/internal-eval`). The paper's HumanEval lift (76% → 82% Pass@1) does NOT directly translate to patch-critique acceptance/rejection — different domain, different decision shape.
+- Dispatch is now persona-1 by default for ALL Final Gate runs (no criticality / budget gate). Escalation fires only on persona-1 `uncertainty: true`.
+- Majority-of-3 aggregation on the escalation path is less conservative than the prior always-3 OR-aggregation. Operators can revert to OR semantics per-pipeline with `CLAUDE_PATCH_CRITIC_AGGREGATION=or`.
+- **Uncertainty-fired rate is the primary calibration metric.** If `/forensics` reports `uncertainty_fired` on < 5% of Final Gates over a 30-pipeline window, persona-1 is over-confident — review the `uncertainty_reason` enum and the close-call bias guidance in `agents/patch-critic.md`. If `uncertainty_fired` > 30%, persona-1 is escalating too aggressively and the trim is not saving cost — the rubric or persona prompt needs tightening. Working range: 5–30%.
+- **Cost saving (intent)**: dropping from 3 → 1 spawn on the non-escalated path saves ~2 xhigh spawns per Critical Final Gate. Realised saving = `2 × (1 - uncertainty_fired_rate)` xhigh spawns per Critical Final Gate. Baseline run is REQUIRED before promoting from PROVISIONAL. Baseline establishes (a) the uncertainty-fired rate and (b) false-negative rate vs the prior always-3 dispatch on the harness regression suite (`/internal-eval`).
+- **Rollback path**: if baseline shows materially worse false-negative rate (any regression slipping past persona-1 with uncertainty=false), revert to the prior always-3 shape by reading the previous version of this section from git history. The agent-side `uncertainty: bool` field is harmless under the old dispatch (the orchestrator just ignores it).
 
 ## Teammate Shutdown
 
