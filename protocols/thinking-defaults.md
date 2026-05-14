@@ -53,29 +53,29 @@ existing observation record.
 2. **Explicit `thinking` field** on the Agent spawn's `tool_input`
 2a. **Claude Code effort env override**: `CLAUDE_EFFORT` (must be a valid enum value drawn from the harness `{low, medium, high, xhigh}` set; invalid values fall through to the next tier). When this tier wins, `source="claude-effort-env"` — distinct from rule 1's `source="env"` so prior observation records remain interpretable. Naming rationale: the existing `env` source name predates Claude Code's session-level env var; `claude-effort-env` is name-prefixed to disambiguate which env var fired. Renaming `env` → `claude-thinking-env` would invalidate every existing observation record. Note: when `CLAUDE_HOOK_PROFILE=minimal` the hook is suppressed, but resolver-direct callers still observe this tier — for hook-independent enforcement use `CLAUDE_THINKING_EFFORT` (rule 1).
 3. **Role-based rules** (combined layer; reports `source="role"` regardless of which sub-rule fires):
-   - **3a. Promotions to xhigh**:
-     - `architect` → `effort=xhigh` **unconditionally** (May 2026 Opus 4.7 floor change)
-     - `software-engineer` → `effort=xhigh` **unconditionally** (May 2026)
-     - `frontend-engineer` → `effort=xhigh` **unconditionally** (May 2026)
-     - `infrastructure-engineer` → `effort=xhigh` **unconditionally** (May 2026)
-     - `security-engineer` + `critical=true` AND `budget>=7` → `effort=xhigh`
+   - **3a. Promotions to xhigh** (PR #124 narrow-xhigh-promotion 2026-05-14 — gated, no longer unconditional; see `protocols/_proposals/2026-05-14-narrow-xhigh-promotion.md`):
+     - `architect` + (`critical=true` OR `budget>=6`) → `effort=xhigh`
+     - `software-engineer` + (`critical=true` OR `budget>=7`) → `effort=xhigh`
+     - `frontend-engineer` + (`critical=true` OR `budget>=7`) → `effort=xhigh`
+     - `infrastructure-engineer` + (`critical=true` OR `budget>=7`) → `effort=xhigh`
+     - `security-engineer` + `critical=true` AND `budget>=7` → `effort=xhigh` (conjunctive — distinct operator)
      - Best-of-N candidates (`name` starts with `boN-`) + `budget>=7` → `effort=xhigh`
      - **Debug active AND debug file age < TTL** (state file `{task_id}-debug.md` exists, mtime within `CLAUDE_DEBUG_DISPLAY_TTL` seconds — default 1800) → `display=text`. **Continuation cycles** (mtime ≥ TTL) → `display=omitted`. Touching the debug file (e.g. recording a new hypothesis) resets the window. Phase=`debugging` without a debug file also forces `display=text`.
    - **3b. Downgrades from default**:
      - `code-reviewer`, `qa-engineer`, `product-reviewer`, `patch-critic`, `database-engineer`, `security-engineer` (when 3a does not apply) → `effort=high`
      - `planning-agent` → `effort=low`
    - 3a evaluates BEFORE 3b, so a `security-engineer` that meets the promotion gate gets xhigh, not the downgrade.
-   - The four unconditional promotions are pinned in `hooks/_lib/thinking_role.py` as the `_PROMOTE_TO_XHIGH` frozenset; the snapshot test `PromoteToXhighListMatchesAgentFrontmatter` locks the membership.
-4. **Hardcoded fallback**: `effort=high`, `display=omitted`. xhigh is allocated only via rule 3a (the four unconditional build/design promotions; security-engineer on `critical=true` AND `budget>=7`; Best-of-N candidates on `budget>=7`). Roles absent from any 3a/3b sub-rule fall through to this floor.
+   - The four gated promotions are inlined as explicit clauses in `_is_xhigh()` (`hooks/_lib/thinking_role.py`); `_PROMOTE_TO_XHIGH` is retained as `frozenset()` for the `PromoteToXhighListMatchesAgentFrontmatter` snapshot test, which now pins the unconditional-promotion roster to the empty set.
+4. **Hardcoded fallback**: `effort=high`, `display=omitted`. xhigh is allocated only via rule 3a (the four gated build/design promotions on `critical=true OR budget>=N`; security-engineer on `critical=true` AND `budget>=7`; Best-of-N candidates on `budget>=7`). Build/design roles whose gate does not fire (e.g. architect at `critical=false, budget<6`) fall through to this floor — `source="default"` in that case, not `"role"`.
 
 ## Role Defaults Summary
 
 | Role | Default executor | Default effort | xhigh trigger |
 |---|---|---|---|
-| `architect` | Opus | xhigh | always (rule 3a, unconditional) |
-| `software-engineer` | Sonnet (advisor: Opus) | xhigh | always (rule 3a, unconditional) |
-| `frontend-engineer` | Sonnet (advisor: Opus) | xhigh | always (rule 3a, unconditional) |
-| `infrastructure-engineer` | Opus | xhigh | always (rule 3a, unconditional) |
+| `architect` | Opus | xhigh | `critical=true` OR `budget>=6` → xhigh (role layer 3a) |
+| `software-engineer` | Sonnet (advisor: Opus) | xhigh | `critical=true` OR `budget>=7` → xhigh (role layer 3a) |
+| `frontend-engineer` | Sonnet (advisor: Opus) | xhigh | `critical=true` OR `budget>=7` → xhigh (role layer 3a) |
+| `infrastructure-engineer` | Opus | xhigh | `critical=true` OR `budget>=7` → xhigh (role layer 3a) |
 | `security-engineer` | Sonnet (advisor: Opus) | high | `critical=true` AND `budget>=7` → xhigh (role layer 3a) |
 | Best-of-N candidate | varies per slot | high | `budget>=7` (any role, name starts with `boN-`) → xhigh (role layer 3a) |
 | `code-reviewer` | Sonnet (advisor: Opus) | high | never |
@@ -85,7 +85,9 @@ existing observation record.
 | `database-engineer` | Sonnet | high | never |
 | `planning-agent` | Sonnet | low | never |
 
-A role declared in `instinct_categories` but absent from this table inherits `high` from the rule 4 fallback. Two snapshot tests in `tests/test_thinking_defaults.py` pin the role rosters to `hooks/_lib/thinking_role.py`: `PromoteToXhighListMatchesAgentFrontmatter` locks the four unconditional xhigh promotions; `DowngradeListMatchesAgentFrontmatter` locks the remaining seven Sonnet-executor / poll-loop downgrade entries. Drift in either direction fails CI.
+**Column semantics (post-PR #124):** The "Default effort" column for the four gated build/design roles names the **promoted ceiling** when the gate fires, not the floor. When the gate is sub-threshold (e.g. architect at `critical=false, budget<6`), the role falls through to rule 4's hardcoded `high` floor with `source="default"`. The third column thus pins the documented xhigh-promotion roster; the "xhigh trigger" column pins the gate.
+
+A role declared in `instinct_categories` but absent from this table inherits `high` from the rule 4 fallback. Two snapshot tests in `tests/test_thinking_defaults.py` pin the role rosters to `hooks/_lib/thinking_role.py`: `PromoteToXhighListMatchesAgentFrontmatter` locks the four gated xhigh promotions (now empty after PR #124; inlined as clauses in `_is_xhigh()`); `DowngradeListMatchesAgentFrontmatter` locks the remaining seven Sonnet-executor / poll-loop downgrade entries. Drift in either direction fails CI.
 
 `display` defaults to `omitted` for all roles unless a debug state file is active.
 
@@ -168,7 +170,7 @@ xhigh is the **default floor for primary build and design roles** as of May 2026
 1. **Apr 23 2026 cost/quality postmortem** — measured promotion-on-trigger lift was concentrated in stakes-bearing and ambiguity-bearing work. Build engineers (`software-engineer`, `frontend-engineer`, `infrastructure-engineer`) hit those triggers on most non-trivial work but were dispatched at `high` because the historical policy treated xhigh-on-Opus as a premium spend.
 2. **May 2026 Anthropic Opus 4.7 adaptive-thinking guidance** — Opus 4.7 rejects manual `budget_tokens` (HTTP 400) and the API exposes only `effort`. Adaptive thinking allocates budget at the API layer, so the harness no longer pays a wall-clock-and-tokens premium for `effort=xhigh` on routine implementation; the floor moved.
 
-Combining (1) and (2): the four primary build/design roles — `architect`, `software-engineer`, `frontend-engineer`, `infrastructure-engineer` — are **unconditionally promoted** to xhigh via rule 3a. They are stakes-bearing or ambiguity-bearing on most spawns, and adaptive thinking removed the cost gate that previously justified per-spawn rationing.
+Combining (1) and (2): the four primary build/design roles — `architect`, `software-engineer`, `frontend-engineer`, `infrastructure-engineer` — are **gated to xhigh on `critical=true OR budget>=N`** via rule 3a (PR #124 narrow-xhigh-promotion 2026-05-14, supersedes the prior May 2026 unconditional policy). They remain stakes-bearing or ambiguity-bearing on stakes-bearing pipelines; on routine sub-threshold work they fall through to the `high` floor so the harness does not pay the per-spawn xhigh premium on every Build/Plan spawn. See `protocols/_proposals/2026-05-14-narrow-xhigh-promotion.md` for the cost rationale.
 
 xhigh is still **rationed** for the rest of the role table. Review/critic/database/planning roles inherit `high` (or `low` for planning-agent) because:
 
@@ -182,18 +184,18 @@ See **`pipeline-state/opus47-xhigh-default/plan.md`** for the slice that landed 
 
 ## xhigh Allocation Boundary
 
-The boundary is **role-class**, not executor-model. Build and design roles get xhigh unconditionally (the May 2026 floor); review, critic, database, and poll-loop roles stay on the high (or low) floor unless a specific gate fires. The rule 4 fallback applies only to roles absent from any 3a/3b sub-rule.
+The boundary is **role-class**, not executor-model. Build and design roles get xhigh when a per-role gate fires (PR #124 narrow promotion: `critical=true OR budget>=N`); review, critic, database, and poll-loop roles stay on the high (or low) floor unless a specific gate fires. The rule 4 fallback applies to roles absent from any 3a/3b sub-rule AND to build/design roles whose gate did not fire — in the latter case `source="default"`, not `"role"`.
 
 xhigh **never inherited via fallback**. No role gets xhigh from rule 4.
 
-xhigh **promoted via rule 3a unconditionally** for the four primary build/design roles:
+xhigh **promoted via rule 3a disjunctively** for the four primary build/design roles (PR #124 narrow-xhigh-promotion 2026-05-14):
 
-- `architect` — `source="role"` (May 2026 unconditional)
-- `software-engineer` — `source="role"` (May 2026 unconditional)
-- `frontend-engineer` — `source="role"` (May 2026 unconditional)
-- `infrastructure-engineer` — `source="role"` (May 2026 unconditional)
+- `architect` + (`critical=true` OR `budget>=6`) — `source="role"`
+- `software-engineer` + (`critical=true` OR `budget>=7`) — `source="role"`
+- `frontend-engineer` + (`critical=true` OR `budget>=7`) — `source="role"`
+- `infrastructure-engineer` + (`critical=true` OR `budget>=7`) — `source="role"`
 
-xhigh **promoted via rule 3a conditionally** (gate must fire):
+xhigh **promoted via rule 3a conjunctively** (distinct operator — AND not OR):
 
 - `security-engineer` + `critical=true` AND `budget>=7` — `source="role"`
 - Best-of-N candidates (`name` starts with `boN-`) + `budget>=7` — `source="role"`
@@ -207,7 +209,7 @@ xhigh **promoted via rule 3a conditionally** (gate must fire):
 
 - `planning-agent` (long-lived poll loop) — `low`
 
-Both rosters live in `hooks/_lib/thinking_role.py`: `_PROMOTE_TO_XHIGH` (the four unconditional promotions) and `_DOWNGRADE_TO_HIGH` / `_DOWNGRADE_TO_LOW` (the seven downgrades). The snapshot tests `PromoteToXhighListMatchesAgentFrontmatter` and `DowngradeListMatchesAgentFrontmatter` lock both against drift.
+Both rosters live in `hooks/_lib/thinking_role.py`: the four gated promotions are inlined as explicit clauses in `_is_xhigh()`, `_PROMOTE_TO_XHIGH` is retained as `frozenset()` for the snapshot guard, and `_DOWNGRADE_TO_HIGH` / `_DOWNGRADE_TO_LOW` pin the seven downgrades. The snapshot tests `PromoteToXhighListMatchesAgentFrontmatter` and `DowngradeListMatchesAgentFrontmatter` lock both against drift.
 
 ### Forensic / Source-Field Integration Note
 
