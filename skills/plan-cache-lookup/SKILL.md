@@ -6,7 +6,7 @@ phase: plan
 dispatch: subagent
 ---
 
-# Plan Cache Lookup (Slice B — MISS-only)
+# Plan Cache Lookup (Slice B MISS path + Slice C HIT path)
 
 ## What This Skill Does
 
@@ -120,8 +120,8 @@ or, on HIT:
 
 ## Verdicts
 
-- `PLAN_CACHE_MISS` (info, plan, emitter=plan-cache-lookup) — always, in Slice B. Continue to Stage 1 recon dispatch.
-- `PLAN_CACHE_HIT` — reserved for Slice C; this slice never emits it.
+- `PLAN_CACHE_MISS` (info, plan, emitter=plan-cache-lookup) — fall through to Stage 1 recon + Stage 2 architect in the same pipeline (Iron Law 6 on `adapter-rejected`).
+- `PLAN_CACHE_HIT` (info, plan, emitter=plan-cache-lookup) — adapted plan written to `pipeline-state/{task-id}/plan.md` with `cache_hit: true` marker; skip Stage 1+2.
 
 ## Failure Modes
 
@@ -139,9 +139,10 @@ or, on HIT:
 
 ## References
 
-- Plan: `pipeline-state/plan-cache-agentic/plan.md` § slice-b-skill-miss-only.
-- Helper: `hooks/_lib/plan-cache-lookup.sh` (this slice).
+- Plan: `pipeline-state/plan-cache-agentic/plan.md` § Slice slice-b-skill-miss-only and § Slice slice-c-adapter-and-validator.
+- Helper: `hooks/_lib/plan-cache-lookup.sh` (Slice B + Slice C functions).
 - Repo-hash helper: `hooks/_lib/repo-hash.sh` (Slice A).
+- Adapter agent: `agents/plan-cache-adapter.md` (Slice C).
 - Pipeline-state reader: `hooks/_lib/pipeline-state-paths.sh::_psp_find_active_pipelines`.
 - Project-hash fallback idiom: `hooks/observation-capture.sh:30-38`.
-- Verdict row: `rules/verdict-catalog.md` (`PLAN_CACHE_MISS`).
+- Verdict rows: `rules/verdict-catalog.md` (`PLAN_CACHE_MISS`, `PLAN_CACHE_HIT`).
