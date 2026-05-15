@@ -63,6 +63,16 @@ is_learning_jsonl_append() {
 
 is_learning_jsonl_append "$COMMAND" && exit 0
 
+# Freshness-gate evidence writes are orchestrator-state, not source. Mirror
+# is_learning_jsonl_append's shape: detect a path-pattern bypass for
+# pipeline-state/*/verification-evidence.json (regular + workstream layouts).
+# Iron Law 6: orchestrator must be able to refresh a stale stub in-cycle.
+is_evidence_json_write() {
+    [[ "$1" =~ /pipeline-state/[^[:space:]\'\"]*/verification-evidence\.json([[:space:]\'\"]|$) ]]
+}
+
+is_evidence_json_write "$COMMAND" && exit 0
+
 # Pattern detectors — each returns 0 if it matches a write-to-protected-file.
 # Protected extensions: .json, .sh, .yaml, .yml. The trailing class
 # `([^a-zA-Z0-9]|$)` prevents `.json` from matching as a substring of `.jsonl`,
