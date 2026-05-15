@@ -46,7 +46,16 @@ for the Path-B disclosure.
 
 ## Plan Phase Dispatch
 
-Plan phase has two stages when the heavy plan-validation gate applies (`critical == true OR Budget >= 7`). Below the heavy threshold, skip Stage 1 (recon) — the overhead is not justified for small tasks — and dispatch only Stage 2 (architect).
+Plan phase has up to three stages: Stage 0 (cache lookup) on every pipeline, Stage 1 (recon) when the heavy plan-validation gate applies (`critical == true OR Budget >= 7`), Stage 2 (architect) whenever Stage 0 emits MISS. Below the heavy threshold, skip Stage 1 — the recon overhead is not justified for small tasks — and dispatch only Stage 2. On `PLAN_CACHE_HIT`, skip both Stage 1 and Stage 2 — proceed directly to Plan Validation.
+
+### Stage 0: Plan Cache Lookup
+
+Invoke `skills/plan-cache-lookup/SKILL.md` BEFORE recon or architect dispatch. The skill computes the cache key `(task_class, repo_hash, tier, critical)` and emits one of:
+
+- `PLAN_CACHE_HIT` — the Haiku adapter (driven from the skill on `mode=on`) has written `pipeline-state/{task-id}/plan.md` with `cache_hit: true` in its frontmatter and the resume-safety stub `pipeline-state/{task-id}/architect-context.md` (plan.md § Slice slice-c AC C8). Skip Stages 1 and 2 — proceed directly to Plan Validation.
+- `PLAN_CACHE_MISS` — `reason ∈ {no-template, disabled, shadow-mode, adapter-rejected, ...}`. Fall through to Stage 1 (when the heavy gate applies) and Stage 2. Iron Law 6: `adapter-rejected` falls through in this same pipeline; never deferred.
+
+The skill is callable as a single subagent dispatch from the orchestrator; no Agent spawn required for the MISS path. The HIT path internally spawns the `plan-cache-adapter` agent (model: haiku) per the skill body's `## HIT Path Dispatch` section. `CLAUDE_PLAN_CACHE_MODE` defaults to `off` until Slice F flips it to `shadow`, so any partial-merge before F is safe-by-default (mode resolver short-circuits to MISS reason=disabled).
 
 ### Stage 1: Pre-Architect Recon (heavy gate only)
 
@@ -131,7 +140,7 @@ CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
 })
 ```
 
-When recon ran, the architect's plan citations should reflect the recon findings — codebase precedents, fragile areas, prior challenger findings the architect now knows about. The Plan Validation challengers will detect a hollow `architect-context.md` (architect did not Read it) by checking whether plan citations align with recon findings; misalignment is a HIGH finding on Artifact 2.
+When recon ran, the architect's plan citations should reflect the recon findings — codebase precedents, fragile areas, prior challenger findings the architect now knows about. The Plan Validation challengers will detect a hollow `architect-context.md` (architect did not Read it) by checking whether plan citations align with recon findings; misalignment is a HIGH finding on Artifact 2. **Cache-HIT exception (Domain D7)**: when `pipeline-state/{task-id}/plan.md` frontmatter contains `cache_hit: true`, challengers MUST skip the citation-alignment check — the HIT path bypassed recon by design and writes a stub `architect-context.md` (slice-c AC C8); applying the alignment grader to a stub would force a false HIGH finding on every cache hit.
 
 ## Plan Validation Phase Dispatch (Autonomous Mode)
 
