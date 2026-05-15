@@ -72,7 +72,7 @@ Before changing code:
 
 ### Step 2: Make the targeted fix
 
-1. Edit the cited file(s). Stay within the scope of the finding.
+1. Edit the cited file(s). Stay within the scope of the finding. Edits to existing files emit as a **unified diff applicable via `git apply`** (Aider udiff method, https://aider.chat/docs/unified-diffs.html); the **Write tool is reserved for net-new files**. Hunks MUST NOT contain `...` or `TODO: add` placeholders. Before commit, `git apply --check <patch>` MUST pass.
 2. Run the test suite to confirm the fix doesn't regress anything.
 3. Run the type checker / linter relevant to the file.
 4. Re-read every file you touched to verify shape constraints (8-line methods, 50-line files, CC ≤ 5, nesting ≤ 2 — `protocols/engineering-invariants.md`).
@@ -104,6 +104,8 @@ When the trigger fires:
 - **Do NOT** attempt sed / awk / heredoc workarounds against `.json`/`.sh` files (blocked by `bash-write-guard.sh`).
 - **Do NOT** keep retrying the same Edit call — the rejection is at permission-system level, not a transient race.
 - **Do NOT** silently switch to a different tool (Write↔Edit) hoping the rule is tool-specific — it isn't.
+
+**Note**: udiff is the normal Build edit format. The structured `{file_path, old_string, new_string}` triple below is the orchestrator-apply escape hatch only — do not collapse them.
 
 Instead, return verdict `ORCHESTRATOR_APPLY_REQUIRED` with a structured edit payload the orchestrator can apply via its `.md`-allowed pathway (the orchestrator can Edit `.md` and config files directly through its own Edit calls). Output format:
 

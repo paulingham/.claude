@@ -83,6 +83,19 @@ Follow the ATDD Protocol in `protocols/atdd-procedure.md`:
 
 **Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN. See `protocols/atdd-procedure.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
 
+### Step 2.5: Edit Format (unified diff for existing files)
+
+Build agents emit **all edits to existing files as unified-diff hunks** applicable via `git apply`. Inspired by Aider's udiff method (https://aider.chat/docs/unified-diffs.html) — the udiff format reduces lazy / placeholder edits by anchoring every change to a verbatim context window.
+
+Contract:
+
+- **Edits to existing files**: emit a unified diff. Before commit, `git apply --check <patch>` MUST pass — if it fails, the hunks are corrupt and the edit is rejected.
+- **Write tool reserved for net-new files only.** Do NOT use Write to overwrite an existing file; use a udiff hunk instead. (NotebookEdit applies to `.ipynb` Jupyter notebooks per existing tooling; udiff applies to text source files only.)
+- **Encoding**: patches MUST be UTF-8, LF line endings, no BOM.
+- **No placeholders.** Hunks MUST NOT contain `...` placeholders or `TODO: add ...` comments. The diff is the change — never abbreviated, never elided.
+
+This step is contract-only; the actual hunk authoring happens inside Step 2 (IMPLEMENT CLEANLY) and Step 4b (refinement). Step 2.5 names the format so reviewers and the patch-critic can reject non-conforming edits up front.
+
 ### Step 2b: Adversarial Test Categories (greenfield ACs default-on, refactor slices env-gated)
 
 After Step 2's IMPLEMENT step lands GREEN and BEFORE the MUTATION GATE finalises, generate adversarial tests that probe edge cases the architect's stubs do not cover. Adversarials are AC-adjacent edge probes — they belong AFTER architect stubs are GREEN, not before. Inspired by AlphaCodium (arXiv 2401.08500) test-iteration loop.
@@ -250,6 +263,7 @@ Before declaring the build complete:
 - [ ] Step 1d ran (PBT_AUTHORED or PBT_SKIPPED), OR was skipped per `CLAUDE_PBT=0`
 - [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `protocols/e2e-protocol.md` trigger matrix)
 - [ ] If `/tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries
+- [ ] Patches for edits-to-existing-files apply cleanly via `git apply --check`.
 
 ## Worktree Isolation
 

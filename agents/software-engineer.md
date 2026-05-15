@@ -72,6 +72,7 @@ Follow shape constraints and all standards in `protocols/engineering-invariants.
 - Working code with passing tests
 - Clear commit messages explaining the "why"
 - Each slice independently deployable and testable
+- **Edit format**: edits to existing files emit as **unified diff applicable via `git apply`** (Aider udiff method, https://aider.chat/docs/unified-diffs.html). **Write tool reserved for net-new files** — never use Write to overwrite an existing file. Hunks MUST NOT contain `...` or `TODO: add` placeholders; the diff is the change.
 
 ## Rationalization Red Flags
 
