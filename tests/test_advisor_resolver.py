@@ -16,6 +16,12 @@ from pathlib import Path
 import advisor_resolver
 from advisor_resolver import parse_frontmatter, resolve
 
+try:
+    from advisor_resolver import resolve_model_conditional, advisor_none_to_python_none
+except ImportError:  # not yet implemented — RED phase
+    resolve_model_conditional = None
+    advisor_none_to_python_none = None
+
 RESOLVER_SCRIPT = Path(__file__).resolve().parents[1] / "hooks" / "_lib" / "resolve-advisor.py"
 HOOK = Path(__file__).resolve().parents[1] / "hooks" / "pre-agent-advisor.sh"
 
@@ -416,6 +422,154 @@ class ProvisionalMarkingPresentAtEveryDocTouchpoint(unittest.TestCase):
             wider = "\n".join(lines[max(0, idx - 10):idx + 11])
             self.assertIn("advisor-baseline", wider,
                           f"{path.name}:{idx+1}: cost figure missing advisor-baseline reference within 10 lines")
+
+
+class TestModelConditionalSchemaDoc(unittest.TestCase):
+    """Slice A AC-A1: advisor-mode.md documents the model_conditional schema."""
+
+    def test_model_conditional_schema_section_in_advisor_mode_md(self):
+        path = Path(__file__).resolve().parents[1] / "protocols" / "advisor-mode.md"
+        body = path.read_text()
+        self.assertIn("## model_conditional Schema", body,
+                      "advisor-mode.md missing '## model_conditional Schema' heading")
+        # 5 frontmatter field names
+        for field in ("default", "rules", "when", "budget_lt", "status"):
+            self.assertIn(field, body,
+                          f"advisor-mode.md schema section missing field: {field}")
+        # 4-source resolver enum
+        for src in ("no-conditional", "no-budget", "rule-match:budget_lt:", "default-arm"):
+            self.assertIn(src, body,
+                          f"advisor-mode.md missing resolver source: {src}")
+        # Reference to resolver function
+        self.assertIn("resolve_model_conditional", body,
+                      "advisor-mode.md missing reference to resolve_model_conditional")
+        self.assertIn("hooks/_lib/advisor_resolver.py", body,
+                      "advisor-mode.md missing resolver file path reference")
+
+
+_TOP_LEVEL_TRIPLE_ONLY = {
+    "model": "opus",
+    "executor": "claude-sonnet-4-6",
+    "advisor": "claude-opus-4-7",
+}
+
+_FRONTMATTER_WITH_CONDITIONAL = {
+    "model": "opus",
+    "executor": "claude-sonnet-4-6",
+    "advisor": "claude-opus-4-7",
+    "model_conditional": {
+        "default": {
+            "model": "opus",
+            "executor": "claude-sonnet-4-6",
+            "advisor": "claude-opus-4-7",
+        },
+        "rules": [
+            {
+                "when": {"budget_lt": 6},
+                "model": "sonnet",
+                "executor": "claude-sonnet-4-6",
+                "advisor": "none",
+            },
+        ],
+        "status": "advisory",
+    },
+}
+
+
+class ResolveModelConditionalReturnsTopLevelWhenNoBlock(unittest.TestCase):
+    def test_resolve_model_conditional_returns_top_level_when_no_block(self):
+        result = resolve_model_conditional(_TOP_LEVEL_TRIPLE_ONLY, budget=5)
+        self.assertEqual(result["source"], "no-conditional")
+        self.assertEqual(result["model"], "opus")
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+
+
+class ResolveModelConditionalBudget5ReturnsSonnetSolo(unittest.TestCase):
+    def test_resolve_model_conditional_budget_5_returns_sonnet_solo(self):
+        result = resolve_model_conditional(_FRONTMATTER_WITH_CONDITIONAL, budget=5)
+        self.assertEqual(result["source"], "rule-match:budget_lt:6")
+        self.assertEqual(result["model"], "sonnet")
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "none")
+
+
+class ResolveModelConditionalBudget6ReturnsDefaultArm(unittest.TestCase):
+    def test_resolve_model_conditional_budget_6_returns_default_arm(self):
+        """CB=6 must NOT match budget_lt:6 (strictly-less semantics).
+        Kills the budget < budget_lt -> budget <= budget_lt mutation
+        flagged by verify Tier 3 at advisor_resolver.py:64."""
+        result = resolve_model_conditional(_FRONTMATTER_WITH_CONDITIONAL, budget=6)
+        self.assertEqual(result["source"], "default-arm")
+        self.assertEqual(result["model"], "opus")
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+
+
+class ResolveModelConditionalBudget8ReturnsDefaultArm(unittest.TestCase):
+    def test_resolve_model_conditional_budget_8_returns_default_arm(self):
+        result = resolve_model_conditional(_FRONTMATTER_WITH_CONDITIONAL, budget=8)
+        self.assertEqual(result["source"], "default-arm")
+        self.assertEqual(result["model"], "opus")
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+
+
+class ResolveModelConditionalNoBudgetReturnsDefaultArm(unittest.TestCase):
+    def test_resolve_model_conditional_no_budget_returns_default_arm(self):
+        result = resolve_model_conditional(_FRONTMATTER_WITH_CONDITIONAL, budget=None)
+        self.assertEqual(result["source"], "no-budget")
+        self.assertEqual(result["model"], "opus")
+        self.assertEqual(result["executor"], "claude-sonnet-4-6")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+
+
+class ResolveModelConditionalIsPure(unittest.TestCase):
+    def test_resolve_model_conditional_is_pure(self):
+        source = inspect.getsource(resolve_model_conditional)
+        self.assertNotIn("open(", source)
+        self.assertNotIn("subprocess", source)
+        self.assertNotIn("os.environ", source)
+
+
+class AdvisorNoneLiteralTranslatesToPythonNone(unittest.TestCase):
+    def test_advisor_none_literal_translates_to_python_none(self):
+        self.assertIsNone(advisor_none_to_python_none("none"))
+        self.assertEqual(
+            advisor_none_to_python_none("claude-opus-4-7"), "claude-opus-4-7")
+        self.assertIsNone(advisor_none_to_python_none(None))
+
+
+class TestCodeReviewerFrontmatterModelConditional(unittest.TestCase):
+    """Slice B AC-B1/B2/B3: code-reviewer.md gets model_conditional block,
+    existing top-level triple preserved, status flag is structural."""
+
+    def _fm(self):
+        return _read_agent_frontmatter("code-reviewer")
+
+    def test_existing_triple_preserved_and_model_conditional_present(self):
+        fm = self._fm()
+        self.assertEqual(fm["model"], "opus")
+        self.assertEqual(fm["executor"], "claude-sonnet-4-6")
+        self.assertEqual(fm["advisor"], "claude-opus-4-7")
+        self.assertIn("model_conditional", fm,
+                      "code-reviewer.md missing model_conditional block")
+
+    def test_code_reviewer_model_conditional_resolves_cb_5_to_sonnet_solo(self):
+        result = resolve_model_conditional(self._fm(), budget=5)
+        self.assertEqual(result["model"], "sonnet")
+        self.assertEqual(result["advisor"], "none")
+        self.assertEqual(result["source"], "rule-match:budget_lt:6")
+
+    def test_code_reviewer_model_conditional_resolves_cb_8_to_default(self):
+        result = resolve_model_conditional(self._fm(), budget=8)
+        self.assertEqual(result["model"], "opus")
+        self.assertEqual(result["advisor"], "claude-opus-4-7")
+        self.assertEqual(result["source"], "default-arm")
+
+    def test_code_reviewer_status_flag_is_advisory_structural(self):
+        fm = self._fm()
+        self.assertEqual(fm["model_conditional"]["status"], "advisory")
 
 
 if __name__ == "__main__":
