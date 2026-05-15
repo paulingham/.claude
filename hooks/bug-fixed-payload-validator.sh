@@ -18,6 +18,20 @@ TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript // .stop_transcript // ""' 2>/de
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null || echo unknown)
 TASK_ID=$(echo "$INPUT" | jq -r '.task_id // "unknown"' 2>/dev/null || echo unknown)
 
+# Path-safety: strict allow-list. Reject anything outside [A-Za-z0-9._-].
+# Prevents traversal (`../etc/...`) through SESSION_ID / TASK_ID into the
+# JSONL path and `mkdir -p` target.
+sanitize_id() {
+  local raw="$1"
+  if [[ "$raw" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    printf '%s' "$raw"
+  else
+    printf 'unknown'
+  fi
+}
+SESSION_ID=$(sanitize_id "$SESSION_ID")
+TASK_ID=$(sanitize_id "$TASK_ID")
+
 MODE="${CLAUDE_BUGFIX_VALIDATOR_MODE:-log}"
 METRICS_DIR="${CLAUDE_METRICS_DIR:-${HOME}/.claude/metrics}"
 JSONL="$METRICS_DIR/$SESSION_ID/bug-fixed-payload.jsonl"

@@ -49,6 +49,10 @@ _bfpv_emit_jsonl() {
   mkdir -p "$(dirname "$file")" 2>/dev/null || return 0
   local ts
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  printf '{"timestamp":"%s","task_id":"%s","payload_shape":"%s","action":"%s"}\n' \
-    "$ts" "$task_id" "$shape" "$action" >> "$file" 2>/dev/null || true
+  # Build via jq so values containing `"` or newlines are JSON-escaped, not
+  # injected raw into the JSONL stream.
+  jq -cn \
+    --arg ts "$ts" --arg task_id "$task_id" --arg shape "$shape" --arg action "$action" \
+    '{timestamp:$ts,task_id:$task_id,payload_shape:$shape,action:$action}' \
+    >> "$file" 2>/dev/null || true
 }
