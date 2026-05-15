@@ -17,9 +17,14 @@ import os
 import sys
 
 
+_PERSONA_TAIL_ANCHOR = {
+    "name": "persona-tail",
+    "status": "advisory",
+    "ttl": "1h",
+    "reason": "promoted-slice-c-2026-05-15",
+}
+
 _DEFERRED_ANCHORS = [
-    {"name": "persona-tail", "status": "deferred",
-     "reason": "persona-marker-deferred"},
     {"name": "protocol-tail", "status": "deferred",
      "reason": "protocol-splice-not-implemented"},
     {"name": "tool-result-tail", "status": "deferred",
@@ -61,7 +66,11 @@ def _decision(payload: dict) -> str:
 
 def main() -> int:
     payload = _payload()
-    resolved = {"anchors": [_rules_core_anchor(), *_DEFERRED_ANCHORS]}
+    resolved = {
+        "anchors": [_rules_core_anchor(), _PERSONA_TAIL_ANCHOR,
+                    *_DEFERRED_ANCHORS],
+        "cache_flag": True,
+    }
     sys.stdout.write(f"{_decision(payload)}\n{json.dumps(resolved)}\n")
     return 0
 

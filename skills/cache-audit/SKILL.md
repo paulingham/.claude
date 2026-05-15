@@ -34,7 +34,7 @@ Numbered steps. Concrete commands.
 The below-target threshold is a single named constant:
 
 ```
-READ_RATIO_TARGET = 0.60
+READ_RATIO_TARGET = 0.65
 ```
 
 This value is the single source of truth — the report renders this exact value in the threshold sentence. To raise or lower the target, edit this constant and the test fixture in `tests/test_cache_audit_read_ratio_target_constant.py`.
@@ -63,7 +63,7 @@ Sections (in order):
 
 1. `## Session Read Ratio Summary` — overall median and 90th-percentile read_ratio across all sessions; total token volume read vs. created.
 2. `## Per-Agent Read Ratio` — table with columns `agent_role | sessions | median read_ratio | cache_read tokens | cache_create tokens`.
-3. `## Below-Target Sessions` — sessions below `READ_RATIO_TARGET`. Render the threshold sentence verbatim with the literal target value: e.g. *"Sessions below 0.60 read_ratio target (the harness's `READ_RATIO_TARGET`):"*.
+3. `## Below-Target Sessions` — sessions below `READ_RATIO_TARGET`. Render the threshold sentence verbatim with the literal target value: e.g. *"Sessions below 0.65 read_ratio target (the harness's `READ_RATIO_TARGET`):"*. The harness operates a staged-flip policy: `cache-flip-gate` skill evaluates 30-day P50 read_ratio; only when its verdict is `CACHE_FLIP_GATE_PASS` does the operator raise this constant further.
 4. `## Notes` — disclosure of deferred anchors, harness shipping status, and known unmeasured surfaces (see § Disclosure below).
 
 ### Step 5: Emit verdict
@@ -77,20 +77,36 @@ Always `CACHE_AUDIT_READY` on success. Failures (no cache.jsonl files found, emp
 
 ## Disclosure
 
-The `## Notes` section MUST disclose the prompt-caching breakpoint work's deferred surfaces. The hook `hooks/cache-breakpoint-injector.sh` is Path-B advisory at v2.1.140 — it computes resolved anchors but does not mutate `tool_input.prompt`. Three of four anchors are deferred at the harness layer; the surviving `rules-core-tail` anchor is itself blocked by an orchestrator-side splice gap.
+The `## Notes` section MUST disclose the prompt-caching breakpoint work's deferred surfaces. The hook `hooks/cache-breakpoint-injector.sh` is Path-B advisory at v2.1.140 — it computes resolved anchors but does not mutate `tool_input.prompt`. As of Slice C (2026-05-15), `persona-tail` is promoted to advisory; two anchors remain deferred.
 
 Verbatim disclosure paragraph for the `## Notes` section (the aggregator MUST copy this paragraph into rendered reports):
 
-> Prompt-caching breakpoint coverage is partial at v2.1.140. Three anchors are
+> Prompt-caching breakpoint coverage is partial at v2.1.140. Two anchors are
 > deferred by reason enum (matching `_lib/resolve-cache-breakpoints.py` payload):
-> `persona-marker-deferred` (persona-tail anchor — orchestrator-side persona splice
-> required), `protocol-splice-not-implemented` (protocol-tail anchor — no
-> systematic protocol-body splice into spawn prompts), and
+> `protocol-splice-not-implemented` (protocol-tail anchor — no systematic
+> protocol-body splice into spawn prompts), and
 > `outside-hook-surface-v2.1.140` (tool-result-tail anchor — `messages[]` not
-> exposed to hook envelope). Even after the `modified_tool_input` schema flip
-> lands, `rules-core-tail` produces no cache reads until orchestrator-side splice
-> of `rules/core.md` into `tool_input.prompt` lands (tracked as follow-up
+> exposed to hook envelope). The `persona-tail` anchor was promoted from
+> deferred to advisory in Slice C (2026-05-15). Even after the
+> `modified_tool_input` schema flip lands, `rules-core-tail` produces no cache
+> reads until orchestrator-side splice of `rules/core.md` into
+> `tool_input.prompt` lands (tracked as follow-up
 > `prompt-caching-rules-core-splice`).
+
+## Small-agent skip list
+
+Three agents have preludes below the API minimum cacheable size (4096 tokens)
+and are exempt from prompt-cache breakpoint enforcement. Verified empirically
+2026-05-15: each agent's `agents/<name>.md` source is well under the 4096-token
+floor.
+
+- `planning-agent` (~1.4K tokens)
+- `sandbox-verify-engineer` (~1.3K tokens)
+- `vlm-critic` (~1.9K tokens)
+
+The hook MAY skip cache-flag emission for these agents; the audit report MUST
+exclude them from `## Below-Target Sessions` so their absent cache reads do
+not depress the per-agent read_ratio.
 
 ## Output Format
 
@@ -116,7 +132,7 @@ Range: last 30 days. Files scanned: 47. Records processed: 1,234.
 | architect | 12 | 0.62 | 400,000 | 100,000 |
 
 ## Below-Target Sessions
-Sessions below 0.60 read_ratio target (the harness's `READ_RATIO_TARGET`):
+Sessions below 0.65 read_ratio target (the harness's `READ_RATIO_TARGET`):
 | session_id | median read_ratio | spawns |
 |---|---|---|
 | abc12345 | 0.42 | 6 |
@@ -129,7 +145,7 @@ Sessions below 0.60 read_ratio target (the harness's `READ_RATIO_TARGET`):
 ## Safeguards
 
 - **Advisory only.** Never modifies agent configs, never changes routing.
-- **Threshold single-source.** `READ_RATIO_TARGET` is defined once in this skill at value 0.60 (see § Step 1). Updates land here, run tests, ship.
+- **Threshold single-source.** `READ_RATIO_TARGET` is defined once in this skill at value 0.65 (see § Step 1). Updates land here, run tests, ship.
 - **Graceful on missing data.** Empty `metrics/` directories produce a report with the empty-state notes — never an exception. The skill still emits `CACHE_AUDIT_READY` on the empty-metrics path.
 
 ## Verdict
