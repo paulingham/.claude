@@ -33,7 +33,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `BUILD_FAILED` | failure | `build-implementation` | build | Halt; user escalation or re-dispatch |
 | `REFACTOR_COMPLETE` | success | `refactor` | build | `/code-review` + `/security-review` |
 | `REFACTOR_FAILED` | failure | `refactor` | build | Halt; user escalation |
-| `BUG_FIXED` | success | `bug-fix` | build | `/code-review` + `/security-review` — payload MUST include `reproducer_artifact: <path>` pointing at the AssertFlip Step 0 test (arXiv 2507.17542); verdict without this field is rejected as incomplete |
+| `BUG_FIXED` | success | `bug-fix` | build | `/code-review` + `/security-review` — payload MUST include `reproducer_artifact:` as a mapping with required keys `{path, red_evidence, green_evidence}` per AssertFlip Step 0 (arXiv 2507.17542). `red_evidence` captures the failing assertion (pre-fix RED state); `green_evidence` captures the passing assertion (post-fix). Verdict without all three keys is rejected by `hooks/bug-fixed-payload-validator.sh`. Single-string `<path>` form retained ONLY during DUAL_PATH soak (log-only 30d → warn 60d → strict — soak-end TBD). |
 | `BUG_UNRESOLVED` | failure | `bug-fix` | build | Halt; user escalation with hypothesis log |
 | `TOOL_SYNTHESISED` | info | `tool-synthesis` | build | Build agent uses the scratch tool, deletes after use |
 | `TOOL_SYNTHESISED_PROMOTABLE` | info | `tool-synthesis` | build | Same as TOOL_SYNTHESISED + flagged as reusable across pipelines; `/learn` counts cross-pipeline recurrences and scaffolds a permanent skill on the third hit (human review gate) |
