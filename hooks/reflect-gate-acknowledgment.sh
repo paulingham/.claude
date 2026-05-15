@@ -24,7 +24,10 @@ DIR="${1:-$HOME/.claude/metrics/$SESSION/reflect-tokens}"
 python3 - "$DIR" <<'PY'
 import json, os, re, sys
 d = sys.argv[1]
+_ANSI_CSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 _CTRL = re.compile(r"[\x00-\x1f\x7f]")
+def _scrub(s: str) -> str:
+    return _CTRL.sub("", _ANSI_CSI.sub("", s))
 blockers, errors = [], []
 for name in sorted(os.listdir(d)):
     if not name.endswith(".json"):
@@ -38,7 +41,7 @@ for name in sorted(os.listdir(d)):
         continue
     if t.get("acknowledged") is not True:
         did = t.get("deviation_id", name)
-        rationale = _CTRL.sub("", t.get("rationale", ""))[:80] if t.get("rationale") else ""
+        rationale = _scrub(t.get("rationale", ""))[:80] if t.get("rationale") else ""
         blockers.append((did, rationale))
 if errors:
     sys.stderr.write("[Reflect gate] BLOCKED: malformed token file(s):\n")
