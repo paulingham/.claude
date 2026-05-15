@@ -171,6 +171,29 @@ Range: last 30 days. Files scanned: 47. Records processed: 12,394.
 - 14 records lacked `task_id` (excluded from per-pipeline view; included in agent totals).
 ```
 
+## Rate-Version Dual-Accept Window (slice-A migration rollback)
+
+The opus-4-7 → opus-4-5-20251101 model migration bumps the `rate_version`
+token on emitted records from `opus-4-7-2026-04` to `opus-4-5-2026-05`. For
+a **7-day window** post-merge, the aggregator MUST treat both tokens as the
+same population and sum their cost contributions together. Both rate_version
+values are billed using identical $/M rates (the 4-5 and legacy 4-7 entries
+in `PRICING_PER_MILLION` carry the same per-million rates), so the
+dual-accept policy is a name-tolerance rule, not a rate adjustment.
+
+Concretely:
+
+- During the dual-accept window, the aggregator filter accepts records where
+  `rate_version IN ('opus-4-7-2026-04', 'opus-4-5-2026-05')` and groups them
+  into a single bucket for total-spend, per-pipeline, and per-agent-role
+  aggregates.
+- After the window expires (merge_date + 7 days), the legacy token is no
+  longer expected in newly emitted records, but the pricing dict retains the
+  `claude-opus-4-7` key behind a `DEPRECATED-REMOVE-AFTER-2026-05-22`
+  marker so historical records continue to sum correctly.
+- The merge_date anchor is the slice-A merge commit; operators reading this
+  skill weeks later can treat the window as expired.
+
 ## Safeguards
 
 - **Advisory only.** Never modifies agent configs, never changes routing.

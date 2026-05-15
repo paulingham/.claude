@@ -22,14 +22,14 @@ class SeFrontmatterIsSonnet(unittest.TestCase):
     def test_software_engineer_executor_is_sonnet(self):
         fm = _frontmatter("software-engineer")
         self.assertEqual(fm.get("executor"), "claude-sonnet-4-6")
-        self.assertEqual(fm.get("advisor"), "claude-opus-4-7")
+        self.assertEqual(fm.get("advisor"), "claude-opus-4-5-20251101")
 
 
 class FeFrontmatterIsSonnet(unittest.TestCase):
     def test_frontend_engineer_executor_is_sonnet(self):
         fm = _frontmatter("frontend-engineer")
         self.assertEqual(fm.get("executor"), "claude-sonnet-4-6")
-        self.assertEqual(fm.get("advisor"), "claude-opus-4-7")
+        self.assertEqual(fm.get("advisor"), "claude-opus-4-5-20251101")
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ teardown() {
 }
 
 _realistic_payload() {
-  printf '{"subagent_type":"software-engineer","model":"claude-opus-4-7","usage":{"input_tokens":1000,"output_tokens":500,"cache_read_input_tokens":2000}}'
+  printf '{"subagent_type":"software-engineer","model":"claude-opus-4-5-20251101","usage":{"input_tokens":1000,"output_tokens":500,"cache_read_input_tokens":2000}}'
 }
 
 @test "T1 hook file exists and is executable" {
@@ -48,15 +48,15 @@ _realistic_payload() {
   [ -f "$COSTS" ]
   [ "$(wc -l < "$COSTS" | tr -d ' ')" = "1" ]
   grep -q '"agent_role":"software-engineer"' "$COSTS"
-  grep -q '"model":"claude-opus-4-7"' "$COSTS"
+  grep -q '"model":"claude-opus-4-5-20251101"' "$COSTS"
   grep -q '"input_tokens":1000' "$COSTS"
   grep -q '"output_tokens":500' "$COSTS"
   grep -q '"cached_tokens":2000' "$COSTS"
-  grep -q '"rate_version":"opus-4-7-2026-04"' "$COSTS"
+  grep -q '"rate_version":"opus-4-5-2026-05"' "$COSTS"
   grep -q '"session_id":"cf-test-' "$COSTS"
 }
 
-@test "T5 cost computed with Opus 4.7 rates: (i*5 + o*25 + c*0.5)/1e6" {
+@test "T5 cost computed with Opus 4.5 rates: (i*5 + o*25 + c*0.5)/1e6" {
   # 1000*5 + 500*25 + 2000*0.5 = 5000 + 12500 + 1000 = 18500
   # 18500 / 1_000_000 = 0.0185
   local input; input="$(_realistic_payload)"
@@ -155,6 +155,14 @@ _realistic_payload() {
       END { exit bad }
     ' "$f"
   done
+}
+
+@test "rate_version_bumped_to_opus_4_5" {
+  # Slice-A AC.3 — cost-feed.sh emits opus-4-5-2026-05 rate_version after migration.
+  local input; input="$(_realistic_payload)"
+  bash -c "echo '$input' | bash $HOOK"
+  [ -f "$COSTS" ]
+  grep -q '"rate_version":"opus-4-5-2026-05"' "$COSTS"
 }
 
 @test "T19 shellcheck clean" {

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Story 9 — emits the "## Eval Baseline" markdown section for a PR body.
-# Reads eval/baselines/latest-{model}.md (model defaults to opus-4-7).
+# Reads eval/baselines/latest-{model}.md (model defaults to opus-4-5).
 # If no baseline exists, emits a graceful stub. Output to stdout.
 set -eu
 SCORE_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/stamp-format.sh
 source "$SCORE_DIR/lib/stamp-format.sh"
 
-MODEL="opus-4-7"
+MODEL="opus-4-5"
 
 main() {
   _parse_args "$@"

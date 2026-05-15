@@ -28,7 +28,7 @@ class PatchCriticAgentDefinition(unittest.TestCase):
     def test_advisor_pairing_sonnet_executor_opus_advisor(self):
         text = AGENT_MD.read_text()
         self.assertIn("executor: claude-sonnet-4-6", text)
-        self.assertIn("advisor: claude-opus-4-7", text)
+        self.assertIn("advisor: claude-opus-4-5-20251101", text)
 
     def test_read_only_tool_surface(self):
         text = AGENT_MD.read_text()

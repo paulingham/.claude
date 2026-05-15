@@ -28,8 +28,12 @@ files:
   - tests/test_cost_estimator_opus_4_5.py
   - tests/test_cost_estimator.py
   - tests/test_advisor_resolver.py
+  - tests/test_cost_estimator_e2e.py
+  - tests/test_cost_report_dual_rate_version.py
   # Dual-accept rollback comment in cost_estimator pricing dict (DEPRECATED-REMOVE-AFTER-2026-05-22).
   - hooks/_lib/cost_estimator.py
+  # Cost-report SKILL declares the 7-day dual-accept window — references both rate_version tokens by name.
+  - skills/cost-report/SKILL.md
 
 prose_tokens_in_file:
   CLAUDE.md:

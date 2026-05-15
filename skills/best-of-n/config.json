@@ -4,9 +4,9 @@
   "max_candidates": 3,
   "default_roster": [
     {
-      "slug": "opus-47",
+      "slug": "opus-45",
       "provider": "anthropic",
-      "model_id": "claude-opus-4-7",
+      "model_id": "claude-opus-4-5-20251101",
       "agent_model_param": "opus",
       "tier": "frontier",
       "cost_per_mtok_input": 5,

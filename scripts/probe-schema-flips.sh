@@ -197,7 +197,7 @@ ADVISOR_PRESENT_PAYLOAD='{
     "subagent_type": "code-reviewer",
     "description": "schema-flip probe (present)",
     "prompt": "probe",
-    "advisor": "claude-opus-4-7"
+    "advisor": "claude-opus-4-5-20251101"
   }
 }'
 

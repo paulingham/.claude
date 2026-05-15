@@ -396,7 +396,7 @@ constant. The orchestrator resolves it at spawn time by walking three
 precedence layers, top-down — the first match wins:
 
 1. **`CLAUDE_FORCE_OPUS=1` env override** — if the env var is set to `"1"`
-   in the orchestrator shell, the resolver returns `claude-opus-4-7`
+   in the orchestrator shell, the resolver returns `claude-opus-4-5-20251101`
    regardless of the agent's declared `executor:` field. This is the
    operator escape hatch for spawns requiring monolithic Opus reasoning
    (architecturally complex slices, ambiguous spec interpretation, recovery
@@ -404,7 +404,7 @@ precedence layers, top-down — the first match wins:
 2. **`prefer_opus: true` instinct match** — when an instinct file in
    `learning/{project-hash}/instincts/*.md` carries `prefer_opus: true` and
    the instinct's `roles:` set intersects the spawning agent's expanded
-   `instinct_categories`, the resolver returns `claude-opus-4-7` for that
+   `instinct_categories`, the resolver returns `claude-opus-4-5-20251101` for that
    spawn. Trigger: `/learn` is expected to set `prefer_opus: true` when ≥3
    pipelines in the same project show a Sonnet executor requiring ≥2 review
    rounds. **Not yet implemented — orchestrator reader deferred to the next learning slice. Manually-authored instincts may set the flag, but the orchestrator does not yet consume it.**

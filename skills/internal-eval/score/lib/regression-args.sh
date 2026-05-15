@@ -6,7 +6,7 @@ parse_regression_args() {
   while [ $# -gt 0 ]; do _consume_reg "$@"; shift $CONSUMED; done
   [ -n "$RUN_ID" ] || { echo "[diff-vs-baseline] --run-id required" >&2; exit 2; }
   [ -n "$BASELINE" ] && return 0
-  BASELINE="$PWD/eval/baselines/latest-opus-4-7.md"
+  BASELINE="$PWD/eval/baselines/latest-opus-4-5.md"
 }
 
 _consume_reg() {

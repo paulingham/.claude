@@ -42,7 +42,7 @@ class FixEngineerRouting(unittest.TestCase):
         fm = _parse_frontmatter(FIX_ENGINEER_PATH)
         self.assertEqual(fm.get("name"), "fix-engineer")
         self.assertEqual(fm.get("model"), "opus")
-        self.assertEqual(fm.get("executor"), "claude-opus-4-7")
+        self.assertEqual(fm.get("executor"), "claude-opus-4-5-20251101")
         self.assertEqual(fm.get("advisor"), "none")
         cats = fm.get("instinct_categories")
         self.assertIsInstance(cats, list, "instinct_categories must be a list")

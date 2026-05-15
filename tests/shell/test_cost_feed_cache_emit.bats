@@ -22,7 +22,7 @@ teardown() {
 }
 
 @test "cost-feed.sh emits metrics/{session}/cache.jsonl with required fields when usage block carries cache_read_input_tokens" {
-  local input='{"subagent_type":"software-engineer","model":"claude-opus-4-7","usage":{"input_tokens":1000,"output_tokens":500,"cache_read_input_tokens":2000,"cache_creation_input_tokens":300}}'
+  local input='{"subagent_type":"software-engineer","model":"claude-opus-4-5-20251101","usage":{"input_tokens":1000,"output_tokens":500,"cache_read_input_tokens":2000,"cache_creation_input_tokens":300}}'
   run bash -c "echo '$input' | bash $HOOK"
   [ "$status" -eq 0 ]
   [ -f "$CACHE" ]
@@ -46,7 +46,7 @@ teardown() {
 
 @test "cost-feed.sh emits cache.jsonl record for pure cache-hit (cache_read>0, cache_create=0, input=0)" {
   # Subagent-summary cache-fix path: fully cache-hit responses.
-  local input='{"subagent_type":"software-engineer","model":"claude-opus-4-7","usage":{"input_tokens":0,"output_tokens":50,"cache_read_input_tokens":5000,"cache_creation_input_tokens":0}}'
+  local input='{"subagent_type":"software-engineer","model":"claude-opus-4-5-20251101","usage":{"input_tokens":0,"output_tokens":50,"cache_read_input_tokens":5000,"cache_creation_input_tokens":0}}'
   run bash -c "echo '$input' | bash $HOOK"
   [ "$status" -eq 0 ]
   [ -f "$CACHE" ]
@@ -55,7 +55,7 @@ teardown() {
 }
 
 @test "cost-feed.sh still writes global costs.jsonl alongside per-session cache.jsonl (hybrid producer)" {
-  local input='{"subagent_type":"software-engineer","model":"claude-opus-4-7","usage":{"input_tokens":1000,"output_tokens":500,"cache_read_input_tokens":2000,"cache_creation_input_tokens":300}}'
+  local input='{"subagent_type":"software-engineer","model":"claude-opus-4-5-20251101","usage":{"input_tokens":1000,"output_tokens":500,"cache_read_input_tokens":2000,"cache_creation_input_tokens":300}}'
   run bash -c "echo '$input' | bash $HOOK"
   [ "$status" -eq 0 ]
   [ -f "$TMP/.claude/metrics/costs.jsonl" ]

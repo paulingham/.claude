@@ -75,7 +75,7 @@ class AgentFrontmatterMatchesSpec(unittest.TestCase):
     def test_model_and_executor_advisor(self):
         self.assertIsNotNone(re.search(r"^model:\s*sonnet\s*$", self.text, re.MULTILINE), "model: sonnet missing")
         self.assertIsNotNone(re.search(r"^executor:\s*claude-sonnet-4-6\s*$", self.text, re.MULTILINE), "executor missing")
-        self.assertIsNotNone(re.search(r"^advisor:\s*claude-opus-4-7\s*$", self.text, re.MULTILINE), "advisor missing")
+        self.assertIsNotNone(re.search(r"^advisor:\s*claude-opus-4-5-20251101\s*$", self.text, re.MULTILINE), "advisor missing")
 
     def test_instinct_categories_includes_qa_and_self(self):
         self.assertIsNotNone(re.search(r"^\s*-\s*qa-engineer\s*$", self.text, re.MULTILINE), "qa-engineer missing from instinct_categories")

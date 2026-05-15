@@ -9,7 +9,7 @@ agent: code-reviewer
 
 ## Advisor Mode (Sonnet executor + Opus advisor)
 
-**Pairing**: code-reviewer ships with `executor: claude-sonnet-4-6` and `advisor: claude-opus-4-7` in its frontmatter. Sonnet drives the review (cheap, fast, large-context-friendly), Opus is consulted for design-judgement calls.
+**Pairing**: code-reviewer ships with `executor: claude-sonnet-4-6` and `advisor: claude-opus-4-5-20251101` in its frontmatter. Sonnet drives the review (cheap, fast, large-context-friendly), Opus is consulted for design-judgement calls.
 
 **Status**: This is the **intended default** — currently advisory because the Agent input schema does not yet expose `advisor`. Will become the enforced default the moment the schema lands. Until then, the `pre-agent-advisor.sh` PreToolUse hook logs the would-be pairing to `metrics/{session}/advisor-dispatch.jsonl` for observability; no spawn is blocked, no model is downgraded.
 

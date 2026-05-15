@@ -1,10 +1,10 @@
-# Advisor-Mode Reviews (Opus 4.7)
+# Advisor-Mode Reviews (Opus 4.5)
 
 Detail prose for the Advisor-Mode Reviews mechanism — the Sonnet-executor + Opus-advisor pairing for `code-reviewer` and `security-engineer`. CLAUDE.md keeps only a pointer.
 
 ## Mechanism
 
-`code-reviewer` and `security-engineer` ship with `executor: claude-sonnet-4-6` + `advisor: claude-opus-4-7` in their frontmatter. Sonnet drives the review, Opus is consulted on judgement calls. This is the **intended default** for review work — review pairings remain **advisory at v2.1.140** because the `advisor:` field is **not yet schema-exposed** on the Agent tool input.
+`code-reviewer` and `security-engineer` ship with `executor: claude-sonnet-4-6` + `advisor: claude-opus-4-5-20251101` in their frontmatter. Sonnet drives the review, Opus is consulted on judgement calls. This is the **intended default** for review work — review pairings remain **advisory at v2.1.140** because the `advisor:` field is **not yet schema-exposed** on the Agent tool input.
 
 ## Status (v2.1.140)
 

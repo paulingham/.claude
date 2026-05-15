@@ -15,7 +15,7 @@ Verdict gates Ship. PATCH_REJECTED returns to fix-engineer per `protocols/pipeli
 
 ## Advisor Mode (Sonnet executor + Opus advisor)
 
-**Pairing**: patch-critic ships with `executor: claude-sonnet-4-6` and `advisor: claude-opus-4-7` in its frontmatter, matching the Wave 1 D1 advisor-tool default for review-style roles. Sonnet drives the rubric scan (cheap, fast, large-diff-friendly); Opus is consulted on regression-or-refactor judgement calls.
+**Pairing**: patch-critic ships with `executor: claude-sonnet-4-6` and `advisor: claude-opus-4-5-20251101` in its frontmatter, matching the Wave 1 D1 advisor-tool default for review-style roles. Sonnet drives the rubric scan (cheap, fast, large-diff-friendly); Opus is consulted on regression-or-refactor judgement calls.
 
 **Status**: Intended default — currently advisory because the Agent input schema does not yet expose `advisor`. The `pre-agent-advisor.sh` PreToolUse hook logs the would-be pairing to `metrics/{session}/advisor-dispatch.jsonl`. Same Path-B status as `/code-review` and `/security-review`.
 

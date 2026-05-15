@@ -211,7 +211,7 @@ class CodeReviewerHasAdvisorPairing(unittest.TestCase):
     def test_code_reviewer_has_advisor_pairing(self):
         fm = _read_agent_frontmatter("code-reviewer")
         self.assertEqual(fm["executor"], "claude-sonnet-4-6")
-        self.assertEqual(fm["advisor"], "claude-opus-4-7")
+        self.assertEqual(fm["advisor"], "claude-opus-4-5-20251101")
         self.assertEqual(fm["model"], "opus", "model: opus must be UNCHANGED")
 
 
@@ -219,7 +219,7 @@ class SecurityEngineerHasAdvisorPairing(unittest.TestCase):
     def test_security_engineer_has_advisor_pairing(self):
         fm = _read_agent_frontmatter("security-engineer")
         self.assertEqual(fm["executor"], "claude-sonnet-4-6")
-        self.assertEqual(fm["advisor"], "claude-opus-4-7")
+        self.assertEqual(fm["advisor"], "claude-opus-4-5-20251101")
         self.assertEqual(fm["model"], "opus", "model: opus must be UNCHANGED")
 
 
@@ -551,7 +551,7 @@ class TestCodeReviewerFrontmatterModelConditional(unittest.TestCase):
         fm = self._fm()
         self.assertEqual(fm["model"], "opus")
         self.assertEqual(fm["executor"], "claude-sonnet-4-6")
-        self.assertEqual(fm["advisor"], "claude-opus-4-7")
+        self.assertEqual(fm["advisor"], "claude-opus-4-5-20251101")
         self.assertIn("model_conditional", fm,
                       "code-reviewer.md missing model_conditional block")
 
@@ -564,8 +564,21 @@ class TestCodeReviewerFrontmatterModelConditional(unittest.TestCase):
     def test_code_reviewer_model_conditional_resolves_cb_8_to_default(self):
         result = resolve_model_conditional(self._fm(), budget=8)
         self.assertEqual(result["model"], "opus")
-        self.assertEqual(result["advisor"], "claude-opus-4-7")
+        self.assertEqual(result["advisor"], "claude-opus-4-5-20251101")
         self.assertEqual(result["source"], "default-arm")
+
+    def test_model_conditional_arms_use_4_5(self):
+        """Slice-A AC.2 — both arms of code-reviewer's model_conditional resolve to 4-5."""
+        # Default arm (budget >= 6): advisor pairing → opus 4-5.
+        default_arm = resolve_model_conditional(self._fm(), budget=6)
+        self.assertEqual(default_arm["advisor"], "claude-opus-4-5-20251101",
+                         "default arm advisor must be claude-opus-4-5-20251101")
+        # Sonnet-solo arm (budget < 6): advisor is `none` (no opus pairing) —
+        # this is the no-opus path and there is no opus id to verify, but the
+        # resolver must NOT regress to the legacy id by accident.
+        solo_arm = resolve_model_conditional(self._fm(), budget=5)
+        self.assertNotEqual(solo_arm.get("advisor"), "claude-opus-4-7",
+                            "sonnet-solo arm must NOT carry the legacy 4-7 id")
 
     def test_code_reviewer_status_flag_is_advisory_structural(self):
         fm = self._fm()

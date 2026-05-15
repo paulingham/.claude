@@ -62,25 +62,25 @@ seed_cell_mixed() {
 # 1) qa-engineer / feature: downgrade opus → sonnet
 #    opus: 12 obs, 10 clean + 2 rounds=2 rework=false, cost $0.60 each
 #    sonnet: 12 obs, all clean rework=false, cost $0.15 each
-seed_cell_mixed "qa-engineer" "claude-opus-4-7" "feature" 12 "0.60" 1 "false" 2 2 "false"
+seed_cell_mixed "qa-engineer" "claude-opus-4-5-20251101" "feature" 12 "0.60" 1 "false" 2 2 "false"
 seed_cell        "qa-engineer" "claude-sonnet-4-6" "feature" 12 "0.15" 1 "false"
 
 # 2) architect / feature: would otherwise be downgrade — must be LOCKED
-seed_cell "architect" "claude-opus-4-7"     "feature" 12 "0.80" 1 "false"
+seed_cell "architect" "claude-opus-4-5-20251101"     "feature" 12 "0.80" 1 "false"
 seed_cell "architect" "claude-sonnet-4-6"   "feature" 12 "0.10" 1 "false"
 
 # 3) security-engineer / feature: would otherwise be downgrade — must be LOCKED
-seed_cell "security-engineer" "claude-opus-4-7"   "feature" 12 "0.80" 1 "false"
+seed_cell "security-engineer" "claude-opus-4-5-20251101"   "feature" 12 "0.80" 1 "false"
 seed_cell "security-engineer" "claude-sonnet-4-6" "feature" 12 "0.10" 1 "false"
 
 # 4) code-reviewer / bug: insufficient data (5 + 5)
-seed_cell "code-reviewer" "claude-opus-4-7"   "bug" 5 "0.50" 1 "false"
+seed_cell "code-reviewer" "claude-opus-4-5-20251101"   "bug" 5 "0.50" 1 "false"
 seed_cell "code-reviewer" "claude-sonnet-4-6" "bug" 5 "0.20" 1 "false"
 
 # 5) software-engineer / refactor: no-change (sonnet not cheap enough)
 #    opus: 12 obs cost $0.60/pipeline, sonnet: 12 obs cost $0.45/pipeline
 #    both success ~0.90, but 0.45 is not < 0.6 * 0.60 = 0.36 → NO CHANGE
-seed_cell "software-engineer" "claude-opus-4-7"   "refactor" 12 "0.60" 1 "false"
+seed_cell "software-engineer" "claude-opus-4-5-20251101"   "refactor" 12 "0.60" 1 "false"
 seed_cell "software-engineer" "claude-sonnet-4-6" "refactor" 12 "0.45" 1 "false"
 
 # ---- Run analyser ----------------------------------------------------------
