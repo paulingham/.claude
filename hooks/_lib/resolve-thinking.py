@@ -31,10 +31,34 @@ def _decision(payload):
     return "SKIP" if "thinking" in (payload.get("tool_input") or {}) else "LOG"
 
 
+_BETA_HEADER_TOKEN = "effort-2025-11-24"
+
+
+def _augment_wire_fields(resolved, tool_input):
+    """Add `beta_header` and `api_effort` to the resolved record.
+
+    `beta_header` is OMITTED entirely (key not present) when the role
+    layer downgrades the spawn to `effort=low` — these roles opt out of
+    extended-thinking capability and emitting the header would request
+    capability they explicitly decline. `api_effort` mirrors the
+    resolved effort for downstream consumers.
+
+    See `protocols/thinking-defaults.md` § Beta header for the rationale.
+    """
+    effort = resolved.get("effort")
+    source = resolved.get("source")
+    resolved["api_effort"] = effort
+    role_disables_effort = effort == "low" and source == "role"
+    if not role_disables_effort:
+        resolved["beta_header"] = _BETA_HEADER_TOKEN
+    return resolved
+
+
 def main():
     payload = _payload()
     tool_input = payload.get("tool_input") or {}
     resolved = resolve(tool_input=tool_input, env=os.environ, state=read_active_state())
+    resolved = _augment_wire_fields(resolved, tool_input)
     sys.stdout.write(f"{_decision(payload)}\n{json.dumps(resolved)}\n")
 
 
