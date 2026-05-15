@@ -32,6 +32,8 @@ def _is_exempt(path: pathlib.Path, lineno: int, line: str, allow: dict) -> bool:
     for prefix in allow.get("paths", []) or []:
         if rel.startswith(prefix.rstrip("/") + "/") or rel == prefix.rstrip("/"):
             return True
+    if rel in (allow.get("files", []) or []):
+        return True
     prose_map = allow.get("prose_tokens_in_file", {}) or {}
     for token in prose_map.get(rel, []) or []:
         if token in line:

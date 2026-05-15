@@ -19,11 +19,25 @@ paths:
   - protocols/_proposals/
   - session-memory/
   - pipeline-state/
+  - tests/_fixtures/
+
+files:
+  # Test-infrastructure files that intentionally reference the legacy token
+  # (residual-sweep regex test, dual-accept window cost test, advisor test fixtures).
+  - tests/test_no_residual_opus_4_7.py
+  - tests/test_cost_estimator_opus_4_5.py
+  - tests/test_cost_estimator.py
+  - tests/test_advisor_resolver.py
+  # Dual-accept rollback comment in cost_estimator pricing dict (DEPRECATED-REMOVE-AFTER-2026-05-22).
+  - hooks/_lib/cost_estimator.py
 
 prose_tokens_in_file:
   CLAUDE.md:
     - "Postmortem note ("
     - "Default Opus model"
+    - "80% claim"
+    - "Thinking Defaults (Opus 4.7)"
+    - "Advisor-Mode Reviews (Opus 4.7)"
 
 inline_paragraphs:
   CLAUDE.md:
