@@ -9,5 +9,5 @@ Precedence chain at orchestrator spawn time:
 
 def resolve_executor(role, env, frontmatter):
     if env.get("CLAUDE_FORCE_OPUS") == "1":
-        return "claude-opus-4-7"
+        return "claude-opus-4-5-20251101"
     return frontmatter.get("executor")

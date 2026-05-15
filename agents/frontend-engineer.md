@@ -18,7 +18,7 @@ tools:
   - mcp_chrome_devtools_list_network_requests
 model: opus
 executor: claude-sonnet-4-6
-advisor: claude-opus-4-7
+advisor: claude-opus-4-5-20251101
 # advisor-rationale: Sonnet-default executor with Opus advisor. UI build engineering follows the deterministic ATDD cycle plus accessibility/design-quality checklists on Sonnet; advisor consulted on judgment calls (component composition tradeoffs, accessibility ambiguity, design-token decisions). Override with `CLAUDE_FORCE_OPUS=1` for spawns requiring monolithic Opus reasoning.
 maxTurns: 150
 parent: software-engineer

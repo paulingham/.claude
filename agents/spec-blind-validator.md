@@ -9,7 +9,7 @@ tools:
   - Glob
 model: sonnet
 executor: claude-sonnet-4-6
-advisor: claude-opus-4-7
+advisor: claude-opus-4-5-20251101
 # advisor-rationale: Sonnet drives the test-authoring loop (cheap, fast, deterministic against the AC list); Opus is consulted on judgement calls where the public surface under-specifies an AC. Same Path-B status as code-reviewer / security-engineer / patch-critic — currently advisory until the Agent input schema exposes `advisor`.
 memory: project
 maxTurns: 60

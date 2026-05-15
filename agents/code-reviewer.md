@@ -8,12 +8,12 @@ tools:
   - Bash
 model: opus
 executor: claude-sonnet-4-6
-advisor: claude-opus-4-7
+advisor: claude-opus-4-5-20251101
 model_conditional:
   default:
     model: opus
     executor: claude-sonnet-4-6
-    advisor: claude-opus-4-7
+    advisor: claude-opus-4-5-20251101
   rules:
     - when: { budget_lt: 6 }
       model: sonnet

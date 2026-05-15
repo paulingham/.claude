@@ -11,7 +11,7 @@ tools:
   - NotebookEdit
   - ToolSearch
 model: opus
-executor: claude-opus-4-7
+executor: claude-opus-4-5-20251101
 advisor: none
 # advisor-rationale: Opus-solo. Fix-cycle work is targeted and procedural — the cited finding plus the file diff fully scope the change. Advisor handoff would lengthen the review-loop tail without improving the outcome.
 maxTurns: 80

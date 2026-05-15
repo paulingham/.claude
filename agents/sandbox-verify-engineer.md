@@ -8,7 +8,7 @@ tools:
   - Bash
 model: sonnet
 executor: claude-sonnet-4-6
-advisor: claude-opus-4-7
+advisor: claude-opus-4-5-20251101
 memory: project
 maxTurns: 30
 instinct_categories:

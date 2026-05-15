@@ -9,7 +9,7 @@ tools:
   - Skill
 model: opus
 executor: claude-sonnet-4-6
-advisor: claude-opus-4-7
+advisor: claude-opus-4-5-20251101
 maxTurns: 40
 memory: project
 min_confidence: 0.5

@@ -6,7 +6,7 @@ tools:
   - Write
 model: sonnet
 executor: claude-sonnet-4-6
-advisor: claude-opus-4-7
+advisor: claude-opus-4-5-20251101
 # advisor-rationale: Sonnet drives the per-route image comparison loop (deterministic against a fixed PNG pair + structured-output template); Opus is consulted on judgement calls when the visual delta is semantically ambiguous (e.g. is a 2px button shift a regression or a deliberate redesign). Same Path-B status as code-reviewer / security-engineer / patch-critic / spec-blind-validator — currently advisory until the Agent input schema exposes `advisor`.
 memory: project
 maxTurns: 60

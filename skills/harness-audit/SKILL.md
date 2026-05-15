@@ -106,6 +106,27 @@ Validate every tool declared in agent frontmatter against a known catalog (Claud
 
 Verdict for this step: `TOOLS_VALID` if every tool resolves; otherwise list every flagged `(agent, tool, reason)` tuple.
 
+### 3c. Model Allowlist Validation
+
+Validate every agent frontmatter `model:`/`executor:`/`advisor:` value against the
+hard-coded allowlist in `hooks/_lib/model_allowlist.py::_ALLOWED`.
+
+```bash
+python3 -c "
+import pathlib, sys
+sys.path.insert(0, 'hooks/_lib')
+import model_allowlist
+errors = model_allowlist.check(pathlib.Path.cwd())
+for token in errors:
+    print(token)
+sys.exit(1 if errors else 0)
+"
+```
+
+Verdict: zero output → pass. Any line beginning `unknown-model: <path>:<lineno>` is a
+flag — the offending agent frontmatter declares a model not on the allowlist. Update
+the allowlist (with code-review) OR fix the frontmatter; do not silence the audit.
+
 ### 4. settings.json Validity
 
 ```bash

@@ -41,7 +41,7 @@ COST=$(_cf_compute_cost "$I_TOK" "$O_TOK" "$C_TOK")
 METRICS_DIR="$HOME/.claude/metrics"
 mkdir -p "$METRICS_DIR" 2>/dev/null || exit 0
 
-jq -nc --arg ts "$TIMESTAMP" --arg sid "$SESSION_ID" --arg pid "$PIPELINE_ID" --arg role "$AGENT_ROLE" --arg model "$MODEL" --argjson cost "$COST" --argjson i "$I_TOK" --argjson o "$O_TOK" --argjson c "$C_TOK" '{timestamp:$ts,session_id:$sid,pipeline_id:$pid,agent_role:$role,model:$model,total_cost_usd:$cost,input_tokens:$i,output_tokens:$o,cached_tokens:$c,rate_version:"opus-4-7-2026-04"}' >> "$METRICS_DIR/costs.jsonl" 2>/dev/null || true
+jq -nc --arg ts "$TIMESTAMP" --arg sid "$SESSION_ID" --arg pid "$PIPELINE_ID" --arg role "$AGENT_ROLE" --arg model "$MODEL" --argjson cost "$COST" --argjson i "$I_TOK" --argjson o "$O_TOK" --argjson c "$C_TOK" '{timestamp:$ts,session_id:$sid,pipeline_id:$pid,agent_role:$role,model:$model,total_cost_usd:$cost,input_tokens:$i,output_tokens:$o,cached_tokens:$c,rate_version:"opus-4-5-2026-05"}' >> "$METRICS_DIR/costs.jsonl" 2>/dev/null || true
 
 python3 "${HOOK_DIR}/_lib/cache-jsonl-emit.py" "$HOME" "$SESSION_ID" "$TIMESTAMP" "$AGENT_ROLE" "$I_TOK" "$C_TOK" "$CC_TOK" 2>/dev/null || true
 exit 0

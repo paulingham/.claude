@@ -1,0 +1,30 @@
+# Postmortem allowlist — files/lines/prose tokens where `opus-4-7` / `Opus 4.7` MUST be preserved verbatim.
+#
+# This fixture is consumed by tests/test_no_residual_opus_4_7.py and (transitively) by the
+# harness-audit model_allowlist check. Historical record must survive any future model rename.
+#
+# Schema:
+#   paths:              list of path prefixes; everything under these trees is exempt entirely
+#   prose_tokens_in_file:
+#                       file -> list of substrings; lines containing any such substring are exempt
+#   inline_paragraphs:  file -> list of "L<start>-<end>" ranges; lines in these ranges are exempt
+#
+# Decision rules:
+#   - A token is "exempt" if (a) the file lives under any `paths:` prefix, OR
+#                            (b) the offending line in that file contains any `prose_tokens_in_file` token, OR
+#                            (c) the offending line falls within any `inline_paragraphs` range.
+#   - Otherwise the token must migrate to `opus-4-5-20251101` / `Opus 4.5` per slice-a.
+
+paths:
+  - protocols/_proposals/
+  - session-memory/
+  - pipeline-state/
+
+prose_tokens_in_file:
+  CLAUDE.md:
+    - "Postmortem note ("
+    - "Default Opus model"
+
+inline_paragraphs:
+  CLAUDE.md:
+    - L43-49

@@ -5,15 +5,19 @@ Sums per-call cost from `tool-timings.jsonl`-shaped records. Used by the
 attach a dollar figure to pipeline activity.
 
 Pricing source-of-truth (per-million tokens, USD), as published by Anthropic
-on the model pricing pages (claude-opus-4-7 GA 2026-04-16). Rates verified
-against https://www.anthropic.com/pricing on 2026-05-04. To update: edit the
-PRICING_PER_MILLION dict at module top, run the test suite, ship.
+on the model pricing pages (claude-opus-4-5-20251101 GA 2025-11-24). Rates
+verified against https://www.anthropic.com/pricing on 2026-05-15. To update:
+edit the PRICING_PER_MILLION dict at module top, run the test suite, ship.
 
 | Model                           | Input $/M | Output $/M | Cache-read $/M |
 |---------------------------------|-----------|------------|----------------|
-| claude-opus-4-7                 | 5.00      | 25.00      | 0.50           |
+| claude-opus-4-5-20251101        | 5.00      | 25.00      | 0.50           |
 | claude-sonnet-4-6               | 3.00      | 15.00      | 0.30           |
 | claude-haiku-4-5-20251001       | 0.80      | 4.00       | 0.08           |
+
+Legacy ``claude-opus-4-7`` key retained for a 7-day dual-accept window
+(DEPRECATED-REMOVE-AFTER-2026-05-22) so the ``/cost-report`` aggregator can
+sum records emitted before the rate_version flip.
 
 Cache-read tokens are billed at 0.10x the input rate (Anthropic prompt-cache
 convention). Cache-creation tokens are billed at the regular input rate.
@@ -33,6 +37,12 @@ from typing import Iterable
 # Pricing in USD per 1,000,000 tokens. Single source of truth — DRY.
 # Cache-read rate is 0.10 * input rate per Anthropic's prompt-cache pricing.
 PRICING_PER_MILLION = {
+    "claude-opus-4-5-20251101": {
+        "input": 5.00, "output": 25.00, "cache_read": 0.50,
+    },
+    # DEPRECATED-REMOVE-AFTER-2026-05-22 — dual-accept window for rate_version
+    # rollback. Aggregator must still sum opus-4-7 records emitted before the
+    # opus-4-5-2026-05 flip. Drop this key after the 7-day window expires.
     "claude-opus-4-7": {
         "input": 5.00, "output": 25.00, "cache_read": 0.50,
     },
