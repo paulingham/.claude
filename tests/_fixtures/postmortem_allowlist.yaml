@@ -38,7 +38,6 @@ files:
 prose_tokens_in_file:
   CLAUDE.md:
     - "Postmortem note ("
-    - "Default Opus model"
     - "80% claim"
     - "Thinking Defaults (Opus 4.7)"
     - "Advisor-Mode Reviews (Opus 4.7)"
