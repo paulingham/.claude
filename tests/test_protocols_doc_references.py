@@ -1,6 +1,7 @@
 """Protocols documentation reference tests (LOW consolidation per plan r2).
 
 Consolidates Slice B and Slice C doc-string assertions into a single file.
+
 Slice B contributes:
   - B.3 (escalated): `protocols/thinking-defaults.md` documents the beta
     header as a consumer-outside-repo escalation AND notes the in-tree wire
@@ -8,12 +9,20 @@ Slice B contributes:
   - B.1 (named deviation): the same doc carries a "Named deviation: high
     floor preserved on review/critic/architect" subsection.
 
-Slice C will extend this file later (skipped now per single-slice scope).
+Slice C contributes:
+  - C.3 (escalated): `protocols/cost-discipline.md` documents the SDK flag
+    deferral as a consumer-outside-repo escalation AND references the
+    in-tree wire emission shipped.
+
+NOTE: This file is owned by both Slice B and Slice C — both slices append a
+literal escalation token to a different protocol doc. The integration branch
+keeps both test classes (they are independent doc-prose-reference assertions).
 """
 import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+COST_DISCIPLINE = REPO_ROOT / "protocols" / "cost-discipline.md"
 
 
 class BetaHeaderConsumerOutsideRepoDocumented(unittest.TestCase):
@@ -47,6 +56,19 @@ class NamedDeviationHighFloorDocumented(unittest.TestCase):
             "review/critic/architect",
             body,
             "Missing named-deviation subsection literal")
+
+
+class SdkFlagDeferralDocumented(unittest.TestCase):
+    def test_sdk_flag_consumer_outside_repo_documented(self):
+        text = COST_DISCIPLINE.read_text()
+        self.assertIn(
+            "SDK flag — consumer outside repo", text,
+            "protocols/cost-discipline.md must document the SDK flag deferral "
+            "with literal token `SDK flag — consumer outside repo`")
+        self.assertIn(
+            "in-tree wire emission shipped", text,
+            "protocols/cost-discipline.md must reference in-tree wire "
+            "emission with literal token `in-tree wire emission shipped`")
 
 
 if __name__ == "__main__":
