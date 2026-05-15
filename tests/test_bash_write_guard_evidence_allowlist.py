@@ -131,6 +131,28 @@ class BashWriteGuardStillBlocksSettingsJson(unittest.TestCase):
             f"other pipeline-state json must still block; stderr={r.stderr}",
         )
 
+    def test_evidence_json_bak_suffix_blocked(self):
+        """Regex anchor regression guard: verification-evidence.json.bak must
+        NOT match the allowlist (mirrors orchestrator-discipline.sh suite).
+        The asymmetry between the two hooks would otherwise let .bak through
+        bash-write-guard while orchestrator-discipline blocks it."""
+        bak = "/abs/path/pipeline-state/some-task/verification-evidence.json.bak"
+        r = _run(f"python3 -c \"open('{bak}', 'w')\"")
+        self.assertEqual(
+            r.returncode, 2,
+            f"evidence .json.bak must still block; stderr={r.stderr}",
+        )
+
+    def test_evidence_json_tmp_suffix_blocked(self):
+        """Regex anchor regression guard: verification-evidence.json.tmp must
+        NOT match the allowlist."""
+        tmp = "/abs/path/pipeline-state/some-task/verification-evidence.json.tmp"
+        r = _run(f"python3 -c \"open('{tmp}', 'w')\"")
+        self.assertEqual(
+            r.returncode, 2,
+            f"evidence .json.tmp must still block; stderr={r.stderr}",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

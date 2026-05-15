@@ -68,7 +68,7 @@ is_learning_jsonl_append "$COMMAND" && exit 0
 # pipeline-state/*/verification-evidence.json (regular + workstream layouts).
 # Iron Law 6: orchestrator must be able to refresh a stale stub in-cycle.
 is_evidence_json_write() {
-    [[ "$1" =~ /pipeline-state/[^[:space:]\'\"]*/verification-evidence\.json([^a-zA-Z0-9]|$) ]]
+    [[ "$1" =~ /pipeline-state/[^[:space:]\'\"]*/verification-evidence\.json([[:space:]\'\"]|$) ]]
 }
 
 is_evidence_json_write "$COMMAND" && exit 0
