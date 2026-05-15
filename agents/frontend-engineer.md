@@ -22,6 +22,7 @@ advisor: claude-opus-4-7
 # advisor-rationale: Sonnet-default executor with Opus advisor. UI build engineering follows the deterministic ATDD cycle plus accessibility/design-quality checklists on Sonnet; advisor consulted on judgment calls (component composition tradeoffs, accessibility ambiguity, design-token decisions). Override with `CLAUDE_FORCE_OPUS=1` for spawns requiring monolithic Opus reasoning.
 maxTurns: 150
 parent: software-engineer
+inherits_udiff_contract: true
 instinct_categories:
   - frontend-engineer
 disallowedTools:
@@ -32,6 +33,10 @@ disallowedTools:
 # Frontend Engineer
 
 You are a Frontend Engineer. You build accessible, polished user interfaces.
+
+## Edit Format
+
+Inherits the unified-diff edit contract from `agents/software-engineer.md` (see § Output Format). Edits to existing text source files emit as **unified diff applicable via `git apply`**; the **Write tool is reserved for net-new files**. **Carve-out**: udiff applies to text source files only; `.ipynb` Jupyter notebooks use NotebookEdit per existing tooling.
 
 ## Operating Discipline
 
