@@ -60,7 +60,7 @@ teardown "$T"
 T=$(setup_tmp)
 printf '{"deviation_id":"esc","acknowledged":false,"rationale":"test\\u001b[31mred\\u001b[0m"}' > "$T/esc.json"
 out=$("$SCRIPT" "$T" 2>&1); rc=$?
-if [[ $rc -eq 1 && "$out" == *"testredred"* ]] && ! printf '%s' "$out" | grep -q $'\x1b'; then
+if [[ $rc -eq 1 && "$out" == *"testred"* && "$out" != *"[31m"* && "$out" != *"[0m"* ]] && ! printf '%s' "$out" | grep -q $'\x1b'; then
   pass "rationale escape stripping: ANSI removed from stderr"
 else
   fail "rationale escape stripping: rc=$rc out=$(printf '%s' "$out" | cat -v)"
