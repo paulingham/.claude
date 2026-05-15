@@ -139,7 +139,7 @@ Sessions below 0.65 read_ratio target (the harness's `READ_RATIO_TARGET`):
 
 ## Notes
 - 4 records had unknown agent_role (bucketed as `unattributed`).
-- Prompt-caching breakpoint coverage is partial at v2.1.140. Three anchors are deferred by reason enum (matching `_lib/resolve-cache-breakpoints.py` payload): `persona-marker-deferred` (persona-tail anchor — orchestrator-side persona splice required), `protocol-splice-not-implemented` (protocol-tail anchor — no systematic protocol-body splice into spawn prompts), and `outside-hook-surface-v2.1.140` (tool-result-tail anchor — `messages[]` not exposed to hook envelope). Even after the `modified_tool_input` schema flip lands, `rules-core-tail` produces no cache reads until orchestrator-side splice of `rules/core.md` into `tool_input.prompt` lands (tracked as follow-up `prompt-caching-rules-core-splice`).
+- Prompt-caching breakpoint coverage is partial at v2.1.140. Two anchors are deferred by reason enum (`protocol-splice-not-implemented` for protocol-tail; `outside-hook-surface-v2.1.140` for tool-result-tail). The `persona-tail` anchor was promoted from deferred to advisory in Slice C (2026-05-15). Even after the `modified_tool_input` schema flip lands, `rules-core-tail` produces no cache reads until orchestrator-side splice of `rules/core.md` into `tool_input.prompt` lands (tracked as follow-up `prompt-caching-rules-core-splice`).
 ```
 
 ## Safeguards
