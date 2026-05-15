@@ -33,6 +33,11 @@ is_path_allow_listed() {
     # not source code. Both regular and workstream layouts are covered by the
     # single regex: any `.token` under any `pipeline-state/` directory.
     [[ "$1" =~ /pipeline-state/.*\.token$ ]] && return 0
+    # Freshness-gate evidence files are orchestrator-state, not source.
+    # Allow refresh of stale stubs in-cycle per Iron Law 6 (regular +
+    # workstream layouts both match via the `.*` between pipeline-state
+    # and the filename). `$` anchor prevents `.json.bak` from sneaking in.
+    [[ "$1" =~ /pipeline-state/.*/verification-evidence\.json$ ]] && return 0
     # Subagent worktrees: only spawned agents write here. The harness does not
     # reliably populate subagent_type on PreToolUse stdin in every flow, and
     # the CWD fallback below fires from the main session CWD — so without this
