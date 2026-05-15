@@ -428,11 +428,15 @@ class SourceFieldReportsWinningLayer(unittest.TestCase):
 
 class DowngradeListMatchesAgentFrontmatter(unittest.TestCase):
     """Pins `_DOWNGRADE_TO_HIGH ∪ _DOWNGRADE_TO_LOW` to exactly the seven
-    Sonnet-executor agent files that remain on a downgrade after the May 2026
-    Opus 4.7 floor change. `software-engineer` and `frontend-engineer` were
-    REMOVED from this set — they now ride the unconditional rule-3a promotion
-    to xhigh (see `PromoteToXhighListMatchesAgentFrontmatter`). Drift in either
-    direction still fails CI.
+    agent files that remain on an effort downgrade after the May 2026 Opus
+    4.7 floor change. Six of these (the `_DOWNGRADE_TO_HIGH` set) are
+    Sonnet-executor agents on the `high` floor. `planning-agent` is the
+    sole `_DOWNGRADE_TO_LOW` entry; it was demoted to Haiku in slice-C of
+    the 2026-05 model-demotion pass (its effort downgrade is unchanged —
+    only the executor flipped). `software-engineer` and `frontend-engineer`
+    were REMOVED from this set — they now ride the unconditional rule-3a
+    promotion to xhigh (see `PromoteToXhighListMatchesAgentFrontmatter`).
+    Drift in either direction still fails CI.
     """
 
     EXPECTED_ROLES = {
@@ -440,6 +444,10 @@ class DowngradeListMatchesAgentFrontmatter(unittest.TestCase):
         "patch-critic", "database-engineer", "security-engineer",
         "planning-agent",
     }
+    # Sub-set that must still resolve to a Sonnet executor in frontmatter.
+    # planning-agent is excluded — it is the Haiku-locked exception per
+    # the 2026-05 slice-C demotion.
+    SONNET_EXECUTOR_ROLES = EXPECTED_ROLES - {"planning-agent"}
 
     def _frontmatter(self, role):
         path = REPO_ROOT / "agents" / f"{role}.md"
@@ -456,7 +464,7 @@ class DowngradeListMatchesAgentFrontmatter(unittest.TestCase):
         return bool(model) and "sonnet" in model.group(1).lower()
 
     def test_every_role_has_sonnet_executor(self):
-        for role in self.EXPECTED_ROLES:
+        for role in self.SONNET_EXECUTOR_ROLES:
             self.assertTrue(
                 self._is_sonnet_executor(role),
                 f"{role}: expected Sonnet executor (model or executor field)")

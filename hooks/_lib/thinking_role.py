@@ -31,8 +31,10 @@ _DOWNGRADE_TO_HIGH = frozenset({
     "patch-critic", "database-engineer", "security-engineer",
 })
 
-# planning-agent runs a long-poll loop on Sonnet — xhigh per cycle is
-# pure waste. Source: agents/planning-agent.md `model: sonnet`.
+# planning-agent runs a long-poll loop on Haiku (slice-C demotion 2026-05)
+# — xhigh per cycle is pure waste. Source: agents/planning-agent.md
+# `model: haiku`. The effort downgrade is unchanged across the executor
+# flip; only the model frontmatter moved.
 _DOWNGRADE_TO_LOW = frozenset({"planning-agent"})
 
 

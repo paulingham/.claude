@@ -73,12 +73,14 @@ May 8 2026 subagent-summary cache fix delivers ~3× `cache_creation` reduction w
 | frontend-engineer | Build | Yes | sonnet | Yes |
 | database-engineer | Build | Yes | sonnet | Yes |
 | infrastructure-engineer | Build | Yes | opus | Yes |
-| planning-agent | Build (advisory) | No | sonnet | No |
-| code-reviewer | Review | No | opus | Yes |
+| planning-agent | Build (advisory) | No | haiku | No |
+| code-reviewer | Review | No | opus [1] | Yes |
 | security-engineer | Review | No | opus | No |
 | qa-engineer | Test | Yes | sonnet | Yes |
 | product-reviewer | Accept | No | sonnet | Yes |
 | patch-critic | Final Gate | No | sonnet | No |
+
+> `[1]` Sonnet-solo via `model_conditional` when `complexity_budget.total < 6`; Opus default arm with Sonnet-executor + Opus-advisor pairing otherwise. See `agents/code-reviewer.md` frontmatter and `hooks/_lib/advisor_resolver.py::resolve_model_conditional`.
 
 **Model self-tuning**: For tunable agents, the orchestrator checks `learning/instincts/` for model-efficiency instincts. If data shows Sonnet achieves identical outcomes for a phase/task-type, the model is downgraded. Architect and security-engineer are never downgraded (design and security decisions require highest capability). See `orchestrator/agent-orchestration.md` § Instinct Injection.
 

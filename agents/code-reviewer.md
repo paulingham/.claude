@@ -9,6 +9,17 @@ tools:
 model: opus
 executor: claude-sonnet-4-6
 advisor: claude-opus-4-7
+model_conditional:
+  default:
+    model: opus
+    executor: claude-sonnet-4-6
+    advisor: claude-opus-4-7
+  rules:
+    - when: { budget_lt: 6 }
+      model: sonnet
+      executor: claude-sonnet-4-6
+      advisor: none
+  status: advisory
 memory: project
 maxTurns: 40
 min_confidence: 0.5
