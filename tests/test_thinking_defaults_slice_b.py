@@ -28,11 +28,6 @@ class HighFloorForCodeReviewerSecurityArchitect(unittest.TestCase):
     deliberate edit to thinking_role.py + thinking_resolver.py fallback.
     """
 
-    def test_code_reviewer_in_downgrade_to_high_set(self):
-        from thinking_role import _DOWNGRADE_TO_HIGH
-        self.assertIn("code-reviewer", _DOWNGRADE_TO_HIGH)
-        self.assertIn("security-engineer", _DOWNGRADE_TO_HIGH)
-
     def test_code_reviewer_resolves_to_high_from_role_layer(self):
         result = resolve(
             tool_input={"subagent_type": "code-reviewer"},
