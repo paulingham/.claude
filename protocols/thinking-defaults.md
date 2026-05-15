@@ -143,6 +143,26 @@ Promotion-to-enforced is a single-file flip in `hooks/pre-agent-thinking.sh`
 once the per-spawn field lands in a future Claude Code release; the
 resolver, tests, and precedence rules are unchanged by that flip.
 
+A pre-merge empirical probe of `modified_tool_input` round-trip on the
+Agent matcher (`pipeline-state/promote-advisory-hooks-enforcement/probe-result.md`)
+returned **RED** on 2026-05-14: the probe could not be executed safely from
+inside the build subagent (registering it in `settings.json` would mutate
+the running harness's hook table), and documentary evidence at
+`protocols/thinking-defaults.md:101-110` confirms the per-spawn schema is
+still missing. Operator-run manual verification post-merge is required
+before considering a GREEN-branch flip.
+
+## Reversibility Escape
+
+Operators can disable the thinking gate per-session without editing the
+hook file by exporting `CLAUDE_DISABLE_THINKING_GATE=1`. The hook
+short-circuits to `exit 0` before invoking the resolver, so no
+`hook-injections.jsonl` line is appended for the affected spawns. This
+mirrors `CLAUDE_DISABLE_TOOL_ALLOWLIST` (see `hooks/pre-agent-allowlist.sh:20`)
+and is the canonical run-time rollback if a future enforcement flip
+denies a legitimate spawn. The variable is documented alongside the
+other PreToolUse Agent escapes in `CLAUDE.md` § Reversibility Escapes.
+
 ## Environment Variables
 
 | Variable | Effect |

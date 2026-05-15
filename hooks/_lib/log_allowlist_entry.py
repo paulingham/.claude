@@ -26,6 +26,11 @@ def build_entry(timestamp, payload, resolved):
 
 
 def attach_frontmatter(entry, resolved, frontmatter_tools):
-    if resolved.get("action") == "would_block" and frontmatter_tools is not None:
+    # Post-flip (Slice A 2026-05-14): the wrapper rewrites resolved.action
+    # from "would_block" → "blocked" before logging an enforced denial. The
+    # resolver still emits "would_block" if any direct caller (e.g. tests
+    # against resolve-tool-allowlist.py) routes around the wrapper. Accept
+    # both tokens so frontmatter_tools is attached in either flow.
+    if resolved.get("action") in ("would_block", "blocked") and frontmatter_tools is not None:
         entry["frontmatter_tools"] = frontmatter_tools[:_FIELD_CAP]
     return entry
