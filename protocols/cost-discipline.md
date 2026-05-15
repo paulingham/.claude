@@ -44,6 +44,12 @@ When the breakpoint work fully lands (schema flip + splice landing), drift in up
 - `metrics/{session}/*.jsonl` — per-session records of empirical measurements (cache hit/miss ratios, cache_creation/cache_read tokens, input/output tokens by role).
 - `hooks/cache-breakpoint-injector.sh` + `skills/cache-audit/SKILL.md` — the prompt-cache breakpoint surface; the hook emits per-spawn anchor decisions (`metrics/{session}/cache-injections.jsonl`) and `cost-feed.sh` emits per-spawn token reads (`metrics/{session}/cache.jsonl`). The skill aggregates both into the read-ratio report.
 
+## Slice C ESCALATION — SDK flag (2026-05-15)
+
+SDK flag — consumer outside repo. The `enablePromptCaching: true` annotation on the Agent SDK is the runtime-API consumer that signals cache_control breakpoint enforcement to Anthropic's API. The harness has zero SDK call sites in tree (per recon D3.2 of `pipeline-state/harness-opus-4-5-migration/architect-context.md`); the surface lives in the Claude Code binary / Agent SDK runtime, which is outside this repository.
+
+The in-tree wire emission shipped 2026-05-15 as part of Slice C: `hooks/_lib/resolve-cache-breakpoints.py` emits `cache_flag: true` in the resolved payload, and `hooks/cache-breakpoint-injector.sh` writes that token into `metrics/{session}/cache-injections.jsonl` via `log-injection.sh`. When the Agent SDK consumer lands, the wire-emission token is the signal it consults; until then the token is observable-only.
+
 ## See Also
 
 - `skills/cost-report/SKILL.md` — `/cost-report` skill invocation contract.

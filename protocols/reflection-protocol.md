@@ -132,6 +132,12 @@ This is advisory — the report is written to disk; no live config is changed. S
 
 Spawn a `session-memory-updater` agent (Agent tool, `subagent_type: session-memory-updater`, `run_in_background: true`) with curated engineering facts from this pipeline. See `rules/autonomous-intelligence.md` § Update Mechanism for the required prompt contents.
 
+### 6d-bis. Named Deviation Acknowledgment Gate
+
+Before cleanup, the orchestrator MUST invoke `hooks/reflect-gate-acknowledgment.sh`. The script scans `metrics/{session}/reflect-tokens/*.json` and exits 1 if any token has `acknowledged: false` (or is malformed). On non-zero exit, halt the Reflect step and surface the script's stderr verbatim — the operator must edit each token file to set `acknowledged: true`, then re-run `/pipeline-resume`. Exit 0 (silent) when no tokens exist or all are acknowledged; pipeline proceeds to 6d cleanup.
+
+This gate pairs with `hooks/reflect-token-emit.sh` (token writer, invoked during Build/Review when a named deviation is recorded). It enforces Iron Law 6 — operator-bearing deviations cannot drift past Reflect without explicit acknowledgment.
+
 ### 6d. Clean Up Scratchpad
 
 Delete BOTH the new-layout scratchpad subdir `pipeline-state/{task-id}/scratchpad/` AND any legacy `pipeline-state/{task-id}-scratchpad/` directory alongside the pipeline state files. During the DUAL_PATH soak, both forms may coexist — see `skills/pipeline/SKILL.md` § 7d for the canonical dual-form cleanup snippet (uses `_psp_phase_list` enumeration to avoid bare globs that would match prefix neighbours).

@@ -241,3 +241,62 @@ Downstream tooling reads `result["source"]` from the resolver — namely `/foren
 - `source=="claude-effort-env" AND effort in {"low","medium","high","xhigh"}` ⇒ Claude Code session effort env-var override (rule 2a fired). The `claude-effort-env` token is name-prefixed to disambiguate from rule 1's `env` token (`CLAUDE_THINKING_EFFORT`). See rule 2a in `## Precedence` for the naming rationale.
 
 The source field is intentionally NOT split into a fifth token (`role-promote` / `role-downgrade`) — adding one would invalidate every existing observation record without behavioural payoff. Future refactors may revisit if forensics needs the distinction at scale.
+
+## Beta header — consumer outside repo, in-tree wire emission shipped 2026-05-15
+
+The Anthropic `effort` parameter on adaptive thinking is gated server-side
+by the beta header `anthropic-beta: effort-2025-11-24`. The runtime
+consumer of that header — the Claude Code binary that constructs the API
+request — lives outside this repo, so flipping the header on every spawn
+is a Claude Code release task, not a harness task. Slice B (Opus 4.5
+migration) keeps that consumer change ESCALATED.
+
+What this slice ships **in-tree**: `hooks/pre-agent-thinking.sh` annotates
+`metrics/{session}/hook-injections.jsonl` with two new fields under
+`resolved`:
+
+- `resolved.beta_header` — the literal token `effort-2025-11-24` whenever
+  the resolved effort is effort-enabled (any role NOT in the role-disable
+  downgrade set whose effort floor is `low`). Absent (field not present,
+  not null) for `planning-agent` and any future role demoted to `low` via
+  rule 3b — these roles opt out of extended-thinking capability.
+- `resolved.api_effort` — mirrors the resolved effort (`low | medium |
+  high | xhigh`). The harness `xhigh` is the same wire value as `high` at
+  the API layer today; the field is present so downstream binary releases
+  can read a single field per spawn without re-resolving the role table.
+
+This is observable preparation work: the JSONL annotation lets us measure
+beta-header usage against pipeline outcomes BEFORE the Claude Code binary
+starts sending the header. When the binary release lands, the harness
+will already have weeks of `beta_header` annotations to cross-reference
+with cost and verdict data.
+
+## Named deviation: high floor preserved on review/critic/architect
+
+Slice B (Opus 4.5 migration) carried an operator AC that read "default
+medium, promote to high via `critical=true OR budget>=N`". Reality on
+this branch keeps the existing `high` floor for `code-reviewer`,
+`security-engineer`, and `architect`:
+
+- `code-reviewer` + `security-engineer` are pinned via the
+  `_DOWNGRADE_TO_HIGH` frozenset in `hooks/_lib/thinking_role.py`.
+- `architect` resolves to `high` via the rule 4 hardcoded fallback when
+  the xhigh gate (`critical=true OR budget>=6`) does not fire — it is
+  NOT in `_DOWNGRADE_TO_HIGH`, but the fallback floor produces the same
+  observable effort.
+
+**Why not lower to medium**: all three roles gate Iron Law surfaces.
+Reducing the floor is a quality regression with no offsetting cost win
+— these are review/critic/design spawns, dispatched once per phase, not
+parallel build fan-outs. The cost differential at `high` vs `medium` on
+a single Opus review spawn is small; the quality differential on a
+missed review finding is large.
+
+**Verification token**: the Reflect step writes
+`metrics/{session}/reflect-tokens/slice-b-high-floor-named-deviation.json`
+with initial `acknowledged: false`. The orchestrator's Reflect gate halts
+when an unacknowledged token is present — the operator flips it to
+`true` to acknowledge the named deviation, or rejects and the pipeline
+re-enters Plan. Emission is via `hooks/reflect-token-emit.sh`; the gate
+itself is `hooks/reflect-gate-acknowledgment.sh`, invoked at
+`protocols/reflection-protocol.md` § 6d-bis (before scratchpad cleanup).
