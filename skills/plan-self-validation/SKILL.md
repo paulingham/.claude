@@ -122,6 +122,34 @@ Tier: T{initial}->T{replanned}  (when ROUTING_UPSHIFTED)
 Next: Build (if APPROVED) | Architect revision (if HOLES) | Pipeline re-dispatch (if ROUTING_UPSHIFTED)
 ```
 
+### Step 5: Emit the [PlanValidationOutcome] marker (MANDATORY)
+
+After Step 4 writes the state file, the skill MUST emit one marker line on
+stdout so the slice-e plan-cache audit hook (`hooks/plan-cache-audit.sh`)
+can populate `pv_outcome` in `metrics/{session}/plan-cache.jsonl`. Without
+this marker, the slice-g rollout-gate skill's `pv_pass_rate_on_hit` stays 0
+in production and every flip-to-`on` PR is rejected.
+
+**Invocation** (architect MUST run this as the final action of the skill,
+exactly once, after Step 4):
+
+```bash
+"$CLAUDE_SKILL_DIR/plan-self-validation/_lib/emit_outcome.sh" <VERDICT>
+```
+
+where `<VERDICT>` is the same verdict written to `plan-validation.md` —
+one of `PLAN_APPROVED`, `PLAN_HOLES`, `ROUTING_UPSHIFTED`.
+
+**Marker shape (exact, do NOT paraphrase)**:
+
+```
+[PlanValidationOutcome] verdict: <VERDICT>
+```
+
+The slice-e regex (`hooks/plan-cache-audit.sh:30`) anchors on this exact
+form: square brackets, single space, lowercase `verdict:`, uppercase enum.
+Drift here breaks the consumer silently.
+
 ## Why a Skill, Not a Team
 
 The heavy challenger team (product-reviewer + software-engineer) is the right choice when criticality or budget makes a missed flaw expensive. For low-budget standard work, the architect's own structured re-read catches the same class of holes at a fraction of the cost. The rubric is the load-bearing piece — without it, self-validation becomes "I read it again and it looked fine," which is worthless.
