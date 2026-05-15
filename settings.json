@@ -1095,6 +1095,15 @@
               "exec \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/tdd-guard-stop.sh\""
             ],
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/bug-fixed-payload-validator.sh\""
+            ],
+            "timeout": 5000
           }
         ]
       },

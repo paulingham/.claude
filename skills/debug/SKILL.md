@@ -26,10 +26,10 @@ Before any hypothesis work, author a failing reproducer using the **AssertFlip**
 
 1. Write a *passing* test that captures the buggy code's current (wrong) behaviour.
 2. **Invert the assertions** so the test now fails on the bug.
-3. Run the suite once; confirm RED for the right reason (not import error, not fixture typo).
-4. Record the reproducer test path in the debug state file frontmatter as `reproducer_artifact: <path>` AND in the `### Environment Evidence` section.
+3. Run the suite once; confirm RED for the right reason (not import error, not fixture typo). Capture the RED output verbatim — it becomes `red_evidence` on the eventual BUG_FIXED payload. After the fix lands, the GREEN output becomes `green_evidence`.
+4. Record the reproducer mapping in the debug state file frontmatter as `reproducer_artifact: {path: <path>, red_evidence: <pre-fix output>, green_evidence: <post-fix output, filled at resolution>}` AND in the `### Environment Evidence` section.
 
-This artifact is a required field on the eventual `BUG_FIXED` (or `DEBUG_RESOLVED`) verdict payload. If a reproducer cannot be authored (e.g. bug only reproduces in a non-test environment), set `reproducer_artifact: env-only` and document why in the state file — this exemption is reviewed at resolution.
+This artifact is a required field on the eventual `BUG_FIXED` (or `DEBUG_RESOLVED`) verdict payload. BUG_FIXED requires the full mapping `{path, red_evidence, green_evidence}` (enforced by `hooks/bug-fixed-payload-validator.sh`). DEBUG_RESOLVED **retains the `env-only` carve-out**: if a reproducer cannot be authored (e.g. bug only reproduces in a non-test environment), set `reproducer_artifact: env-only` and document why in the state file — this exemption is reviewed at resolution and applies to DEBUG_RESOLVED only, never BUG_FIXED.
 
 AssertFlip eliminates the "test fails for the wrong reason" failure mode that ordinary RED-first authoring is prone to, especially in long debug loops where hypothesis churn produces brittle tests.
 
@@ -54,7 +54,7 @@ phase: debugging
 status: active
 created: {ISO 8601}
 updated: {ISO 8601}
-reproducer_artifact: {path/to/assertflip-test | env-only}
+reproducer_artifact: {path: <path/to/assertflip-test>, red_evidence: <pre-fix RED output>, green_evidence: <post-fix GREEN output>} | env-only  # env-only valid for DEBUG_RESOLVED only — BUG_FIXED requires the full mapping
 ---
 
 ## Debug: {bug description}
@@ -141,6 +141,6 @@ Next: If RESOLVED → resume pipeline from Review phase
       If ESCALATED → user decides next steps
       If ACTIVE → continue debugging loop
 State: pipeline-state/{task-id}/debug.md
-Reproducer artifact: <path/to/test | env-only> (REQUIRED on DEBUG_RESOLVED — Step 0 AssertFlip output)
+Reproducer artifact: <{path, red_evidence, green_evidence} | env-only> (REQUIRED on DEBUG_RESOLVED — Step 0 AssertFlip output; env-only valid only for DEBUG_RESOLVED, never BUG_FIXED)
 ```
 $ARGUMENTS
