@@ -26,6 +26,28 @@ source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/quality-gate-checks.sh"
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/quality-gate-pairing.sh"
 source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/jsonl-emit.sh"
 
+# Log-only advisory: empty CLAUDE_PIPELINE_TASK_ID corrupts cross-pipeline
+# state via the pipeline-state/unknown/ fallback at line 37 below. Emit a
+# would-block event + actionable stderr; promote to exit 2 after 14d soak
+# (see plan: fix-freshness-gate-fallback-corruption slice A).
+if [[ -z "${CLAUDE_PIPELINE_TASK_ID:-}" ]]; then
+  ADV_EVENTS=$(_qg_events_path)
+  mkdir -p "$(dirname "$ADV_EVENTS")"
+  _jsonl_emit "$ADV_EVENTS" source would-block-task-id task_id ""
+  cat >&2 <<'ADVISORY'
+ADVISORY: quality-gate freshness check requires CLAUDE_PIPELINE_TASK_ID to be set.
+Empty value triggers cross-pipeline state corruption via pipeline-state/unknown/.
+
+Fix options:
+  1. Set CLAUDE_PIPELINE_TASK_ID=<task-id> in your shell, OR
+  2. Re-run via /pipeline (Step 2c sets it automatically), OR
+  3. Refresh the stale stub yourself:
+     echo "{\"task_id\":\"unknown\",\"verdict\":\"VERIFIED\",\"git_head\":\"$(git rev-parse HEAD)\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"branch\":\"main\"}" > ~/.claude/pipeline-state/unknown/verification-evidence.json
+
+Soak: log-only for 14d (see feedback_freshness_gate_no_t1_carveout.md).
+ADVISORY
+fi
+
 RT=$(_qg_detect_runtime)
 ANY_FAILED=0
 for check in tests lint audit shape contract freshness; do
