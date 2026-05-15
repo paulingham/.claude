@@ -1,9 +1,14 @@
-"""Slice A AC-A9 — /cache-audit report's `## Notes` section discloses the 3
-deferred anchors by reason enum exactly matching resolver payload, AND
-discloses the missing orchestrator-side splice dependency for rules-core-tail.
+"""Slice A AC-A9 — /cache-audit report's `## Notes` section discloses the
+genuinely deferred anchors by reason enum exactly matching resolver payload,
+AND discloses the missing orchestrator-side splice dependency for rules-core-tail.
 
 Asserted against the SKILL.md `## Notes` section body — this is the canonical
 rendering template the aggregator copies verbatim.
+
+Updated in Slice C fix-cycle: the `persona-tail` anchor was promoted from
+deferred to advisory (2026-05-15), so the disclosure paragraph names only the
+two genuinely deferred reasons. The `persona-marker-deferred` enum is no
+longer in the resolver's deferred-payload list.
 """
 import re
 import unittest
@@ -13,7 +18,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SKILL = REPO_ROOT / "skills" / "cache-audit" / "SKILL.md"
 
 REQUIRED_REASON_ENUMS = (
-    "persona-marker-deferred",
     "protocol-splice-not-implemented",
     "outside-hook-surface-v2.1.140",
 )
