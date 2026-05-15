@@ -56,7 +56,18 @@ if [[ $rc -eq 1 && "$out" == *"bad.json"* ]]; then pass "malformed -> exit 1"
 else fail "malformed: rc=$rc out=$out"; fi
 teardown "$T"
 
-# 5. Nonexistent dir -> exit 0 (treated as no tokens)
+# 5. Rationale with ANSI escape sequences -> stripped from stderr (LOW finding).
+T=$(setup_tmp)
+printf '{"deviation_id":"esc","acknowledged":false,"rationale":"test\\u001b[31mred\\u001b[0m"}' > "$T/esc.json"
+out=$("$SCRIPT" "$T" 2>&1); rc=$?
+if [[ $rc -eq 1 && "$out" == *"testredred"* ]] && ! printf '%s' "$out" | grep -q $'\x1b'; then
+  pass "rationale escape stripping: ANSI removed from stderr"
+else
+  fail "rationale escape stripping: rc=$rc out=$(printf '%s' "$out" | cat -v)"
+fi
+teardown "$T"
+
+# 6. Nonexistent dir -> exit 0 (treated as no tokens)
 out=$("$SCRIPT" "/nonexistent/path/that/does/not/exist" 2>&1); rc=$?
 if [[ $rc -eq 0 ]]; then pass "nonexistent dir -> exit 0"
 else fail "nonexistent dir: rc=$rc out=$out"; fi

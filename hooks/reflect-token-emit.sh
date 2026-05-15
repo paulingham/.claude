@@ -20,6 +20,7 @@ if [[ -z "$DEVIATION_ID" ]]; then
   echo "reflect-token-emit: deviation_id required" >&2
   exit 2
 fi
+DEVIATION_ID="${DEVIATION_ID//[^A-Za-z0-9_-]/_}"
 
 SESSION_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SESSION="${SESSION_RAW//[^A-Za-z0-9_-]/_}"
