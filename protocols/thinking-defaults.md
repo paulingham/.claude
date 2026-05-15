@@ -297,4 +297,6 @@ missed review finding is large.
 with initial `acknowledged: false`. The orchestrator's Reflect gate halts
 when an unacknowledged token is present — the operator flips it to
 `true` to acknowledge the named deviation, or rejects and the pipeline
-re-enters Plan. Emission is via `hooks/reflect-token-emit.sh`.
+re-enters Plan. Emission is via `hooks/reflect-token-emit.sh`; the gate
+itself is `hooks/reflect-gate-acknowledgment.sh`, invoked at
+`protocols/reflection-protocol.md` § 6d-bis (before scratchpad cleanup).
