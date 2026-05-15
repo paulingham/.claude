@@ -8,12 +8,15 @@ Slice B contributes:
   - B.1 (named deviation): the same doc carries a "Named deviation: high
     floor preserved on review/critic/architect" subsection.
 
-Slice C will extend this file later (skipped now per single-slice scope).
+Slice C contributes:
+  - C.3 (escalated): `protocols/cost-discipline.md` documents the SDK flag
+    deferral as a consumer-outside-repo escalation with in-tree wire emission.
 """
 import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+COST_DISCIPLINE = REPO_ROOT / "protocols" / "cost-discipline.md"
 
 
 class BetaHeaderConsumerOutsideRepoDocumented(unittest.TestCase):
@@ -47,6 +50,19 @@ class NamedDeviationHighFloorDocumented(unittest.TestCase):
             "review/critic/architect",
             body,
             "Missing named-deviation subsection literal")
+
+
+class SdkFlagDeferralDocumented(unittest.TestCase):
+    def test_sdk_flag_consumer_outside_repo_documented(self):
+        text = COST_DISCIPLINE.read_text()
+        self.assertIn(
+            "SDK flag — consumer outside repo", text,
+            "protocols/cost-discipline.md must document the SDK flag deferral "
+            "with literal token `SDK flag — consumer outside repo`")
+        self.assertIn(
+            "in-tree wire emission shipped", text,
+            "protocols/cost-discipline.md must reference in-tree wire "
+            "emission with literal token `in-tree wire emission shipped`")
 
 
 if __name__ == "__main__":
