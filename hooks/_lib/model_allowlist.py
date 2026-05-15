@@ -60,7 +60,7 @@ def check(repo_root: pathlib.Path) -> list[str]:
     """Validate every agent frontmatter ``model:``/``executor:``/``advisor:`` field."""
     agents_dir = repo_root / "agents"
     if not agents_dir.is_dir():
-        return []
+        return [f"missing-agents-dir: {repo_root}"]
     errors: list[str] = []
     for path in sorted(agents_dir.glob("*.md")):
         errors.extend(_check_one(path))

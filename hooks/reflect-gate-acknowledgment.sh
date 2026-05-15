@@ -22,8 +22,9 @@ DIR="${1:-$HOME/.claude/metrics/$SESSION/reflect-tokens}"
 [[ -d "$DIR" ]] || exit 0
 
 python3 - "$DIR" <<'PY'
-import json, os, sys
+import json, os, re, sys
 d = sys.argv[1]
+_CTRL = re.compile(r"[\x00-\x1f\x7f]")
 blockers, errors = [], []
 for name in sorted(os.listdir(d)):
     if not name.endswith(".json"):
@@ -37,7 +38,7 @@ for name in sorted(os.listdir(d)):
         continue
     if t.get("acknowledged") is not True:
         did = t.get("deviation_id", name)
-        rationale = t.get("rationale", "")[:80] if t.get("rationale") else ""
+        rationale = _CTRL.sub("", t.get("rationale", ""))[:80] if t.get("rationale") else ""
         blockers.append((did, rationale))
 if errors:
     sys.stderr.write("[Reflect gate] BLOCKED: malformed token file(s):\n")
