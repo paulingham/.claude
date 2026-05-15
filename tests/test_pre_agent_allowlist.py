@@ -53,7 +53,10 @@ class HookLogsAdvisoryWhenSchemaAbsent(unittest.TestCase):
 
 
 class HookLogsBlockWithFullDetails(unittest.TestCase):
-    def test_logs_would_block_and_exits_zero_today(self):
+    def test_logs_blocked_and_exits_two(self):
+        """Post-flip (Slice A 2026-05-14): action="would_block" → JSONL
+        action="blocked" + stderr BLOCKED + exit 2. Pre-flip name kept on
+        the class for diff-discoverability; behaviour now asserts enforcement."""
         session = f"test-{uuid.uuid4()}"
         log_path = Path.home() / ".claude" / "metrics" / session / "tool-allowlist.jsonl"
         try:
@@ -62,12 +65,10 @@ class HookLogsBlockWithFullDetails(unittest.TestCase):
                  "tool_input": {"subagent_type": "code-reviewer",
                                 "allowed_tools": ["Read", "Write", "Edit"]}},
                 env={"CLAUDE_SESSION_ID": session})
-            # Path B today — exit 0 even on would_block
-            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.returncode, 2)
             entry = json.loads(log_path.read_text().strip().splitlines()[-1])
-            self.assertEqual(entry["action"], "would_block")
+            self.assertEqual(entry["action"], "blocked")
             self.assertEqual(entry["requested_tools"], ["Read", "Write", "Edit"])
-            # code-reviewer's frontmatter currently lacks Bash/Write/Edit
             self.assertIn("Write", entry["offending_tools"])
             self.assertIn("Edit", entry["offending_tools"])
             self.assertEqual(entry["source"], "path-b-advisory")
@@ -167,7 +168,15 @@ class HookWiresFrontmatterToolsThroughPipeline(unittest.TestCase):
                                 "allowed_tools": ["Read", "Write", "Edit"]}},
                 env={"CLAUDE_SESSION_ID": session})
             entry = json.loads(log_path.read_text().strip().splitlines()[-1])
-            self.assertEqual(entry["action"], "would_block")
+            # Post-flip: action is "blocked" (audit trail for denied spawn).
+            # Frontmatter attachment in log_allowlist_entry.attach_frontmatter
+            # keys on resolved.action == "would_block" — the resolver still
+            # emits would_block; the hook rewrites .action to "blocked" only
+            # for the entry passed to log-allowlist.sh, but attach_frontmatter
+            # reads the rewritten resolved, so the contract is preserved
+            # only if we keep the original action visible. Assert the new
+            # contract: action=blocked AND frontmatter_tools present.
+            self.assertEqual(entry["action"], "blocked")
             self.assertIn("frontmatter_tools", entry)
             # code-reviewer's actual frontmatter tool list — bound shape, not exact
             self.assertIsInstance(entry["frontmatter_tools"], list)

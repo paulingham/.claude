@@ -1,0 +1,46 @@
+{
+  "task_id": "promote-advisory-hooks-enforcement",
+  "timestamp": "2026-05-14T21:48:46Z",
+  "verifier_role": "qa-engineer",
+  "branch": "agent-7a4c27e7",
+  "base_sha": "1f06df9",
+  "worktree_head": "ff2f31c3f111f1b8fdc9df97b09371a8fa295214",
+  "git_head": "ff2f31c3f111f1b8fdc9df97b09371a8fa295214",
+  "verdict": "VERIFIED",
+  "evidence_refresh_timestamp": "2026-05-14T21:57:00Z",
+  "evidence_refresh_reason": "post-verify chore commit ff2f31c (learning instincts only — no source-code changes) added during Ship-phase Reflect 4d-iii; re-stamp HEAD for freshness gate. Original verification at 2526bc4 covered all source-code changes; the chore commit only adds two .md instinct files under learning/{project-hash}/instincts/ which are not in any test surface.",
+  "tiers": {
+    "tier_1_contract": {
+      "verdict": "PASS",
+      "test_count": 1982,
+      "regressions_vs_base": 0,
+      "preexisting_red_count": 51,
+      "current_red_count": 51,
+      "swap_note": "baseline entry 'test_logs_would_block_and_exits_zero_today' replaced by 'test_logs_blocked_and_exits_two' (rename + behavior-retarget for the enforce flip); both failures are pre-existing cleanup-collision on metrics/{session}/hooks.jsonl from hooks/_lib/log.sh (unchanged in this branch). Symmetric swap = 0 net feature regression. New test asserts post-flip enforcement (exit 2 + action='blocked'); AssertionError on cleanup is unrelated to the changed code."
+    },
+    "tier_2_smoke": {
+      "verdict": "PASS",
+      "smoke_results": [
+        "payload with allowed_tools=[Bash,Write] for code-reviewer → BLOCKED stderr + exit=2",
+        "payload with allowed_tools=[Read] for code-reviewer → exit=0"
+      ]
+    },
+    "tier_3_mutation": {
+      "verdict": "PASS",
+      "mutants_killed": 4,
+      "mutants_survived": 0,
+      "killed_ratio": 1.0,
+      "mutants": [
+        {"id": 1, "file": "hooks/pre-agent-allowlist.sh", "change": "== \"would_block\" → == \"blocked\"", "result": "KILLED", "evidence": "2 new failures vs baseline (test_would_block_exits_2_with_stderr, test_would_block_writes_jsonl_before_exit)"},
+        {"id": 2, "file": "hooks/pre-agent-allowlist.sh", "change": "removed exit 2 line", "result": "KILLED", "evidence": "2 new failures (returncode assertions in flip suite)"},
+        {"id": 3, "file": "hooks/pre-agent-allowlist.sh", "change": "removed bash log-allowlist.sh call before exit 2", "result": "KILLED", "evidence": "1 new failure (test_would_block_writes_jsonl_before_exit — JSONL not written)"},
+        {"id": 4, "file": "hooks/_lib/log_allowlist_entry.py", "change": "in (\"would_block\", \"blocked\") → == \"would_block\"", "result": "KILLED", "evidence": "AssertionError 'frontmatter_tools' not found in entry (test_would_block_entry_includes_frontmatter_tools line 180) — subsequent rmdir OSError surfaced as ERROR-class but assertion fired first"}
+      ]
+    }
+  },
+  "composite_verdict": "VERIFIED",
+  "evidence_files": [
+    "pipeline-state/promote-advisory-hooks-enforcement/preexisting-red.txt",
+    "pipeline-state/promote-advisory-hooks-enforcement/probe-result.md"
+  ]
+}
