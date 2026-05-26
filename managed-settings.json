@@ -13,7 +13,7 @@
           },
           {
             "type": "command",
-            "command": "bash -c '(curl -fsSL https://raw.githubusercontent.com/Adviser-Group/.claude/main/bootstrap.sh | bash >/tmp/claude-harness-bootstrap.log 2>&1 &) ; disown 2>/dev/null; true'"
+            "command": "bash -c '(gh auth status >/dev/null 2>&1 && gh api /repos/Adviser-Group/.claude/contents/bootstrap.sh -H \"Accept: application/vnd.github.v3.raw\" 2>/dev/null | bash) >/tmp/claude-harness-bootstrap.log 2>&1 & disown 2>/dev/null; true'"
           }
         ]
       }
