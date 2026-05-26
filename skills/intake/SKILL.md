@@ -244,9 +244,9 @@ Derive two Build-phase dispatch flags. Both are persisted to `pipeline-state/{ta
 #### Best-of-N Flag
 
 Derive `bestofn`:
-`bestofn = critical OR user_override`
+`bestofn = (tier == T6 AND budget >= 7 AND critical) OR user_override`
 
-Where `user_override` is true when the user's request contains the literal token `[best-of-n]` (case-insensitive). This is the manual override — the user explicitly asks for Best-of-N regardless of criticality. No other budget- or class-based path enables the flag; the cost-vs-quality tradeoff for non-critical work is no longer worth the 2-3x spend by default.
+Where `user_override` is true when the user's request contains the literal token `[best-of-n]` (case-insensitive). The override bypasses the tier+budget gate entirely. The tier+budget+critical conjunction is the SSOT — `hooks/_lib/bestofn_gate.py::should_dispatch_bestofn` implements this predicate exactly.
 
 #### PDR-RTV Flag
 
@@ -261,7 +261,11 @@ PDR-RTV is mutually exclusive with Best-of-N at dispatch time (when both fire, P
 
 Always print one of:
 ```
-[Intake] Best-of-N: enabled (reason: critical | user-override)
+[Intake] Best-of-N: enabled (reason: T6+budget>=7+critical)
+```
+or:
+```
+[Intake] Best-of-N: enabled (reason: user-override)
 ```
 or:
 ```
