@@ -161,7 +161,7 @@ short-circuits to `exit 0` before invoking the resolver, so no
 mirrors `CLAUDE_DISABLE_TOOL_ALLOWLIST` (see `hooks/pre-agent-allowlist.sh:20`)
 and is the canonical run-time rollback if a future enforcement flip
 denies a legitimate spawn. The variable is documented alongside the
-other PreToolUse Agent escapes in `CLAUDE.md` § Reversibility Escapes.
+other PreToolUse Agent escapes in `protocols/agent-protocol.md` § Reversibility Escapes (PreToolUse Agent hooks).
 
 ## Environment Variables
 
@@ -300,3 +300,11 @@ when an unacknowledged token is present — the operator flips it to
 re-enters Plan. Emission is via `hooks/reflect-token-emit.sh`; the gate
 itself is `hooks/reflect-gate-acknowledgment.sh`, invoked at
 `protocols/reflection-protocol.md` § 6d-bis (before scratchpad cleanup).
+
+## Postmortem note (May 2026)
+
+The four gated promotions reflect the **Apr 23 2026** cost/quality data — promotion-on-trigger lift was concentrated in stakes-bearing build/design work — combined with the **Opus 4.7** adaptive-thinking floor change (manual `budget_tokens` rejected at the API layer; adaptive thinking allocates budget dynamically). The May 2026 unconditional-promotion policy over-corrected: empirical cost forensics (PR #124) showed routine mid-budget pipelines spent ~18% of weekly Max 20x output on xhigh spawns whose stakes did not warrant the floor. PR #124 restores the cost gate for sub-threshold spawns (`critical=false AND budget<N` → `high`) while preserving xhigh for stakes-bearing work (`critical=true OR budget>=N`).
+
+## Advisory status at v2.1.140
+
+The hook is **advisory/log-only at v2.1.140** — the per-spawn `tool_input.thinking.effort` field is **not yet exposed** on the Agent tool input schema, so resolved effort/display values are written to `metrics/{session}/hook-injections.jsonl` but no spawn is blocked. `$CLAUDE_EFFORT` env var IS consumed (resolver rule 2a, source token `"claude-effort-env"`); `settings.autoMode.effortLevel` session key sets a global default. Will be promoted to enforcement via a single-file flip in `hooks/pre-agent-thinking.sh` once the per-spawn field is exposed in a future Claude Code release.
