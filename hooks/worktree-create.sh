@@ -37,7 +37,10 @@ if [[ -z "$WORKTREE_PATH" ]]; then
 fi
 
 if [[ -n "$BRANCH" ]]; then
-  git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" -b "$BRANCH" 2>&1
+  git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" -b "$BRANCH" >&2
 else
-  git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" 2>&1
+  git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" >&2
 fi
+# Harness reads stdout to discover the new worktree path; git's own progress
+# output goes to stderr so it doesn't pollute the path channel.
+echo "$WORKTREE_PATH"

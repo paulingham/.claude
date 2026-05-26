@@ -12,10 +12,21 @@ tools:
   - ToolSearch
   - mcp_lsp_diagnostics_ts
   - mcp_lsp_diagnostics_py
-model: opus
+model: sonnet
 executor: claude-sonnet-4-6
 advisor: claude-opus-4-7
-# advisor-rationale: Sonnet-default executor with Opus advisor. Build engineering follows the deterministic ATDD cycle on Sonnet; advisor consulted on judgment calls (architectural choices surfacing mid-build, ambiguous spec interpretation). Override with `CLAUDE_FORCE_OPUS=1` for spawns requiring monolithic Opus reasoning.
+# advisor-rationale: Sonnet-default executor with Opus advisor for sub-Budget-7 work. Budget>=7 spawns route to Opus-solo (model_conditional default arm) for stakes-bearing build work. CLAUDE_FORCE_OPUS=1 forces Opus per-spawn (executor_resolver precedence 1).
+model_conditional:
+  default:
+    model: opus
+    executor: claude-opus-4-7
+    advisor: none
+  rules:
+    - when: { budget_lt: 7 }
+      model: sonnet
+      executor: claude-sonnet-4-6
+      advisor: claude-opus-4-7
+  status: advisory
 memory: project
 maxTurns: 150
 instinct_categories:
