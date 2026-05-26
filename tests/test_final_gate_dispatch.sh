@@ -72,4 +72,27 @@ assert_grep "tier.*T6|T6.*tier" "$DISPATCHER" "t4_dispatch_omits_spec_blind (tie
 # Test 4: spec-blind Agent spawn appears inside a T6 conditional block
 assert_grep "spec-blind" "$DISPATCHER" "t6_dispatch_includes_spec_blind"
 
+# Test 5: spec-blind-validator is structurally inside the T6-conditional block
+T6_BLOCK="$(awk '/^\/\/ if \[ "\$tier" = "T6" \]; then$/{found=1} found{print} /^\/\/ fi$/{found=0}' "$DISPATCHER")"
+if echo "$T6_BLOCK" | grep -qE 'spec-blind-validator'; then
+  echo "PASS: t4_dispatch_spec_blind_is_inside_t6_conditional"
+else
+  echo "FAIL: t4_dispatch_spec_blind_is_inside_t6_conditional (spec-blind-validator not found in T6 block)" >&2
+  exit 1
+fi
+# Also assert no top-level Agent spawn with spec-blind-validator outside any T6 block
+OUTSIDE_BLOCK="$(awk '/^\/\/ if \[ "\$tier" = "T6" \]; then$/{skip=1} skip{if(/^\/\/ fi$/){skip=0}; next} {print}' "$DISPATCHER")"
+if echo "$OUTSIDE_BLOCK" | grep -qE 'name:[[:space:]]*"spec-blind-validator"'; then
+  echo "FAIL: t4_dispatch_spec_blind_is_inside_t6_conditional (spec-blind-validator found outside T6 block)" >&2
+  exit 1
+fi
+
+# Test 6: spec-blind Agent spawn (by name field) is inside the T6 conditional block
+if echo "$T6_BLOCK" | grep -qE 'name:[[:space:]]*"spec-blind-validator"'; then
+  echo "PASS: t6_dispatch_spec_blind_agent_spawn_inside_conditional"
+else
+  echo "FAIL: t6_dispatch_spec_blind_agent_spawn_inside_conditional (name:\"spec-blind-validator\" not found in T6 block)" >&2
+  exit 1
+fi
+
 echo "ALL TESTS PASSED"

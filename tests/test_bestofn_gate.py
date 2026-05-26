@@ -83,6 +83,10 @@ class TierBudgetGating(unittest.TestCase):
             should_dispatch_bestofn(False, "bug", 2, "[best-of-n]", "T4")
         )
 
+    def test_t6_budget7_non_critical_disables(self):
+        # T6 + budget=7 + critical=False: must return False (critical clause)
+        self.assertFalse(should_dispatch_bestofn(False, "feature", 7, "", "T6"))
+
 
 if __name__ == "__main__":
     unittest.main()
