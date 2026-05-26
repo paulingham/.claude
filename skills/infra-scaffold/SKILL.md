@@ -132,6 +132,68 @@ volumes:
   pgdata:
 ```
 
+### Step 3b: Generate `docker-compose.e2e.yml` (web projects only)
+
+For projects with a web driver config (`playwright.config.{ts,js}` or `cypress.config.{ts,js}`) — and only for those — emit a sibling `docker-compose.e2e.yml` that `/verify` will discover and own the lifecycle of (see `skills/verify/SKILL.md` § Local E2E Stack Lifecycle). This is the **single qualifying real environment** for Tier 4 web E2E (cloud previews / remote ephemeral envs are explicitly out of scope — see `protocols/e2e-protocol.md` § Real-Environment Stack Requirements).
+
+Differences from the dev `docker-compose.yml`:
+
+- **Production-mode build** of the app service (`NODE_ENV=production` or stack equivalent; no bind mounts, no hot-reload).
+- **Dynamic host port mapping** for the app service (e.g. `ports: ["3000"]`, no host port) so parallel pipeline slices don't collide. `/verify` resolves the mapped port at runtime via `docker compose ... port`.
+- **Healthchecks on every service** so `docker compose up -d --wait` blocks correctly until the stack is genuinely ready (Playwright's default 30s navigation timeout is unforgiving of cold starts).
+- **Seed step** as a separate one-shot service that runs migrations + fixtures before the app's healthcheck passes. The harness cannot infer per-project seed shape — emit a scaffolded `./e2e/seed/01-schema.sql` + `./e2e/seed/02-fixtures.sql` template and a seed service that applies them.
+- **Apple Silicon arm64-native images** by default: `postgres:16-alpine`, `redis:7-alpine`, `mailpit` (NOT legacy `mailhog`), etc. Avoid `--platform linux/amd64` unless an image forces it.
+- **No production secrets**. Test-only credentials in env vars are fine; never reference `.env` from this file.
+
+Template:
+
+```yaml
+# docker-compose.e2e.yml — owned by /verify Tier 4 lifecycle; do not run manually
+services:
+  app:
+    build:
+      context: .
+      target: production
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://postgres:postgres@db:5432/app_e2e
+    ports: ["3000"]  # dynamic host port — /verify resolves via `docker compose port`
+    depends_on:
+      seed: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: app_e2e
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app_e2e"]
+      interval: 1s
+      timeout: 2s
+      retries: 20
+
+  seed:
+    image: postgres:16-alpine
+    depends_on:
+      db: { condition: service_healthy }
+    volumes: ["./e2e/seed:/seed:ro"]
+    environment:
+      PGPASSWORD: postgres
+    command: >
+      sh -c "psql -h db -U postgres -d app_e2e -f /seed/01-schema.sql
+          && psql -h db -U postgres -d app_e2e -f /seed/02-fixtures.sql"
+    restart: "no"
+```
+
+**Pre-pull on scaffold:** after writing the file, run `docker compose -f docker-compose.e2e.yml pull` once so the first `/verify` invocation isn't dominated by image-pull latency.
+
+For non-web projects (mobile-only, library, CLI) — do NOT emit this file.
+
 ### Step 4: Generate CI/CD Pipeline
 
 **GitHub Actions** (default):
@@ -256,6 +318,6 @@ After generating all files:
 ```
 Verdict: INFRA_SCAFFOLDED
 Next: Verify locally with docker compose, then configure deployment platform credentials
-Artifacts: [Dockerfile, docker-compose.yml, .github/workflows/ci.yml, health endpoints, .env.example]
+Artifacts: [Dockerfile, docker-compose.yml, docker-compose.e2e.yml (web only), .github/workflows/ci.yml, health endpoints, .env.example]
 ```
 $ARGUMENTS
