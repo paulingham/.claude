@@ -10,10 +10,21 @@ tools:
   - Glob
   - NotebookEdit
   - ToolSearch
-model: opus
-executor: claude-opus-4-7
+model: sonnet
+executor: claude-sonnet-4-6
 advisor: none
-# advisor-rationale: Opus-solo. Fix-cycle work is targeted and procedural — the cited finding plus the file diff fully scope the change. Advisor handoff would lengthen the review-loop tail without improving the outcome.
+# advisor-rationale: Sonnet-solo default for sub-Budget-7 fix work (cited finding + file diff fully scope the change). Budget>=7 fixes route to Opus-solo (model_conditional default arm). CLAUDE_FORCE_OPUS=1 forces Opus per-spawn.
+model_conditional:
+  default:
+    model: opus
+    executor: claude-opus-4-7
+    advisor: none
+  rules:
+    - when: { budget_lt: 7 }
+      model: sonnet
+      executor: claude-sonnet-4-6
+      advisor: none
+  status: advisory
 maxTurns: 80
 instinct_categories:
   - fix-engineer
