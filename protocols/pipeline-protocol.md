@@ -217,3 +217,17 @@ Environment-dependent testing (mobile devices, WebView integration, staging depl
 > **IRON LAW: NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.**
 
 The orchestrator self-discipline checks ("if you catch yourself...") live in `~/.claude/orchestrator/pipeline-orchestration.md` § Enforcement. The iron law itself is mirrored in `rules/core.md` and applies to every spawn.
+
+## Definition of Done
+
+A story is DONE when ALL are true:
+
+- All ACs have passing tests (unit + integration + E2E where applicable)
+- Code reviewer: APPROVED
+- Security engineer: no CRITICAL/HIGH findings
+- Verification report: VERIFIED
+- QA engineer: no test gaps
+- Product reviewer: APPROVED
+- Quality gate hook passes
+- PR merged to main
+- Post-task reflection completed (rules/patterns updated if learnings identified)
