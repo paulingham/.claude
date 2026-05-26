@@ -34,7 +34,7 @@ The verify skill writes `pipeline-state/{task-id}/verification-evidence.json` (s
 | Backend API | Hit real endpoint, verify response shape | curl + DB state check + log check | Mutate handler logic | ≥60% kill rate | N/A | Reference impl / spec server diff (if available) |
 | Frontend | Props match API response shape | Playwright/browser screenshot | Mutate component logic | ≥60% kill rate | N/A | N/A (typically no oracle) |
 | Mobile/WebView | Hook/service contract tests | Component render + prop verification | Mutation testing on lib/ business logic | ≥60% kill rate | Maestro (mobile) AND/OR Playwright/Cypress (web) — multi-target dispatch per `protocols/e2e-protocol.md` | N/A |
-| Web (browser) | API contract tests against real endpoint | Curl + DOM snapshot + log check | Mutate handler/component logic | ≥60% kill rate | Playwright/Cypress against deployed preview / docker-compose / cloud ephemeral env (conditional per `protocols/e2e-protocol.md`) | N/A |
+| Web (browser) | API contract tests against real endpoint | Curl + DOM snapshot + log check | Mutate handler/component logic | ≥60% kill rate | Playwright/Cypress against a **local** `docker-compose.e2e.yml` stack spun up by `/verify` and torn down after (conditional per `protocols/e2e-protocol.md` — local-only, no cloud) | N/A |
 | Database | Schema constraint tests | Migrate up+down, verify integrity | N/A | N/A | N/A | Compare SQL execution result against upstream engine (e.g. PostgreSQL `psql`) on identical inputs |
 | Infrastructure | Health endpoint responds | Readiness probe passes | N/A | N/A | N/A | N/A |
 | Parser / Compiler / Codegen | AST shape matches grammar | Round-trip parse → emit → parse | Mutate production/precedence logic | ≥60% kill rate | N/A | Differential test vs reference (e.g. GCC, official parser, ANTLR-generated parser) |
@@ -161,7 +161,18 @@ Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mob
 2. **For each fired target, execute its suite** per the protocol's per-target Execution section.
 
    - **Mobile** (Maestro): Check prerequisites (CLI, simulator, dev build, credentials). If unmet → mobile status = SKIP. Else select flows via the flow-to-file mapping (always include `app-launch.yaml`), execute, retry once on failure.
-   - **Web** (Playwright/Cypress): Resolve driver via `select_web_driver(project_root)` — when both configs are present, prefer Playwright and emit the warning verbatim into the report. Check prerequisites (driver installed, real environment available). If unmet → web status = SKIP. Else execute the suite.
+   - **Web** (Playwright/Cypress): Resolve driver via `select_web_driver(project_root)` — when both configs are present, prefer Playwright and emit the warning verbatim into the report. Check prerequisites (driver installed). Then run the **Local E2E Stack Lifecycle** below to bring up the project's `docker-compose.e2e.yml`. If the compose file is missing OR `docker info` fails → web status = SKIP. Else execute the suite against the resolved `baseURL`, then tear the stack down (in a trap so teardown runs on failure too).
+
+   **Local E2E Stack Lifecycle (web target only — local-only, no cloud fallback per `protocols/e2e-protocol.md`):**
+
+   1. **Discovery** — at `$PROJECT_ROOT`, look for (in order): `docker-compose.e2e.yml` → `docker-compose.e2e.yaml` → `docker-compose.yml` (only if it declares an `e2e` profile). First hit wins. None found → web status = SKIP, reason `no-e2e-compose-file`. Fix is `/infra-scaffold` (which now emits this file for web projects) — never reach for a cloud preview.
+   2. **Runtime check** — `docker info >/dev/null 2>&1`. Non-zero → web status = SKIP, reason `docker-runtime-unavailable`. Surface "Docker Desktop / OrbStack / colima not running" in the verify report so the user has an unambiguous fix path.
+   3. **Bring up** — `docker compose -f "$COMPOSE_FILE" -p "e2e-${CLAUDE_PIPELINE_TASK_ID}" up -d --wait` (project-name namespaced so parallel slices don't collide; `--wait` blocks until all healthchecks pass).
+   4. **Resolve baseURL** — read the app service's mapped host port via `docker compose -p "e2e-${CLAUDE_PIPELINE_TASK_ID}" port <app-service> <container-port>` (use dynamic port mapping in the compose file to avoid host-port conflicts across pipelines). Export as `PLAYWRIGHT_BASE_URL` / `CYPRESS_BASE_URL` for the driver.
+   5. **Run suite** — `npx playwright test` (or `npx cypress run`). Capture intra-run flake_rate from the driver's retry counter as today.
+   6. **Teardown (mandatory, trapped)** — register a trap that runs `docker compose -f "$COMPOSE_FILE" -p "e2e-${CLAUDE_PIPELINE_TASK_ID}" down -v --remove-orphans` on EXIT, ERR, INT, and TERM. Teardown failure is non-fatal to the verdict but MUST be logged in the verify report.
+
+   Out of scope (do NOT implement a fallback): polling a Vercel/Netlify preview URL, spawning a Fly machine, hitting a Supabase/Neon branch endpoint, any other remote host. If the local stack cannot come up, the verdict is SKIP with an actionable reason — the harness never reaches for a third party.
 
 3. **Web flake handling (strict, no small-suite carve-out)**: capture intra-run flake_rate from the driver's retry counter, then coerce BEFORE composing.
 

@@ -130,7 +130,7 @@ MAESTRO_ADVISER_USERNAME=user MAESTRO_ADVISER_PASSWORD=pass maestro test maestro
 
 ### Web (Playwright / Cypress)
 
-Web (browser-rendered) projects must exercise a real environment when any of the trigger categories below match changed files. "Real environment" means a deployed preview URL or an ephemeral `docker-compose` stack — NOT JSDOM, NOT a unit-test mock.
+Web (browser-rendered) projects must exercise a real environment when any of the trigger categories below match changed files. "Real environment" means a **fully local** ephemeral `docker-compose` stack spun up by `/verify` and torn down after — NOT JSDOM, NOT a unit-test mock, NOT a remote/cloud preview. Cloud or third-party hosting (Vercel/Netlify/Fly/Supabase/Neon/etc.) is **explicitly out of scope** for this harness.
 
 #### Trigger Matrix (6 canonical categories — schema only)
 
@@ -164,17 +164,19 @@ When a back-end target is introduced (deferred, see incident context), these sup
 - Documentation, READMEs, comments
 - Optional env vars with safe defaults (already covered by unit tests)
 
-#### Real-Environment Stack Requirements
+#### Real-Environment Stack Requirements (local-only)
 
-At least ONE of the following must be wired up before the web suite can satisfy the "real environment" requirement:
+The qualifying real environment is a **project-declared local `docker-compose.e2e.yml`**, no exceptions. Cloud/remote alternatives are not supported.
 
-| Stack | Use when |
-|-------|----------|
-| Deployed preview URL (Vercel/Netlify/Render PR preview) | The repo has CI-provisioned preview deploys for every PR |
-| `docker-compose up -d` ephemeral stack | The repo ships a `docker-compose.e2e.yml` (or equivalent) that boots app + DB + dependencies |
-| Cloud ephemeral env (Fly Machines, Heroku Review App, Railway env) | The repo provisions PR-scoped ephemeral envs |
+| Stack | Status |
+|-------|--------|
+| Local `docker-compose.e2e.yml` (or `docker-compose.e2e.yaml`, or `docker-compose.yml` with an `e2e` profile) | **Required** — the only qualifying stack |
+| Deployed preview URL (Vercel/Netlify/Render PR preview) | NOT supported |
+| Cloud ephemeral env (Fly Machines, Heroku Review App, Railway env, Supabase/Neon branches) | NOT supported |
 
-If NONE of these is available AND no driver config is present, the web target status is `N/A` (no driver, no run). If a driver config is present but the stack is unavailable, status is `SKIP` (parallel to mobile's "prerequisites not met"). SKIP is NOT a hard blocker but the product-reviewer must acknowledge it.
+`/verify` Tier 4 resolves the compose file via the discovery contract in `skills/verify/SKILL.md` § Run Tier 4. Lifecycle (up → run suite → down) is fully owned by `/verify`.
+
+If no driver config is present, web target status is `N/A` (no driver, no run). If a driver config is present but no qualifying `docker-compose.e2e.yml` is discoverable AND `docker info` fails (no Docker runtime), status is `SKIP`. SKIP is NOT a hard blocker but the product-reviewer must acknowledge it, and the fix is to add `docker-compose.e2e.yml` to the project (via `/infra-scaffold`) — not to configure a cloud account.
 
 When web target = SKIP for this reason, `/verify` emits the side-channel info-level verdict `E2E_SKIP_NO_ENV` (see `rules/verdict-catalog.md`). The Final Gate summary renders the loud yellow line `E2E: SKIPPED (no execution environment) — UI/API changes shipped without browser verification`, and the product-reviewer MUST acknowledge the skip in its verdict body — failing to acknowledge → CHANGES REQUESTED.
 
@@ -195,7 +197,7 @@ All must be met before web E2E execution:
 
 1. **Driver installed**: `npx playwright --version` or `npx cypress --version` resolves
 2. **Driver config present**: `playwright.config.{ts,js}` OR `cypress.config.{ts,js}` (see Driver Selection)
-3. **Real environment available**: deployed preview URL, docker-compose stack, OR cloud ephemeral env (per Real-Environment Stack Requirements above)
+3. **Real environment available**: project-declared `docker-compose.e2e.yml` (or `.yaml`, or `docker-compose.yml` with an `e2e` profile) AND `docker info` succeeds (per Real-Environment Stack Requirements above — local-only, no cloud alternatives)
 4. **Test credentials**: per-project; document in project CLAUDE.md
 
 If driver config is absent, web E2E status is `N/A`. If driver config is present but other prerequisites fail, status is `SKIP`.
