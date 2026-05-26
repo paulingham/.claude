@@ -377,7 +377,7 @@ After the self-review checklist passes, the build agent (or orchestrator on its 
 Procedure:
 1. Dispatch `code-reviewer` agent (read-only, no worktree) per `skills/code-review/SKILL.md`.
 2. If APPROVE → emit `BUILD_COMPLETE`.
-3. If CHANGES_REQUESTED → spawn `fix-engineer` on the same worktree, re-run the suite, re-dispatch `code-reviewer` with the original finding + fix diff. Max 2 rounds total. If still CHANGES_REQUESTED after 2 rounds, escalate to user.
+3. If CHANGES_REQUESTED → spawn `fix-engineer` on the same worktree, re-run the suite, re-dispatch `code-reviewer` with the original finding + fix diff. Max 2 rounds total at the current model tier. On the 3rd CHANGES_REQUESTED (round_idx==3): if fix-engineer was running at Opus (budget>=7), Round 3: downgrade to Sonnet for one final attempt; if already at Sonnet (or the Sonnet downgrade round also returns CHANGES_REQUESTED), escalate to user. Log the downgrade event to `pipeline-state/{task-id}/scratchpad/fix-engineer-downgrade.md` (category: decision) AND call `hooks/_lib/fix_engineer_retry_log.py::emit_retry_record` to append a JSONL line to `metrics/{session}/fix-engineer-retry.jsonl`.
 
 Security review is a separate phase that runs after `BUILD_COMPLETE` — do NOT dispatch `/security-review` from inside Build.
 

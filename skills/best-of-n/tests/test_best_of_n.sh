@@ -158,4 +158,20 @@ assert_eq "42" "$ovr" "explicit env override beats CI/workstation defaults"
 
 rm -rf "$WT_REPO"
 
+# AC3 — max_candidates config pinning (regression guard).
+# config.json must declare max_candidates: 3 — changing this silently would
+# allow unbounded fan-out; the test prevents accidental drift.
+CONFIG_JSON="${SCRIPT_DIR}/../config.json"
+max_candidates_val="$(jq -r '.max_candidates' "$CONFIG_JSON")"
+assert_eq "3" "$max_candidates_val" "max_candidates_config_pinned"
+
+# AC3 — dispatcher prose contains an upper-bound guard for max_candidates.
+DISPATCHER="${SCRIPT_DIR}/../../../orchestrator/parallel-dispatch-details.md"
+if grep -qE "max_candidates.*upper bound|upper bound.*max_candidates" "$DISPATCHER"; then
+  echo "PASS: max_candidates_cap_enforced_in_dispatcher"
+else
+  echo "FAIL: max_candidates_cap_enforced_in_dispatcher (upper bound prose not found in $DISPATCHER)" >&2
+  exit 1
+fi
+
 echo "ALL TESTS PASSED"
