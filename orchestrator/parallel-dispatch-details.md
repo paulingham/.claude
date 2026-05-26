@@ -873,8 +873,17 @@ Agent({
     Branch: <feature-branch-the-build-was-on>
     Round: 1 (or 2 on re-review)
     Findings to address: [verbatim reviewer text + cited file:line]
+    Failing test stderr (complete, unsummarized): [paste the FULL stderr
+      of every failing test the gate cites — stack traces, assertion
+      diffs, framework output, verbatim. Do NOT summarise. If the gate
+      cites no failing test, pass the literal string 'N/A — no failing
+      test'. Summaries discard the line numbers and exception types
+      fix-engineer needs at Step 1.5 to author its Diagnosis block.]
     Build diff: [git diff main...HEAD]
     Verify each finding is valid before implementing.
+    Emit the mandatory Diagnosis block (root_cause / affected_files /
+    approach) BEFORE the first Edit/Write call — see Step 1.5 of the
+    role file.
     If a suggestion would make code worse, return verdict
     FIX_REJECTED_TECHNICAL with justification.
     Commit with descriptive message (not 'fixed per review feedback')."

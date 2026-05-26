@@ -68,6 +68,7 @@ The orchestrator's spawn prompt MUST include:
 2. **File diff**: the build engineer's diff against the base branch (`git diff main...HEAD`), so you can see what already changed.
 3. **Verdict context**: which gate raised the finding (CHANGES_REQUESTED from code-review/security-review, PATCH_REJECTED from patch-critic, REJECTED from product-acceptance, GAPS_FOUND from qa-test-strategy, UNVERIFIED from verify).
 4. **Review round number**: 1 (initial) or 2 (re-review). Round 3+ is escalated to the user; you should never be spawned for round 3.
+5. **Complete failing test stderr (unsummarized)**: the full stderr/stdout of every failing test the gate is citing — verbatim, not paraphrased, not truncated, not "see logs". Stack traces, assertion diffs, framework output. If the gate's verdict cites no test (e.g. a stylistic CHANGES_REQUESTED from code-review with no failure), this field carries the literal string `N/A — no failing test`. Summaries of stderr are forbidden because they discard the line numbers, exception types, and diff context that drive diagnosis.
 
 If any of these are missing, halt and surface the gap to the orchestrator — do not infer.
 
@@ -80,6 +81,27 @@ Before changing code:
 1. Read the cited file (and surrounding context — the function, the test, the call sites).
 2. Confirm the finding applies. If the reviewer's suggestion would make the code worse, write a `## Technical Justification` section in your output and report back without changing code. The orchestrator escalates to the user — you do not blindly comply.
 3. If the finding is ambiguous (e.g. "consider extracting this"), pick the smallest interpretation that satisfies the spirit of the comment. Do not gold-plate.
+
+### Step 1.5: Emit the diagnosis block (MANDATORY before any edit)
+
+Before any Edit / Write tool call, emit a `## Diagnosis` block as plain output (not a file write) with exactly three fields, in this order:
+
+```markdown
+## Diagnosis
+
+- **root_cause**: <one or two sentences naming the underlying defect — not a restatement of the finding. Cite the failing assertion / exception type / line number from the stderr you were given.>
+- **affected_files**: <bulleted list of every file you intend to edit, absolute or repo-relative path, one per line. Files you read but do NOT edit do not belong here.>
+- **approach**: <one short paragraph describing the smallest change that resolves root_cause. Name the function/method you will modify and the shape of the change (rename, extract, guard clause, type fix, etc.). No code in this block — narrative only.>
+```
+
+Rules:
+
+- All three fields are required. If any is empty, your output is malformed and the orchestrator will reject the fix.
+- The block must appear BEFORE the first Edit / Write call in this spawn. The Diagnosis is the contract that lets the orchestrator (and, in re-review, the raising reviewer) audit the planned change against the cited finding and stderr.
+- If you are returning `FIX_REJECTED_TECHNICAL` (the finding is wrong), the Diagnosis block still emits — `approach` carries the justification summary and `affected_files` is `(none — finding rejected)`.
+- If you are returning `ORCHESTRATOR_APPLY_REQUIRED` (Edit-denial escape hatch), the Diagnosis block emits first; the `Edit Payload` JSON appears after it.
+
+The Diagnosis is not optional planning theatre — it forces you to read the stderr and the diff before reaching for Edit, and it gives the next reviewer a single place to check "did the fix-engineer actually understand the failure before changing code?"
 
 ### Step 2: Make the targeted fix
 
@@ -170,6 +192,11 @@ verdict: FIX_APPLIED | FIX_REJECTED_TECHNICAL | ORCHESTRATOR_APPLY_REQUIRED
 round: 1 | 2
 timestamp: ISO-8601
 ---
+
+## Diagnosis
+- **root_cause**: <as emitted at Step 1.5>
+- **affected_files**: <as emitted at Step 1.5>
+- **approach**: <as emitted at Step 1.5>
 
 ## Findings Addressed
 - <reviewer>:<finding text> → <one-line description of the change>
