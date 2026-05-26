@@ -190,7 +190,7 @@ Read by `/forensics` to detect:
 - **Iron Law 3** (orchestrator never writes source code; `.md` exception in `.claude/`, `memory/`, `rules/`) is the legal basis for T1 direct edits. The orchestrator commits the change with full audit trail.
 - **Complexity Budget** still computes (`/intake` Step 2). It controls *intra-tier* dispatch shape (multi-slice Build at T5, Best-of-N vs PDR-RTV at T6). It no longer controls *which* tier.
 - **`critical` flag** still computes but is **fingerprint-filtered**. If fingerprint = T1/T2 and no safety-override file in scope, `critical: true` from user phrasing is rejected and logged.
-- **`bestofn` and `pdr_rtv` flags** only fire at T6. T4/T5 ignore them.
+- **`bestofn` and `pdr_rtv` flags** only fire at T6 AND budget>=7. T4/T5 force both false regardless of critical or budget. `bestofn` also requires `critical==true`; the `[best-of-n]` override token bypasses the tier+budget gate. SSOT: `hooks/_lib/bestofn_gate.py`.
 
 ## Where to look next
 

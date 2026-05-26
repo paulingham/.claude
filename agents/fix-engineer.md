@@ -204,12 +204,31 @@ the existing code or relevant patterns>
 - **Compliance commit messages**: "Fixed per review feedback" / "Addressed reviewer concerns". Commit messages MUST describe the actual change.
 - **Source-code apology comments**: `// Removed because reviewer flagged this` etc. The diff is the audit trail; the source must read clean.
 - **Skipping verification**: Not running tests/type-check/lint locally before completing. The next phase will catch it, but the round-counter increments — wasting a round on a regression you could have caught.
-- **Round 3 self-spawn**: If a finding has already been re-reviewed once and a fix is needed for round 3, the orchestrator escalates to the user. You are NOT spawned a third time on the same finding.
+- **Round 3 self-spawn**: If a finding has already been re-reviewed once (round 2 failed), the orchestrator does NOT escalate immediately. Instead it applies the Downgrade Contract: if you ran at Opus (budget>=7), the orchestrator spawns you once more at Sonnet model for a final attempt (see § Downgrade Contract). Only after the Sonnet round also returns CHANGES_REQUESTED does escalation go to the user. You are NEVER spawned a fourth time.
 - **Edit-denial death-spiral**: Retrying Edit/Write calls indefinitely when each one is rejected at permission-system level. After ≥2 denials on the same target file, halt and return `ORCHESTRATOR_APPLY_REQUIRED` (see § Edit Denial Escape Hatch). Each retry burns a turn for no progress.
 
 ## Standards
 
 Follow shape constraints and all standards in `protocols/engineering-invariants.md`. The ATDD cycle does NOT apply to fix-cycle work — fix-cycle is a targeted change against an existing test suite, not a new feature. (Bug-fix-style per-behaviour TDD applies if the finding requires a new test; see `protocols/atdd-procedure.md` § When per-behaviour TDD Still Applies.)
+
+## Downgrade Contract
+
+When round_idx == 3 AND the prior rounds ran at Opus (budget>=7), the orchestrator
+**downgrades once** to Sonnet before escalating to the user:
+
+1. **Rounds 1+2** — fix-engineer spawned at current model tier (Opus if budget>=7, else Sonnet).
+2. **Round 3** — if prior model was Opus: Round 3: downgrade to Sonnet for one final attempt.
+   If prior model was already Sonnet, or if the Sonnet downgrade round also returns
+   CHANGES_REQUESTED: escalate to user with all rounds documented.
+3. **Logging** — the orchestrator logs the downgrade event to
+   `pipeline-state/{task-id}/scratchpad/fix-engineer-downgrade.md` (category: decision)
+   AND calls `hooks/_lib/fix_engineer_retry_log.py::emit_retry_record` to append a JSONL
+   line to `metrics/{session}/fix-engineer-retry.jsonl` with schema:
+   `{task_id, round_idx, model_tier_before, model_tier_after, verdict, finding_count}`.
+
+**As fix-engineer, you do not control this dispatch** — the orchestrator manages model
+selection per your `model_conditional` frontmatter. This section documents the contract
+so you understand the round numbering you may receive in your spawn prompt.
 
 ## Why Fix-Engineer Is a Distinct Role
 

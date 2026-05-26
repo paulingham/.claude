@@ -905,17 +905,26 @@ After both APPROVE: shut down both reviewers.
 
 ## Final Gate Phase Dispatch
 
-Five phases that currently run sequentially now run in parallel:
+**Tier-conditional fan-out**: T4 and T5 spawn 4 agents (verify + test + accept +
+patch-critique). T6 spawns 5 agents (the 4 core agents plus spec-blind). The orchestrator
+reads `tier_emitted` from `pipeline-state/{task-id}/intake.md` using the
+`_qg_extract_intake_tier` pattern from `hooks/_lib/quality-gate-checks.sh:64-71`.
 
 ```
-// Step 1: Create tasks
+// Extract tier from intake.md (same sed pattern as _qg_extract_intake_tier)
+tier=$(sed -n -E 's/^[[:space:]]*tier_emitted:[[:space:]]*"?(T[0-6])"?[[:space:]]*$/\1/p' \
+  pipeline-state/{task-id}/intake.md | head -n 1)
+
+// Step 1: Create tasks (4 always; 5th only when tier==T6)
 TaskCreate({ title: "Verify: contract + smoke + mutation", description: "..." })
 TaskCreate({ title: "Test: coverage analysis + gap filling", description: "..." })
 TaskCreate({ title: "Accept: AC validation + UX review", description: "..." })
 TaskCreate({ title: "Patch critique: test results + diff", description: "..." })
+// if [ "$tier" = "T6" ]; then
 TaskCreate({ title: "Spec-blind validate: ACs only, no source", description: "..." })
+// fi
 
-// Step 2: Spawn all five in single message
+// Step 2: Spawn 4 core agents always; spec-blind only when tier==T6
 Agent({
   name: "verifier",
   team_name: "pipeline-{task-id}",
@@ -965,6 +974,8 @@ Agent({
     personas in parallel — see § Multi-Persona Patch Critic Dispatch below."
 })
 
+// Spec-blind validator: spawned only when tier == T6
+// if [ "$tier" = "T6" ]; then
 Agent({
   name: "spec-blind-validator",
   team_name: "pipeline-{task-id}",
@@ -987,25 +998,33 @@ Agent({
       - SPEC_BLIND_INSUFFICIENT_SURFACE when no public surface or no test runner
       - SPEC_BLIND_BLOCKED on harness/hook error (HALT — operator escalation)"
 })
+// fi
 ```
 
-After all five return verdicts: shut down teammates.
+After all agents return verdicts: shut down teammates.
 
 ### Final Gate Summary Rendering
 
-The orchestrator collects the five verdicts and emits a one-line-per-teammate summary block to the user. The `SPEC_BLIND_INSUFFICIENT_SURFACE` verdict renders verbatim as `spec-blind: SKIPPED (no public surface)` so the operator sees the no-op explicitly (per AC18 — silent skip would let the gate become an unattended no-op on convention-poor projects).
+The orchestrator collects verdicts and emits a one-line-per-teammate summary block.
+The `SPEC_BLIND_INSUFFICIENT_SURFACE` verdict renders verbatim as
+`spec-blind: SKIPPED (no public surface)` so the operator sees the no-op explicitly
+(per AC18 — silent skip would let the gate become an unattended no-op on
+convention-poor projects). The spec-blind line is rendered **only when tier==T6**.
 
 ```
 [Final Gate] verifier         -> VERIFIED
 [Final Gate] test-analyst     -> COVERED
 [Final Gate] product-reviewer -> APPROVED
 [Final Gate] patch-critic     -> PATCH_APPROVED
+// rendered only when tier == T6:
 [Final Gate] spec-blind       -> SPEC_BLIND_VALIDATED
                               (or: spec-blind: SKIPPED (no public surface))
                               (or: spec-blind: HALT — operator escalation required)
 ```
 
-Same convention as the existing per-verdict summary lines. The `SPEC_BLIND_BLOCKED` line is operator-actionable (HALT routing per `rules/verdict-catalog.md`) — `/pr-creation` will refuse to advance until the blocker is resolved.
+Same convention as the existing per-verdict summary lines. The `SPEC_BLIND_BLOCKED`
+line is operator-actionable (HALT routing per `rules/verdict-catalog.md`) —
+`/pr-creation` will refuse to advance until the blocker is resolved.
 
 ## Multi-Persona Patch Critic Dispatch (uncertainty-escalated)
 
