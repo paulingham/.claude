@@ -1,5 +1,7 @@
 # Claude Code Orchestration Layer
 
+> Rolling this harness out to engineers? See [ROLLOUT.md](ROLLOUT.md).
+
 An autonomous software delivery system built on [Claude Code](https://claude.com/claude-code). Takes a feature request and delivers a reviewed, verified, tested, and deployed production-ready application — across web, mobile, voice, and device channels.
 
 ## What This Does
