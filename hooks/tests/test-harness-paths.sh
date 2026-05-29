@@ -206,6 +206,13 @@ else
   fail "C4: spec-blind-recursion.sh references HARNESS_ROOT" "present" "absent"
 fi
 
+# C5: session-memory-read-split.sh uses HARNESS_ROOT (migrated from CLAUDE_CONFIG_DIR)
+if grep -q 'HARNESS_ROOT' "$REPO_ROOT/hooks/_lib/session-memory-read-split.sh" 2>/dev/null; then
+  pass "C5: session-memory-read-split.sh references HARNESS_ROOT"
+else
+  fail "C5: session-memory-read-split.sh references HARNESS_ROOT" "present" "absent"
+fi
+
 # ---------------------------------------------------------------------------
 # D-series: plug-in mode smoke tests
 # ---------------------------------------------------------------------------
