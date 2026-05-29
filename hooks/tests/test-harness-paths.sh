@@ -109,8 +109,25 @@ rc=$?
 if [[ $rc -eq 0 ]]; then pass "A6b: safe under set -u (no unbound variable errors)"
 else fail "A6b: safe under set -u (no unbound variable errors)" 0 $rc; fi
 
+# A7: CLAUDE_PLUGIN_ROOT="" (empty string) falls back to $HOME/.claude
+# The ${VAR:-default} form treats empty string identically to unset.
+(
+  export CLAUDE_PLUGIN_ROOT=""
+  unset CLAUDE_CONFIG_DIR 2>/dev/null || true
+  unset _HARNESS_PATHS_LOADED 2>/dev/null || true
+  source "$HARNESS_PATHS"
+  [[ "$HARNESS_ROOT" == "$HOME/.claude" ]]
+)
+rc=$?
+if [[ $rc -eq 0 ]]; then pass "A7: CLAUDE_PLUGIN_ROOT=\"\" (empty) falls back to \$HOME/.claude"
+else fail "A7: CLAUDE_PLUGIN_ROOT=\"\" (empty) falls back to \$HOME/.claude" "$HOME/.claude" "(wrong value)"; fi
+
 # ---------------------------------------------------------------------------
 # B-series: residual pattern assertions
+# Note: hooks/tests/ is excluded from the glob below because this test file
+# itself contains the old ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib
+# pattern as literal strings in the grep -rl search targets. Scanning it
+# would produce false positives against the test's own source text.
 # ---------------------------------------------------------------------------
 echo "-- residual pattern assertions --"
 
