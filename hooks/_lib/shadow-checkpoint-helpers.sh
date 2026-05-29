@@ -108,7 +108,7 @@ _sgc_resolve_task_id() {
   # Discover an active in-progress pipeline state file. Use the canonical
   # _psp_find_active_pipelines helper when sourceable; otherwise fall back to a
   # shallow find. NB: this path is only hit when CLAUDE_PIPELINE_TASK_ID is unset.
-  local helpers="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/pipeline-state-paths.sh"
+  local helpers="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/pipeline-state-paths.sh"
   local active=""
   if [[ -f "$helpers" ]]; then
     # shellcheck source=/dev/null

@@ -18,11 +18,12 @@
 
 set -uo pipefail
 
-CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/harness-paths.sh"
 HELPER="$SCRIPT_DIR/verdict_consistency.py"
 
-if [ ! -d "$CONFIG_DIR" ]; then
+if [ ! -d "$HARNESS_ROOT" ]; then
   echo "error: config-dir-not-found"
   exit 1
 fi
@@ -32,4 +33,4 @@ if [ ! -f "$HELPER" ]; then
   exit 1
 fi
 
-exec python3 "$HELPER" "$CONFIG_DIR"
+exec python3 "$HELPER" "$HARNESS_ROOT"

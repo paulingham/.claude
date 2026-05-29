@@ -8,9 +8,9 @@
 # see pipeline-state/spec-blind-validator-harness-aware-soak-end/pipeline.md.)
 #
 # Detection requires BOTH (per plan AC14, R1 strengthening — Eng #9):
-#   1. ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/rules/core.md exists, AND
+#   1. $HARNESS_ROOT/rules/core.md exists, AND
 #   2. realpath($(git -C <cwd> rev-parse --show-toplevel)) ==
-#      realpath(${CLAUDE_CONFIG_DIR:-$HOME/.claude})
+#      realpath($HARNESS_ROOT)
 #
 # The `git remote` heuristic was considered and dropped — fragile across forks,
 # mirrors, and stale remotes.
@@ -23,14 +23,15 @@
 # matching (SEC-HIGH-1: symlink-bypass mitigation). Sourced here so the
 # function is in scope for is_harness_internal_cwd below.
 # shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
+# shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/spec-blind-path.sh"
 
 is_harness_internal_cwd() {
   local cwd="$1"
   [[ -z "$cwd" ]] && return 1
-  local config_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-  # Condition 1: rules/core.md MUST exist under the config dir.
-  [[ -f "$config_dir/rules/core.md" ]] || return 1
+  # Condition 1: rules/core.md MUST exist under the harness root.
+  [[ -f "$HARNESS_ROOT/rules/core.md" ]] || return 1
   # Condition 2: the cwd's repo top-level MUST resolve to the same realpath as
   # the config dir.
   local repo_top
@@ -38,7 +39,7 @@ is_harness_internal_cwd() {
   [[ -z "$repo_top" ]] && return 1
   local repo_real config_real
   repo_real="$(_spec_blind_realpath "$repo_top")"
-  config_real="$(_spec_blind_realpath "$config_dir")"
+  config_real="$(_spec_blind_realpath "$HARNESS_ROOT")"
   [[ -z "$repo_real" || -z "$config_real" ]] && return 1
   [[ "$repo_real" == "$config_real" ]] || return 1
   return 0

@@ -8,15 +8,15 @@
 # enforces: protocols/autonomous-intelligence.md:Codebase Map
 # protects: codebase-map-poll
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "Stop"
 trap 'log_hook_event $?' EXIT    # MUST register BEFORE the disable check
 
 [[ "${CLAUDE_DISABLE_CODEBASE_MAP:-0}" == "1" ]] && exit 0
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
-LIB_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib"
+LIB_DIR="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib"
 # shellcheck disable=SC1091
 source "$LIB_DIR/project-hash.sh"
 # shellcheck disable=SC1091

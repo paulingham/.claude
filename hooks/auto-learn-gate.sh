@@ -6,13 +6,13 @@
 # enforces: protocols/autonomous-intelligence.md:Consolidation Gate
 # protects: learn
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "Stop"
 trap 'log_hook_event $?' EXIT    # set BEFORE any early exits so they get logged
 
 [[ "${CLAUDE_DISABLE_AUTO_LEARN:-0}" == "1" ]] && exit 0
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 LIB="$(dirname "${BASH_SOURCE[0]}")/_lib"
 # shellcheck source=_lib/project-hash.sh

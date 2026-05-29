@@ -6,18 +6,18 @@
 # enforces: protocols/pipeline-protocol.md:Phase Checklist
 # protects: pr-creation
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "Stop"
 trap 'log_hook_event $?' EXIT
 
 set -uo pipefail
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/auto-pr-preflight.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/auto-pr-preflight.sh"
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/approval-token.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/approval-token.sh"
 
 INPUT=$(cat)
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")

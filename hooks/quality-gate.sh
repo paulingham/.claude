@@ -7,14 +7,14 @@
 # protects: pr-creation, code-review
 # self-test: skip
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Bash"
 trap 'log_hook_event $?' EXIT
 
 set -uo pipefail
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "minimal" || exit 0
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/hook-profile.sh" && check_hook_profile "minimal" || exit 0
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
@@ -22,9 +22,9 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 [[ "$TOOL_NAME" != "Bash" || ! "$COMMAND" =~ "gh pr create" ]] && exit 0
 
 echo "QUALITY GATE: Running pre-PR checks..." >&2
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/quality-gate-checks.sh"
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/quality-gate-pairing.sh"
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/jsonl-emit.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/quality-gate-checks.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/quality-gate-pairing.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/jsonl-emit.sh"
 
 # Log-only advisory: empty CLAUDE_PIPELINE_TASK_ID corrupts cross-pipeline
 # state via the pipeline-state/unknown/ fallback at line 37 below. Emit a

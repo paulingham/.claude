@@ -9,7 +9,9 @@
 # (default 24) via a sentinel at $HOME/.claude/.hook-self-test-state.json.
 # Escape hatch: CLAUDE_DISABLE_HOOK_SELF_TEST=1 → fast-exit 0.
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
+# shellcheck source=/dev/null
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/harness-paths.sh"
 # Inline emitter — matches _lib/jsonl-emit.sh contract. Inlined because
 # hook-self-test.sh runs at SessionStart before _lib/ is guaranteed loaded.
 _jsonl_emit() {
@@ -53,8 +55,7 @@ SID="${SID//[^a-zA-Z0-9_.-]/}"
 METRICS="${HOME}/.claude/metrics/${SID}/hook-health.jsonl"
 mkdir -p "$(dirname "$METRICS")"
 
-CONFIG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-HOOKS_DIR="$CONFIG/hooks"
+HOOKS_DIR="$HARNESS_ROOT/hooks"
 FAST_PAYLOAD='{"tool_name":"Read","tool_input":{"file_path":"/dev/null"}}'
 ANY_FAIL=0
 

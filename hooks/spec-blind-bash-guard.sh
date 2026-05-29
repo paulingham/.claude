@@ -32,13 +32,13 @@ if ! printf '%s' "$INPUT" | grep -F -q "spec-blind-validator" \
 fi
 
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Bash"
 trap 'log_hook_event $?' EXIT
 
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/spec-blind-guard-common.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/spec-blind-guard-common.sh"
 _spec_blind_parse_input
 
 [[ "$SUBAGENT_TYPE" != "spec-blind-validator" ]] && exit 0
@@ -49,7 +49,7 @@ _spec_blind_parse_input
 # If the command matches one of the 7 enumerated test runners exactly, allow.
 # The patterns reject shell-metachar suffixes (SEC-CRIT-1) so chain bypasses
 # fall through to the leak-pattern list below.
-RUNNER_FILE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/spec-blind-test-runners.txt"
+RUNNER_FILE="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/spec-blind-test-runners.txt"
 ALLOWED=0
 if [[ -f "$RUNNER_FILE" ]]; then
   while IFS= read -r pat; do

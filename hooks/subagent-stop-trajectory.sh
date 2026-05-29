@@ -6,7 +6,7 @@
 # enforces: protocols/pipeline-protocol.md:Structured Pipeline State
 # protects: pipeline, forensics
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SubagentStop"
 trap 'log_hook_event $?' EXIT
