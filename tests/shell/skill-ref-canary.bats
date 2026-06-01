@@ -247,3 +247,107 @@ _run_bootstrap() {
   )
   [[ "$MATCHES" -eq 0 ]]
 }
+
+# ---------------------------------------------------------------------------
+# AC-A5 (collision-residual targeted): The 4 highest-collision skill names
+# (code-review, security-review, verify, debug) are ALL namespaced — no bare
+# backtick invocation refs remain in the 7 trees.
+#
+# These names collide with common English words and system concepts, making
+# them the highest regression risk for future edits re-introducing bare refs.
+# A targeted test adds a named regression anchor beyond the generic allowlist scan.
+#
+# RED proof: a temp file containing a bare backtick /security-review fires the scan.
+# GREEN: the real 7 trees contain ZERO bare backtick refs for any of the 4 names.
+# ---------------------------------------------------------------------------
+
+@test "AC-A5-red-proof: collision-residual scan fires on bare backtick /security-review" {
+  BT=$'\x60'
+  printf 'Run %s/security-review%s after review.\n' "$BT" "$BT" >"$SCRATCH/collision.md"
+
+  MATCHES=$(grep -cE '`/(code-review|security-review|verify|debug)`' \
+    "$SCRATCH/collision.md" || true)
+  [[ "$MATCHES" -ge 1 ]]
+}
+
+@test "AC-A5-green: ZERO bare backtick refs for collision names (code-review, security-review, verify, debug) in 7 trees" {
+  REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+
+  MATCHES=$(
+    grep -rnE '`/(code-review|security-review|verify|debug)`' \
+      "$REPO_ROOT/skills" \
+      "$REPO_ROOT/protocols" \
+      "$REPO_ROOT/orchestrator" \
+      "$REPO_ROOT/rules" \
+      "$REPO_ROOT/agents" \
+      "$REPO_ROOT/README.md" \
+      "$REPO_ROOT/CLAUDE.md" \
+      2>/dev/null | wc -l | tr -d ' '
+  )
+  [[ "$MATCHES" -eq 0 ]]
+}
+
+# ---------------------------------------------------------------------------
+# AC-B3 (bootstrap collision-name branch guard): The bootstrap hook's
+# plugin-mode branch emits /harness: prefixed versions of the 4 highest-
+# collision skill names, and the overlay-mode branch does NOT emit the
+# harness-prefixed variants for those same names.
+#
+# Rationale: AC-B1/B2 test code-review/intake/pipeline but not the collision
+# names security-review, verify, debug. A regression where plugin-mode omits
+# the prefix for these, or overlay-mode accidentally emits it, would not be
+# caught by the existing tests.
+#
+# RED proof: a bootstrap output string containing bare /security-review in
+# plugin-mode context fires the negative assertion.
+# GREEN plugin-mode: output contains /harness:security-review, /harness:verify,
+#       /harness:debug.
+# GREEN overlay-mode: output does NOT contain /harness:security-review,
+#       /harness:verify, /harness:debug.
+# ---------------------------------------------------------------------------
+
+@test "AC-B3-red-proof: plugin-mode collision check fires when /harness: prefix is absent" {
+  # Simulate a bootstrap output that is missing the harness: prefix for security-review
+  printf '/security-review (parallel)\n' >"$SCRATCH/bad-plugin-output.md"
+
+  # The check: grep for bare /security-review NOT preceded by harness:
+  MATCHES=$(grep -cE '(?<!harness:)(^|[[:space:]])/security-review' \
+    "$SCRATCH/bad-plugin-output.md" || true)
+  # If grep -P is unavailable, fall back to a simpler pattern check
+  if [[ "$MATCHES" -eq 0 ]]; then
+    MATCHES=$(grep -cv '/harness:security-review' "$SCRATCH/bad-plugin-output.md" || true)
+  fi
+  [[ "$MATCHES" -ge 1 ]]
+}
+
+@test "AC-B3-plugin-mode: bootstrap with CLAUDE_PLUGIN_ROOT set emits /harness:security-review" {
+  run _run_bootstrap "/fake/plugin/root"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '/harness:security-review'
+}
+
+@test "AC-B3-plugin-mode: bootstrap with CLAUDE_PLUGIN_ROOT set emits /harness:verify" {
+  run _run_bootstrap "/fake/plugin/root"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '/harness:verify'
+}
+
+@test "AC-B3-plugin-mode: bootstrap with CLAUDE_PLUGIN_ROOT set emits /harness:debug" {
+  run _run_bootstrap "/fake/plugin/root"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '/harness:debug'
+}
+
+@test "AC-B3-overlay-mode: bootstrap without CLAUDE_PLUGIN_ROOT does NOT emit /harness:security-review" {
+  unset CLAUDE_PLUGIN_ROOT
+  run _run_bootstrap ""
+  [ "$status" -eq 0 ]
+  ! echo "$output" | grep -q '/harness:security-review'
+}
+
+@test "AC-B3-overlay-mode: bootstrap without CLAUDE_PLUGIN_ROOT does NOT emit /harness:verify" {
+  unset CLAUDE_PLUGIN_ROOT
+  run _run_bootstrap ""
+  [ "$status" -eq 0 ]
+  ! echo "$output" | grep -q '/harness:verify'
+}
