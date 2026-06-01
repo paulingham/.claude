@@ -47,7 +47,7 @@ else
   fail "A2 plugin delivery keys missing or malformed"
 fi
 
-# A3 — env has exactly the 12 required keys, no CLAUDE_PIPELINE_TASK_ID, no _doc_*
+# A3 — env has exactly the 11 required keys, no CLAUDE_PIPELINE_TASK_ID, no _doc_*
 echo "A3: env keys"
 if python3 - "$FILE" <<'PYEOF'
 import json, sys
@@ -73,7 +73,7 @@ doc_keys = [k for k in env if k.startswith("_doc_")]
 assert not doc_keys, f"env must NOT contain _doc_* keys: {doc_keys}"
 PYEOF
 then
-  pass "A3 env has 12 required keys, no CLAUDE_PIPELINE_TASK_ID, no _doc_*"
+  pass "A3 env has 11 required keys, no CLAUDE_PIPELINE_TASK_ID, no _doc_*"
 else
   fail "A3 env keys check failed"
 fi
@@ -106,6 +106,7 @@ expected_deny = [
 assert len(deny) == 16, f"expected 16 deny rules, got {len(deny)}: {deny}"
 for rule in expected_deny:
     assert rule in deny, f"deny missing rule: {rule}"
+assert "defaultMode" not in d, "top-level defaultMode locks mode (breaks autonomous bypass)"
 assert "defaultMode" not in perms, "permissions must NOT contain defaultMode (breaks overridable posture)"
 assert "disableBypassPermissionsMode" not in perms, "permissions must NOT contain disableBypassPermissionsMode"
 assert "allow" not in perms, "permissions must NOT contain allow list"
