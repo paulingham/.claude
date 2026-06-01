@@ -216,6 +216,60 @@ else
   fail "A9 settings.json differs from main"
 fi
 
+# A10 — SessionStart command contains bootstrap imperatives (not just sh -n clean)
+echo "A10: SessionStart command contains bootstrap imperatives"
+if python3 - "$FILE" <<'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1]))
+cmd = d["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+assert "marketplace add" in cmd, \
+    "SessionStart command must contain 'marketplace add' (bootstrap: claude plugin marketplace add Adviser-Group/.claude)"
+assert "plugin install" in cmd, \
+    "SessionStart command must contain 'plugin install' (bootstrap: claude plugin install harness@adviser-group)"
+PYEOF
+then
+  pass "A10 SessionStart contains 'marketplace add' and 'plugin install'"
+else
+  fail "A10 SessionStart bootstrap imperatives missing"
+fi
+
+# A11 — PreToolUse command emits permissionDecision:deny JSON (not just syntax-clean)
+echo "A11: PreToolUse command emits permissionDecision:deny"
+if python3 - "$FILE" <<'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1]))
+cmd = d["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+assert "permissionDecision" in cmd, \
+    "PreToolUse command must contain 'permissionDecision' (deny-form output JSON)"
+assert '"deny"' in cmd or "'deny'" in cmd or "deny" in cmd, \
+    "PreToolUse command must contain deny decision"
+assert "hookSpecificOutput" in cmd, \
+    "PreToolUse command must emit hookSpecificOutput JSON (deny gate output format)"
+PYEOF
+then
+  pass "A11 PreToolUse emits permissionDecision:deny hookSpecificOutput"
+else
+  fail "A11 PreToolUse deny-form output missing"
+fi
+
+# A12 — no fetch-execute pattern (regression guard vs phase-0 canary gh api | bash / curl | bash)
+echo "A12: no fetch-execute pattern"
+if python3 - "$FILE" <<'PYEOF'
+import json, sys
+text = open(sys.argv[1]).read()
+assert "gh api" not in text, \
+    "managed-settings.json must NOT contain 'gh api' (fetch-execute regression guard)"
+assert "| bash" not in text, \
+    "managed-settings.json must NOT contain '| bash' (fetch-execute regression guard)"
+assert "| sh" not in text, \
+    "managed-settings.json must NOT contain '| sh' (fetch-execute regression guard)"
+PYEOF
+then
+  pass "A12 no fetch-execute pattern (no 'gh api', no '| bash', no '| sh')"
+else
+  fail "A12 fetch-execute pattern detected (regression vs phase-0 canary)"
+fi
+
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 if [ "$FAIL" -gt 0 ]; then
