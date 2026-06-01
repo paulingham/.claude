@@ -7,6 +7,9 @@
 # A5  ZERO residual bare ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/ in hooks.json
 # A6  ZERO hcom / rtk / gh-cache strings in hooks.json
 # A7  spot-check: >=3 hooks keep settings.json matcher+timeout
+# A8  event count == 14 (portable subset, no Notification/PermissionRequest)
+# A9  Notification and PermissionRequest are absent from plugin hooks.json (omit-set)
+# A10 exactly one type:agent hook present in Stop event with timeout==120
 
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -170,6 +173,54 @@ for m in mismatches[:3]:
     else
         fail "A7: matches=$match_count mismatches=$mismatch_count (need >=3 matches, 0 mismatches)"
         echo "$spot_result" | tail -n +2 | head -5
+    fi
+fi
+
+# A8: event count == 14 (portable subset, no Notification/PermissionRequest)
+if [[ -f "$HOOKS_JSON" ]]; then
+    event_count=$(python3 -c "import json; d=json.load(open('$HOOKS_JSON')); print(len(d.get('hooks',{})))")
+    if [[ "$event_count" == "14" ]]; then
+        pass "A8: event count is 14"
+    else
+        fail "A8: event count is $event_count (expected 14)"
+    fi
+fi
+
+# A9: Notification and PermissionRequest absent (omit-set — they carry hcom refs)
+if [[ -f "$HOOKS_JSON" ]]; then
+    omit_result=$(python3 -c "
+import json
+d = json.load(open('$HOOKS_JSON'))
+events = set(d.get('hooks', {}).keys())
+bad = [ev for ev in ['Notification', 'PermissionRequest'] if ev in events]
+print(' '.join(bad) if bad else 'OK')
+")
+    if [[ "$omit_result" == "OK" ]]; then
+        pass "A9: Notification and PermissionRequest absent from plugin hooks.json"
+    else
+        fail "A9: omit-set violation — found: $omit_result"
+    fi
+fi
+
+# A10: exactly one type:agent hook present, in Stop event, with timeout==120
+if [[ -f "$HOOKS_JSON" ]]; then
+    agent_result=$(python3 -c "
+import json
+d = json.load(open('$HOOKS_JSON'))
+agent_hooks = []
+for ev, groups in d.get('hooks', {}).items():
+    for g in groups:
+        for h in g.get('hooks', []):
+            if h.get('type') == 'agent':
+                agent_hooks.append((ev, h.get('timeout')))
+print(str(len(agent_hooks)) + ' ' + ' '.join(ev + ':' + str(t) for ev, t in agent_hooks))
+")
+    count=$(echo "$agent_result" | awk '{print $1}')
+    details=$(echo "$agent_result" | cut -d' ' -f2-)
+    if [[ "$count" == "1" && "$details" == "Stop:120" ]]; then
+        pass "A10: exactly 1 type:agent hook in Stop event with timeout==120"
+    else
+        fail "A10: type:agent hooks count=$count details=$details (expected 1, Stop:120)"
     fi
 fi
 
