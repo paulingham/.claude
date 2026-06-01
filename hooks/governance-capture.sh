@@ -6,6 +6,8 @@
 # enforces: protocols/reflection-protocol.md:Capture Pipeline Observation
 # protects: learn, forensics
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
@@ -20,7 +22,7 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input // empty')
 
-METRICS_DIR="$HOME/.claude/metrics"
+METRICS_DIR="$HARNESS_DATA/metrics"
 mkdir -p "$METRICS_DIR"
 
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)

@@ -5,13 +5,15 @@
 # chars; field-level caps in log_allowlist_emit keep the line bounded AND
 # valid JSON (vs the previous post-serialisation byte slice).
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 INPUT="$1"
 RESOLVED="$2"
 FRONTMATTER="${3:-null}"
 SESSION_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SESSION="${SESSION_RAW//[^A-Za-z0-9_-]/_}"
 [[ -z "$SESSION" || "$SESSION" =~ ^_+$ ]] && SESSION="local-$$"
-DIR="$HOME/.claude/metrics/$SESSION"
+DIR="$HARNESS_DATA/metrics/$SESSION"
 mkdir -p "$DIR" 2>/dev/null || exit 0
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 python3 "$(dirname "$0")/log_allowlist_emit.py" \

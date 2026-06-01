@@ -7,6 +7,8 @@
 # enforces: protocols/operational-protocol.md:Complexity Budget
 # protects: pipeline
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SubagentStop"
@@ -38,7 +40,7 @@ TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 COST=$(_cf_compute_cost "$I_TOK" "$O_TOK" "$C_TOK")
 [ -z "$COST" ] && exit 0
 
-METRICS_DIR="$HOME/.claude/metrics"
+METRICS_DIR="$HARNESS_DATA/metrics"
 mkdir -p "$METRICS_DIR" 2>/dev/null || exit 0
 
 jq -nc --arg ts "$TIMESTAMP" --arg sid "$SESSION_ID" --arg pid "$PIPELINE_ID" --arg role "$AGENT_ROLE" --arg model "$MODEL" --argjson cost "$COST" --argjson i "$I_TOK" --argjson o "$O_TOK" --argjson c "$C_TOK" '{timestamp:$ts,session_id:$sid,pipeline_id:$pid,agent_role:$role,model:$model,total_cost_usd:$cost,input_tokens:$i,output_tokens:$o,cached_tokens:$c,rate_version:"opus-4-7-2026-04"}' >> "$METRICS_DIR/costs.jsonl" 2>/dev/null || true

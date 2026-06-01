@@ -30,6 +30,8 @@
 set -u
 
 # Always exit 0 (log-only invariant).
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 trap 'exit 0' EXIT ERR
 
 INPUT=$(cat)
@@ -77,7 +79,7 @@ else
     WOULD_TRUNCATE=false
 fi
 
-METRICS_DIR="$HOME/.claude/metrics/$SESSION_ID"
+METRICS_DIR="$HARNESS_DATA/metrics/$SESSION_ID"
 mkdir -p "$METRICS_DIR" 2>/dev/null || exit 0
 OUT_FILE="$METRICS_DIR/observation-length-cap.jsonl"
 

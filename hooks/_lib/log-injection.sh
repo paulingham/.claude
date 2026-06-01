@@ -5,6 +5,8 @@
 # Source is "logged" (Path B advisory, current), "blocked" (Path B enforcement, future), or "injected" (Path A, future).
 # Sanitises CLAUDE_SESSION_ID against path traversal; caps agent_role at 64 chars.
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 INPUT="$1"
 RESOLVED="$2"
 SOURCE="$3"
@@ -12,7 +14,7 @@ FILENAME="${4:-hook-injections.jsonl}"
 SESSION_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SESSION="${SESSION_RAW//[^A-Za-z0-9_-]/_}"
 [[ -z "$SESSION" || "$SESSION" =~ ^_+$ ]] && SESSION="local-$$"
-DIR="$HOME/.claude/metrics/$SESSION"
+DIR="$HARNESS_DATA/metrics/$SESSION"
 mkdir -p "$DIR" 2>/dev/null || exit 0
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 python3 -c "import json,sys

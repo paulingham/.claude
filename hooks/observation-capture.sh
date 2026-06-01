@@ -7,6 +7,8 @@
 # enforces: protocols/reflection-protocol.md:Capture Pipeline Observation
 # protects: learn, pipeline
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PostToolUse"
@@ -40,7 +42,7 @@ fi
 # Get human-readable project name
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
 
-LEARNING_DIR="$HOME/.claude/learning/$PROJECT_HASH"
+LEARNING_DIR="$HARNESS_DATA/learning/$PROJECT_HASH"
 mkdir -p "$LEARNING_DIR"
 
 OBS_FILE="$LEARNING_DIR/observations.jsonl"
@@ -73,7 +75,7 @@ fi
 # Pipeline phase: from env var, or detect from active pipeline state file (DUAL_PATH).
 PHASE="${CLAUDE_PIPELINE_PHASE:-}"
 if [[ -z "$PHASE" ]]; then
-    PIPELINE_DIR="$HOME/.claude/pipeline-state"
+    PIPELINE_DIR="$HARNESS_DATA/pipeline-state"
     if [[ -d "$PIPELINE_DIR" ]]; then
         # shellcheck source=_lib/pipeline-state-paths.sh
         source "$(dirname "${BASH_SOURCE[0]}")/_lib/pipeline-state-paths.sh"
@@ -134,8 +136,8 @@ if [[ -n "$OBS_JSON" ]]; then
 
     # Best-effort SQLite live write (Story 2). JSONL is canonical — any failure
     # here MUST NOT affect hook exit code or the JSONL append above.
-    LIVE_DB="$HOME/.claude/db/memory.sqlite"
-    LIVE_LOG="$HOME/.claude/db/live-writer.log"
+    LIVE_DB="$HARNESS_DATA/db/memory.sqlite"
+    LIVE_LOG="$HARNESS_DATA/db/live-writer.log"
     if [[ -f "$LIVE_DB" ]]; then
         # Rotate log if >1MB
         if [[ -f "$LIVE_LOG" ]] && [[ $(wc -c < "$LIVE_LOG" | tr -d ' ') -gt 1048576 ]]; then

@@ -1,8 +1,0 @@
-Test: write_approval_token_uses_new_layout_only
-  ok: new-layout token written at /var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.tswveOvAuj/.claude/pipeline-state/t1/approval.token
-  ok: legacy-layout token NOT written
-Test: write_approval_token_rejects_dotdot_task_id
-  ok: _at_write_token rejected task_id='..'
-  ok: no landing-pad file at /var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.tswveOvAuj/.claude/approval.token
-  ok: no literal '..' file at pipeline-state/../approval.token
-Summary: 5 passed, 0 failed

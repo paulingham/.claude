@@ -3,6 +3,8 @@
 # enforces: protocols/pipeline-protocol.md:Phase Checklist
 # protects: pr-creation, code-review
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SubagentStop"
@@ -20,7 +22,7 @@ source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/js
 
 TASK_ID="${CLAUDE_PIPELINE_TASK_ID:-}"
 if [[ -z "$TASK_ID" ]]; then
-  TASK_ID=$(grep -rh "^task_id:" "${HOME}/.claude/pipeline-state" 2>/dev/null | head -1 | awk '{print $2}')
+  TASK_ID=$(grep -rh "^task_id:" "$HARNESS_DATA/pipeline-state" 2>/dev/null | head -1 | awk '{print $2}')
 fi
 TASK_ID="${TASK_ID//[^a-zA-Z0-9_.-]/}"
 [[ -z "$TASK_ID" ]] && exit 0
@@ -32,7 +34,7 @@ CURSOR=$(_qg_read_cursor "$TASK_ID")
 TOTAL=$(wc -l < "$EVENTS" | tr -d ' ')
 [[ "$TOTAL" -le "$CURSOR" ]] && exit 0
 
-METRICS="${HOME}/.claude/metrics/${CLAUDE_SESSION_ID:-local}/quality-gate-violations.jsonl"
+METRICS="$HARNESS_DATA/metrics/${CLAUDE_SESSION_ID:-local}/quality-gate-violations.jsonl"
 mkdir -p "$(dirname "$METRICS")"
 
 while IFS= read -r line; do

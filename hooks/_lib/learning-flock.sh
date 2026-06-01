@@ -4,7 +4,7 @@
 # concurrent fires never contend on memory.sqlite VACUUM or observations.jsonl
 # rotation. Lockfile lives at /tmp/claude-learning-{project-hash}.lock.
 #
-# Why /tmp instead of $HOME/.claude/learning/.lock — flock(2) requires the
+# Why /tmp instead of $HARNESS_DATA/learning/.lock — flock(2) requires the
 # lockfile inode be reachable from the same filesystem on every concurrent
 # process. /tmp is universally writeable and survives even when $HOME is
 # remapped during eval-isolation runs.
@@ -12,6 +12,8 @@
 # Bash 3.2 SAFE. flock(1) is required; fall back to no-op (single-process
 # semantics) if missing — tests mock with CLAUDE_LEARNING_FLOCK_DISABLE=1.
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 _learning_lock_path() {
   local hash="${1:-${CLAUDE_PROJECT_HASH:-local}}"
   hash="${hash//[^a-zA-Z0-9_.-]/}"

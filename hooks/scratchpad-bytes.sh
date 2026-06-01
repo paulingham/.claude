@@ -7,6 +7,8 @@
 # enforces: protocols/autonomous-intelligence.md:Pipeline Scratchpad
 # protects: pipeline, learn
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/log.sh"
@@ -28,7 +30,7 @@ RESOLVED=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/scratchpad-bytes.py"
 SESSION_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SESSION="${SESSION_RAW//[^A-Za-z0-9_-]/_}"
 [[ -z "$SESSION" || "$SESSION" =~ ^_+$ ]] && SESSION="local-$$"
-DIR="$HOME/.claude/metrics/$SESSION"
+DIR="$HARNESS_DATA/metrics/$SESSION"
 mkdir -p "$DIR" 2>/dev/null || exit 0
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 python3 -c "import json,sys

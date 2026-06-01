@@ -6,6 +6,8 @@
 # enforces: protocols/reflection-protocol.md:Pipeline Analytics
 # protects: pipeline, forensics
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "standalone"
@@ -28,8 +30,8 @@ else
   TASK_ID=$(_sanitize_segment "$RAW_TASK_ID")
 fi
 
-PIPELINE_DIR="$HOME/.claude/pipeline-state"
-METRICS_DIR="$HOME/.claude/metrics"
+PIPELINE_DIR="$HARNESS_DATA/pipeline-state"
+METRICS_DIR="$HARNESS_DATA/metrics"
 mkdir -p "$METRICS_DIR"
 
 # Resolve the per-task state directory honouring workstream scope.

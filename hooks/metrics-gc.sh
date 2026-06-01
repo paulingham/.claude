@@ -26,7 +26,7 @@ set -uo pipefail
 
 [[ "${CLAUDE_DISABLE_METRICS_GC:-0}" == "1" ]] && exit 0
 
-METRICS_DIR="${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}"
+METRICS_DIR="${CLAUDE_HOOK_LOG_DIR:-$HARNESS_DATA/metrics}"
 [[ -d "$METRICS_DIR" ]] || exit 0
 
 INTERVAL_HOURS="${CLAUDE_METRICS_GC_INTERVAL_HOURS:-24}"

@@ -11,7 +11,7 @@
 
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 # shellcheck source=/dev/null
-source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/harness-paths.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 # Inline emitter — matches _lib/jsonl-emit.sh contract. Inlined because
 # hook-self-test.sh runs at SessionStart before _lib/ is guaranteed loaded.
 _jsonl_emit() {
@@ -31,9 +31,9 @@ trap 'log_hook_event $?' EXIT
 # Escape hatch — fast-exit before any work.
 [[ "${CLAUDE_DISABLE_HOOK_SELF_TEST:-0}" == "1" ]] && exit 0
 
-# Rate-limit gate. Sentinel: $HOME/.claude/.hook-self-test-state.json
+# Rate-limit gate. Sentinel: $HARNESS_DATA/.hook-self-test-state.json
 # {"last_run": <epoch_seconds>}. Skip when within the configured interval.
-SELF_TEST_SENTINEL="${HOME}/.claude/.hook-self-test-state.json"
+SELF_TEST_SENTINEL="$HARNESS_DATA/.hook-self-test-state.json"
 SELF_TEST_INTERVAL_HOURS="${CLAUDE_HOOK_SELF_TEST_INTERVAL_HOURS:-24}"
 if [[ -f "$SELF_TEST_SENTINEL" ]]; then
   NOW_EPOCH="$(date +%s)"
@@ -52,7 +52,7 @@ fi
 
 SID="${CLAUDE_SESSION_ID:-local-$$}"
 SID="${SID//[^a-zA-Z0-9_.-]/}"
-METRICS="${HOME}/.claude/metrics/${SID}/hook-health.jsonl"
+METRICS="$HARNESS_DATA/metrics/${SID}/hook-health.jsonl"
 mkdir -p "$(dirname "$METRICS")"
 
 HOOKS_DIR="$HARNESS_ROOT/hooks"

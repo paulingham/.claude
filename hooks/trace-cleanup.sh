@@ -8,6 +8,8 @@
 # enforces: protocols/autonomous-intelligence.md:Prompt Tracing
 # protects: debug-trace
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SessionStart"
@@ -15,7 +17,7 @@ trap 'log_hook_event $?' EXIT
 
 set -uo pipefail
 
-METRICS_DIR="${HOME}/.claude/metrics"
+METRICS_DIR="$HARNESS_DATA/metrics"
 [[ -d "$METRICS_DIR" ]] || exit 0
 
 RETENTION_DAYS="${CLAUDE_TRACE_RETENTION_DAYS:-7}"

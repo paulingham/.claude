@@ -33,7 +33,7 @@ TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 SID_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SID="${SID_RAW//[^A-Za-z0-9_-]/}"
 [[ -z "$SID" ]] && SID="local-$$"
-DIR="${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}/$SID"
+DIR="${CLAUDE_HOOK_LOG_DIR:-$HARNESS_DATA/metrics}/$SID"
 
 python3 "${HOOK_DIR}/_lib/tool-timing-emit.py" \
   "$DIR" "$TS" "$TOOL" "$DURATION" "$SUCCESS" "$ROLE" "$TASK" 2>/dev/null || true

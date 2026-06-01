@@ -17,7 +17,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/codebase-map-divergence.sh"
 
-_smr_config_dir() { printf '%s\n' "$HARNESS_ROOT"; }
+_smr_config_dir() { printf '%s\n' "$HARNESS_DATA"; }
 
 # Path to the codebase-map sub-file written by codebase_map.cli build.
 _smr_codebase_map_generator_path() {

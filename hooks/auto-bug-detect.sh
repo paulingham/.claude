@@ -8,6 +8,8 @@
 # protects: build-implementation, bug-fix
 # self-test: skip
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PostToolUse:${TOOL_NAME:-Edit}"
@@ -47,7 +49,7 @@ if [[ -z "$OLD_STR" ]] || [[ -z "$NEW_STR" ]]; then
     exit 0
 fi
 
-METRICS_DIR="$HOME/.claude/metrics"
+METRICS_DIR="$HARNESS_DATA/metrics"
 mkdir -p "$METRICS_DIR"
 
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)

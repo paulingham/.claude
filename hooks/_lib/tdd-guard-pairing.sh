@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # State pairing helpers: tdd-guard PreToolUse → SubagentStop forensics
 
-_tdg_state_dir() { echo "${HOME}/.claude/state"; }
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
+_tdg_state_dir() { echo "$HARNESS_DATA/state"; }
 _tdg_cursor_path() { echo "$(_tdg_state_dir)/tdd-guard-cursor-${1:-local}"; }
 _tdg_snapshot_path() { echo "$(_tdg_state_dir)/tdd-guard-diff-snapshot-${1:-local}.json"; }
-_tdg_events_path() { echo "${HOME}/.claude/metrics/${CLAUDE_SESSION_ID:-local}/tdd-guard-events.jsonl"; }
+_tdg_events_path() { echo "$HARNESS_DATA/metrics/${CLAUDE_SESSION_ID:-local}/tdd-guard-events.jsonl"; }
 _tdg_read_cursor() { cat "$(_tdg_cursor_path "$1")" 2>/dev/null || echo "0"; }
 _tdg_write_cursor() { mkdir -p "$(_tdg_state_dir)"; echo "$2" > "$(_tdg_cursor_path "$1")"; }
 

@@ -8,6 +8,8 @@
 # enforces: protocols/agent-protocol.md:Main-Branch Invariant
 # protects: build-implementation, pr-creation
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/log.sh"
@@ -33,7 +35,7 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 _mbg_destructive_log() {
   local sid tid dir; sid="${CLAUDE_SESSION_ID:-local-$$}"; sid="${sid//[^a-zA-Z0-9_.-]/}"
-  tid="${CLAUDE_PIPELINE_TASK_ID:-}"; dir="$HOME/.claude/metrics/${sid:-local-$$}"
+  tid="${CLAUDE_PIPELINE_TASK_ID:-}"; dir="$HARNESS_DATA/metrics/${sid:-local-$$}"
   mkdir -p "$dir" 2>/dev/null || return 0
   jq -nc --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg sid "$sid" --arg tid "$tid" \
     --arg cmd "$(_mbg_redact "$COMMAND")" \
@@ -64,7 +66,7 @@ _mbg_emit_record() {
 
 _mbg_log_violation() {
   local sid tid dir; sid="${CLAUDE_SESSION_ID:-local-$$}"; sid="${sid//[^a-zA-Z0-9_.-]/}"
-  tid="${CLAUDE_PIPELINE_TASK_ID:-}"; dir="$HOME/.claude/metrics/${sid:-local-$$}"
+  tid="${CLAUDE_PIPELINE_TASK_ID:-}"; dir="$HARNESS_DATA/metrics/${sid:-local-$$}"
   mkdir -p "$dir" 2>/dev/null || return 0
   _mbg_emit_record "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$sid" "$tid" \
     >> "$dir/main-branch-violations.jsonl" 2>/dev/null || true

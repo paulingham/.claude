@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Context Warning — PostToolUse hook (all tools)
-# Reads context usage from $HOME/.claude/state/ctx-percent (written by statusline)
+# Reads context usage from $HARNESS_DATA/state/ctx-percent (written by statusline)
 # Injects warnings at thresholds: 65% used = WARNING, 75% used = CRITICAL
 # Advisory only (exit 0). Debounced to avoid spam.
 #
@@ -8,6 +8,8 @@
 # protects: pipeline
 
 # Hook profile
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PostToolUse"

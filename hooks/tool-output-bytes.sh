@@ -29,7 +29,7 @@ TASK="${CLAUDE_PIPELINE_TASK_ID:-}"
 SID_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SID="${SID_RAW//[^A-Za-z0-9_-]/}"
 [[ -z "$SID" ]] && SID="local-$$"
-DIR="${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}/$SID"
+DIR="${CLAUDE_HOOK_LOG_DIR:-$HARNESS_DATA/metrics}/$SID"
 
 printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/tool-output-bytes-emit.py" \
   "$DIR" "$TS" "$TASK" || true

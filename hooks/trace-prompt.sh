@@ -15,6 +15,8 @@
 # enforces: protocols/autonomous-intelligence.md:Prompt Tracing
 # protects: debug-trace
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Agent"
@@ -56,7 +58,7 @@ session_id="${CLAUDE_SESSION_ID:-local-$$}"
 # Resolve task_id + phase from the first pipeline-state file (best-effort, DUAL_PATH).
 task_id="unknown"
 phase="unknown"
-pipeline_glob="${HOME}/.claude/pipeline-state"
+pipeline_glob="$HARNESS_DATA/pipeline-state"
 shopt -s nullglob
 pipeline_files=("$pipeline_glob"/*-pipeline.md "$pipeline_glob"/*/pipeline.md)
 shopt -u nullglob
@@ -81,7 +83,7 @@ timestamp=$(date -u +%Y%m%dT%H%M%SZ)
 role_sanitized="${agent_role//:/-}"
 role_sanitized="${role_sanitized//\//-}"
 
-trace_dir="${HOME}/.claude/metrics/${session_id}/trace"
+trace_dir="$HARNESS_DATA/metrics/${session_id}/trace"
 mkdir -p "$trace_dir" 2>/dev/null || { echo "trace-prompt: mkdir failed: $trace_dir" >&2; exit 0; }
 
 trace_file="${trace_dir}/${role_sanitized}-${task_id}-${timestamp}.txt"

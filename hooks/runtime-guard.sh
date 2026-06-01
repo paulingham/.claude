@@ -9,6 +9,8 @@
 # enforces: protocols/agent-protocol.md:Resource Bounds
 # protects: pipeline, all-skills
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/log.sh"
@@ -40,7 +42,7 @@ SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // empty' 2>/de
 
 _rg_runtime_dir() {
   local sid="${CLAUDE_SESSION_ID:-local-$$}"; sid="${sid//[^a-zA-Z0-9_.-]/}"
-  echo "$HOME/.claude/metrics/${sid:-local-$$}/subagent-runtimes"
+  echo "$HARNESS_DATA/metrics/${sid:-local-$$}/subagent-runtimes"
 }
 
 _rg_extract_inputs() {

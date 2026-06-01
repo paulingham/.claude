@@ -6,6 +6,8 @@
 # enforces: protocols/autonomous-intelligence.md:Consolidation Gate
 # protects: learn
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "Stop"
@@ -30,7 +32,7 @@ INPUT=$(cat)  # capture Stop event JSON
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
 [ "$STOP_HOOK_ACTIVE" = "true" ] && exit 0
 HASH="${CLAUDE_LEARN_TEST_HASH:-$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")}"
-LD="$HOME/.claude/learning/$HASH"
+LD="$HARNESS_DATA/learning/$HASH"
 STATE="$LD/.learn-state.json"; OBS="$LD/observations.jsonl"; LOG="$LD/.learn-gate.log"; LOCK="$LD/.learn-state.lock"
 mkdir -p "$LD"
 
