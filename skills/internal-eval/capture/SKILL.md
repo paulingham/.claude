@@ -1,6 +1,6 @@
 ---
 name: "internal-eval-capture"
-description: "Sub-skill of /internal-eval. Turns real merged PRs into promoted eval cases via backfill + oracle detection. Populated by Story 4."
+description: "Sub-skill of /harness:internal-eval. Turns real merged PRs into promoted eval cases via backfill + oracle detection. Populated by Story 4."
 context: fork
 agent: software-engineer
 ---
@@ -11,8 +11,8 @@ agent: software-engineer
 
 | Script | Invoked as | Purpose |
 |---|---|---|
-| `backfill.sh` | `/internal-eval capture backfill [--limit N] [--since YYYY-MM-DD]` | Scan recent merged PRs, filter via `oracle-paths.json`, write candidates to `eval/cases/.candidates/` |
-| `promote.sh` | `/internal-eval capture promote <case-id>` | Move candidate from `.candidates/` into `eval/cases/` (joins the active suite) |
+| `backfill.sh` | `/harness:internal-eval capture backfill [--limit N] [--since YYYY-MM-DD]` | Scan recent merged PRs, filter via `oracle-paths.json`, write candidates to `eval/cases/.candidates/` |
+| `promote.sh` | `/harness:internal-eval capture promote <case-id>` | Move candidate from `.candidates/` into `eval/cases/` (joins the active suite) |
 
 ## Process
 

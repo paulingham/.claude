@@ -1,6 +1,6 @@
 # Engineering Invariants
 
-Always-loaded engineering baseline: code shape, naming, error handling, dependency resolution, testing standards, security baseline. The full ATDD cycle and per-behaviour TDD exceptions live in `rules/atdd-procedure.md` and are loaded by `/build-implementation` only.
+Always-loaded engineering baseline: code shape, naming, error handling, dependency resolution, testing standards, security baseline. The full ATDD cycle and per-behaviour TDD exceptions live in `rules/atdd-procedure.md` and are loaded by `/harness:build-implementation` only.
 
 ## Code Shape
 

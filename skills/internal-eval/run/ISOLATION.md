@@ -1,6 +1,6 @@
 # Nested-Pipeline Isolation Contract
 
-Canonical reference for the environment-variable contract that lets an **inner** `/pipeline` (spawned from within an **outer** pipeline — e.g. by the `/internal-eval` harness running a case via `run-case.sh`) execute without colliding with the outer pipeline on shared state.
+Canonical reference for the environment-variable contract that lets an **inner** `/harness:pipeline` (spawned from within an **outer** pipeline — e.g. by the `/harness:internal-eval` harness running a case via `run-case.sh`) execute without colliding with the outer pipeline on shared state.
 
 ## Invariant
 

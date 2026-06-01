@@ -22,10 +22,10 @@ This skill is the orchestration shell. The heavy lifting lives in four sub-skill
 
 | Command | Purpose |
 |---|---|
-| `/internal-eval run [--suite default] [--model opus] [--harness-ref <sha>] [--baseline]` | Run the suite. `--baseline` stamps results as the new baseline instead of diffing against one. |
-| `/internal-eval capture backfill [--limit N] [--since YYYY-MM-DD]` | Scan recent merged PRs via `gh pr list`, oracle-filter through `capture/oracle-paths.json`, write candidates to `eval/cases/.candidates/{case-id}/` (5 artifacts each) + exclusion report to `eval/.candidates/.exclusion-report-{ISO}.md`. Privacy-gated: requires `eval/.privacy-acked` marker. |
-| `/internal-eval capture promote <case-id>` | Atomically move `eval/cases/.candidates/{case-id}/` → `eval/cases/{case-id}/`. Validates `metadata.json`; refuses if destination already exists. |
-| `/internal-eval inspect <case-id>` | Diagnostic: show per-case metadata, latest result, oracle diff. Populated by Story 8. |
+| `/harness:internal-eval run [--suite default] [--model opus] [--harness-ref <sha>] [--baseline]` | Run the suite. `--baseline` stamps results as the new baseline instead of diffing against one. |
+| `/harness:internal-eval capture backfill [--limit N] [--since YYYY-MM-DD]` | Scan recent merged PRs via `gh pr list`, oracle-filter through `capture/oracle-paths.json`, write candidates to `eval/cases/.candidates/{case-id}/` (5 artifacts each) + exclusion report to `eval/.candidates/.exclusion-report-{ISO}.md`. Privacy-gated: requires `eval/.privacy-acked` marker. |
+| `/harness:internal-eval capture promote <case-id>` | Atomically move `eval/cases/.candidates/{case-id}/` → `eval/cases/{case-id}/`. Validates `metadata.json`; refuses if destination already exists. |
+| `/harness:internal-eval inspect <case-id>` | Diagnostic: show per-case metadata, latest result, oracle diff. Populated by Story 8. |
 
 ## Process
 
@@ -71,7 +71,7 @@ Failure modes:
 ### Step 2: Gate on case availability
 
 Count promoted cases under `eval/cases/` that match the suite filter:
-- If zero → emit `INSUFFICIENT_CASES` and exit 0. This is NOT an error: it means the suite is empty and the harness is uncovered, which the operator must address by running `/internal-eval capture backfill` + `capture promote`.
+- If zero → emit `INSUFFICIENT_CASES` and exit 0. This is NOT an error: it means the suite is empty and the harness is uncovered, which the operator must address by running `/harness:internal-eval capture backfill` + `capture promote`.
 - If ≥ 1 → continue to Step 3.
 
 ### Step 3: Dispatch the run
@@ -110,7 +110,7 @@ Report: eval/runs/{run-id}/report.md
 ## Prerequisite
 
 - `eval/cases/` exists (scaffolded by Story 1).
-- Baseline stamped at least once via `/internal-eval run --baseline` (produces `eval/baselines/{YYYY-MM-DD}-{model}.md` + `latest-{model}.md` symlink) before `EVAL_FAILED` is meaningful. Without a baseline, runs emit `EVAL_PASSED` with a note that no baseline exists.
+- Baseline stamped at least once via `/harness:internal-eval run --baseline` (produces `eval/baselines/{YYYY-MM-DD}-{model}.md` + `latest-{model}.md` symlink) before `EVAL_FAILED` is meaningful. Without a baseline, runs emit `EVAL_PASSED` with a note that no baseline exists.
 
 ## Anti-Patterns
 

@@ -109,7 +109,7 @@ Pipeline state lives in `pipeline-state/[feature-name]/pipeline.md`. Each phase 
 When context is approaching limits:
 1. Verify pipeline state is saved in `pipeline-state/[feature-name]/pipeline.md`
 2. Ensure it includes: current phase, all verdicts so far, outstanding findings, key file paths
-3. The pipeline-state file IS the state — use `/pipeline-resume` to recover on new session
+3. The pipeline-state file IS the state — use `/harness:pipeline-resume` to recover on new session
 
 ### On New Conversation Start
 1. Check memory for `pipeline_*.md` files
@@ -204,21 +204,21 @@ The orchestrator should NOT block waiting for review results when there is other
 
 ## 7c. Learning Extraction (automatic)
 
-The auto-learn gate fires via the `auto-learn-gate.sh` Stop hook, not by orchestrator checklist. At the end of any turn where the gate thresholds are met (≥3 new pipeline observations, ≥3 pipelines or ≥24h since last `/learn`, not already fired for the current pipeline), the hook prints a visible "Triggered: N observations, M pipelines" banner on stdout.
+The auto-learn gate fires via the `auto-learn-gate.sh` Stop hook, not by orchestrator checklist. At the end of any turn where the gate thresholds are met (≥3 new pipeline observations, ≥3 pipelines or ≥24h since last `/harness:learn`, not already fired for the current pipeline), the hook prints a visible "Triggered: N observations, M pipelines" banner on stdout.
 
-When the orchestrator sees that banner in context on its next turn, invoke `/learn`. The `/learn` skill itself resets the gate counters as its final step (see `skills/learn/SKILL.md` Step 10) — the hook is the *reminder*, `/learn` is the actual extraction.
+When the orchestrator sees that banner in context on its next turn, invoke `/harness:learn`. The `/harness:learn` skill itself resets the gate counters as its final step (see `skills/learn/SKILL.md` Step 10) — the hook is the *reminder*, `/harness:learn` is the actual extraction.
 
 The orchestrator does not need to count observations, check dates, or evaluate conditions — the hook does all of that deterministically. Escape hatch for debugging or bulk-work sessions: set `CLAUDE_DISABLE_AUTO_LEARN=1`.
 
 ## Anti-Patterns (from real incidents)
 
 ### "I have a detailed plan, I'll just spawn agents directly"
-**What happens:** The orchestrator has a plan with specific agent instructions, so it spawns frontend-engineer agents with detailed prompts, bypassing `/build-implementation` or `/refactor`. The code works, tests pass, but: no characterization tests were written (refactor safety), no RED-GREEN-REFACTOR audit trail (TDD), no structured verification, no formal gate closure.
+**What happens:** The orchestrator has a plan with specific agent instructions, so it spawns frontend-engineer agents with detailed prompts, bypassing `/harness:build-implementation` or `/harness:refactor`. The code works, tests pass, but: no characterization tests were written (refactor safety), no RED-GREEN-REFACTOR audit trail (TDD), no structured verification, no formal gate closure.
 **Fix:** Invoke the skill. The skill structures the work. The plan informs the skill, it does not replace it.
 
 ### "It's just a refactor, Verify/Test/Accept don't apply"
-**What happens:** The orchestrator decides that a "pure structural refactor" doesn't need `/verify` (no new boundaries to contract-test), `/qa-test-strategy` (existing tests pass), or `/product-acceptance` (no user-facing change). Three phases get skipped.
-**Why it's wrong:** `/verify` would catch that new extraction boundaries (hooks, helpers) have no dedicated tests -- mutation testing would reveal untested code. `/qa-test-strategy` would flag coverage gaps. `/product-acceptance` would verify the refactor didn't change behavior.
+**What happens:** The orchestrator decides that a "pure structural refactor" doesn't need `/harness:verify` (no new boundaries to contract-test), `/harness:qa-test-strategy` (existing tests pass), or `/harness:product-acceptance` (no user-facing change). Three phases get skipped.
+**Why it's wrong:** `/harness:verify` would catch that new extraction boundaries (hooks, helpers) have no dedicated tests -- mutation testing would reveal untested code. `/harness:qa-test-strategy` would flag coverage gaps. `/harness:product-acceptance` would verify the refactor didn't change behavior.
 **Fix:** Every phase applies to every work type. The scope of each phase scales down for small tasks, but no phase is skipped.
 
 ### "CHANGES_REQUESTED, fixed it, moving on"
@@ -227,8 +227,8 @@ The orchestrator does not need to count observations, check dates, or evaluate c
 **Incident:** This happened on 2026-03-17 and is the reason the review protocol exists.
 
 ### "I'll spawn the reviewer agent directly -- same thing as the skill"
-**What happens:** The orchestrator spawns a `code-reviewer` agent with a prompt describing what to review, bypassing `/code-review`. The review happens but without the skill's structured checklist, severity framework, and verdict format.
-**Why it's wrong:** Skills embed protocols. The `/code-review` skill has a specific checklist (shape, DRY, SRP, test quality, error handling). Direct agent spawning lets the orchestrator define the review scope, which may omit checks.
+**What happens:** The orchestrator spawns a `code-reviewer` agent with a prompt describing what to review, bypassing `/harness:code-review`. The review happens but without the skill's structured checklist, severity framework, and verdict format.
+**Why it's wrong:** Skills embed protocols. The `/harness:code-review` skill has a specific checklist (shape, DRY, SRP, test quality, error handling). Direct agent spawning lets the orchestrator define the review scope, which may omit checks.
 **Fix:** Use Parallel Dispatch Protocol. Agents read and execute the skill file themselves. The prompt must include the skill file path (`~/.claude/skills/code-review/SKILL.md`), not a paraphrased version of the checklist.
 
 ### Continuity Anti-Patterns
@@ -239,10 +239,10 @@ The orchestrator does not need to count observations, check dates, or evaluate c
 
 ## Pre-flight Protocol (MANDATORY before any work begins)
 
-1. **Check `pipeline-state/`** for in-progress pipelines before starting new work. If found, invoke `/pipeline-resume`
-1b. **Learn-status check** (see § Learn-Status Pre-flight Check below): consult `~/.claude/learning/{project-hash}/.learn-state.json` and either invoke a deferred `/learn` or skip it for this pipeline.
+1. **Check `pipeline-state/`** for in-progress pipelines before starting new work. If found, invoke `/harness:pipeline-resume`
+1b. **Learn-status check** (see § Learn-Status Pre-flight Check below): consult `~/.claude/learning/{project-hash}/.learn-state.json` and either invoke a deferred `/harness:learn` or skip it for this pipeline.
 2. **Classify the work**: feature, refactor, bug fix, or tech spike
-3. **Map to entry skill**: `/build-implementation`, `/refactor`, `/bug-fix`, or `/tech-spike`
+3. **Map to entry skill**: `/harness:build-implementation`, `/harness:refactor`, `/harness:bug-fix`, or `/harness:tech-spike`
 3b. **Check for scaffolding needs**: if the task requires new API endpoints, schema changes, infrastructure, or observability, flag the appropriate utility skill (see pipeline SKILL.md Step 2b)
 4. **Enumerate all pipeline phases** and the skill for each
 5. **Determine dispatch mode**: single-slice (subagents) or multi-slice/multi-domain (team)
@@ -254,9 +254,9 @@ The orchestrator does not need to count observations, check dates, or evaluate c
 
 ## Learn-Status Pre-flight Check
 
-The learn-status check (Step 1b above) reads `~/.claude/learning/{project-hash}/.learn-state.json` and decides whether the prior pipeline's deferred `/learn` invocation can run now or must defer one more pipeline.
+The learn-status check (Step 1b above) reads `~/.claude/learning/{project-hash}/.learn-state.json` and decides whether the prior pipeline's deferred `/harness:learn` invocation can run now or must defer one more pipeline.
 
-Reflect § 6b spawns `/learn` in the background (`run_in_background: true`) so the prior pipeline does not block on instinct extraction. The next pipeline's pre-flight is the queue point: if a `/learn` run is still in flight, this pipeline's own Reflect § 6b invocation is **deferred** to the following pre-flight rather than overlapping.
+Reflect § 6b spawns `/harness:learn` in the background (`run_in_background: true`) so the prior pipeline does not block on instinct extraction. The next pipeline's pre-flight is the queue point: if a `/harness:learn` run is still in flight, this pipeline's own Reflect § 6b invocation is **deferred** to the following pre-flight rather than overlapping.
 
 ### Signals (state file)
 
@@ -265,7 +265,7 @@ The signal lives in `~/.claude/learning/{project-hash}/.learn-state.json`:
 - `last_learn_started` (ISO 8601 string, nullable) — stamped by `skills/learn/SKILL.md` Step 1 BEFORE any expensive work.
 - `last_learn_run` (ISO 8601 string, nullable) — stamped by `skills/learn/SKILL.md` Step 10 on completion.
 
-**Predicate**: a `/learn` run is in flight ⇔ `last_learn_started > last_learn_run` OR `last_learn_run is null AND last_learn_started is not null`. Otherwise the system is idle.
+**Predicate**: a `/harness:learn` run is in flight ⇔ `last_learn_started > last_learn_run` OR `last_learn_run is null AND last_learn_started is not null`. Otherwise the system is idle.
 
 The Python helper `hooks/_lib/learn_status.py` exposes `is_in_flight(state)` and `status_for_path(state_path)` returning `"in-flight" | "idle"` for any consumer that needs the predicate (orchestrator, hook, skill).
 
@@ -276,13 +276,13 @@ At pre-flight Step 1b:
 1. Resolve the project hash; read `.learn-state.json`.
 2. Compute the predicate via `learn_status.is_in_flight(state)`.
 3. If `"in-flight"`:
-   - **Defer**: do NOT invoke `/learn` for the previous pipeline at this pre-flight. The deferral is implicit in the predicate — `.learn-state.json` carries the only signal the queue needs, so no extra pipeline-state frontmatter field is written.
-   - The next pre-flight (the pipeline AFTER this one) reads the same predicate; once `last_learn_run >= last_learn_started`, the deferred `/learn` runs at that pre-flight as a background spawn.
+   - **Defer**: do NOT invoke `/harness:learn` for the previous pipeline at this pre-flight. The deferral is implicit in the predicate — `.learn-state.json` carries the only signal the queue needs, so no extra pipeline-state frontmatter field is written.
+   - The next pre-flight (the pipeline AFTER this one) reads the same predicate; once `last_learn_run >= last_learn_started`, the deferred `/harness:learn` runs at that pre-flight as a background spawn.
 4. If `"idle"`, decide by `last_fired_pipeline_id`:
-   - **(a) Prior pipeline's banner fired but `/learn` never started** (`last_fired_pipeline_id == prior_task_id` AND `last_learn_started <= last_learn_run`, i.e. the sentinel was never advanced): the prior spawn either never launched or crashed before Step 1b. Invoke `/learn` now as a background spawn — same shape as Reflect § 6b.
-   - **(b) Otherwise** (no recent banner, or the prior `/learn` completed cleanly): no action at this pre-flight.
+   - **(a) Prior pipeline's banner fired but `/harness:learn` never started** (`last_fired_pipeline_id == prior_task_id` AND `last_learn_started <= last_learn_run`, i.e. the sentinel was never advanced): the prior spawn either never launched or crashed before Step 1b. Invoke `/harness:learn` now as a background spawn — same shape as Reflect § 6b.
+   - **(b) Otherwise** (no recent banner, or the prior `/harness:learn` completed cleanly): no action at this pre-flight.
 
-This converts Reflect § 6b ("invoke /learn next turn") and pre-flight into a queue: at most one `/learn` runs per project at a time, and overlapping firings are absorbed by deferral. The trade-off is at most one pipeline of latency before instincts are refreshed — acceptable because instincts are advisory, not gate-bearing.
+This converts Reflect § 6b ("invoke /harness:learn next turn") and pre-flight into a queue: at most one `/harness:learn` runs per project at a time, and overlapping firings are absorbed by deferral. The trade-off is at most one pipeline of latency before instincts are refreshed — acceptable because instincts are advisory, not gate-bearing.
 
 ## After CHANGES_REQUESTED (Review Loop Dispatch)
 

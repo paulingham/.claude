@@ -19,7 +19,7 @@ Story 1 (this slice) mints the skill + agent contract, the three verdicts in the
 
 - Build phase, after the worktree's local test suite passes — sandbox-verify is a *cross-check* of that green, not a substitute for it.
 - After Step 1d (Property-Based Tests) and Step 2b (Adversarial Tests) have run — the sandbox runs the full union suite.
-- BEFORE the inline code-review step (Step 5 of `/build-implementation`) — a code-reviewer should never APPROVE a build that fails sandbox-verify.
+- BEFORE the inline code-review step (Step 5 of `/harness:build-implementation`) — a code-reviewer should never APPROVE a build that fails sandbox-verify.
 - **Do NOT use when**: the project has no test command in `CLAUDE.md` Commands (no signal to compare). The skill emits `SANDBOX_SKIPPED` in that case downstream of Story 2.
 
 ## Inputs
@@ -74,7 +74,7 @@ result = provision_and_run(
 
 `provision_and_run` orchestrates the full lifecycle:
 
-1. **State-before-expensive-op tick** — writes a `starting` event to `metrics/{session-id}/sandbox-verify-cost.jsonl` BEFORE the first E2B HTTP call. This is the forensic breadcrumb that lets `/forensics` detect leaked microVMs (a `starting` tick with no matching `teardown` line means the subagent was killed mid-run).
+1. **State-before-expensive-op tick** — writes a `starting` event to `metrics/{session-id}/sandbox-verify-cost.jsonl` BEFORE the first E2B HTTP call. This is the forensic breadcrumb that lets `/harness:forensics` detect leaked microVMs (a `starting` tick with no matching `teardown` line means the subagent was killed mid-run).
 2. **Provision** via `sandbox_e2b_client.provision_microvm(template)` — pure stdlib `urllib.request`, hardcoded `_API_BASE = "https://api.e2b.dev"` SSRF guard, narrow exception catch on `(TimeoutError, urllib.error.URLError, E2BProvisionError)`. Retry-once-then-skip: first failure sleeps 2s and retries; second failure returns `{"ok": False, "reason": "e2b-unavailable", "attempts": 2}`.
 3. **Provision failure** → `SANDBOX_SKIPPED` with the reason from the envelope (`no-e2b-token` or `e2b-unavailable`).
 

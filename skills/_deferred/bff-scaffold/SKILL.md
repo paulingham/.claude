@@ -21,7 +21,7 @@ Generates a Backend for Frontend (BFF) API layer tailored to a specific channel.
 ## Prerequisites
 
 - Core services exist with documented APIs (OpenAPI specs or equivalent)
-- API gateway is configured (or will be via `/infra-scaffold`)
+- API gateway is configured (or will be via `/harness:infra-scaffold`)
 - Read `knowledge/omnichannel-patterns.md` for BFF architecture context
 
 ## Process
@@ -187,7 +187,7 @@ services:
 
 ```
 Verdict: BFF_SCAFFOLDED
-Next: Implement aggregation logic via /build-implementation, then wire to gateway
+Next: Implement aggregation logic via /harness:build-implementation, then wire to gateway
 Artifacts: [BFF project structure, upstream clients, transformers, middleware, docker-compose, gateway config]
 Channel: [web/mobile/voice/device]
 Upstream Services: [list of services this BFF connects to]

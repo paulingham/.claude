@@ -1,6 +1,6 @@
 ---
 name: "internal-eval-score"
-description: "Sub-skill of /internal-eval. Scores per-case results against oracles, captures baselines, and diffs the run against the baseline across 4 quadrants."
+description: "Sub-skill of /harness:internal-eval. Scores per-case results against oracles, captures baselines, and diffs the run against the baseline across 4 quadrants."
 context: fork
 agent: software-engineer
 ---
@@ -61,4 +61,4 @@ Computed on the intersection of cases present in both runs (honoring `min_harnes
 - `regression_count == 0` → `EVAL_PASSED`
 - `regression_count > 0`  → `EVAL_FAILED`
 
-This sub-skill's output is consumed by the parent `/internal-eval` verdict.
+This sub-skill's output is consumed by the parent `/harness:internal-eval` verdict.

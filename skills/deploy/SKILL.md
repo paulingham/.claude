@@ -15,7 +15,7 @@ Manages the deployment phase after a PR is merged. Detects the deployment platfo
 
 ## When to Invoke
 
-- After `/pr-creation` succeeds and PR is merged
+- After `/harness:pr-creation` succeeds and PR is merged
 - When deploying a specific branch or tag to staging/production
 - When rolling back a failed deployment
 
@@ -37,7 +37,7 @@ Scan the project for deployment configuration:
 | `render.yaml` | Render | Push triggers deploy |
 | `railway.json` | Railway | `railway up` |
 
-If no deployment config is found, recommend `/infra-scaffold` first.
+If no deployment config is found, recommend `/harness:infra-scaffold` first.
 
 ### Step 2: Pre-Deploy Checks
 
@@ -110,20 +110,20 @@ If post-deploy verification fails:
 After rollback:
 1. Verify health check passes on rolled-back version
 2. Investigate failure cause
-3. Create a bug fix story via `/intake`
+3. Create a bug fix story via `/harness:intake`
 4. Re-enter pipeline from Build phase
 
 ### Step 6: Post-Deploy Verification (Automatic)
 
-After successful deployment, invoke `/deployment-verification` with the deployed URL and environment. This runs health checks, smoke tests, and error rate monitoring for 5 minutes. If verification fails, it triggers automatic rollback.
+After successful deployment, invoke `/harness:deployment-verification` with the deployed URL and environment. This runs health checks, smoke tests, and error rate monitoring for 5 minutes. If verification fails, it triggers automatic rollback.
 
-The deploy phase is only DEPLOYED after `/deployment-verification` returns DEPLOYMENT_VERIFIED.
+The deploy phase is only DEPLOYED after `/harness:deployment-verification` returns DEPLOYMENT_VERIFIED.
 
 ### Step 7: Migration Pre-Check
 
 Before deploying code with pending database migrations:
 1. Verify migrations are backwards-compatible with the currently running code
-2. For destructive migrations (column removal, rename): confirm the two-phase deployment is in progress (per `/db-migration` Step 4)
+2. For destructive migrations (column removal, rename): confirm the two-phase deployment is in progress (per `/harness:db-migration` Step 4)
 3. Run migrations BEFORE deploying new code (if additive) or AFTER (if removing old columns)
 4. Verify migration completed successfully before proceeding with code deployment
 

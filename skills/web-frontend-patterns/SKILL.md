@@ -376,7 +376,7 @@ Visual regression: Screenshot comparison (Chromatic or Percy)
 
 ```
 Verdict: PATTERNS_APPLIED (informational — no pipeline gate)
-Next: Continue with /build-implementation using these patterns
+Next: Continue with /harness:build-implementation using these patterns
 Artifacts: [component architecture, state management setup, accessibility audit, performance baseline]
 ```
 $ARGUMENTS

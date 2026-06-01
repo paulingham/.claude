@@ -17,7 +17,7 @@ Verdict gates Ship. PATCH_REJECTED returns to fix-engineer per `protocols/pipeli
 
 **Pairing**: patch-critic ships with `executor: claude-sonnet-4-6` and `advisor: claude-opus-4-7` in its frontmatter, matching the Wave 1 D1 advisor-tool default for review-style roles. Sonnet drives the rubric scan (cheap, fast, large-diff-friendly); Opus is consulted on regression-or-refactor judgement calls.
 
-**Status**: Intended default — currently advisory because the Agent input schema does not yet expose `advisor`. The `pre-agent-advisor.sh` PreToolUse hook logs the would-be pairing to `metrics/{session}/advisor-dispatch.jsonl`. Same Path-B status as `/code-review` and `/security-review`.
+**Status**: Intended default — currently advisory because the Agent input schema does not yet expose `advisor`. The `pre-agent-advisor.sh` PreToolUse hook logs the would-be pairing to `metrics/{session}/advisor-dispatch.jsonl`. Same Path-B status as `/harness:code-review` and `/harness:security-review`.
 
 ## Current Context
 - Branch: !`git branch --show-current`
@@ -32,9 +32,9 @@ The orchestrator MUST provide all three in the spawn prompt:
 |-------|--------|
 | Candidate diff | `git diff main...HEAD` (full unified diff) |
 | Test output | Most recent fresh test-suite run (PASS/FAIL counts, failed test names) |
-| Intake spec | Task description from `/intake` — what the patch is supposed to do |
-| Verification evidence | `pipeline-state/{task-id}/verification-evidence.json` written by `/verify` Step 6. Freshness validated by `hooks/verification-freshness-guard.sh` (Path-B advisory at v2.1.141); orchestrator MUST re-run `/verify` BEFORE re-dispatch if the hook logs `would_block` with `reason: git_head_mismatch`. Absent → `PATCH_REJECTED` with `reason: missing input: verification-evidence.json`. |
-| A11y index (optional) | `pipeline-state/{task-id}/design-qc/index.json` produced by `/design-qc` § 6.25. Drives rubric § 5. Absent → § 5 omitted from output (silent SKIP). |
+| Intake spec | Task description from `/harness:intake` — what the patch is supposed to do |
+| Verification evidence | `pipeline-state/{task-id}/verification-evidence.json` written by `/harness:verify` Step 6. Freshness validated by `hooks/verification-freshness-guard.sh` (Path-B advisory at v2.1.141); orchestrator MUST re-run `/harness:verify` BEFORE re-dispatch if the hook logs `would_block` with `reason: git_head_mismatch`. Absent → `PATCH_REJECTED` with `reason: missing input: verification-evidence.json`. |
+| A11y index (optional) | `pipeline-state/{task-id}/design-qc/index.json` produced by `/harness:design-qc` § 6.25. Drives rubric § 5. Absent → § 5 omitted from output (silent SKIP). |
 
 If any of the three required inputs is missing, the critic returns PATCH_REJECTED with reason `missing input: {name}`. Do NOT guess at missing inputs. The a11y index is optional; absence triggers § 5 SKIP semantics, not PATCH_REJECTED.
 
@@ -68,8 +68,8 @@ The critic explicitly excludes SOLID-style design audits. If a finding sounds li
 
 ## When to Invoke
 
-- Final Gate phase, in parallel with `/verify`, `/qa-test-strategy`, and `/product-acceptance`
-- After `/code-review` and `/security-review` both APPROVED
+- Final Gate phase, in parallel with `/harness:verify`, `/harness:qa-test-strategy`, and `/harness:product-acceptance`
+- After `/harness:code-review` and `/harness:security-review` both APPROVED
 - All four Final Gate teammates work read-only on the same final state — no lock contention
 
 ## Process
@@ -80,7 +80,7 @@ The orchestrator hands the three inputs in the spawn prompt. If any is missing, 
 
 ### 2. Spawn Persona-1 (default — always runs)
 
-Dispatch is **persona-1-first, escalate-on-uncertainty**. Persona-1 (Persona: `correctness`) runs on every Final Gate dispatch, alongside `/verify`, `/qa-test-strategy`, and `/product-acceptance`. No criticality or budget gate.
+Dispatch is **persona-1-first, escalate-on-uncertainty**. Persona-1 (Persona: `correctness`) runs on every Final Gate dispatch, alongside `/harness:verify`, `/harness:qa-test-strategy`, and `/harness:product-acceptance`. No criticality or budget gate.
 
 ```
 Agent({
@@ -154,8 +154,8 @@ Operator override: `CLAUDE_PATCH_CRITIC_AGGREGATION=or` reverts to OR-aggregatio
 
 ### 6. Process Verdict
 
-- **PATCH_APPROVED**: Ship gate satisfied for this dimension. Combined with VERIFIED + COVERED + APPROVED, advance to `/pr-creation`.
-- **PATCH_REJECTED**: Spawn fix-engineer with rubric findings. Re-run `/patch-critique` (and any other failed Final Gate skills) on the combined diff. Re-critique dispatch shape depends on the rejection mode:
+- **PATCH_APPROVED**: Ship gate satisfied for this dimension. Combined with VERIFIED + COVERED + APPROVED, advance to `/harness:pr-creation`.
+- **PATCH_REJECTED**: Spawn fix-engineer with rubric findings. Re-run `/harness:patch-critique` (and any other failed Final Gate skills) on the combined diff. Re-critique dispatch shape depends on the rejection mode:
   - Rejected at `mode=persona-1` (no escalation fired) → re-dispatch persona-1 only.
   - Rejected at `mode=escalated` → re-dispatch ALL three personas (fix may have introduced a new issue in another persona's territory).
   Max 2 rounds, same as Review.
@@ -207,22 +207,22 @@ When dispatched in parallel:
 
 ## Prerequisite
 
-- Review phase complete: BOTH `/code-review` and `/security-review` returned APPROVE
+- Review phase complete: BOTH `/harness:code-review` and `/harness:security-review` returned APPROVE
 - Build phase tests are GREEN (the test-output input must reflect a fresh run)
 
 ## Phase Output
 
 ```
 Verdict: PATCH_APPROVED / PATCH_REJECTED
-Next: If PATCH_APPROVED + verify VERIFIED + test COVERED + accept APPROVED → /pr-creation
-      If PATCH_REJECTED → spawn fix-engineer (no user escalation), then re-invoke /patch-critique
+Next: If PATCH_APPROVED + verify VERIFIED + test COVERED + accept APPROVED → /harness:pr-creation
+      If PATCH_REJECTED → spawn fix-engineer (no user escalation), then re-invoke /harness:patch-critique
 Findings: [rubric dimension verdicts with file:line citations]
 Agent summary: [patch-critic 2-3 sentence summary]
 ```
 
 ## Severity Grading
 
-Patch-critique is rubric-binary (PASS/FAIL per dimension). Severity grading from `/code-review` does NOT apply here — every FAIL is gating. There is no "minor critic finding"; either the rubric passes or the patch goes back to fix-engineer.
+Patch-critique is rubric-binary (PASS/FAIL per dimension). Severity grading from `/harness:code-review` does NOT apply here — every FAIL is gating. There is no "minor critic finding"; either the rubric passes or the patch goes back to fix-engineer.
 
 ## Anti-Patterns
 

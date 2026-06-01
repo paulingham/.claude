@@ -52,6 +52,6 @@ The in-tree wire emission shipped 2026-05-15 as part of Slice C: `hooks/_lib/res
 
 ## See Also
 
-- `skills/cost-report/SKILL.md` — `/cost-report` skill invocation contract.
-- `skills/cache-audit/SKILL.md` — `/cache-audit` skill invocation contract (prompt-cache read-ratio reporting).
+- `skills/cost-report/SKILL.md` — `/harness:cost-report` skill invocation contract.
+- `skills/cache-audit/SKILL.md` — `/harness:cache-audit` skill invocation contract (prompt-cache read-ratio reporting).
 - `skills/eval-model-effectiveness/SKILL.md` — model-efficiency analysis built on top of the cost-discipline records.

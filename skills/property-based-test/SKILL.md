@@ -1,6 +1,6 @@
 ---
 name: "property-based-test"
-description: "Build-phase utility skill: spawn pbt-engineer to author Tier 1.5 property-based tests for changed-line public functions with typed signatures. Time-box 60s/function. Frozen counterexamples freeze inline as deterministic Tier 1 tests using harness-native syntax. Auto-invoked from /build-implementation Step 1d."
+description: "Build-phase utility skill: spawn pbt-engineer to author Tier 1.5 property-based tests for changed-line public functions with typed signatures. Time-box 60s/function. Frozen counterexamples freeze inline as deterministic Tier 1 tests using harness-native syntax. Auto-invoked from /harness:build-implementation Step 1d."
 context: fork
 agent: pbt-engineer
 ---
@@ -13,9 +13,9 @@ Authors **Tier 1.5 property-based tests** (per `protocols/engineering-invariants
 
 ## When to Invoke
 
-- Build-phase utility, called from `/build-implementation` **Step 1d** (between Step 1c contract assertions and Step 2 batched RED).
+- Build-phase utility, called from `/harness:build-implementation` **Step 1d** (between Step 1c contract assertions and Step 2 batched RED).
 - Auto-invoked on every Build run unless `CLAUDE_PBT=0`.
-- Never invoked from Final Gate — `/qa-test-strategy` at Final Gate VERIFIES the coverage matrix; it does not author.
+- Never invoked from Final Gate — `/harness:qa-test-strategy` at Final Gate VERIFIES the coverage matrix; it does not author.
 
 ## Procedure
 
@@ -107,7 +107,7 @@ When emitting `PBT_BLOCKED`, include in the verdict payload:
 
 - The **candidate function name** (fully qualified: `path/to/file.py::function_name` or language equivalent — e.g., `lib/url.ts::normalizeUrl`).
 - The first **5 line** excerpt of the underlying tool failure (Hypothesis traceback / fast-check error / PropEr crash report). Truncate to the first five lines so the operator surface is bounded.
-- The recommended **recovery action**: *set `CLAUDE_PBT=0` in the env and re-run `/build-implementation`; do NOT retry pbt-engineer on the same function within this pipeline*.
+- The recommended **recovery action**: *set `CLAUDE_PBT=0` in the env and re-run `/harness:build-implementation`; do NOT retry pbt-engineer on the same function within this pipeline*.
 - An explicit statement that **`PBT_BLOCKED` does NOT count against the retry-twice-then-escalate budget** in `protocols/operational-protocol.md` because the env hatch is a single-action recovery; the orchestrator-side retry counter resets when `CLAUDE_PBT=0` is set.
 
 ## Escape Hatch

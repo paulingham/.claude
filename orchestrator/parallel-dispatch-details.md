@@ -524,9 +524,9 @@ future debuggers seeing a cherry-pick conflict on a diamond should suspect
 
   ```
   Pipeline halted: {failed_slice} failed after 2 retries. Cancelled {N} dependent slice(s): {sorted_ids}. See pipeline-state/{task-id}/pipeline.md § Re-routes for full lineage. Recovery options:
-    1. Re-run /pipeline-resume to retry from the failed wave.
+    1. Re-run /harness:pipeline-resume to retry from the failed wave.
     2. Edit the plan to remove the failed slice (set `aborted: true`) and re-emit.
-    3. Run /forensics for full timeline reconstruction.
+    3. Run /harness:forensics for full timeline reconstruction.
   ```
 
   Cancelled-dependent IDs MUST appear inline in the user-visible escalation
@@ -595,7 +595,7 @@ Both verdicts are acceptable. The orchestrator logs the verdict in pipeline stat
 
 ### Best-of-N Build Team Dispatch (conditional — `bestofn:true` from intake)
 
-When `/intake` has tagged the task `bestofn: true` (computed in Step 2d-bis as `critical OR user_override`, where `user_override` fires on the literal `[best-of-n]` token in the request text), the Build phase dispatches as a Team variant that runs the same slice across N candidate models in parallel and picks the best output. This is NOT a separate skill — it is a dispatch mode of the Build Team. The winner still faces the normal Review → Final Gate → Ship gates; scoring selects *which* candidate faces those gates, it does not substitute for them.
+When `/harness:intake` has tagged the task `bestofn: true` (computed in Step 2d-bis as `critical OR user_override`, where `user_override` fires on the literal `[best-of-n]` token in the request text), the Build phase dispatches as a Team variant that runs the same slice across N candidate models in parallel and picks the best output. This is NOT a separate skill — it is a dispatch mode of the Build Team. The winner still faces the normal Review → Final Gate → Ship gates; scoring selects *which* candidate faces those gates, it does not substitute for them.
 
 The previous threshold (`task_class=="feature" AND Budget>=5`) was tightened to criticality-only after baseline data showed the 2-3x spend was not justified for non-critical features. Users who still want Best-of-N on a non-critical task pass `[best-of-n]` in their request.
 
@@ -630,8 +630,8 @@ The previous threshold (`task_class=="feature" AND Budget>=5`) was tightened to 
      1. Fewer changed files; then
      2. Fewer changed lines; then
      3. Cheaper executor tier (sonnet < opus < external-frontier, integer ranks 1/2/3).
-   - **Divergence record (advisory, no gate, no new verdict)**: when the top two candidates clear the tie-breaker boundary above AND their changed-files sets have Jaccard < 0.5 (non-overlapping work on the same slice), append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` with winner/runner-up SHAs, per-candidate diff-stat, and the verbatim `## Selection Rationale`. The dispatch never writes `category: anti-pattern` — recurring divergence is mined into anti-pattern instincts only by `/learn` Step 3d via the standard observations.jsonl path (see `skills/learn/SKILL.md` § 3d), gated on `recurrence>=3 AND phases.review.rounds>=2`. `category: decision` is in the scratchpad enum at `protocols/autonomous-intelligence.md` § Pipeline Scratchpad and is forwarded to reviewers and Final Gate roles by the existing injection matrix.
-   - Reviewer MUST write a `## Selection Rationale` section — copied verbatim to the scratchpad for future `/learn` runs. The diff-stat and the Jaccard value (when the divergence record fires) are quoted in the rationale.
+   - **Divergence record (advisory, no gate, no new verdict)**: when the top two candidates clear the tie-breaker boundary above AND their changed-files sets have Jaccard < 0.5 (non-overlapping work on the same slice), append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` with winner/runner-up SHAs, per-candidate diff-stat, and the verbatim `## Selection Rationale`. The dispatch never writes `category: anti-pattern` — recurring divergence is mined into anti-pattern instincts only by `/harness:learn` Step 3d via the standard observations.jsonl path (see `skills/learn/SKILL.md` § 3d), gated on `recurrence>=3 AND phases.review.rounds>=2`. `category: decision` is in the scratchpad enum at `protocols/autonomous-intelligence.md` § Pipeline Scratchpad and is forwarded to reviewers and Final Gate roles by the existing injection matrix.
+   - Reviewer MUST write a `## Selection Rationale` section — copied verbatim to the scratchpad for future `/harness:learn` runs. The diff-stat and the Jaccard value (when the divergence record fires) are quoted in the rationale.
 6. **Merge & cleanup**:
    - `git merge --no-ff build/{task-id}-boN-{winner-slug}` into the pipeline's working branch
    - For every loser: `git worktree remove --force <path>` then `git branch -D build/{task-id}-boN-{slug}`
@@ -649,7 +649,7 @@ The previous threshold (`task_class=="feature" AND Budget>=5`) was tightened to 
 
 ### PDR-RTV Build Team Dispatch (conditional — `pdr_rtv:true` from intake)
 
-When `/intake` has tagged the task `pdr_rtv: true` (computed in Step 2d-bis as `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-10} AND critical == true`), the Build phase dispatches as a Team variant that scales test-time compute via T=2 iterations of N parallel rollouts, summary-based refinement, and pairwise tournament selection (arXiv:2604.16529). PDR-RTV is mutually exclusive with Best-of-N — when both flags fire, PDR-RTV wins as the strictly stronger variant (log re-route to pipeline state's `## Re-routes`). The winner still faces the normal Review → Final Gate → Ship gates; tournament selects *which* candidate faces those gates, it does not substitute for them.
+When `/harness:intake` has tagged the task `pdr_rtv: true` (computed in Step 2d-bis as `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-10} AND critical == true`), the Build phase dispatches as a Team variant that scales test-time compute via T=2 iterations of N parallel rollouts, summary-based refinement, and pairwise tournament selection (arXiv:2604.16529). PDR-RTV is mutually exclusive with Best-of-N — when both flags fire, PDR-RTV wins as the strictly stronger variant (log re-route to pipeline state's `## Re-routes`). The winner still faces the normal Review → Final Gate → Ship gates; tournament selects *which* candidate faces those gates, it does not substitute for them.
 
 The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastructure (`config.json` roster, `external-runner.sh`, `score.sh::check_worktree_capacity`).
 
@@ -695,7 +695,7 @@ The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastruct
 5. **MODE_AMBIGUOUS surfacing (Path-B advisory today)**: when a tournament-mode spawn carries BOTH `Mode: tournament` AND `Persona: <name>` tokens (as a future multi-persona prompt-builder bug could inject), `hooks/pre-agent-advisor.sh` (PreToolUse) logs `source: "mode-ambiguous"` to `metrics/{session}/advisor-dispatch.jsonl` per `agents/patch-critic.md` § Tournament Mode AC8b. The orchestrator MUST parse this forensic line at tournament conclusion and surface the offending match as `PATCH_REJECTED` (per AC8b verbatim) — propagate as `PDR_NO_CONSENSUS` with `fallback_reason: "all-finalists-rejected"` if the rejection eliminates the final pair. The hook is currently log-only because the Agent input schema does not yet expose the relevant fields; promotion to enforcement is a single-line flip in `hooks/pre-agent-advisor.sh` when the schema lands. The orchestrator-side `MODE_AMBIGUOUS → PATCH_REJECTED` surfacing is decoupled from the hook's promotion timeline.
 
 6. **Verdict & merge**: `run_tournament` writes `pipeline-state/{task-id}/pdr-rtv/tournament.md` with the full bracket (N-1 round entries), the `## Winner` section (slug + SHA + verbatim selection rationale), and the cost estimate. The orchestrator merges the winner branch into the pipeline working branch (`git -C "$WORKTREE" merge --no-ff build/{task-id}-pdr-iter<N>-<winner-slug>`) and removes loser worktrees + branches. Emits:
-   - `PDR_WINNER_SELECTED` (success): winner proceeds to standard Review (`/code-review` + `/security-review` per `protocols/pipeline-protocol.md`).
+   - `PDR_WINNER_SELECTED` (success): winner proceeds to standard Review (`/harness:code-review` + `/harness:security-review` per `protocols/pipeline-protocol.md`).
    - `PDR_NO_CONSENSUS` (failure): silent re-route to Best-of-N → standard. Log to pipeline state's `## Re-routes` with one of four `fallback_reason` enum values:
      - `worktree-cap-exceeded` (Step 0 above)
      - `insufficient-green-builds` (<4 candidates produced green builds across both iterations)
@@ -1033,7 +1033,7 @@ convention-poor projects). The spec-blind line is rendered **only when tier==T6*
 
 Same convention as the existing per-verdict summary lines. The `SPEC_BLIND_BLOCKED`
 line is operator-actionable (HALT routing per `rules/verdict-catalog.md`) —
-`/pr-creation` will refuse to advance until the blocker is resolved.
+`/harness:pr-creation` will refuse to advance until the blocker is resolved.
 
 ## Multi-Persona Patch Critic Dispatch (uncertainty-escalated)
 
@@ -1147,7 +1147,7 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
 
 5. **Audit artifact**: write `pipeline-state/{task-id}/patch-critic.md` with frontmatter (`task_id, phase=final-gate, verdict, timestamp, mode=persona-1 | escalated, uncertainty_fired: bool, aggregation: majority | or`). When `mode=persona-1`, include one section (persona-1's Rubric table + Findings). When `mode=escalated`, include three sections (one per persona). The orchestrator-aggregated verdict appears in frontmatter and at the top of the file.
 
-6. **Divergence record on split votes** (mode=escalated AND not-unanimous): append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/patch-critic-divergence.md`. Body includes: dissenting persona(s), dimension(s), severity, finding text, file:line, and `uncertainty_reason` from persona-1 if set. `/learn` mines split-vote dimensions over time; consistently-split dimensions are rubric-clarity calibration targets.
+6. **Divergence record on split votes** (mode=escalated AND not-unanimous): append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/patch-critic-divergence.md`. Body includes: dissenting persona(s), dimension(s), severity, finding text, file:line, and `uncertainty_reason` from persona-1 if set. `/harness:learn` mines split-vote dimensions over time; consistently-split dimensions are rubric-clarity calibration targets.
 
 7. **PATCH_REJECTED → fix → re-critique**:
    - If `mode=persona-1` at rejection → re-dispatch persona-1 only on the updated diff (same shape as existing Review pattern: re-dispatch the raising reviewer).
@@ -1284,8 +1284,8 @@ Slices 2 and 3 land Steps 1-3 (input generation, sandboxed run, prompt-append po
 
 - Dispatch is now persona-1 by default for ALL Final Gate runs (no criticality / budget gate). Escalation fires only on persona-1 `uncertainty: true`.
 - Majority-of-3 aggregation on the escalation path is less conservative than the prior always-3 OR-aggregation. Operators can revert to OR semantics per-pipeline with `CLAUDE_PATCH_CRITIC_AGGREGATION=or`.
-- **Uncertainty-fired rate is the primary calibration metric.** If `/forensics` reports `uncertainty_fired` on < 5% of Final Gates over a 30-pipeline window, persona-1 is over-confident — review the `uncertainty_reason` enum and the close-call bias guidance in `agents/patch-critic.md`. If `uncertainty_fired` > 30%, persona-1 is escalating too aggressively and the trim is not saving cost — the rubric or persona prompt needs tightening. Working range: 5–30%.
-- **Cost saving (intent)**: dropping from 3 → 1 spawn on the non-escalated path saves ~2 xhigh spawns per Critical Final Gate. Realised saving = `2 × (1 - uncertainty_fired_rate)` xhigh spawns per Critical Final Gate. Baseline run is REQUIRED before promoting from PROVISIONAL. Baseline establishes (a) the uncertainty-fired rate and (b) false-negative rate vs the prior always-3 dispatch on the harness regression suite (`/internal-eval`).
+- **Uncertainty-fired rate is the primary calibration metric.** If `/harness:forensics` reports `uncertainty_fired` on < 5% of Final Gates over a 30-pipeline window, persona-1 is over-confident — review the `uncertainty_reason` enum and the close-call bias guidance in `agents/patch-critic.md`. If `uncertainty_fired` > 30%, persona-1 is escalating too aggressively and the trim is not saving cost — the rubric or persona prompt needs tightening. Working range: 5–30%.
+- **Cost saving (intent)**: dropping from 3 → 1 spawn on the non-escalated path saves ~2 xhigh spawns per Critical Final Gate. Realised saving = `2 × (1 - uncertainty_fired_rate)` xhigh spawns per Critical Final Gate. Baseline run is REQUIRED before promoting from PROVISIONAL. Baseline establishes (a) the uncertainty-fired rate and (b) false-negative rate vs the prior always-3 dispatch on the harness regression suite (`/harness:internal-eval`).
 - **Rollback path**: if baseline shows materially worse false-negative rate (any regression slipping past persona-1 with uncertainty=false), revert to the prior always-3 shape by reading the previous version of this section from git history. The agent-side `uncertainty: bool` field is harmless under the old dispatch (the orchestrator just ignores it).
 
 ## Teammate Shutdown
@@ -1380,11 +1380,11 @@ For each team phase, the orchestrator records:
 
 ## Batch Execution (Pre-Planned Work)
 
-When executing multiple pre-planned tasks in parallel (e.g., production readiness waves), use `/batch-pipeline` instead of driving phases manually. The batch pipeline preserves critical infrastructure while skipping redundant phases.
+When executing multiple pre-planned tasks in parallel (e.g., production readiness waves), use `/harness:batch-pipeline` instead of driving phases manually. The batch pipeline preserves critical infrastructure while skipping redundant phases.
 
 ### Why batch-pipeline exists
 
-The full `/pipeline` (Plan → Plan Validation → Build → Review → Final Gate → Ship → Deploy → Reflect) is designed for new work that needs classification and planning. Pre-planned batch work (where the architect output already exists as a document) can skip Plan and Plan Validation, but **must not skip** state tracking, scratchpad, session memory, or the learning loop.
+The full `/harness:pipeline` (Plan → Plan Validation → Build → Review → Final Gate → Ship → Deploy → Reflect) is designed for new work that needs classification and planning. Pre-planned batch work (where the architect output already exists as a document) can skip Plan and Plan Validation, but **must not skip** state tracking, scratchpad, session memory, or the learning loop.
 
 ### What the orchestrator must NOT do for batch work
 
@@ -1398,7 +1398,7 @@ The full `/pipeline` (Plan → Plan Validation → Build → Review → Final Ga
 
 | Aspect | Single task | Batch |
 |--------|-------------|-------|
-| Entry point | `/intake` → `/pipeline` | `/batch-pipeline` |
+| Entry point | `/harness:intake` → `/harness:pipeline` | `/harness:batch-pipeline` |
 | Plan phase | Architect designs | Already done (plan document) |
 | Plan validation | User or challengers approve | Already approved |
 | Build dispatch | 1 agent or team | N agents in parallel |

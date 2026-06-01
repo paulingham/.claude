@@ -2,7 +2,7 @@
 
 **Status:** PROPOSED (2026-05-14)
 **Owner:** orchestrator-derived recommendation from cost forensics
-**Implementation track:** requires `/pipeline` run (touches hooks, snapshot test, CLAUDE.md prose)
+**Implementation track:** requires `/harness:pipeline` run (touches hooks, snapshot test, CLAUDE.md prose)
 
 ---
 
@@ -50,7 +50,7 @@ Conservative estimate, holding pipeline shape constant:
 3. **Reversible per-session** via `CLAUDE_THINKING_EFFORT=xhigh` or `CLAUDE_EFFORT=xhigh` if a session needs the old behaviour. No state migration required.
 4. **Two snapshot tests pin the change in `hooks/_lib/thinking_role.py`** — drift between docs and code surfaces immediately in CI, so partial implementation is caught.
 
-## Implementation Checklist (for `/pipeline` run)
+## Implementation Checklist (for `/harness:pipeline` run)
 
 1. `hooks/_lib/thinking_role.py` — remove the four roles from `_PROMOTE_TO_XHIGH` frozenset; add gated promotion logic mirroring `security-engineer`.
 2. `tests/test_thinking_defaults.py` — update `PromoteToXhighListMatchesAgentFrontmatter` snapshot; add new test cases for `critical=true` and `budget>=7` triggers per role.
@@ -89,4 +89,4 @@ Revert `_PROMOTE_TO_XHIGH` frozenset to its current four-role membership; restor
 
 ---
 
-**Linked PR for the spec rewrite track:** none yet — this proposal precedes implementation. Once approved, dispatch `/pipeline` with prompt: "Implement protocols/_proposals/2026-05-14-narrow-xhigh-promotion.md exactly as specified. Budget: 6. Critical: false."
+**Linked PR for the spec rewrite track:** none yet — this proposal precedes implementation. Once approved, dispatch `/harness:pipeline` with prompt: "Implement protocols/_proposals/2026-05-14-narrow-xhigh-promotion.md exactly as specified. Budget: 6. Critical: false."

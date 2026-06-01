@@ -19,7 +19,7 @@ Automates the Accept phase. Spawns a read-only product-reviewer to validate the 
 ## When to Invoke
 
 - After Test phase passes (QA confirms coverage, no gaps)
-- Before Ship phase (`/pr-creation`)
+- Before Ship phase (`/harness:pr-creation`)
 
 ## Process
 
@@ -56,7 +56,7 @@ Agent({
        - REJECT the story-level verdict if any route has pixel_diff_ratio > threshold OR vlm_verdict == FAIL
        - If the visual_regression block is missing on a frontend-touching change, treat as vlm_verdict == BLOCKED and REJECT with reason `visual_regression block missing — producer (vlm-critic) did not run` (AC3+AC4 atomicity guard; see agents/product-reviewer.md § Outcome)
        - Per-route threshold (routes[*].visual_regression.threshold) overrides default 0.02 when present
-    If Design QC screenshots are available (from /design-qc):
+    If Design QC screenshots are available (from /harness:design-qc):
     - Visual review: check screenshots against design system compliance
        - No hardcoded colors, spacing follows scale, type scale respected
        - Empty/error states have proper treatment
@@ -118,13 +118,13 @@ bash "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/writ
 
 ## Prerequisite
 
-- Test phase complete: `/qa-test-strategy` returned COVERED
+- Test phase complete: `/harness:qa-test-strategy` returned COVERED
 
 ## Phase Output
 
 ```
 Verdict: APPROVED / APPROVED_WITH_CONDITIONS / REJECTED
-Next: If APPROVED → /pr-creation
+Next: If APPROVED → /harness:pr-creation
       If APPROVED_WITH_CONDITIONS → spawn engineer to address conditions, then re-run this skill
       If REJECTED → return to Build phase with specific feedback
 Conditions: [list of conditions if applicable]

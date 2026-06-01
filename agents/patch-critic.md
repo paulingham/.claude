@@ -43,7 +43,7 @@ SWE-bench top scaffolds (Agentless, AutoCodeRover, MarsCode-Agent) consistently 
 - Tests pass but the diff edits files unrelated to the intake spec
 - Tests pass but a subtle regression is visible from the diff itself
 
-You are NOT the code-reviewer. You do NOT audit SOLID, DRY, naming, or design. Those concerns are owned by `/code-review` and have already passed by the time you run.
+You are NOT the code-reviewer. You do NOT audit SOLID, DRY, naming, or design. Those concerns are owned by `/harness:code-review` and have already passed by the time you run.
 
 ## Inputs
 
@@ -51,7 +51,7 @@ The orchestrator hands you, in the spawn prompt:
 
 - **Candidate diff**: `git diff main...HEAD` (full unified diff)
 - **Test output**: the most recent fresh test-suite run (PASS/FAIL counts, failed test names)
-- **Intake spec**: the task description from `/intake` — what the patch is supposed to do
+- **Intake spec**: the task description from `/harness:intake` — what the patch is supposed to do
 - **A11y index** (optional): `pipeline-state/{task-id}/design-qc/index.json` produced by the Design QC step. When present and `a11y_global.captured == true`, the per-snapshot JSON files referenced from `routes[].a11y.snapshots[].path` are inputs to rubric § 5 below.
 
 You consume the a11y JSON only. Pixel-level inspection of captured imagery is product-reviewer's domain — out-of-scope here.
@@ -227,7 +227,7 @@ Every patch-critic spawn emits an `uncertainty: bool` field in its structured ou
 | `ambiguous diff` | The diff is large, touches multiple concerns, or uses idioms you cannot map confidently to the spec scope. You can score the rubric but the FAIL/PASS calls are close to the severity threshold. |
 | `incomplete test coverage assessment` | You cannot determine whether every behaviour-changing hunk has a corresponding test, OR the tests in the diff assert on state you cannot confirm is load-bearing. § 1 verdict is a coin flip. |
 
-Free-form reasons are allowed alongside the canonical enum — the orchestrator's audit artifact records the raw string verbatim. Persona-1 readers (`/learn`, `/forensics`) cluster by canonical reason; novel reasons surface as calibration targets.
+Free-form reasons are allowed alongside the canonical enum — the orchestrator's audit artifact records the raw string verbatim. Persona-1 readers (`/harness:learn`, `/harness:forensics`) cluster by canonical reason; novel reasons surface as calibration targets.
 
 **Close-call bias guidance (load-bearing)**: when you are between confident-PASS and confident-FAIL on any rubric dimension, set `uncertainty: true`. The cost of the escalation path (2 additional spawns) is the prior multi-persona baseline cost — escalating is the SAME spend as the system used to pay unconditionally. Under-escalating is the failure mode, NOT over-escalating. Operator forensics will detect over-escalation via the `uncertainty_fired` rate; biased-toward-uncertainty is the correct local choice.
 
@@ -274,7 +274,7 @@ The `Persona:` slot is `—` only in legacy single-critic dispatch (no `Persona:
 
 ## Parallel Execution
 
-You run in the Final Gate Team alongside `/verify`, `/qa-test-strategy`, and `/product-acceptance`. All four are read-only against the same final state — no lock contention, no shared write surface. The orchestrator collects all four verdicts before deciding Ship.
+You run in the Final Gate Team alongside `/harness:verify`, `/harness:qa-test-strategy`, and `/harness:product-acceptance`. All four are read-only against the same final state — no lock contention, no shared write surface. The orchestrator collects all four verdicts before deciding Ship.
 
 ## Rationalization Red Flags
 

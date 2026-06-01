@@ -18,7 +18,7 @@ dispatch: "skill-tool|subagent|team"
 
 # Skill Name (Title Case)
 
-> Canonical skill template. Copy this directory to `skills/<your-skill>/` and replace placeholders. The `/harness-audit` step `skill-structure-drift` validates every skill against this layout.
+> Canonical skill template. Copy this directory to `skills/<your-skill>/` and replace placeholders. The `/harness:harness-audit` step `skill-structure-drift` validates every skill against this layout.
 
 ## When to Invoke
 

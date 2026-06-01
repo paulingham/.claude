@@ -1,6 +1,6 @@
 # ATDD Procedure
 
-Full Acceptance-Test-Driven Development cycle: batched RED, single GREEN, mutation gate, audit trail, per-behaviour TDD exceptions. Loaded by `/build-implementation` and `/bug-fix`; not auto-loaded into every spawn. Engineering invariants (code shape, naming, testing standards, security baseline) live in `rules/engineering-invariants.md`.
+Full Acceptance-Test-Driven Development cycle: batched RED, single GREEN, mutation gate, audit trail, per-behaviour TDD exceptions. Loaded by `/harness:build-implementation` and `/harness:bug-fix`; not auto-loaded into every spawn. Engineering invariants (code shape, naming, testing standards, security baseline) live in `rules/engineering-invariants.md`.
 
 ## Acceptance-Test-Driven Development (ATDD) Protocol
 

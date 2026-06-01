@@ -37,7 +37,7 @@ Read the project's `.claude/CLAUDE.md` and extract the Dev Server section:
 ```
 CAPTURE_FAILED: Project CLAUDE.md missing '## Dev Server' section.
 Required fields: Command, Port, Health check, Build command.
-Run /project-setup to detect and add dev server configuration.
+Run /harness:project-setup to detect and add dev server configuration.
 ```
 
 Do NOT probe random ports or guess commands. The contract is the source of truth.
@@ -433,7 +433,7 @@ Every failure is loud. No silent skips.
 
 ```
 Verdict: SCREENSHOTS_CAPTURED / CAPTURE_FAILED
-Next: Feed screenshots to /product-acceptance
+Next: Feed screenshots to /harness:product-acceptance
       If CAPTURE_FAILED → fix build/server issue, re-run
 Artifacts: [screenshot paths, routes captured, viewports, build status]
 ```

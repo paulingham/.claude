@@ -10,14 +10,14 @@ argument-hint: "Product description (e.g., 'project management app for remote te
 
 Bootstraps a complete project from an empty directory. Orchestrates multiple agents and existing skills to produce a real, running project ready for the normal pipeline.
 
-After this skill completes: the dev server runs, tests pass, linting works, the design system is initialized, infrastructure is configured, and placeholder pages show real-looking content. The normal pipeline (`/epic-breakdown` → `/pipeline` per story) takes over.
+After this skill completes: the dev server runs, tests pass, linting works, the design system is initialized, infrastructure is configured, and placeholder pages show real-looking content. The normal pipeline (`/harness:epic-breakdown` → `/harness:pipeline` per story) takes over.
 
 ## When to Invoke
 
 - User says "Build me X" and the directory is empty
 - No `package.json`, `Gemfile`, `go.mod`, or equivalent exists
-- Classified as **Greenfield** by `/intake`
-- Auto-detected by `/pipeline` Step 2b (empty directory check)
+- Classified as **Greenfield** by `/harness:intake`
+- Auto-detected by `/harness:pipeline` Step 2b (empty directory check)
 
 ## Process
 
@@ -234,17 +234,17 @@ Agent({
 
 Invoke existing skills in sequence:
 
-1. `/creative-direction` with the product brief as argument
+1. `/harness:creative-direction` with the product brief as argument
    - Reads product brief and UI architecture from pipeline-state/
    - Produces design brief
 
-2. `/design-system-init`
+2. `/harness:design-system-init`
    - Reads design brief
    - Produces tokens, Tailwind config extensions, primitive components
 
 ### Step 7: Infrastructure Scaffold
 
-Invoke `/infra-scaffold` (existing skill):
+Invoke `/harness:infra-scaffold` (existing skill):
 - Produces Dockerfile, docker-compose, CI/CD pipeline, health endpoints, .env.example
 - Puppeteer/Playwright for visual testing
 
@@ -306,7 +306,7 @@ Agent({
 
 ### Step 9: Project Documentation
 
-Invoke `/project-setup` (existing skill):
+Invoke `/harness:project-setup` (existing skill):
 - Detects and documents everything that was just created
 - Produces `.claude/CLAUDE.md` and `AGENTS.md`
 - Enhanced post-greenfield mode reads the ADRs and product brief for richer documentation
@@ -344,8 +344,8 @@ timestamp: {ISO 8601}
 - Pages: {count} placeholder pages
 
 ### Next Steps
-→ /epic-breakdown to decompose product into implementable stories
-→ /pipeline per story using the normal delivery pipeline
+→ /harness:epic-breakdown to decompose product into implementable stories
+→ /harness:pipeline per story using the normal delivery pipeline
 ```
 
 ## Error Recovery
@@ -362,7 +362,7 @@ timestamp: {ISO 8601}
 
 ```
 Verdict: GREENFIELD_SCAFFOLD_COMPLETE
-Next: /epic-breakdown → /pipeline per story
+Next: /harness:epic-breakdown → /harness:pipeline per story
 Artifacts: [product-brief.md, tech-stack.md, ui-architecture.md, design-brief.md,
             project files, CLAUDE.md, AGENTS.md]
 ```

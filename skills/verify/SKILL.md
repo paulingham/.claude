@@ -34,7 +34,7 @@ The verify skill writes `pipeline-state/{task-id}/verification-evidence.json` (s
 | Backend API | Hit real endpoint, verify response shape | curl + DB state check + log check | Mutate handler logic | ≥60% kill rate | N/A | Reference impl / spec server diff (if available) |
 | Frontend | Props match API response shape | Playwright/browser screenshot | Mutate component logic | ≥60% kill rate | N/A | N/A (typically no oracle) |
 | Mobile/WebView | Hook/service contract tests | Component render + prop verification | Mutation testing on lib/ business logic | ≥60% kill rate | Maestro (mobile) AND/OR Playwright/Cypress (web) — multi-target dispatch per `protocols/e2e-protocol.md` | N/A |
-| Web (browser) | API contract tests against real endpoint | Curl + DOM snapshot + log check | Mutate handler/component logic | ≥60% kill rate | Playwright/Cypress against a **local** `docker-compose.e2e.yml` stack spun up by `/verify` and torn down after (conditional per `protocols/e2e-protocol.md` — local-only, no cloud) | N/A |
+| Web (browser) | API contract tests against real endpoint | Curl + DOM snapshot + log check | Mutate handler/component logic | ≥60% kill rate | Playwright/Cypress against a **local** `docker-compose.e2e.yml` stack spun up by `/harness:verify` and torn down after (conditional per `protocols/e2e-protocol.md` — local-only, no cloud) | N/A |
 | Database | Schema constraint tests | Migrate up+down, verify integrity | N/A | N/A | N/A | Compare SQL execution result against upstream engine (e.g. PostgreSQL `psql`) on identical inputs |
 | Infrastructure | Health endpoint responds | Readiness probe passes | N/A | N/A | N/A | N/A |
 | Parser / Compiler / Codegen | AST shape matches grammar | Round-trip parse → emit → parse | Mutate production/precedence logic | ≥60% kill rate | N/A | Differential test vs reference (e.g. GCC, official parser, ANTLR-generated parser) |
@@ -165,7 +165,7 @@ Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mob
 
    **Local E2E Stack Lifecycle (web target only — local-only, no cloud fallback per `protocols/e2e-protocol.md`):**
 
-   1. **Discovery** — at `$PROJECT_ROOT`, look for (in order): `docker-compose.e2e.yml` → `docker-compose.e2e.yaml` → `docker-compose.yml` (only if it declares an `e2e` profile). First hit wins. None found → web status = SKIP, reason `no-e2e-compose-file`. Fix is `/infra-scaffold` (which now emits this file for web projects) — never reach for a cloud preview.
+   1. **Discovery** — at `$PROJECT_ROOT`, look for (in order): `docker-compose.e2e.yml` → `docker-compose.e2e.yaml` → `docker-compose.yml` (only if it declares an `e2e` profile). First hit wins. None found → web status = SKIP, reason `no-e2e-compose-file`. Fix is `/harness:infra-scaffold` (which now emits this file for web projects) — never reach for a cloud preview.
    2. **Runtime check** — `docker info >/dev/null 2>&1`. Non-zero → web status = SKIP, reason `docker-runtime-unavailable`. Surface "Docker Desktop / OrbStack / colima not running" in the verify report so the user has an unambiguous fix path.
    3. **Bring up** — `docker compose -f "$COMPOSE_FILE" -p "e2e-${CLAUDE_PIPELINE_TASK_ID}" up -d --wait` (project-name namespaced so parallel slices don't collide; `--wait` blocks until all healthchecks pass).
    4. **Resolve baseURL** — read the app service's mapped host port via `docker compose -p "e2e-${CLAUDE_PIPELINE_TASK_ID}" port <app-service> <container-port>` (use dynamic port mapping in the compose file to avoid host-port conflicts across pipelines). Export as `PLAYWRIGHT_BASE_URL` / `CYPRESS_BASE_URL` for the driver.
@@ -244,7 +244,7 @@ If any clause fails → Tier 5 = **N/A** (not SKIP).
 
 ### 6. Write Verification Evidence State File
 
-The verifier MUST write `pipeline-state/{task-id}/verification-evidence.json` at the end of every tier-completion using `os.replace` (atomic rename — write to `verification-evidence.json.tmp` first, then `os.replace` to the canonical path). Resolve the write target via `_psp_verification_evidence_path "${CLAUDE_PIPELINE_TASK_ID}" "${CLAUDE_WORKSTREAM:-}"` relative to `$CLAUDE_REPO_ROOT` (NEVER relative to cwd — `/verify` runs inside the build worktree but the state-file path must resolve against the repo root). Schema: `{schema_version: 1, task_id, git_head, generated_at, verdict, tier_results, sandbox_run}` — see `protocols/_proposals/2026-05-14-iron-law-2-freshness-hook.md` for the field definitions. The Path-B advisory hook `hooks/verification-freshness-guard.sh` reads this file on every gated spawn (patch-critic, product-reviewer, pr-creation) and compares the recorded `git_head` to the current worktree HEAD.
+The verifier MUST write `pipeline-state/{task-id}/verification-evidence.json` at the end of every tier-completion using `os.replace` (atomic rename — write to `verification-evidence.json.tmp` first, then `os.replace` to the canonical path). Resolve the write target via `_psp_verification_evidence_path "${CLAUDE_PIPELINE_TASK_ID}" "${CLAUDE_WORKSTREAM:-}"` relative to `$CLAUDE_REPO_ROOT` (NEVER relative to cwd — `/harness:verify` runs inside the build worktree but the state-file path must resolve against the repo root). Schema: `{schema_version: 1, task_id, git_head, generated_at, verdict, tier_results, sandbox_run}` — see `protocols/_proposals/2026-05-14-iron-law-2-freshness-hook.md` for the field definitions. The Path-B advisory hook `hooks/verification-freshness-guard.sh` reads this file on every gated spawn (patch-critic, product-reviewer, pr-creation) and compares the recorded `git_head` to the current worktree HEAD.
 
 ## Output Format
 
@@ -308,14 +308,14 @@ The verifier MUST write `pipeline-state/{task-id}/verification-evidence.json` at
 
 ## Prerequisite
 
-- Review phase complete: BOTH `/code-review` and `/security-review` returned APPROVE
+- Review phase complete: BOTH `/harness:code-review` and `/harness:security-review` returned APPROVE
 
 ## Phase Output
 
 ```
 Verdict: VERIFIED / VERIFIED_WITH_SKIP / UNVERIFIED
-Next: If VERIFIED → /qa-test-strategy
-      If VERIFIED_WITH_SKIP → /qa-test-strategy (product-reviewer must acknowledge skip in Accept phase)
+Next: If VERIFIED → /harness:qa-test-strategy
+      If VERIFIED_WITH_SKIP → /harness:qa-test-strategy (product-reviewer must acknowledge skip in Accept phase)
       If UNVERIFIED → return to Build phase to fix failing tiers, then re-review
 Tier results: Tier 1: [PASS/FAIL] | Tier 2: [PASS/FAIL] | Tier 3: [PASS/FAIL/N/A] | Tier 3.5: [PASS/FAIL/SKIP/N/A] | Tier 4: [PASS/FAIL/SKIP/N/A] | Tier 5: [PASS/FAIL/SKIP/N/A]
 Side-channel verdict: E2E_SKIP_NO_ENV emitted when Tier 4 web = SKIP (acknowledge required at Accept).

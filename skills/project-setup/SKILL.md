@@ -47,13 +47,13 @@ Add to the generated CLAUDE.md:
 - Build command: {detected build command}
 ```
 
-This contract is read by `/design-qc` during the pipeline. If these fields are missing, Design QC will fail loudly.
+This contract is read by `/harness:design-qc` during the pipeline. If these fields are missing, Design QC will fail loudly.
 
 If frontend deps are found but no dev/build scripts exist in package.json → add a warning:
 ```markdown
 ## Dev Server
 WARNING: Frontend dependencies detected but no dev/build scripts found in package.json.
-Add `dev` and `build` scripts to enable visual QA via /design-qc.
+Add `dev` and `build` scripts to enable visual QA via /harness:design-qc.
 ```
 
 ### 3. Map Architecture
@@ -125,15 +125,15 @@ If the project has a frontend (React, Next.js, Vue, or similar detected in Step 
    - `styles/tokens.css` or CSS custom properties (--color-*, --spacing-*) → tokens exist
    - `components/ui/` directory with primitives → component library exists
 
-2. If NO design system detected: invoke `/design-system-init` to generate tokens, Tailwind config, primitive components, and dark mode before any frontend build work begins.
+2. If NO design system detected: invoke `/harness:design-system-init` to generate tokens, Tailwind config, primitive components, and dark mode before any frontend build work begins.
 
-3. If a partial system exists (e.g., Tailwind but no tokens): `/design-system-init` will enhance rather than replace.
+3. If a partial system exists (e.g., Tailwind but no tokens): `/harness:design-system-init` will enhance rather than replace.
 
-This is automatic — the user does not need to invoke `/design-system-init` manually.
+This is automatic — the user does not need to invoke `/harness:design-system-init` manually.
 
 ### 3d. Post-Greenfield Mode
 
-If this skill is invoked after `/greenfield-scaffold` (detect by checking for `pipeline-state/{task-id}/tech-stack.md` and `pipeline-state/{task-id}/product-brief.md`):
+If this skill is invoked after `/harness:greenfield-scaffold` (detect by checking for `pipeline-state/{task-id}/tech-stack.md` and `pipeline-state/{task-id}/product-brief.md`):
 
 1. **Read the greenfield artifacts** instead of scanning from scratch:
    - Product brief → use for CLAUDE.md project description
@@ -150,7 +150,7 @@ If this skill is invoked after `/greenfield-scaffold` (detect by checking for `p
 3. **Add a `## Greenfield Bootstrap` section**:
    ```markdown
    ## Greenfield Bootstrap
-   This project was bootstrapped via `/greenfield-scaffold` on {date}.
+   This project was bootstrapped via `/harness:greenfield-scaffold` on {date}.
    - Framework: {from tech stack ADR}
    - Design system: {from design brief — font pairing, palette}
    - Seed data: {location of seed script and MSW handlers}
@@ -286,7 +286,7 @@ Expected behaviour:
   atomically (existing values preserved byte-for-byte)
 - **Linux/Windows**: skipped, logs `embedder bootstrap skipped (non-macOS)`
 
-Failure semantics: bootstrap **never blocks** `/project-setup`. Every
+Failure semantics: bootstrap **never blocks** `/harness:project-setup`. Every
 failure path (brew absent, download failure, settings write error)
 logs a WARN line and continues. A partial bootstrap leaves capture
 path unaffected — recall degrades to BM25-only, which is the

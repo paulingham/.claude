@@ -12,14 +12,14 @@ triggers:
 
 ## When to use
 
-Use this instead of the full `/pipeline` when:
+Use this instead of the full `/harness:pipeline` when:
 - Work is **pre-planned** (e.g., a Production Readiness Plan with defined PRs)
 - The **Plan phase is already done** (architect output exists as a document)
 - Multiple **independent tasks** run in parallel
 - Each task is **self-contained** (no cross-task dependencies within the batch)
 
 Do NOT use when:
-- Work needs classification (use `/intake` instead)
+- Work needs classification (use `/harness:intake` instead)
 - The plan hasn't been validated
 - Tasks have complex dependencies requiring sequential execution
 
@@ -164,7 +164,7 @@ After all tasks shipped:
 
    The `phases.sandbox_verify` block (when written) follows the same parity contract — identical schema to the regular-pipeline writer. Absence-tolerance applies symmetrically: legacy batch observations without the block are skipped by downstream consumers, never coerced to a synthetic verdict.
 
-2. **Auto-learn gate** — the `auto-learn-gate.sh` Stop hook fires automatically when thresholds are met and prints a "Triggered" banner. On the next turn, invoke `/learn`. No manual counter check needed. Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1`.
+2. **Auto-learn gate** — the `auto-learn-gate.sh` Stop hook fires automatically when thresholds are met and prints a "Triggered" banner. On the next turn, invoke `/harness:learn`. No manual counter check needed. Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1`.
 
 3. **Update session memory** — spawn background agent to capture engineering knowledge.
 

@@ -84,6 +84,6 @@ Polished N files:
 
 ```
 Verdict: POLISHED / NO_CHANGES_NEEDED
-Next: /code-review + /security-review (parallel)
+Next: /harness:code-review + /harness:security-review (parallel)
 Artifacts: [list of files cleaned, changes per file]
 ```

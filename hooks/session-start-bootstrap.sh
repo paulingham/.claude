@@ -63,15 +63,29 @@ fi
 # ---------------------------------------------------------------------------
 
 echo "SKILL AWARENESS BOOTSTRAP:"
-echo "Entry: /intake (classify + route) | /pipeline (drive phases)"
-echo "Build: /build-implementation, /refactor, /bug-fix"
-echo "Review: /code-review + /security-review (parallel)"
-echo "Verify: /verify | Test: /qa-test-strategy | Accept: /product-acceptance"
-echo "Ship: /pr-creation | Deploy: /deploy + /deployment-verification"
-echo "Scaffold: /api-scaffold, /db-migration, /infra-scaffold, /design-system-init"
-echo "Plan: /epic-breakdown, /estimation, /story-writing, /tech-spike"
-echo "Debug: /debug (persistent state for complex bugs)"
-echo "Utils: /forensics (post-incident investigation) | /workstream (parallel feature isolation)"
+if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+  # Plugin-install mode: emit /harness: prefixed skill names (post-cutover)
+  echo "Entry: /harness:intake (classify + route) | /harness:pipeline (drive phases)"
+  echo "Build: /harness:build-implementation, /harness:refactor, /harness:bug-fix"
+  echo "Review: /harness:code-review + /harness:security-review (parallel)"
+  echo "Verify: /harness:verify | Test: /harness:qa-test-strategy | Accept: /harness:product-acceptance"
+  echo "Ship: /harness:pr-creation | Deploy: /harness:deploy + /harness:deployment-verification"
+  echo "Scaffold: /harness:api-scaffold, /harness:db-migration, /harness:infra-scaffold, /harness:design-system-init"
+  echo "Plan: /harness:epic-breakdown, /harness:estimation, /harness:story-writing, /harness:tech-spike"
+  echo "Debug: /harness:debug (persistent state for complex bugs)"
+  echo "Utils: /harness:forensics (post-incident investigation) | /harness:workstream (parallel feature isolation)"
+else
+  # Overlay/migration-window mode: emit bare skill names (pre-cutover grace)
+  echo "Entry: /intake (classify + route) | /pipeline (drive phases)"
+  echo "Build: /build-implementation, /refactor, /bug-fix"
+  echo "Review: /code-review + /security-review (parallel)"
+  echo "Verify: /verify | Test: /qa-test-strategy | Accept: /product-acceptance"
+  echo "Ship: /pr-creation | Deploy: /deploy + /deployment-verification"
+  echo "Scaffold: /api-scaffold, /db-migration, /infra-scaffold, /design-system-init"
+  echo "Plan: /epic-breakdown, /estimation, /story-writing, /tech-spike"
+  echo "Debug: /debug (persistent state for complex bugs)"
+  echo "Utils: /forensics (post-incident investigation) | /workstream (parallel feature isolation)"
+fi
 
 # Learning system
 # shellcheck source=_lib/project-hash.sh

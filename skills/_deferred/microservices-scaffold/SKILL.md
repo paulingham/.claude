@@ -28,7 +28,7 @@ Before any scaffold work, verify at least one FF from `protocols/module-boundari
 
 1. Scan the task description for explicit FF phrasing (compliance, scaling, polyglot, blast radius, team ownership, regulatory, HIPAA, PCI, GDPR, data residency).
 2. Scan pipeline state (`pipeline-state/{task-id}/intake.md`) for an intake-stamped FF rationale.
-3. If neither is present, exit immediately with verdict `WRONG_SKILL: no forcing function detected — use /module-extraction instead`.
+3. If neither is present, exit immediately with verdict `WRONG_SKILL: no forcing function detected — use /harness:module-extraction instead`.
 
 ### Step 1: Validate the Split
 
@@ -47,7 +47,7 @@ If any checklist item is NO, consider keeping it in the monolith and using modul
 
 ### Step 2: Generate Service Structure
 
-Use `/infra-scaffold` for the base (Dockerfile, docker-compose, CI/CD), then add:
+Use `/harness:infra-scaffold` for the base (Dockerfile, docker-compose, CI/CD), then add:
 
 ```
 service-name/
@@ -178,7 +178,7 @@ services:
 
 ```
 Verdict: SERVICE_SCAFFOLDED
-Next: Implement business logic via /build-implementation, then wire into API gateway
+Next: Implement business logic via /harness:build-implementation, then wire into API gateway
 Artifacts: [service directory, Dockerfile, docker-compose, event schemas, gateway config]
 ```
 $ARGUMENTS

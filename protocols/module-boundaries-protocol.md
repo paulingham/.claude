@@ -53,7 +53,7 @@ A request is allowed to route to `/service-extraction` or `/microservices-scaffo
 Before extracting to a service:
 
 1. Name the forcing function explicitly. Write it down: "FF{N}: {reason tied to measurable signal}".
-2. If you cannot name one — stop. This is a module, not a service. Use `/module-extraction`.
+2. If you cannot name one — stop. This is a module, not a service. Use `/harness:module-extraction`.
 3. If you named one — continue to `/service-extraction` or `/microservices-scaffold`. The pipeline will re-check at Step 0; vague rationale fails that check.
 
 The checklist is deliberately short: the canonical FF list does the filtering, not the checklist.

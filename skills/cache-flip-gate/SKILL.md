@@ -12,12 +12,12 @@ argument-hint: "Optional: --metrics-root <path> (defaults to ~/.claude/metrics)"
 ## When to Invoke
 
 - **Operator request** after at least 30 days of cache observations have accumulated since Slice C shipped (2026-05-15). The skill answers a single yes/no question: is the harness sustaining P50 read_ratio ≥ 0.70 across ≥100 observations?
-- **Adjacent to `/cache-audit`**: `/cache-audit` produces a snapshot report. This skill produces a flip-decision verdict.
-- **Do NOT use** as a pipeline gate. This skill never blocks `/build-implementation`, `/code-review`, or any Final Gate skill. It informs a manual constant edit in `skills/cache-audit/SKILL.md`.
+- **Adjacent to `/harness:cache-audit`**: `/harness:cache-audit` produces a snapshot report. This skill produces a flip-decision verdict.
+- **Do NOT use** as a pipeline gate. This skill never blocks `/harness:build-implementation`, `/harness:code-review`, or any Final Gate skill. It informs a manual constant edit in `skills/cache-audit/SKILL.md`.
 
 ## Inputs
 
-- **Filesystem**: `~/.claude/metrics/*/cache.jsonl` — same source as `/cache-audit`. Each JSONL record carries `read_ratio` (float 0..1).
+- **Filesystem**: `~/.claude/metrics/*/cache.jsonl` — same source as `/harness:cache-audit`. Each JSONL record carries `read_ratio` (float 0..1).
 - **Pipeline state**: none.
 
 ## Procedure

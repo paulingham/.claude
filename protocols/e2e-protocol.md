@@ -130,7 +130,7 @@ MAESTRO_ADVISER_USERNAME=user MAESTRO_ADVISER_PASSWORD=pass maestro test maestro
 
 ### Web (Playwright / Cypress)
 
-Web (browser-rendered) projects must exercise a real environment when any of the trigger categories below match changed files. "Real environment" means a **fully local** ephemeral `docker-compose` stack spun up by `/verify` and torn down after — NOT JSDOM, NOT a unit-test mock, NOT a remote/cloud preview. Cloud or third-party hosting (Vercel/Netlify/Fly/Supabase/Neon/etc.) is **explicitly out of scope** for this harness.
+Web (browser-rendered) projects must exercise a real environment when any of the trigger categories below match changed files. "Real environment" means a **fully local** ephemeral `docker-compose` stack spun up by `/harness:verify` and torn down after — NOT JSDOM, NOT a unit-test mock, NOT a remote/cloud preview. Cloud or third-party hosting (Vercel/Netlify/Fly/Supabase/Neon/etc.) is **explicitly out of scope** for this harness.
 
 #### Trigger Matrix (6 canonical categories — schema only)
 
@@ -174,11 +174,11 @@ The qualifying real environment is a **project-declared local `docker-compose.e2
 | Deployed preview URL (Vercel/Netlify/Render PR preview) | NOT supported |
 | Cloud ephemeral env (Fly Machines, Heroku Review App, Railway env, Supabase/Neon branches) | NOT supported |
 
-`/verify` Tier 4 resolves the compose file via the discovery contract in `skills/verify/SKILL.md` § Run Tier 4. Lifecycle (up → run suite → down) is fully owned by `/verify`.
+`/harness:verify` Tier 4 resolves the compose file via the discovery contract in `skills/verify/SKILL.md` § Run Tier 4. Lifecycle (up → run suite → down) is fully owned by `/harness:verify`.
 
-If no driver config is present, web target status is `N/A` (no driver, no run). If a driver config is present but no qualifying `docker-compose.e2e.yml` is discoverable AND `docker info` fails (no Docker runtime), status is `SKIP`. SKIP is NOT a hard blocker but the product-reviewer must acknowledge it, and the fix is to add `docker-compose.e2e.yml` to the project (via `/infra-scaffold`) — not to configure a cloud account.
+If no driver config is present, web target status is `N/A` (no driver, no run). If a driver config is present but no qualifying `docker-compose.e2e.yml` is discoverable AND `docker info` fails (no Docker runtime), status is `SKIP`. SKIP is NOT a hard blocker but the product-reviewer must acknowledge it, and the fix is to add `docker-compose.e2e.yml` to the project (via `/harness:infra-scaffold`) — not to configure a cloud account.
 
-When web target = SKIP for this reason, `/verify` emits the side-channel info-level verdict `E2E_SKIP_NO_ENV` (see `rules/verdict-catalog.md`). The Final Gate summary renders the loud yellow line `E2E: SKIPPED (no execution environment) — UI/API changes shipped without browser verification`, and the product-reviewer MUST acknowledge the skip in its verdict body — failing to acknowledge → CHANGES REQUESTED.
+When web target = SKIP for this reason, `/harness:verify` emits the side-channel info-level verdict `E2E_SKIP_NO_ENV` (see `rules/verdict-catalog.md`). The Final Gate summary renders the loud yellow line `E2E: SKIPPED (no execution environment) — UI/API changes shipped without browser verification`, and the product-reviewer MUST acknowledge the skip in its verdict body — failing to acknowledge → CHANGES REQUESTED.
 
 #### Driver Selection
 
@@ -270,4 +270,4 @@ This protocol exists because unit tests passed while the app was broken in produ
 
 The web matrix was added in Wave 2 (Apr 27 2026 cohort) to close the same hole on browser projects: a route or migration change shipping with green unit tests but no real-environment exercise is the same failure mode in a different shell.
 
-The C3 multi-target restructure (May 2026) made the two targets siblings, introduced the 6-category schema, and wired Tier 4 of `/verify` to dispatch per target with a strict flake gate. A future `### Backend (deferred)` migration is anticipated when a third target is needed; the supplementary back-end triggers will move under it then.
+The C3 multi-target restructure (May 2026) made the two targets siblings, introduced the 6-category schema, and wired Tier 4 of `/harness:verify` to dispatch per target with a strict flake gate. A future `### Backend (deferred)` migration is anticipated when a third target is needed; the supplementary back-end triggers will move under it then.

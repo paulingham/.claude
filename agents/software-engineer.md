@@ -61,7 +61,7 @@ Follow the ATDD Protocol in `protocols/atdd-procedure.md` exactly. Default cycle
 
 ## Tool Synthesis (Optional Escalation)
 
-May invoke `/tool-synthesis` mid-task to author a one-shot scratch tool inside the worktree when the standard toolset is insufficient (3+ repeated manual lookups, no extant tool covers the operation, or repo-specific concerns). Tools live under `${WORKTREE}/.claude-scratch-tools/` and are cleaned up before BUILD_COMPLETE — they NEVER reach `main`. See `skills/tool-synthesis/SKILL.md`.
+May invoke `/harness:tool-synthesis` mid-task to author a one-shot scratch tool inside the worktree when the standard toolset is insufficient (3+ repeated manual lookups, no extant tool covers the operation, or repo-specific concerns). Tools live under `${WORKTREE}/.claude-scratch-tools/` and are cleaned up before BUILD_COMPLETE — they NEVER reach `main`. See `skills/tool-synthesis/SKILL.md`.
 
 ## Standards
 
@@ -207,4 +207,4 @@ When test execution returns RED at the end of Step 2 step (2) IMPLEMENT CLEANLY 
 
 1. Read `pipeline-state/{task-id}/scratchpad/{your-role}-build.md` — every prior `test-failure-feedback` entry is a failed hypothesis. Do NOT re-propose a hypothesis already in the log.
 2. Write one new `test-failure-feedback` entry (failing tests, failure excerpt, hypothesis, attempted-edit summary) BEFORE re-editing. The write order matters — the count of entries IS the iteration counter; writing after the edit double-counts. A crash between the write and the re-edit counts as a failed iteration (no resume).
-3. Respect `CLAUDE_BUILD_ITERATIONS` (default 3, enforced range 0..10). When the counter reaches the cap, emit `BUILD_FAILED` with `reason: iteration_cap_exhausted` plus the handoff file path. Do NOT invoke `/bug-fix` directly (Skill is in your disallowedTools); the orchestrator dispatches it.
+3. Respect `CLAUDE_BUILD_ITERATIONS` (default 3, enforced range 0..10). When the counter reaches the cap, emit `BUILD_FAILED` with `reason: iteration_cap_exhausted` plus the handoff file path. Do NOT invoke `/harness:bug-fix` directly (Skill is in your disallowedTools); the orchestrator dispatches it.

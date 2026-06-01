@@ -10,7 +10,7 @@ dispatch: team
 
 ## When to Invoke
 
-Routed by `/pipeline` only when `/intake` set `pdr_rtv: true` (`budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-10} AND critical == true`). Mutually exclusive with Best-of-N — when both flags fire, PDR-RTV wins as the strictly stronger variant. Never user-facing.
+Routed by `/harness:pipeline` only when `/harness:intake` set `pdr_rtv: true` (`budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-10} AND critical == true`). Mutually exclusive with Best-of-N — when both flags fire, PDR-RTV wins as the strictly stronger variant. Never user-facing.
 
 ## Inputs
 
@@ -33,14 +33,14 @@ See `~/.claude/orchestrator/parallel-dispatch-details.md` § PDR-RTV Build Team 
 
 | Verdict | Meaning | Downstream |
 |---------|---------|------------|
-| `PDR_WINNER_SELECTED` | Tournament elected a winner. | Winner proceeds to standard Review (`/code-review` + `/security-review`). |
+| `PDR_WINNER_SELECTED` | Tournament elected a winner. | Winner proceeds to standard Review (`/harness:code-review` + `/harness:security-review`). |
 | `PDR_NO_CONSENSUS` | <4 green builds across iterations, OR all finalists rejected, OR worktree-cap exceeded. | Silent fallback to Best-of-N → standard Build; logged in `## Re-routes` with `fallback_reason` enum. |
 
 ## Anti-Patterns
 
 - Invoking when `bestofn == true AND pdr_rtv == false` — that path is Best-of-N's domain.
 - Skipping iteration-0 worktree reaping before iteration-1 dispatch — peak worktrees would balloon to 2N.
-- Relaxing the AND-clause trigger (e.g. reverting to `OR critical`, dropping the floor below 10, or removing the `critical == true` requirement) without `/eval-model-effectiveness` showing ≥5% Pass@1 lift on the harness regression suite. The May 2026 narrowing (PR for pdr-rtv-trigger-tighten) shifted from `OR critical` to `AND critical == true` after cost forensics showed the OR-clause fired PDR-RTV (5.5–7.5× Build cost) on non-critical budget-9 work that did not warrant the spend. The conjunctive trigger is the current policy floor; any relaxation must be evidence-backed. Operators with stale `CLAUDE_PDR_RTV_BUDGET_FLOOR=N` env overrides should note the AND clause means the override interacts multiplicatively with the `critical` flag — both clauses must be true to fire.
+- Relaxing the AND-clause trigger (e.g. reverting to `OR critical`, dropping the floor below 10, or removing the `critical == true` requirement) without `/harness:eval-model-effectiveness` showing ≥5% Pass@1 lift on the harness regression suite. The May 2026 narrowing (PR for pdr-rtv-trigger-tighten) shifted from `OR critical` to `AND critical == true` after cost forensics showed the OR-clause fired PDR-RTV (5.5–7.5× Build cost) on non-critical budget-9 work that did not warrant the spend. The conjunctive trigger is the current policy floor; any relaxation must be evidence-backed. Operators with stale `CLAUDE_PDR_RTV_BUDGET_FLOOR=N` env overrides should note the AND clause means the override interacts multiplicatively with the `critical` flag — both clauses must be true to fire.
 
 ## Tests
 

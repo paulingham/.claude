@@ -86,7 +86,7 @@ Build a minimal proof-of-concept for the top 1-2 options:
 
 ```
 Verdict: SPIKE_COMPLETE (informational — no gate)
-Next: Depends on recommendation. Typically /build-implementation or /epic-breakdown.
+Next: Depends on recommendation. Typically /harness:build-implementation or /harness:epic-breakdown.
 Artifacts: [findings doc with recommendation, prototype code (throwaway)]
 ```
 $ARGUMENTS

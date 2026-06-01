@@ -242,8 +242,8 @@ When dispatched in parallel:
 
 ## Prerequisite
 
-- Build phase complete: BUILD_COMPLETE verdict from `/build-implementation`, `/refactor`, or `/bug-fix`
-- Must be dispatched IN PARALLEL with `/code-review` via Parallel Dispatch Protocol
+- Build phase complete: BUILD_COMPLETE verdict from `/harness:build-implementation`, `/harness:refactor`, or `/harness:bug-fix`
+- Must be dispatched IN PARALLEL with `/harness:code-review` via Parallel Dispatch Protocol
 
 ## Severity Grading
 
@@ -265,7 +265,7 @@ Every finding MUST be assigned a severity. Use the calibration table below:
 
 ```
 Verdict: APPROVE / CHANGES_REQUESTED
-Next: If BOTH code-review and security-review APPROVE → /verify
+Next: If BOTH code-review and security-review APPROVE → /harness:verify
       If CHANGES_REQUESTED → spawn engineer to fix → re-invoke BOTH review skills
 Findings: [severity-rated findings: CRITICAL, HIGH, MEDIUM, LOW]
 Agent summaries: [security-engineer's 2-3 sentence summary]

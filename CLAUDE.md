@@ -19,8 +19,8 @@ All runtime state (pipeline-state, session-memory, agent-memory session dirs, me
 
 ## Session Start (automatic)
 
-1. **In-progress pipeline check**: source `hooks/_lib/pipeline-state-paths.sh` and run `_psp_find_active_pipelines 2>/dev/null | head -1`. If found, auto-invoke `/pipeline-resume` and inform: "Resuming [pipeline name] from [phase]."
-2. **Merged-PR pending-deploy check**: if a pipeline state file shows Ship=completed + Deploy=pending, check `gh pr view --json state`. If merged, auto-invoke `/deploy`.
+1. **In-progress pipeline check**: source `hooks/_lib/pipeline-state-paths.sh` and run `_psp_find_active_pipelines 2>/dev/null | head -1`. If found, auto-invoke `/harness:pipeline-resume` and inform: "Resuming [pipeline name] from [phase]."
+2. **Merged-PR pending-deploy check**: if a pipeline state file shows Ship=completed + Deploy=pending, check `gh pr view --json state`. If merged, auto-invoke `/harness:deploy`.
 
 Silent if nothing is found — don't report "no pipelines found."
 
@@ -28,7 +28,7 @@ Silent if nothing is found — don't report "no pipelines found."
 
 Before starting ANY work in a repo:
 1. Check for `.claude/CLAUDE.md` or `CLAUDE.md` at project root
-2. If missing: **automatically invoke `/project-setup`** before any other work — do not ask
+2. If missing: **automatically invoke `/harness:project-setup`** before any other work — do not ask
 3. If present: read it and confirm no conflicts with global rules
 
 | Layer | Controls | Example |
@@ -83,11 +83,11 @@ Per-session env vars short-circuit each gate to `exit 0`. Full table: `protocols
 
 > `[1]` Sonnet-solo via `model_conditional` when `complexity_budget.total < 6`; Opus + advisor pairing otherwise. See `agents/code-reviewer.md` and `hooks/_lib/advisor_resolver.py`.
 
-Model self-tuning, downgrade rules, and `architect`/`security-engineer` hard locks: `orchestrator/agent-orchestration.md` § Instinct Injection. Advisory recommendation report (`/eval-model-effectiveness`): see skill SKILL.md.
+Model self-tuning, downgrade rules, and `architect`/`security-engineer` hard locks: `orchestrator/agent-orchestration.md` § Instinct Injection. Advisory recommendation report (`/harness:eval-model-effectiveness`): see skill SKILL.md.
 
 ### Dispatch (parallel subagents by default; teams opt-in)
 
-Parallelizable phases dispatch as **parallel subagent calls in a single message**. Teams (`TeamCreate`) are opt-in via `CLAUDE_VISIBLE_TEAMS=1` or `/pipeline --visible`.
+Parallelizable phases dispatch as **parallel subagent calls in a single message**. Teams (`TeamCreate`) are opt-in via `CLAUDE_VISIBLE_TEAMS=1` or `/harness:pipeline --visible`.
 
 | Phase | Default Dispatch | Visible-mode (opt-in) |
 |-------|------------------|------------------------|
@@ -106,17 +106,17 @@ Orchestrator coordinates; never writes code/tests. Flow, dispatch mechanisms, or
 
 ### Work-Class Routing (T0-T6)
 
-`/intake` Step 1.5 (Fingerprint) classifies every request into seven tiers. T0-T3 bypass `/pipeline`; T4-T6 enter at progressively heavier dispatch. Full protocol: `protocols/work-class-routing.md`.
+`/harness:intake` Step 1.5 (Fingerprint) classifies every request into seven tiers. T0-T3 bypass `/harness:pipeline`; T4-T6 enter at progressively heavier dispatch. Full protocol: `protocols/work-class-routing.md`.
 
 | Tier | Class | Dispatch target |
 |---|---|---|
-| **T0** | Question / Spike | Direct answer or `/tech-spike` |
+| **T0** | Question / Spike | Direct answer or `/harness:tech-spike` |
 | **T1** | Doc-only | Orchestrator direct edit (Iron Law 3 exception) |
-| **T2** | Config-only | `/harness-config` |
-| **T3** | Mechanical sweep | `/batch-pipeline` |
-| **T4** | Bug fix | `/pipeline` (lightweight) |
-| **T5** | Standard feature | `/pipeline` (standard) |
-| **T6** | Critical / cross-cutting | `/pipeline` (heavy: Best-of-N or PDR-RTV) |
+| **T2** | Config-only | `/harness:harness-config` |
+| **T3** | Mechanical sweep | `/harness:batch-pipeline` |
+| **T4** | Bug fix | `/harness:pipeline` (lightweight) |
+| **T5** | Standard feature | `/harness:pipeline` (standard) |
+| **T6** | Critical / cross-cutting | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |
 
 ### Delivery Pipeline
 
@@ -130,9 +130,9 @@ Three systems make the pipeline self-improving (see `protocols/autonomous-intell
 |--------|-------|---------|
 | **Pipeline Scratchpad** | Within one pipeline | Agents share discoveries in real-time |
 | **Session Memory** | Across compaction | Engineering context survives context compression |
-| **Continuous Learning** | Across pipelines | Observations → instincts → better agents (auto-invokes `/learn`) |
+| **Continuous Learning** | Across pipelines | Observations → instincts → better agents (auto-invokes `/harness:learn`) |
 
-Every agent spawn includes: instincts + agent memory + session memory + scratchpad findings. Tracing off by default; toggle per-session with `/debug-trace on|off`. See `protocols/autonomous-intelligence.md` § Prompt Tracing.
+Every agent spawn includes: instincts + agent memory + session memory + scratchpad findings. Tracing off by default; toggle per-session with `/harness:debug-trace on|off`. See `protocols/autonomous-intelligence.md` § Prompt Tracing.
 
 ### Skill Directory
 

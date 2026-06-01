@@ -1,6 +1,6 @@
 ---
 name: "internal-eval-run"
-description: "Sub-skill of /internal-eval. Executes the inner pipeline per case under full isolation. Story 6 ships the single-case runner; Story 7 adds concurrency + orchestration."
+description: "Sub-skill of /harness:internal-eval. Executes the inner pipeline per case under full isolation. Story 6 ships the single-case runner; Story 7 adds concurrency + orchestration."
 context: fork
 agent: software-engineer
 ---
@@ -9,13 +9,13 @@ agent: software-engineer
 
 ## Purpose
 
-For each case in the suite, `run-case.sh` spawns an inner `/pipeline` that
+For each case in the suite, `run-case.sh` spawns an inner `/harness:pipeline` that
 implements the case's prompt, captures verdicts + cost + duration, and writes
 `eval/runs/{run-id}/cases/{case-id}/result.json`. Isolation from the outer
 pipeline is governed by the env-var contract in `ISOLATION.md` (Story 6a).
 
 Story 7's `run-suite.sh` wraps `run-case.sh` with concurrency, resumability,
-and aggregation — this is the entry point the `/internal-eval` skill (Story
+and aggregation — this is the entry point the `/harness:internal-eval` skill (Story
 12) will ultimately invoke. See § Suite Orchestration below.
 
 ## Entry Point
@@ -143,7 +143,7 @@ pinned, timeout → failed_timeout, passed status, failed_infra fallback,
 result.json schema, and dry-run short-circuit.
 
 Suite-level verdict (EVAL_PASSED / EVAL_FAILED) is emitted by the parent
-`/internal-eval` skill after Story 7 orchestrates many of these and Story 8
+`/harness:internal-eval` skill after Story 7 orchestrates many of these and Story 8
 aggregates + diffs.
 
 ## Suite Orchestration (Story 7)

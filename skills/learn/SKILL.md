@@ -14,7 +14,7 @@ The key insight: hooks observe 100% of tool usage (deterministic). Pipeline anal
 
 ## When to Invoke
 
-- **Automatically** via `/pipeline` Step 7c (Reflect) after every pipeline completion
+- **Automatically** via `/harness:pipeline` Step 7c (Reflect) after every pipeline completion
 - Periodically (e.g., every 5-10 sessions, or weekly)
 - Manually when you want to review what's been learned
 
@@ -22,7 +22,7 @@ The key insight: hooks observe 100% of tool usage (deterministic). Pipeline anal
 
 ### 1. Identify Project & Bootstrap Instincts Dir
 
-Resolve the project hash and ensure the per-project instincts directory exists. `mkdir -p` is idempotent — this must succeed on first `/learn` invocation in a project (when no instincts have been created yet) without erroring.
+Resolve the project hash and ensure the per-project instincts directory exists. `mkdir -p` is idempotent — this must succeed on first `/harness:learn` invocation in a project (when no instincts have been created yet) without erroring.
 
 ```bash
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/project-hash.sh"
@@ -33,11 +33,11 @@ PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
 mkdir -p "${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/learning/$PROJECT_HASH/instincts"
 ```
 
-On first run in a project, this directory will be empty. `/learn` must still succeed — step 5 will populate it from the accumulated observations.
+On first run in a project, this directory will be empty. `/harness:learn` must still succeed — step 5 will populate it from the accumulated observations.
 
 #### 1b. Stamp `last_learn_started` (in-flight sentinel)
 
-BEFORE any expensive work in steps 2+. This sentinel is the in-flight signal the pre-flight queue mechanism (`orchestrator/pipeline-orchestration.md` § Learn-Status Pre-flight Check) reads to detect overlap and defer the next pipeline's `/learn` invocation. Pair with the Step 10 completion stamp (`last_learn_run`).
+BEFORE any expensive work in steps 2+. This sentinel is the in-flight signal the pre-flight queue mechanism (`orchestrator/pipeline-orchestration.md` § Learn-Status Pre-flight Check) reads to detect overlap and defer the next pipeline's `/harness:learn` invocation. Pair with the Step 10 completion stamp (`last_learn_run`).
 
 ```bash
 STATE="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/learning/$PROJECT_HASH/.learn-state.json"
@@ -60,7 +60,7 @@ Three data sources feed pattern detection:
 ```bash
 cat ~/.claude/learning/{project-hash}/observations.jsonl
 ```
-Note: the `archive/` subdirectory is excluded — `/learn` scans current data only.
+Note: the `archive/` subdirectory is excluded — `/harness:learn` scans current data only.
 Parse the last 500 entries or 7 days. Each record contains:
 `{timestamp, session_id, tool, file, project, project_hash, phase, agent_role, outcome}`
 
@@ -119,7 +119,7 @@ Emitted files carry `category: anti-pattern` in the YAML frontmatter; the render
 
 #### 3e. Sandbox-Verify Fragility Mining
 
-Mine recurring `SANDBOX_FAILED` divergences as `fragility` instincts. The producer is `learn_sandbox_fragility_mining.mine_sandbox_fragility`, the consumer-facing wrapper around the same `is_present`-filtered scan used by `/forensics`. Confidence 0.5 (matches the scratchpad → instinct promotion rule); roles `[software-engineer, sandbox-verify-engineer]`; domain `testing`; category `fragility`.
+Mine recurring `SANDBOX_FAILED` divergences as `fragility` instincts. The producer is `learn_sandbox_fragility_mining.mine_sandbox_fragility`, the consumer-facing wrapper around the same `is_present`-filtered scan used by `/harness:forensics`. Confidence 0.5 (matches the scratchpad → instinct promotion rule); roles `[software-engineer, sandbox-verify-engineer]`; domain `testing`; category `fragility`.
 
 ```bash
 python3 - "${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/learning/$PROJECT_HASH/observations.jsonl" \
@@ -187,7 +187,7 @@ last_seen: {ISO 8601}
 **Instinct fields** (load-bearing for the loader at `hooks/_lib/instinct_loader.py`):
 - `id` (REQUIRED, string): stable identifier; used as the dedup key by the resolver — when the same `id` appears in both project and global directories, the higher-confidence entry wins; on tie, project beats global. Also the secondary sort key (ASC) for stable output ordering.
 - `confidence` (REQUIRED, float 0.0-1.0): used both for the floor filter (default `0.4` via `CLAUDE_INSTINCT_MIN_CONFIDENCE`) and the primary sort key (DESC).
-- `roles` (REQUIRED, non-empty YAML list of role-name tokens): which agent roles this instinct applies to. Filtered by set-intersection with the spawning agent's `instinct_categories:` (see `agents/{role}.md` frontmatter). **MUST be a YAML list**, not a comma-separated string — `pipeline_frontmatter.parse_frontmatter` would silently corrupt list values to strings, so the loader uses `yaml.safe_load` and `tests/test_learn_roles_enforcement.py` locks the list-not-string contract. **An instinct emitted with empty `roles: []` is invisible to every spawn** (the role-filter intersection is always empty); `/learn` MUST default empty `roles` to `[software-engineer, code-reviewer]` and emit a `source: "learn-warning"` JSONL record (see Step 9 below).
+- `roles` (REQUIRED, non-empty YAML list of role-name tokens): which agent roles this instinct applies to. Filtered by set-intersection with the spawning agent's `instinct_categories:` (see `agents/{role}.md` frontmatter). **MUST be a YAML list**, not a comma-separated string — `pipeline_frontmatter.parse_frontmatter` would silently corrupt list values to strings, so the loader uses `yaml.safe_load` and `tests/test_learn_roles_enforcement.py` locks the list-not-string contract. **An instinct emitted with empty `roles: []` is invisible to every spawn** (the role-filter intersection is always empty); `/harness:learn` MUST default empty `roles` to `[software-engineer, code-reviewer]` and emit a `source: "learn-warning"` JSONL record (see Step 9 below).
 - `category` (RECOMMENDED, enum `discovery|warning|pattern|fragility|decision|anti-pattern`): mirrors the scratchpad finding categories, allowing scratchpad → instinct promotion (see `protocols/autonomous-intelligence.md` § Scratchpad → Instinct Promotion) to preserve provenance. Optional for backward compatibility with the 4 historical instincts that pre-date this field; the loader does not require it. The `anti-pattern` value is mined ONLY by Step 3d from `phases.review.rounds >= 2` rework signals — it is never written by hand on a positive-guidance instinct. The loader's `validate()` gates `category` against this six-value enum and returns `"invalid-category"` for unknown values.
 - `applies_to_roles` (OPTIONAL, YAML list): forward-looking alias for `roles:`. When present, ignored by the current loader; `roles:` is still the load-bearing field. Future loader versions may merge the two.
 - `domain`: appended to each rendered bullet — `- [{confidence:.2f}] {summary} ({domain})`. Optional; defaults to empty string in the renderer.
@@ -261,7 +261,7 @@ Promote by:
 
 ### 7b. Promote Recurring Scratch Tools to Permanent Skills (Live-SWE Loop)
 
-Beyond instincts, scan observations for the `TOOL_SYNTHESISED_PROMOTABLE` verdict (emitted by `/tool-synthesis` when the agent flagged a scratch tool's signature as reusable across pipelines). When the same tool **signature** (name + one-line description) appears across **≥ 3 distinct pipelines** for this project, scaffold a permanent skill for human review — never auto-merge.
+Beyond instincts, scan observations for the `TOOL_SYNTHESISED_PROMOTABLE` verdict (emitted by `/harness:tool-synthesis` when the agent flagged a scratch tool's signature as reusable across pipelines). When the same tool **signature** (name + one-line description) appears across **≥ 3 distinct pipelines** for this project, scaffold a permanent skill for human review — never auto-merge.
 
 #### Detection
 
@@ -297,12 +297,12 @@ fi
 
 The scaffolded skill is **not** added to `rules/verdict-catalog.md` automatically — that requires a human-authored verdict + audit pass. The scaffold is a starting point; the reviewer either:
 
-1. **Promote** — fill in the skill body, add a verdict, run `/harness-audit`, ship as a PR.
+1. **Promote** — fill in the skill body, add a verdict, run `/harness:harness-audit`, ship as a PR.
 2. **Reject** — `rm -rf` the scaffold; the originating tool stays scratch.
 
 #### Surface for review
 
-In the `/learn` Report (Step 9 below), include a section listing every scaffolded skill awaiting human review:
+In the `/harness:learn` Report (Step 9 below), include a section listing every scaffolded skill awaiting human review:
 
 ```
 Permanent Skill Scaffolds (Live-SWE promotion — awaiting review):
@@ -331,10 +331,10 @@ Per-pipeline observations carry a `cost_estimate_usd` field (number, USD float �
 | Rework rate | `count(rework == true) / count(pipelines)` | `rework_rate` |
 | Mean mutation kill rate | mean of `phases.verify.mutation_score` when present, else null | `mean_mutation_score` |
 
-**Output:** an in-memory list of group dicts with keys `{agent_role, task_class, pipeline_count, total_cost_usd, mean_cost_usd, mean_rounds, rework_rate, mean_mutation_score}`. The list is fed to existing instinct-extraction logic (Step 5) and to the model-effectiveness recommendation surface (`/eval-model-effectiveness`):
+**Output:** an in-memory list of group dicts with keys `{agent_role, task_class, pipeline_count, total_cost_usd, mean_cost_usd, mean_rounds, rework_rate, mean_mutation_score}`. The list is fed to existing instinct-extraction logic (Step 5) and to the model-effectiveness recommendation surface (`/harness:eval-model-effectiveness`):
 
 - A `(role, task-class)` pair with `mean_cost_usd` in the top quartile AND (`mean_rounds >= 2.0` OR `rework_rate >= 0.33`) is flagged as a **prefer_opus candidate** — the role is paying premium cost without quality return, so escalating that role to Opus on this task class may improve outcomes. The flag feeds the existing `prefer_opus: true` writer (deferred — see `protocols/autonomous-intelligence.md` § Executor Override (prefer_opus)) when the writer lands; until then, the candidate set is included in the Step 9 report under "Cost-quality candidates".
-- A pair with `mean_cost_usd` in the bottom quartile AND `mean_rounds <= 1.0` AND `rework_rate <= 0.10` is flagged as a **downgrade candidate** for `/eval-model-effectiveness` — the role is succeeding cheaply, so Sonnet may suffice. The recommendation report at `~/.claude/learning/{project-hash}/model-recommendations.md` consumes this list (advisory only — no live config change).
+- A pair with `mean_cost_usd` in the bottom quartile AND `mean_rounds <= 1.0` AND `rework_rate <= 0.10` is flagged as a **downgrade candidate** for `/harness:eval-model-effectiveness` — the role is succeeding cheaply, so Sonnet may suffice. The recommendation report at `~/.claude/learning/{project-hash}/model-recommendations.md` consumes this list (advisory only — no live config change).
 
 Thresholds (`mean_rounds >= 2.0`, `rework_rate >= 0.33`, `mean_rounds <= 1.0`, `rework_rate <= 0.10`) are starting estimates; recalibrate when ≥30 cost-bearing observations exist per project so the quartile bands are statistically meaningful.
 
@@ -380,7 +380,7 @@ System Proposals: (if any)
 
 ### 10. Update Auto-Learn State
 
-Reset the gate counters so `auto-learn-gate.sh` does not re-fire immediately. Run this even when the verdict is `NO_NEW_PATTERNS` or `NO_OBSERVATIONS` — the `/learn` invocation itself satisfies the gate.
+Reset the gate counters so `auto-learn-gate.sh` does not re-fire immediately. Run this even when the verdict is `NO_NEW_PATTERNS` or `NO_OBSERVATIONS` — the `/harness:learn` invocation itself satisfies the gate.
 
 Preserve `last_observation_offset`, `last_fired_pipeline_id`, AND `last_learn_started` (do NOT reset) — the offset tracks file position independent of gate firing; `last_fired_pipeline_id` maintains idempotency against re-firing for the same pipeline; `last_learn_started` is the symmetric companion stamped by Step 1b and is used by forensics to reconstruct the in-flight window for any given run.
 

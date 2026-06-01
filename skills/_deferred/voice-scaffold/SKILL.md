@@ -194,7 +194,7 @@ Platform-specific requirements that must be met before submission:
 
 ```
 Verdict: VOICE_SCAFFOLDED
-Next: Implement business logic via /build-implementation (TDD against handler stubs)
+Next: Implement business logic via /harness:build-implementation (TDD against handler stubs)
 Artifacts: [project structure, intent model, handler stubs, SSML templates, test harness, deploy config]
 Platform: [Alexa/Google/Twilio]
 ```

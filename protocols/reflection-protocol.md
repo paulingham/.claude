@@ -13,7 +13,7 @@ At pipeline completion, before reporting final status to the user, run through t
 
 ### 1. What Happened?
 
-If the pipeline experienced failures, >2 review rounds, or any recovery loop, consider invoking `/forensics` first. The forensics report reconstructs the timeline from trajectory JSONL and provides evidence-based findings rather than memory-based recollection.
+If the pipeline experienced failures, >2 review rounds, or any recovery loop, consider invoking `/harness:forensics` first. The forensics report reconstructs the timeline from trajectory JSONL and provides evidence-based findings rather than memory-based recollection.
 
 Review the pipeline execution:
 - Were there any bugs, rework, or CHANGES_REQUESTED cycles?
@@ -75,15 +75,15 @@ After reflection steps 1-5, execute these in order:
 
 Append a structured observation to `learning/{project-hash}/observations.jsonl`. Every pipeline produces one observation — successes and failures both. Include: phase verdicts, review rounds, scratchpad findings summary, rework flag, complexity budget. Format in `rules/autonomous-intelligence.md` § Observation Capture.
 
-**Ordering note (Step 4d relocation):** for the regular delivery pipeline, the observation append runs at `skills/pipeline/SKILL.md` **Step 4d-i (Reflect-write, pre-Ship)** — BEFORE `/pr-creation` — so the artifacts ship inside the feature-branch PR rather than landing as orphan `chore(learning):` commits on local `main` post-merge. The `record_type: "pipeline"` JSON template, mode invariants, and sandbox-safe Python `os.open` append snippet live in Step 4d-i. This § 6a entry remains the canonical schema reference; Step 4d-i is the canonical producer site.
+**Ordering note (Step 4d relocation):** for the regular delivery pipeline, the observation append runs at `skills/pipeline/SKILL.md` **Step 4d-i (Reflect-write, pre-Ship)** — BEFORE `/harness:pr-creation` — so the artifacts ship inside the feature-branch PR rather than landing as orphan `chore(learning):` commits on local `main` post-merge. The `record_type: "pipeline"` JSON template, mode invariants, and sandbox-safe Python `os.open` append snippet live in Step 4d-i. This § 6a entry remains the canonical schema reference; Step 4d-i is the canonical producer site.
 
 ### 6b. Auto-Learn Gate Check
 
 The gate fires automatically via the `auto-learn-gate.sh` Stop hook — the orchestrator does not need to evaluate conditions. When thresholds are met (≥3 new pipeline observations, ≥3 pipelines or ≥24h since last run, pipeline-id idempotency), the hook emits a visible "Triggered" banner on stdout.
 
-When the banner appears, invoke `/learn` as a **background-spawn** so Reflect can complete without waiting on instinct extraction.
+When the banner appears, invoke `/harness:learn` as a **background-spawn** so Reflect can complete without waiting on instinct extraction.
 
-`/learn` is a Skill, not an Agent — there is no `agents/learn-runner.md`. The primary dispatch is the Skill tool, kicked off in a way that does not block Reflect:
+`/harness:learn` is a Skill, not an Agent — there is no `agents/learn-runner.md`. The primary dispatch is the Skill tool, kicked off in a way that does not block Reflect:
 
 ```
 Skill({
@@ -91,13 +91,13 @@ Skill({
   // Reflect MUST NOT wait on completion. The Skill stamps
   // last_learn_started in Step 1b immediately and finishes asynchronously;
   // the next pipeline's pre-flight reads the sentinel pair and
-  // queues or runs /learn accordingly.
+  // queues or runs /harness:learn accordingly.
 })
 ```
 
-**Pipeline must NOT block on /learn completion.** Reflect proceeds straight to § 6c (session-memory update) after the dispatch — `/learn` writes its sentinel (`last_learn_started`) immediately and finishes asynchronously. The next pipeline's pre-flight reads the sentinel pair and either invokes `/learn` itself or defers the invocation by one pipeline (see `orchestrator/pipeline-orchestration.md` § Learn-Status Pre-flight Check).
+**Pipeline must NOT block on /harness:learn completion.** Reflect proceeds straight to § 6c (session-memory update) after the dispatch — `/harness:learn` writes its sentinel (`last_learn_started`) immediately and finishes asynchronously. The next pipeline's pre-flight reads the sentinel pair and either invokes `/harness:learn` itself or defers the invocation by one pipeline (see `orchestrator/pipeline-orchestration.md` § Learn-Status Pre-flight Check).
 
-A future Agent-tool variant (`run_in_background: true`, isolated worktree) is desirable once a dedicated `learn-runner` agent is shipped, but is NOT required today — the Skill-tool dispatch above is the canonical contract. The integration-test snapshot `DocsRecordBackgroundSpawnContract` pins the literal phrases `Pipeline must NOT block on /learn completion` and `run_in_background: true` so the aspiration remains documented.
+A future Agent-tool variant (`run_in_background: true`, isolated worktree) is desirable once a dedicated `learn-runner` agent is shipped, but is NOT required today — the Skill-tool dispatch above is the canonical contract. The integration-test snapshot `DocsRecordBackgroundSpawnContract` pins the literal phrases `Pipeline must NOT block on /harness:learn completion` and `run_in_background: true` so the aspiration remains documented.
 
 <!--
 Future Agent-tool form (deferred — agents/learn-runner.md does not yet exist):
@@ -111,20 +111,20 @@ Future Agent-tool form (deferred — agents/learn-runner.md does not yet exist):
 -->
 
 
-The /learn invocation resets the gate counters via `skills/learn/SKILL.md` Step 10 once it completes.
+The /harness:learn invocation resets the gate counters via `skills/learn/SKILL.md` Step 10 once it completes.
 
 Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1` suppresses the hook.
 
 See `rules/autonomous-intelligence.md` § Consolidation Gate for full semantics.
 
-**Synchronous variant (Step 4d-ii):** the regular delivery pipeline now invokes `/learn` **synchronously** at `skills/pipeline/SKILL.md` Step 4d-ii (Reflect-write, pre-Ship) — NOT background-spawn — so the instinct `.md` files are flushed to disk before Step 4d-iii commits them to the feature-branch worktree. The async dispatch documented above is the legacy post-Ship variant, retained as the contract source for batch/utility callers that do not need pre-Ship commit semantics. The integration-test snapshot `DocsRecordBackgroundSpawnContract` continues to assert the literal phrases `Pipeline must NOT block on /learn completion` and `run_in_background: true` — those still apply to background-spawn callers, not to Step 4d-ii.
+**Synchronous variant (Step 4d-ii):** the regular delivery pipeline now invokes `/harness:learn` **synchronously** at `skills/pipeline/SKILL.md` Step 4d-ii (Reflect-write, pre-Ship) — NOT background-spawn — so the instinct `.md` files are flushed to disk before Step 4d-iii commits them to the feature-branch worktree. The async dispatch documented above is the legacy post-Ship variant, retained as the contract source for batch/utility callers that do not need pre-Ship commit semantics. The integration-test snapshot `DocsRecordBackgroundSpawnContract` continues to assert the literal phrases `Pipeline must NOT block on /harness:learn completion` and `run_in_background: true` — those still apply to background-spawn callers, not to Step 4d-ii.
 
 ### 6b-bis. Model-Efficiency Check (Every 10 Observations OR Weekly, whichever fires first)
 
-Invoke `/eval-model-effectiveness` to refresh the model recommendation report when EITHER trigger fires:
+Invoke `/harness:eval-model-effectiveness` to refresh the model recommendation report when EITHER trigger fires:
 
 - **Observation cadence**: `observations_since_learn` in `~/.claude/learning/{project-hash}/.learn-state.json` is a non-zero multiple of 10. The Reflect step handles this trigger.
-- **Wall-clock cadence**: at least 7 days have elapsed since the last `/eval-model-effectiveness` run. This trigger is typically driven by `/loop 7d /eval-model-effectiveness` rather than the Reflect step itself — Reflect only fires the observation-cadence check.
+- **Wall-clock cadence**: at least 7 days have elapsed since the last `/harness:eval-model-effectiveness` run. This trigger is typically driven by `/loop 7d /harness:eval-model-effectiveness` rather than the Reflect step itself — Reflect only fires the observation-cadence check.
 
 This is advisory — the report is written to disk; no live config is changed. Skip silently if the state file is missing or the observation counter is 0.
 
@@ -134,7 +134,7 @@ Spawn a `session-memory-updater` agent (Agent tool, `subagent_type: session-memo
 
 ### 6d-bis. Named Deviation Acknowledgment Gate
 
-Before cleanup, the orchestrator MUST invoke `hooks/reflect-gate-acknowledgment.sh`. The script scans `metrics/{session}/reflect-tokens/*.json` and exits 1 if any token has `acknowledged: false` (or is malformed). On non-zero exit, halt the Reflect step and surface the script's stderr verbatim — the operator must edit each token file to set `acknowledged: true`, then re-run `/pipeline-resume`. Exit 0 (silent) when no tokens exist or all are acknowledged; pipeline proceeds to 6d cleanup.
+Before cleanup, the orchestrator MUST invoke `hooks/reflect-gate-acknowledgment.sh`. The script scans `metrics/{session}/reflect-tokens/*.json` and exits 1 if any token has `acknowledged: false` (or is malformed). On non-zero exit, halt the Reflect step and surface the script's stderr verbatim — the operator must edit each token file to set `acknowledged: true`, then re-run `/harness:pipeline-resume`. Exit 0 (silent) when no tokens exist or all are acknowledged; pipeline proceeds to 6d cleanup.
 
 This gate pairs with `hooks/reflect-token-emit.sh` (token writer, invoked during Build/Review when a named deviation is recorded). It enforces Iron Law 6 — operator-bearing deviations cannot drift past Reflect without explicit acknowledgment.
 

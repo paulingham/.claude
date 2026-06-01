@@ -34,7 +34,7 @@ Before any extraction work, verify at least one FF from `protocols/module-bounda
 
 1. Scan the task description for explicit FF phrasing (compliance, scaling, polyglot, blast radius, team ownership, regulatory, HIPAA, PCI, GDPR, data residency).
 2. Scan pipeline state (`pipeline-state/{task-id}/intake.md`) for an intake-stamped FF rationale.
-3. If neither is present, exit immediately with verdict `WRONG_SKILL: no forcing function detected — use /module-extraction instead`.
+3. If neither is present, exit immediately with verdict `WRONG_SKILL: no forcing function detected — use /harness:module-extraction instead`.
 
 ### Step 1: Analyze Extraction Boundary
 
@@ -107,7 +107,7 @@ gh api repos/${ORG}/${SERVICE_NAME}/environments/production --method PUT
 # → Add to ## Deploy Order based on dependency graph
 ```
 
-After repo creation, run `/project-setup` in the new repo automatically (not a separate command).
+After repo creation, run `/harness:project-setup` in the new repo automatically (not a separate command).
 
 ### Step 3: Scaffold the New Service
 
@@ -197,7 +197,7 @@ paths:
 
 ### Step 6: Write Tests for the New Service
 
-Using TDD (per `/build-implementation`):
+Using TDD (per `/harness:build-implementation`):
 - Unit tests for migrated business logic
 - Integration tests for API endpoints
 - Contract tests (verify the OpenAPI spec matches the implementation)
