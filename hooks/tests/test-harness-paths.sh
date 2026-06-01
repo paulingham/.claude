@@ -336,8 +336,42 @@ else fail "B7: zero residual expanduser(~/\.claude/<state-seg>) literals in hook
 # B7b (Slice 5a): residual expanduser("~/.claude/<state-seg>") in skills/**/*.py
 # Companion to B7 that extends the same canary into the skills/ tree.
 # Excludes skills/ paths that contain 'tests'.
+# RED proof: plant a scratch .py with a violation, confirm scanner FIRES (>=1),
+# then run the real tree check (GREEN, must be 0).
 # ---------------------------------------------------------------------------
 echo "-- B7b: residual expanduser(~/\.claude/<state-seg>) literals in skills/ .py files (excl tests/) --"
+echo "-- B7b RED proof: scanner fires on planted violation --"
+B7B_SCRATCH_DIR="${TMPDIR:-/tmp}/b7b-red-proof-$$"
+mkdir -p "$B7B_SCRATCH_DIR"
+printf 'path = os.path.expanduser("~/.claude/pipeline-state/foo")\n' \
+  > "$B7B_SCRATCH_DIR/planted_residual.py"
+B7B_RED_COUNT=$(python3 - "$B7B_SCRATCH_DIR" <<'B7BREDHEREDOC'
+import os, re, sys
+SEG = r'(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|state|tasks|teams|plan-cache)'
+pattern = re.compile(
+    r'expanduser\(["' + chr(39) + r']~/.claude/' + SEG
+)
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root):
+    dirs[:] = [x for x in dirs if x != 'tests']
+    for f in files:
+        if not f.endswith('.py'):
+            continue
+        path = os.path.join(d, f)
+        with open(path) as fp:
+            for line in fp:
+                if pattern.search(line):
+                    count += 1
+print(count)
+B7BREDHEREDOC
+)
+B7B_RED_COUNT="${B7B_RED_COUNT// /}"
+rm -rf "$B7B_SCRATCH_DIR"
+if [[ "$B7B_RED_COUNT" -ge 1 ]]; then pass "B7b-RED: scanner fires on planted expanduser(~/.claude/pipeline-state) violation (got $B7B_RED_COUNT)"
+else fail "B7b-RED: scanner fires on planted violation" ">=1" "$B7B_RED_COUNT"; fi
+
+echo "-- B7b GREEN: zero residual expanduser(~/\.claude/<state-seg>) in skills/ .py (excl tests/) --"
 B7B_COUNT=$(python3 - "$REPO_ROOT" <<'B7BPYEOF'
 import os, re, sys
 SEG = r'(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|state|tasks|teams|plan-cache)'
@@ -370,8 +404,47 @@ else fail "B7b: zero residual expanduser(~/\.claude/<state-seg>) literals in ski
 # Scans for bare $HOME/.claude/<state-seg> literals AND os.environ['HOME']...claude
 # f-string forms that would break in plugin mode.
 # Count must be 0 after Item 4 path fixes.
+# RED proof: plant a scratch .md with both violation forms, confirm scanner FIRES (>=1),
+# then run the real tree check (GREEN, must be 0).
 # ---------------------------------------------------------------------------
-echo "-- B8: residual executable \$HOME/.claude/<state-seg> and os.environ[HOME]/.claude in skills/ .md --"
+echo "-- B8 RED proof: scanner fires on planted \$HOME/.claude and os.environ violations --"
+B8_SCRATCH_DIR="${TMPDIR:-/tmp}/b8-red-proof-$$"
+mkdir -p "$B8_SCRATCH_DIR"
+cat > "$B8_SCRATCH_DIR/planted_residual.md" <<'B8PLANTED'
+# Test snippet
+path = "$HOME/.claude/metrics/foo.jsonl"
+other = os.environ["HOME"] + "/.claude/pipeline-state"
+B8PLANTED
+B8_RED_COUNT=$(python3 - "$B8_SCRATCH_DIR" <<'B8REDHEREDOC'
+import os, re, sys
+SEG = r'(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|hooks|skills|state|tasks|teams|plan-cache)'
+raw_pattern = re.compile(r'\$HOME/\.claude/' + SEG)
+env_pattern = re.compile(r'''os\.environ\s*\[\s*['"]HOME['"]\s*\]\s*\+\s*['"]?/\.claude''')
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root):
+    dirs[:] = [x for x in dirs if x not in ['tests', '.git']]
+    for f in files:
+        if not f.endswith('.md'):
+            continue
+        path = os.path.join(d, f)
+        rel = os.path.relpath(path, root)
+        with open(path) as fp:
+            for lineno, line in enumerate(fp, 1):
+                if raw_pattern.search(line):
+                    if 'CLAUDE_PLUGIN_' not in line and 'CLAUDE_CONFIG_DIR' not in line:
+                        count += 1
+                if env_pattern.search(line):
+                    count += 1
+print(count)
+B8REDHEREDOC
+)
+B8_RED_COUNT="${B8_RED_COUNT// /}"
+rm -rf "$B8_SCRATCH_DIR"
+if [[ "$B8_RED_COUNT" -ge 1 ]]; then pass "B8-RED: scanner fires on planted \$HOME/.claude/metrics and os.environ[HOME]/.claude violations (got $B8_RED_COUNT)"
+else fail "B8-RED: scanner fires on planted violations" ">=1" "$B8_RED_COUNT"; fi
+
+echo "-- B8 GREEN: zero residual executable \$HOME/.claude/<state-seg> and os.environ[HOME]/.claude in skills/ .md --"
 B8_COUNT=$(python3 - "$REPO_ROOT" <<'B8PYEOF'
 import os, re, sys
 SEG = r'(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|hooks|skills|state|tasks|teams|plan-cache)'

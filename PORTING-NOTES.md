@@ -89,9 +89,13 @@ by the Claude Code host, typically inside `~/.claude/plugins/`).
 
 If both the overlay checkout and the plugin are present simultaneously,
 hooks and skills will load twice — once from each root — causing duplicate
-verdicts and unpredictable behaviour. The double-load guard
-(`_HARNESS_PATHS_LOADED`) prevents infinite recursion but does not prevent
-the second sourcing from running entirely.
+verdicts and unpredictable behaviour. `harness-paths.sh` is idempotent: the
+`_HARNESS_PATHS_LOADED` guard makes a second `source` a no-op (it returns
+immediately), so double-sourcing the same file is harmless. The real
+double-load risk is having two separate harness installs active at once —
+the overlay checkout and the plugin each providing a full copy of hooks and
+skills — which is why the maintainer must relocate the `~/.claude` checkout
+out of the config directory (Step 2 above).
 
 ---
 
