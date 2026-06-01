@@ -23,8 +23,8 @@
 !orchestrator/**
 !knowledge/
 !knowledge/**
-!pipeline-state/
-!pipeline-state/**
+# pipeline-state: only README is seed; runtime task dirs live in $HARNESS_DATA
+!pipeline-state/README.md
 !setup.sh
 !bootstrap.sh
 !managed-settings.json
@@ -32,14 +32,16 @@
 !statusline-robbyrussell.sh
 !version-pin
 !pyproject.toml
+# agent-memory: seed MEMORY.md per role tracked; per-session hash dirs are runtime state
 !agent-memory/
-!agent-memory/**
+!agent-memory/*/MEMORY.md
 !memory/
 !memory/**
 !automation/
 !automation/**
+# db: only schema.sql seed tracked; runtime *.sqlite and logs excluded via lower patterns
 !db/
-!db/**
+!db/schema.sql
 !tests/
 !tests/**
 !scripts/
@@ -48,8 +50,17 @@
 !eval/**
 !.github/
 !.github/**
+# session-memory: config and adapters are seed; per-project hash dirs are runtime state
 !session-memory/
-!session-memory/**
+!session-memory/config/
+!session-memory/config/**
+!session-memory/adapters/
+!session-memory/adapters/**
+# metrics: runtime JSONL logs ignored; curated cost/cache reports tracked
+!metrics/
+!metrics/reports/
+!metrics/reports/**
+# codebase_map: source code tracked (it is a Python package, not runtime state)
 !codebase_map/
 !codebase_map/**
 

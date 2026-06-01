@@ -13,9 +13,13 @@
 > **Default Opus model**: `claude-opus-4-7` (GA 2026-04-16). Pricing unchanged from 4.6 ($5/$25 per-M tokens).
 > **80% claim**: measured on `eval/baselines/{latest}-opus-4-7.md`, not SWE-bench Verified. See `skills/internal-eval/SKILL.md`.
 
+## Runtime State Location
+
+All runtime state (pipeline-state, session-memory, agent-memory session dirs, metrics, db, learning project dirs) lives in `$CLAUDE_PLUGIN_DATA` (end-user local, never committed back to the harness repo). The maintainer's repo ships only curated seed: `learning/instincts/`, `agent-memory/<role>/MEMORY.md`, `session-memory/config/`, `session-memory/adapters/`. At Reflect, confirm no runtime state dirs are staged for commit — only seed files belong in the repo.
+
 ## Session Start (automatic)
 
-1. **In-progress pipeline check**: source `~/.claude/hooks/_lib/pipeline-state-paths.sh` and run `_psp_find_active_pipelines "$HOME/.claude/pipeline-state" 2>/dev/null | head -1`. If found, auto-invoke `/pipeline-resume` and inform: "Resuming [pipeline name] from [phase]."
+1. **In-progress pipeline check**: source `hooks/_lib/pipeline-state-paths.sh` and run `_psp_find_active_pipelines "${CLAUDE_PLUGIN_DATA:-$HOME/.claude}/pipeline-state" 2>/dev/null | head -1`. If found, auto-invoke `/pipeline-resume` and inform: "Resuming [pipeline name] from [phase]."
 2. **Merged-PR pending-deploy check**: if a pipeline state file shows Ship=completed + Deploy=pending, check `gh pr view --json state`. If merged, auto-invoke `/deploy`.
 
 Silent if nothing is found — don't report "no pipelines found."
