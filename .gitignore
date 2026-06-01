@@ -32,9 +32,11 @@
 !statusline-robbyrussell.sh
 !version-pin
 !pyproject.toml
-# agent-memory: seed MEMORY.md per role tracked; per-session hash dirs are runtime state
+# agent-memory: role dirs, seed MEMORY.md, and role-level feedback_*.md tracked; per-session hash dirs are runtime state
 !agent-memory/
+!agent-memory/*/
 !agent-memory/*/MEMORY.md
+!agent-memory/*/feedback_*.md
 !memory/
 !memory/**
 !automation/

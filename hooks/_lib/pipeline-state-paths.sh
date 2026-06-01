@@ -30,7 +30,7 @@ _psp_verification_evidence_path() {
 }
 
 _psp_find_active_pipelines() {
-  local dir="${1:-${HOME}/.claude/pipeline-state}"
+  local dir="${1:-$HARNESS_DATA/pipeline-state}"
   PSP_DIR="$dir" python3 "$(dirname "${BASH_SOURCE[0]}")/pipeline_state_paths_cli.py" find
 }
 

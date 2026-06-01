@@ -7,7 +7,7 @@
 # SubagentStop (only .start is). Cleared with pipeline-state at Reflect.
 
 _rg_active_task_id() {
-  local d="${CLAUDE_PIPELINE_STATE_DIR:-${HOME}/.claude/pipeline-state}" f
+  local d="${CLAUDE_PIPELINE_STATE_DIR:-$HARNESS_DATA/pipeline-state}" f
   [ -d "$d" ] || { printf 'unknown'; return 0; }
   f=$(grep -rl "verdict: in_progress" "$d" 2>/dev/null | head -1)
   [ -z "$f" ] && { printf 'unknown'; return 0; }

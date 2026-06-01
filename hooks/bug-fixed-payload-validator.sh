@@ -8,6 +8,8 @@
 set -uo pipefail
 
 # shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
+# shellcheck source=/dev/null
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/bug_fixed_payload_validator.sh"
 
 INPUT=$(cat)
@@ -33,7 +35,7 @@ SESSION_ID=$(sanitize_id "$SESSION_ID")
 TASK_ID=$(sanitize_id "$TASK_ID")
 
 MODE="${CLAUDE_BUGFIX_VALIDATOR_MODE:-log}"
-METRICS_DIR="${CLAUDE_METRICS_DIR:-${HOME}/.claude/metrics}"
+METRICS_DIR="${CLAUDE_METRICS_DIR:-$HARNESS_DATA/metrics}"
 JSONL="$METRICS_DIR/$SESSION_ID/bug-fixed-payload.jsonl"
 
 # Parse verdict from transcript.

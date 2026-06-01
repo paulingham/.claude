@@ -75,7 +75,7 @@ _vlm_critic_redact() {
 # `target` and omit `offender`. The target string is redacted before writing.
 _vlm_critic_log_violation() {
   local guard="$1" tool="$2" target="$3" offender="${4:-}"
-  local log_dir="${HOME:-/tmp}/.claude/metrics/$SESSION"
+  local log_dir="$HARNESS_DATA/metrics/$SESSION"
   mkdir -p "$log_dir" 2>/dev/null || return 1
   local log_file="$log_dir/vlm-critic-violations.jsonl"
   local ts

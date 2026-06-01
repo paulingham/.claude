@@ -6,12 +6,12 @@
 # Scope: registration + early-exit shape only. Fast-exit payloads, respects # self-test: skip.
 #
 # Rate-limited: runs at most once per CLAUDE_HOOK_SELF_TEST_INTERVAL_HOURS
-# (default 24) via a sentinel at $HOME/.claude/.hook-self-test-state.json.
+# (default 24) via a sentinel at $HARNESS_DATA/.hook-self-test-state.json.
 # Escape hatch: CLAUDE_DISABLE_HOOK_SELF_TEST=1 → fast-exit 0.
 
-source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 # Inline emitter — matches _lib/jsonl-emit.sh contract. Inlined because
 # hook-self-test.sh runs at SessionStart before _lib/ is guaranteed loaded.
 _jsonl_emit() {

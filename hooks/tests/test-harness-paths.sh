@@ -264,7 +264,19 @@ else fail "D3: CLAUDE_CONFIG_DIR fallback (PLUGIN_ROOT unset)" "both /tmp/config
 echo "-- B6: residual state-path literals (Slice 2 Wave A) --"
 B6_COUNT=$(python3 - "$REPO_ROOT" <<'PYEOF'
 import os, re, sys
-pattern = re.compile(r'\$HOME/\.claude/(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|state|tasks|teams|\.hook-self-test-state|plan-cache)')
+# Matches all brace-expansion forms that resolve to $HOME/.claude/<state-seg>:
+#   $HOME/.claude/seg
+#   ${HOME}/.claude/seg
+#   ${HOME:-...}/.claude/seg
+#   ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/seg  (still a HOME-rooted fallback)
+SEG = r'(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|state|tasks|teams|\.hook-self-test-state|plan-cache)'
+pattern = re.compile(
+    r'(\$HOME'               # bare $HOME
+    r'|\$\{HOME\}'           # ${HOME}
+    r'|\$\{HOME:-[^}]*\}'   # ${HOME:-...}
+    r'|\$\{CLAUDE_CONFIG_DIR:-[^}]*\$HOME[^}]*\}'  # ${CLAUDE_CONFIG_DIR:-...$HOME...}
+    r')/\.claude/' + SEG
+)
 comment = re.compile(r'^\s*#')
 root = sys.argv[1]
 count = 0
@@ -451,6 +463,12 @@ if grep -q 'absolute' "$REPO_ROOT/hooks/_lib/harness-paths.sh" 2>/dev/null \
 else
   fail "F4: harness-paths.sh contains absolute-path / no-trailing-slash docs" "present" "absent"
 fi
+
+# F5: curated seed agent-memory/spec-blind-validator/feedback_harness_internal_recursion.md is git-tracked
+F5_COUNT=$(git -C "$REPO_ROOT" ls-files agent-memory/spec-blind-validator/feedback_harness_internal_recursion.md 2>/dev/null | wc -l || echo 0)
+F5_COUNT="${F5_COUNT// /}"
+if [[ "$F5_COUNT" -ge 1 ]]; then pass "F5: spec-blind-validator feedback seed is git-tracked"
+else fail "F5: spec-blind-validator feedback seed is git-tracked" "1" "$F5_COUNT"; fi
 
 # ---------------------------------------------------------------------------
 # Summary

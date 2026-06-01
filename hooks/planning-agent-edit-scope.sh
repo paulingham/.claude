@@ -12,6 +12,8 @@
 #
 # enforces: protocols/parallel-dispatch-protocol.md:Planning Agent
 # protects: build-implementation
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:${TOOL_NAME:-Write}"
@@ -53,7 +55,7 @@ if [[ "$REAL_FILE" == "$ALLOWED_DIR"/* ]]; then
   [[ "$BASENAME" == "plan.md" && "$PARENT_NAME" =~ ^[A-Za-z0-9_-]+$ && "$PARENT_DIR" != "$ALLOWED_DIR" ]] && exit 0
 fi
 
-LOG_DIR="${HOME:-/tmp}/.claude/metrics/$SESSION"
+LOG_DIR="$HARNESS_DATA/metrics/$SESSION"
 mkdir -p "$LOG_DIR" 2>/dev/null || exit 2
 LOG_FILE="$LOG_DIR/planning-agent-scope-violations.jsonl"
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
