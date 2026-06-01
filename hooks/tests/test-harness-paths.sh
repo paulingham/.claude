@@ -511,6 +511,54 @@ B9B_RESULT=$(
 if [[ "$B9B_RESULT" == "pass" ]]; then pass "B9b: product-acceptance write-approval-token resolves to \$HOME/.claude (plugin vars unset)"
 else fail "B9b: product-acceptance write-approval-token resolves to \$HOME/.claude (plugin vars unset)" "$HOME/.claude/hooks/_lib/write-approval-token.sh" "${B9B_RESULT#fail:}"; fi
 
+# B9c: pr-creation approval-token resolves to an EXISTING FILE under CLAUDE_PLUGIN_ROOT
+# RED proof: point CLAUDE_PLUGIN_ROOT at a scratch dir (no approval-token.sh) → file absent
+B9C_SCRATCH="${TMPDIR:-/tmp}/b9c-red-proof-$$"
+mkdir -p "$B9C_SCRATCH/hooks/_lib"
+B9C_RED_RESULT=$(
+  export CLAUDE_PLUGIN_ROOT="$B9C_SCRATCH"
+  unset CLAUDE_CONFIG_DIR 2>/dev/null || true
+  RESOLVED="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/approval-token.sh"
+  if [[ ! -f "$RESOLVED" ]]; then echo "absent"; else echo "present"; fi
+)
+rm -rf "$B9C_SCRATCH"
+if [[ "$B9C_RED_RESULT" == "absent" ]]; then pass "B9c-RED: approval-token.sh absent in scratch dir (confirms existence test has real bite)"
+else fail "B9c-RED: approval-token.sh absent in scratch dir" "absent" "$B9C_RED_RESULT"; fi
+
+# GREEN: CLAUDE_PLUGIN_ROOT=$REPO_ROOT → approval-token.sh must exist on disk
+B9C_RESULT=$(
+  export CLAUDE_PLUGIN_ROOT="$REPO_ROOT"
+  unset CLAUDE_CONFIG_DIR 2>/dev/null || true
+  RESOLVED="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/approval-token.sh"
+  if [[ -f "$RESOLVED" ]]; then echo "pass"; else echo "fail:$RESOLVED"; fi
+)
+if [[ "$B9C_RESULT" == "pass" ]]; then pass "B9c: approval-token.sh exists at resolved path under CLAUDE_PLUGIN_ROOT=REPO_ROOT"
+else fail "B9c: approval-token.sh exists at resolved path under CLAUDE_PLUGIN_ROOT=REPO_ROOT" "exists" "${B9C_RESULT#fail:}"; fi
+
+# B9d: product-acceptance write-approval-token resolves to an EXISTING FILE under CLAUDE_PLUGIN_ROOT
+# RED proof: point CLAUDE_PLUGIN_ROOT at a scratch dir (no write-approval-token.sh) → file absent
+B9D_SCRATCH="${TMPDIR:-/tmp}/b9d-red-proof-$$"
+mkdir -p "$B9D_SCRATCH/hooks/_lib"
+B9D_RED_RESULT=$(
+  export CLAUDE_PLUGIN_ROOT="$B9D_SCRATCH"
+  unset CLAUDE_CONFIG_DIR 2>/dev/null || true
+  RESOLVED="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/write-approval-token.sh"
+  if [[ ! -f "$RESOLVED" ]]; then echo "absent"; else echo "present"; fi
+)
+rm -rf "$B9D_SCRATCH"
+if [[ "$B9D_RED_RESULT" == "absent" ]]; then pass "B9d-RED: write-approval-token.sh absent in scratch dir (confirms existence test has real bite)"
+else fail "B9d-RED: write-approval-token.sh absent in scratch dir" "absent" "$B9D_RED_RESULT"; fi
+
+# GREEN: CLAUDE_PLUGIN_ROOT=$REPO_ROOT → write-approval-token.sh must exist on disk
+B9D_RESULT=$(
+  export CLAUDE_PLUGIN_ROOT="$REPO_ROOT"
+  unset CLAUDE_CONFIG_DIR 2>/dev/null || true
+  RESOLVED="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/write-approval-token.sh"
+  if [[ -f "$RESOLVED" ]]; then echo "pass"; else echo "fail:$RESOLVED"; fi
+)
+if [[ "$B9D_RESULT" == "pass" ]]; then pass "B9d: write-approval-token.sh exists at resolved path under CLAUDE_PLUGIN_ROOT=REPO_ROOT"
+else fail "B9d: write-approval-token.sh exists at resolved path under CLAUDE_PLUGIN_ROOT=REPO_ROOT" "exists" "${B9D_RESULT#fail:}"; fi
+
 # ---------------------------------------------------------------------------
 # D4-D6 (Slice 2 Wave A): state-dir / hook-self-test / _smr_config_dir
 # ---------------------------------------------------------------------------
