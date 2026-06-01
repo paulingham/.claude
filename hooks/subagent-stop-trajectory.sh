@@ -6,6 +6,8 @@
 # enforces: protocols/pipeline-protocol.md:Structured Pipeline State
 # protects: pipeline, forensics
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SubagentStop"
@@ -25,7 +27,7 @@ TASK_ID="${CLAUDE_PIPELINE_TASK_ID:-}"
 
 if [[ -z "$TASK_ID" ]]; then
   # Scan for active pipeline state files
-  PIPELINE_DIR="${HOME}/.claude/pipeline-state"
+  PIPELINE_DIR="$HARNESS_DATA/pipeline-state"
   if [[ -d "$PIPELINE_DIR" ]]; then
     # Find pipeline files with in_progress verdict (check top-level and workstream subdirs)
     ACTIVE_FILE=$(grep -rl "verdict: in_progress" "$PIPELINE_DIR" 2>/dev/null | head -1)
@@ -46,16 +48,16 @@ TASK_ID="${TASK_ID//[^a-zA-Z0-9_-]/}"
 [[ -z "$TASK_ID" ]] && exit 0
 
 # DUAL_PATH: write to new layout {task-id}/trajectory.jsonl.
-TASK_DIR="${HOME}/.claude/pipeline-state/${TASK_ID}"
+TASK_DIR="$HARNESS_DATA/pipeline-state/${TASK_ID}"
 TRAJECTORY_FILE="${TASK_DIR}/trajectory.jsonl"
 
 # Guard against path traversal — file must be under pipeline-state/
 case "$TRAJECTORY_FILE" in
-  "${HOME}/.claude/pipeline-state/"*) ;;
+  "$HARNESS_DATA/pipeline-state/"*) ;;
   *) exit 0 ;;
 esac
 
-if [[ ! -d "${HOME}/.claude/pipeline-state" ]]; then
+if [[ ! -d "$HARNESS_DATA/pipeline-state" ]]; then
   exit 0
 fi
 mkdir -p "$TASK_DIR" 2>/dev/null || exit 0
@@ -76,7 +78,7 @@ jq -nc \
 source "$(dirname "$0")/_lib/runtime-guard-key.sh" 2>/dev/null && {
   RG_KEY=$(_rg_compute_key "$AGENT_TYPE")
   SID="${CLAUDE_SESSION_ID:-local-$$}"; SID="${SID//[^a-zA-Z0-9_.-]/}"
-  rm -f "$HOME/.claude/metrics/${SID:-local-$$}/subagent-runtimes/${RG_KEY}.start" 2>/dev/null || true
+  rm -f "$HARNESS_DATA/metrics/${SID:-local-$$}/subagent-runtimes/${RG_KEY}.start" 2>/dev/null || true
 }
 
 exit 0

@@ -17,7 +17,7 @@
 #                              stdout (SEC-MED-1).
 #   _spec_blind_log_violation <guard> <tool> <attempted-target> [<offender>]
 #                            — appends one JSONL violation record to
-#                              $HOME/.claude/metrics/$SESSION/spec-blind-violations.jsonl.
+#                              $HARNESS_DATA/metrics/$SESSION/spec-blind-violations.jsonl.
 #                              Caller passes the target (path or full command)
 #                              and an optional offender word for bash-guard.
 #                              Secrets in the target are redacted before
@@ -32,6 +32,8 @@
 #   2. CLAUDE_SUBAGENT_TYPE env var (canonical, set by orchestrator)
 # If both are empty, SUBAGENT_TYPE stays empty and the guard's fast-exit
 # branch decides what to do (default-deny vs default-allow per guard).
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 _spec_blind_parse_input() {
   TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty')
   SUBAGENT_TYPE=$(printf '%s' "$INPUT" | jq -r '.subagent_type // empty')
@@ -64,7 +66,7 @@ _spec_blind_redact() {
 # `target` and omit `offender`. The target string is redacted before writing.
 _spec_blind_log_violation() {
   local guard="$1" tool="$2" target="$3" offender="${4:-}"
-  local log_dir="${HOME:-/tmp}/.claude/metrics/$SESSION"
+  local log_dir="$HARNESS_DATA/metrics/$SESSION"
   mkdir -p "$log_dir" 2>/dev/null || return 1
   local log_file="$log_dir/spec-blind-violations.jsonl"
   local ts

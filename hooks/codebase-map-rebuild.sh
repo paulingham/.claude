@@ -8,6 +8,8 @@
 # enforces: protocols/autonomous-intelligence.md:Codebase Map
 # protects: codebase-map-rebuild
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SessionStart"
@@ -26,9 +28,9 @@ source "$LIB_DIR/codebase-map-common.sh"
 
 HASH=$(_cbm_resolve_hash "$LIB_DIR")
 SESSION=$(_cbm_session_id)
-CACHE_DIR="$HOME/.claude/db/codebase-map/$HASH"
+CACHE_DIR="$HARNESS_DATA/db/codebase-map/$HASH"
 STATE_FILE="$CACHE_DIR/state.json"
-METRICS_FILE="${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}/$SESSION/codebase-map-rebuild.jsonl"
+METRICS_FILE="${CLAUDE_HOOK_LOG_DIR:-$HARNESS_DATA/metrics}/$SESSION/codebase-map-rebuild.jsonl"
 mkdir -p "$CACHE_DIR" "$(dirname "$METRICS_FILE")"
 
 REPO_ROOT="${CLAUDE_CODEBASE_MAP_REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"

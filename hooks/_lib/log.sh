@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Structured JSONL telemetry helper. API: _log_hook_start, _log_hook_trigger STR, log_hook_event EXIT.
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 if [[ "${CLAUDE_HOOK_LOG_ENABLED:-1}" == "0" ]]; then
   _log_hook_start() { :; }; _log_hook_trigger() { :; }; log_hook_event() { :; }
   return 0 2>/dev/null
@@ -56,7 +58,7 @@ log_hook_event() {
   trig="$(_log_sanitize "$_LOG_HOOK_TRIGGER")"
   s="$(_log_sanitize "$sid")"
   extra="$(_log_subagent_field "$stype")"
-  dir="${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}/$sid"; mkdir -p "$dir" 2>/dev/null || return 0
+  dir="${CLAUDE_HOOK_LOG_DIR:-$HARNESS_DATA/metrics}/$sid"; mkdir -p "$dir" 2>/dev/null || return 0
   printf '{"timestamp":"%s","hook_name":"%s","trigger":"%s","duration_ms":%d,"exit_code":%d,"session_id":"%s"%s}\n' \
     "$ts" "$hn" "$trig" "$dur" "$ec" "$s" "$extra" >> "$dir/hooks.jsonl" 2>/dev/null
 }

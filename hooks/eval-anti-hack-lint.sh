@@ -16,6 +16,8 @@
 # enforces: protocols/agent-protocol.md:Internal Eval Gate
 # protects: internal-eval
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/log.sh"
@@ -52,7 +54,7 @@ _eahl_pattern_re() {
 
 _eahl_log_suspect() {
   local sid dir; sid="${CLAUDE_SESSION_ID:-local-$$}"; sid="${sid//[^a-zA-Z0-9_.-]/}"
-  dir="$HOME/.claude/metrics/${sid:-local-$$}"
+  dir="$HARNESS_DATA/metrics/${sid:-local-$$}"
   mkdir -p "$dir" 2>/dev/null || return 0
   jq -nc --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg run "$EVAL_RUN_ID" \
     --arg case "$EVAL_CASE_ID" --arg file "$1" --arg pattern "$2" \

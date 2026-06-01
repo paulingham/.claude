@@ -6,6 +6,8 @@
 # enforces: protocols/operational-protocol.md:Complexity Budget
 # protects: pipeline
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "Stop"
@@ -21,7 +23,7 @@ if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
     exit 0
 fi
 
-METRICS_DIR="$HOME/.claude/metrics"
+METRICS_DIR="$HARNESS_DATA/metrics"
 mkdir -p "$METRICS_DIR"
 
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -54,7 +56,7 @@ fi
 # Tool calls: count observations written during this session
 TOOL_CALLS=0
 if [[ -n "$SESSION_ID" ]]; then
-    LEARNING_DIR="$HOME/.claude/learning/$PROJECT_HASH"
+    LEARNING_DIR="$HARNESS_DATA/learning/$PROJECT_HASH"
     OBS_FILE="$LEARNING_DIR/observations.jsonl"
     if [[ -f "$OBS_FILE" ]]; then
         TOOL_CALLS=$(grep -c "\"session_id\":\"$SESSION_ID\"" "$OBS_FILE" 2>/dev/null)

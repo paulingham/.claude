@@ -1,9 +1,0 @@
-Test: write_approval_token_uses_new_layout_only
-  ok: new-layout token written at /var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.7Io1AWU4RL/.claude/pipeline-state/t1/approval.token
-  ok: legacy-layout token NOT written
-Test: write_approval_token_rejects_dotdot_task_id
-  FAIL: _at_write_token accepted task_id='..' (path traversal)
-  FAIL: traversal write landed at /var/folders/pd/jxh5d3656_7dtfvj4_dhprmc0000gp/T/tmp.7Io1AWU4RL/.claude/approval.token
-  ok: no literal '..' file at pipeline-state/../approval.token
-Summary: 3 passed, 2 failed
-EXPECTED FAIL: depends on slice-b refactor of hooks/_lib/approval-token.sh

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Core gate evaluation for auto-learn-gate. Shape: <=8 lines/func.
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 _alg_hours_since() {
   local ts="$1"
   [[ -z "$ts" || "$ts" == "null" ]] && { echo 999; return; }
@@ -12,7 +14,7 @@ _alg_hours_since() {
 _alg_current_pipeline_id() {
   # DUAL_PATH: discovers both legacy and new-layout pipeline files.
   source "$(dirname "${BASH_SOURCE[0]}")/pipeline-state-paths.sh"
-  local dir="$HOME/.claude/pipeline-state" f
+  local dir="$HARNESS_DATA/pipeline-state" f
   [[ -d "$dir" ]] || { echo ""; return; }
   f=$(_psp_find_active_pipelines "$dir" | xargs grep -l "in_progress" 2>/dev/null | head -1)
   [[ -n "$f" ]] && awk '/^task_id:/ {print $2; exit}' "$f" 2>/dev/null || echo ""

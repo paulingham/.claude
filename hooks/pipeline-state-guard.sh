@@ -14,6 +14,8 @@
 # enforces: protocols/pipeline-protocol.md:Structured Pipeline State
 # protects: pipeline
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Agent"
@@ -74,7 +76,7 @@ fi
 # pipeline_state_paths_helpers.EXCLUDED_ROOT_DIRS.
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/pipeline-state-paths.sh"
 GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-for PIPELINE_DIR in "$GIT_ROOT/pipeline-state" "$HOME/.claude/pipeline-state"; do
+for PIPELINE_DIR in "$GIT_ROOT/pipeline-state" "$HARNESS_DATA/pipeline-state"; do
     if [[ -d "$PIPELINE_DIR" ]]; then
         ACTIVE_FILES=$(_psp_find_active_pipelines "$PIPELINE_DIR" 2>/dev/null | head -1)
         if [[ -n "$ACTIVE_FILES" ]]; then

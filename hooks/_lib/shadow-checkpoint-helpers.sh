@@ -19,6 +19,9 @@
 #   _sgc_increment_counter TASK_DIR SLUG → echoes 4-digit zero-padded N
 #   _sgc_ref_name TASK SLUG STEP       → echoes refs/checkpoints/<task>/<slug>-<step>
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
+
 # ---------------------------------------------------------------------------
 # AC1.3 — _sgc_validate_id
 # ---------------------------------------------------------------------------
@@ -102,7 +105,7 @@ _sgc_resolve_task_id() {
     fi
   fi
 
-  local state_dir="${CLAUDE_PIPELINE_STATE_DIR:-$HOME/.claude/pipeline-state}"
+  local state_dir="${CLAUDE_PIPELINE_STATE_DIR:-$HARNESS_DATA/pipeline-state}"
   [[ ! -d "$state_dir" ]] && return 1
 
   # Discover an active in-progress pipeline state file. Use the canonical

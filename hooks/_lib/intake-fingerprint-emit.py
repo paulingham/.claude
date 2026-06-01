@@ -33,8 +33,11 @@ def _is_path_contained(path):
     """Security HIGH-1 defence-in-depth: resolve symlinks and reject paths that
     escape CONFIG_DIR/pipeline-state/. Returns True only if the realpath of
     `path` is inside the canonical pipeline-state root."""
-    config_dir = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(
-        os.path.expanduser("~"), ".claude"
+    # Precedence: HARNESS_DATA > CLAUDE_CONFIG_DIR > $HOME/.claude
+    config_dir = (
+        os.environ.get("HARNESS_DATA")
+        or os.environ.get("CLAUDE_CONFIG_DIR")
+        or os.path.join(os.path.expanduser("~"), ".claude")
     )
     root = os.path.realpath(os.path.join(config_dir, "pipeline-state"))
     try:

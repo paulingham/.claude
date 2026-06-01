@@ -18,6 +18,8 @@
 # enforces: rules/core.md:Iron Laws
 # protects: build-implementation
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
@@ -38,7 +40,7 @@ is_caller_in_worktree() {
     local toplevel
     # Honor explicit CLAUDE_WORKTREE_PATH first — the orchestrator/spawn-prompt
     # may set this when the agent's PWD has drifted outside the worktree
-    # (e.g. between Bash calls that target $HOME/.claude/learning/...).
+    # (e.g. between Bash calls that target $HARNESS_DATA/learning/...).
     [[ -n "${CLAUDE_WORKTREE_PATH:-}" && "$CLAUDE_WORKTREE_PATH" == *"/.claude/worktrees/agent-"* ]] && return 0
     toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
     [[ "$toplevel" == *"/.claude/worktrees/agent-"* ]] || [[ "$PWD" == *"/.claude/worktrees/agent-"* ]]
@@ -136,7 +138,7 @@ _bwg_log_violation() {
     sid="${CLAUDE_SESSION_ID:-local-$$}"
     sid="${sid//[^a-zA-Z0-9_.-]/}"
     tid="${CLAUDE_PIPELINE_TASK_ID:-}"
-    dir="$HOME/.claude/metrics/${sid:-local-$$}"
+    dir="$HARNESS_DATA/metrics/${sid:-local-$$}"
     mkdir -p "$dir" 2>/dev/null || return 0
     jq -nc \
         --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \

@@ -3,10 +3,12 @@
 # during DUAL_PATH soak. Read precedence: existing file wins; on collision,
 # fresher mtime wins. Writes go to NEW layout only.
 # shellcheck source=pipeline-state-paths.sh
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/pipeline-state-paths.sh"
 
-_at_legacy_token_path() { echo "$HOME/.claude/pipeline-state/$1-approval.token"; }
-_at_new_token_path()    { echo "$HOME/.claude/pipeline-state/$1/approval.token"; }
+_at_legacy_token_path() { echo "$HARNESS_DATA/pipeline-state/$1-approval.token"; }
+_at_new_token_path()    { echo "$HARNESS_DATA/pipeline-state/$1/approval.token"; }
 
 _at_token_path() {
   local l n; l=$(_at_legacy_token_path "$1"); n=$(_at_new_token_path "$1")
@@ -44,7 +46,7 @@ _at_valid_verdict() {
 _at_write_token() {
   # Validate task_id to prevent path traversal. Writes go to NEW layout only.
   # First char MUST be alnum/underscore/hyphen — rejects '.' and '..' which
-  # would resolve $HOME/.claude/pipeline-state/{task}/approval.token to a
+  # would resolve $HARNESS_DATA/pipeline-state/{task}/approval.token to a
   # parent directory landing pad.
   [[ "$1" =~ ^[A-Za-z0-9_-][A-Za-z0-9_.-]*$ ]] || return 1
   _at_valid_verdict "$2" || return 1
@@ -61,7 +63,7 @@ _at_emit_jsonl() {
 _at_log_blocked() {
   local raw="${CLAUDE_SESSION_ID:-no-session}"
   local safe="${raw//[^A-Za-z0-9_-]/_}"
-  local dir="$HOME/.claude/metrics/${safe}"
+  local dir="$HARNESS_DATA/metrics/${safe}"
   mkdir -p "$dir"
   _at_emit_jsonl "$(date -u +%FT%TZ)" "$1" "$2" >> "$dir/pr-blocked.jsonl"
 }

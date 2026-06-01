@@ -3,7 +3,7 @@
 # unacknowledged.
 #
 # Usage: reflect-gate-acknowledgment.sh [token_dir]
-#   token_dir defaults to $HOME/.claude/metrics/$CLAUDE_SESSION_ID/reflect-tokens
+#   token_dir defaults to $HARNESS_DATA/metrics/$CLAUDE_SESSION_ID/reflect-tokens
 #
 # Exit 0: no tokens OR all tokens have acknowledged=true (silent).
 # Exit 1: one or more tokens have acknowledged=false OR malformed JSON.
@@ -14,10 +14,12 @@
 
 set -u
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 SESSION_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SESSION="${SESSION_RAW//[^A-Za-z0-9_-]/_}"
 [[ -z "$SESSION" || "$SESSION" =~ ^_+$ ]] && SESSION="local-$$"
-DIR="${1:-$HOME/.claude/metrics/$SESSION/reflect-tokens}"
+DIR="${1:-$HARNESS_DATA/metrics/$SESSION/reflect-tokens}"
 
 [[ -d "$DIR" ]] || exit 0
 

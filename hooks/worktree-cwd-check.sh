@@ -4,6 +4,8 @@
 #
 # enforces: protocols/agent-protocol.md:Main-Branch Invariant
 # protects: build-implementation, pipeline
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SubagentStop"
@@ -19,7 +21,7 @@ source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/wo
 _wcc_resolve_task_id() {
   local id="${CLAUDE_PIPELINE_TASK_ID:-}" f
   [[ -n "$id" ]] && { printf '%s' "$id"; return; }
-  f=$(grep -rl "verdict: in_progress" "$HOME/.claude/pipeline-state" 2>/dev/null | head -1)
+  f=$(grep -rl "verdict: in_progress" "$HARNESS_DATA/pipeline-state" 2>/dev/null | head -1)
   [[ -n "$f" ]] && awk '/^task_id:/ {sub(/task_id: */,""); print; exit}' "$f"
 }
 
@@ -41,8 +43,8 @@ TASK_ID="$(_wcc_resolve_task_id)"; TASK_ID="${TASK_ID//[^a-zA-Z0-9_.-]/}"
 [[ -z "$TASK_ID" ]] && exit 0
 SESSION="${CLAUDE_SESSION_ID:-local-$$}"; SESSION="${SESSION//[^a-zA-Z0-9_.-]/}"
 SESSION="${SESSION:-local-$$}"
-LOG="$HOME/.claude/metrics/$SESSION/main-branch-violations.jsonl"
-mkdir -p "$HOME/.claude/state" 2>/dev/null
-CURSOR="$HOME/.claude/state/worktree-cwd-check-cursor-${TASK_ID}"
+LOG="$HARNESS_DATA/metrics/$SESSION/main-branch-violations.jsonl"
+mkdir -p "$HARNESS_DATA/state" 2>/dev/null
+CURSOR="$HARNESS_DATA/state/worktree-cwd-check-cursor-${TASK_ID}"
 [[ -f "$LOG" ]] && _wcc_pair_prevented "$CURSOR" "$LOG"
 _wcc_drift_check; exit 0

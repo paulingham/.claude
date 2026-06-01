@@ -52,7 +52,7 @@ TASK=$(_sgc_resolve_task_id 2>/dev/null) || exit 0
 _sgc_validate_id "$TASK" || exit 0
 
 # Increment counter (under mutex). State directory mirrors pipeline-state layout.
-STATE_DIR="${CLAUDE_PIPELINE_STATE_DIR:-$HOME/.claude/pipeline-state}"
+STATE_DIR="${CLAUDE_PIPELINE_STATE_DIR:-$HARNESS_DATA/pipeline-state}"
 TASK_DIR="$STATE_DIR/$TASK"
 STEP=$(_sgc_increment_counter "$TASK_DIR" "$SLUG" 2>/dev/null) || STEP=""
 
@@ -63,7 +63,7 @@ REF=$(_sgc_ref_name "$TASK" "$SLUG" "$STEP" 2>/dev/null) || REF=""
 SID_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SID="${SID_RAW//[^A-Za-z0-9_-]/}"
 [[ -z "$SID" ]] && SID="local-$$"
-LOG_DIR="${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}/$SID"
+LOG_DIR="${CLAUDE_HOOK_LOG_DIR:-$HARNESS_DATA/metrics}/$SID"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 LOG_FILE="$LOG_DIR/shadow-checkpoints.jsonl"
 

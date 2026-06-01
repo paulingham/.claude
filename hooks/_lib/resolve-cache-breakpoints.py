@@ -33,8 +33,12 @@ _DEFERRED_ANCHORS = [
 
 
 def _config_dir() -> str:
-    return os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(
-        os.environ.get("HOME", ""), ".claude")
+    # Precedence: HARNESS_DATA > CLAUDE_CONFIG_DIR > $HOME/.claude
+    return (
+        os.environ.get("HARNESS_DATA")
+        or os.environ.get("CLAUDE_CONFIG_DIR")
+        or os.path.join(os.path.expanduser("~"), ".claude")
+    )
 
 
 def _rules_core_anchor() -> dict:

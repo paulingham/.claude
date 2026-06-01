@@ -3,8 +3,10 @@
 # Source this file; call _state_dir (ensures + echoes) or _state_path NAME.
 # Honours CLAUDE_STATE_DIR override for hermetic tests.
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 _state_dir() {
-  local dir="${CLAUDE_STATE_DIR:-$HOME/.claude/state}"
+  local dir="${CLAUDE_STATE_DIR:-$HARNESS_DATA/state}"
   echo "$dir"
 }
 

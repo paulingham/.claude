@@ -10,6 +10,8 @@
 # ---------------------------------------------------------------------------
 
 # Auto-start automation supervisor if repos are registered and it's not running
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SessionStart"
@@ -74,7 +76,7 @@ echo "Utils: /forensics (post-incident investigation) | /workstream (parallel fe
 # Learning system
 # shellcheck source=_lib/project-hash.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
-LEARNING_DIR="$HOME/.claude/learning"
+LEARNING_DIR="$HARNESS_DATA/learning"
 LEARNING_PROJECT_HASH=$(_project_hash --fallback "local")
 PROJECT_INSTINCTS_DIR="$LEARNING_DIR/$LEARNING_PROJECT_HASH/instincts"
 
@@ -129,7 +131,7 @@ _ssb_task_id_of() {
     fi
 }
 
-PIPELINE_DIR="$HOME/.claude/pipeline-state"
+PIPELINE_DIR="$HARNESS_DATA/pipeline-state"
 if [[ -d "$PIPELINE_DIR" ]]; then
     LEGACY=$(find "$PIPELINE_DIR" -maxdepth 1 -name "*-pipeline.md" 2>/dev/null || true)
     NEW=$(find "$PIPELINE_DIR" -mindepth 2 -maxdepth 2 -name "pipeline.md" 2>/dev/null || true)
@@ -166,7 +168,7 @@ fi
 # shellcheck source=_lib/project-hash.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
 PROJECT_HASH=$(_project_hash --fallback "local")
-SESSION_DIR="$HOME/.claude/session-memory/$PROJECT_HASH"
+SESSION_DIR="$HARNESS_DATA/session-memory/$PROJECT_HASH"
 if [[ -d "$SESSION_DIR" ]]; then
     # Any of the 4 injectable sub-files with content (not just header + italic
     # description + blanks) means session memory is live for this project.
@@ -198,7 +200,7 @@ fi
 # Hook anomaly detection (per-hook latency + failure surface)
 # ---------------------------------------------------------------------------
 HOOK_SUMMARY="$HOME/.claude/scripts/hook-summary.sh"
-HOOK_METRICS_DIR="$HOME/.claude/metrics"
+HOOK_METRICS_DIR="$HARNESS_DATA/metrics"
 if [[ -x "$HOOK_SUMMARY" && -d "$HOOK_METRICS_DIR" ]]; then
     # Run anomaly check silently; only surface if exit_code != 0 (anomaly found).
     # Pass through CLAUDE_HOOK_ANOMALY_THRESHOLD so per-session overrides reach the analyzer.

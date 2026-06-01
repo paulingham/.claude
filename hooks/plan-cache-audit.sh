@@ -10,6 +10,8 @@
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
+# shellcheck source=/dev/null
 source "${HOOK_DIR}/hook-profile.sh" 2>/dev/null && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat 2>/dev/null || printf '')
@@ -22,7 +24,7 @@ TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 SID_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SID="${SID_RAW//[^A-Za-z0-9_-]/}"
 [[ -z "$SID" ]] && SID="local-$$"
-METRICS_DIR="${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}/$SID"
+METRICS_DIR="${CLAUDE_HOOK_LOG_DIR:-$HARNESS_DATA/metrics}/$SID"
 
 _dispatch_pv() {
   local pv_verdict

@@ -23,7 +23,7 @@
 #   REPO_ROOT       — root of the repo being captured (defaults to pwd).
 #   BUILD_COMMAND   — npm/yarn build command from project CLAUDE.md.
 #   PIPELINE_STATE_ROOT — pipeline-state root for output files (defaults to
-#                         "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/pipeline-state").
+#                         "$HARNESS_DATA/pipeline-state").
 #
 # Outputs:
 #   $PIPELINE_STATE_ROOT/$TASK_ID/visual-baselines/{slug}-{viewport}.png
@@ -33,6 +33,9 @@
 
 set -uo pipefail
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
+
 # ---------------------------------------------------------------------------
 # Input validation + defaults.
 # ---------------------------------------------------------------------------
@@ -40,7 +43,7 @@ set -uo pipefail
 : "${TASK_ID:?baseline_capture: TASK_ID required}"
 : "${BUILD_COMMAND:?baseline_capture: BUILD_COMMAND required (from project CLAUDE.md Dev Server section)}"
 REPO_ROOT="${REPO_ROOT:-$(pwd)}"
-PIPELINE_STATE_ROOT="${PIPELINE_STATE_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/pipeline-state}"
+PIPELINE_STATE_ROOT="${PIPELINE_STATE_ROOT:-$HARNESS_DATA/pipeline-state}"
 
 VISUAL_BASELINES_DIR="${PIPELINE_STATE_ROOT}/${TASK_ID}/visual-baselines"
 SCRATCHPAD_DIR="${PIPELINE_STATE_ROOT}/${TASK_ID}/scratchpad"

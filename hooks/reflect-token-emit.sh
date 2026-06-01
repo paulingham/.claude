@@ -2,7 +2,7 @@
 # Emit a named-deviation reflect token.
 #
 # Usage: reflect-token-emit.sh <deviation_id>
-# Writes: $HOME/.claude/metrics/$CLAUDE_SESSION_ID/reflect-tokens/<deviation_id>.json
+# Writes: $HARNESS_DATA/metrics/$CLAUDE_SESSION_ID/reflect-tokens/<deviation_id>.json
 # Payload: { deviation_id, acknowledged: false, verification_path, timestamp }
 #
 # Idempotent: if the token already exists with acknowledged=true, the file
@@ -15,6 +15,8 @@
 
 set -u
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 DEVIATION_ID="${1:-}"
 if [[ -z "$DEVIATION_ID" ]]; then
   echo "reflect-token-emit: deviation_id required" >&2
@@ -25,7 +27,7 @@ DEVIATION_ID="${DEVIATION_ID//[^A-Za-z0-9_-]/_}"
 SESSION_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SESSION="${SESSION_RAW//[^A-Za-z0-9_-]/_}"
 [[ -z "$SESSION" || "$SESSION" =~ ^_+$ ]] && SESSION="local-$$"
-DIR="$HOME/.claude/metrics/$SESSION/reflect-tokens"
+DIR="$HARNESS_DATA/metrics/$SESSION/reflect-tokens"
 TOKEN="$DIR/$DEVIATION_ID.json"
 mkdir -p "$DIR" || exit 1
 

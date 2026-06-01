@@ -3,6 +3,8 @@
 # enforces: protocols/atdd-procedure.md:ATDD Anti-Patterns
 # protects: build-implementation, pr-creation
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SubagentStop"
@@ -28,7 +30,7 @@ CURSOR=$(_tdg_read_cursor "$TASK_ID")
 TOTAL=$(wc -l < "$EVENTS" | tr -d ' ')
 [[ "$TOTAL" -le "$CURSOR" ]] && exit 0
 
-METRICS="${HOME}/.claude/metrics/${CLAUDE_SESSION_ID:-local}/tdd-guard-violations.jsonl"
+METRICS="$HARNESS_DATA/metrics/${CLAUDE_SESSION_ID:-local}/tdd-guard-violations.jsonl"
 mkdir -p "$(dirname "$METRICS")"
 
 while IFS= read -r line; do

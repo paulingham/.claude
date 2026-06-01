@@ -3,6 +3,8 @@
 # New: `pipeline-state/{task}/{phase}.md`; Legacy: `pipeline-state/{task}-{phase}.md`.
 # Workstream beats root on collision; fresher mtime wins within layout-class.
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 _psp_phase_list() {
   printf '%s\n' pipeline intake plan build review verify test accept ship debug \
     discussion best-of-n plan-validation product-brief tech-stack ui-architecture \
@@ -28,13 +30,13 @@ _psp_verification_evidence_path() {
 }
 
 _psp_find_active_pipelines() {
-  local dir="${1:-${HOME}/.claude/pipeline-state}"
+  local dir="${1:-$HARNESS_DATA/pipeline-state}"
   PSP_DIR="$dir" python3 "$(dirname "${BASH_SOURCE[0]}")/pipeline_state_paths_cli.py" find
 }
 
 _psp_discover_state_path() {
   local task="$1" phase="$2" ws="${3:-}"
-  PSP_DIR="${HOME}/.claude/pipeline-state" python3 \
+  PSP_DIR="$HARNESS_DATA/pipeline-state" python3 \
     "$(dirname "${BASH_SOURCE[0]}")/pipeline_state_paths_cli.py" discover "$task" "$phase" "$ws"
 }
 
