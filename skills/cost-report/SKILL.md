@@ -38,7 +38,7 @@ procedure literally.
 ### Step 1: Discover per-session timing files
 
 ```bash
-find "$HOME/.claude/metrics" -maxdepth 2 -name "tool-timings.jsonl" -type f
+find "${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/metrics" -maxdepth 2 -name "tool-timings.jsonl" -type f
 ```
 
 Filter by `--since YYYY-MM-DD` (file mtime) when the argument is given.
@@ -97,10 +97,10 @@ Sections (in order):
 
    ```python
    import sys
-   sys.path.insert(0, "$HOME/.claude/hooks/_lib")
+   sys.path.insert(0, f"{os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ.get('CLAUDE_CONFIG_DIR') or os.path.join(os.path.expanduser('~'), '.claude')}/hooks/_lib")
    from sandbox_skip_rate import aggregate_skip_rate
    from pathlib import Path
-   result = aggregate_skip_rate(Path("$HOME/.claude/metrics").expanduser())
+   result = aggregate_skip_rate(Path(os.environ.get('CLAUDE_PLUGIN_DATA') or os.environ.get('CLAUDE_CONFIG_DIR') or os.path.join(os.path.expanduser('~'), '.claude')) / "metrics")
    # {"reasons": {...}, "total_invocations": N, "skip_rate": float, "dropped_lines": N}
    ```
 

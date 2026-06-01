@@ -665,7 +665,7 @@ Canonical cleanup snippet (mirrors what the orchestrator runs):
 
 ```bash
 source ~/.claude/hooks/_lib/pipeline-state-paths.sh
-state_dir="$HOME/.claude/pipeline-state"
+state_dir="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/pipeline-state"
 task="{task-id}"
 ws=""  # set to the workstream name when applicable
 

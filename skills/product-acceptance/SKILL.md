@@ -93,7 +93,7 @@ Then proceed to Step 4 to write the approval token.
 After determining the verdict, write the approval token so the Ship phase can verify authorization:
 
 ```bash
-bash "$HOME/.claude/hooks/_lib/write-approval-token.sh" \
+bash "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/write-approval-token.sh" \
   --task-id "$TASK_ID" \
   --verdict "$VERDICT"
 ```

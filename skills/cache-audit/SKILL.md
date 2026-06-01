@@ -42,7 +42,7 @@ This value is the single source of truth — the report renders this exact value
 ### Step 2: Discover per-session cache files
 
 ```bash
-find "$HOME/.claude/metrics" -maxdepth 2 -name "cache.jsonl" -type f
+find "${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/metrics" -maxdepth 2 -name "cache.jsonl" -type f
 ```
 
 Filter by `--since YYYY-MM-DD` (file mtime) when the argument is given.

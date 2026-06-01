@@ -274,7 +274,7 @@ automatic and platform-gated.
 Run:
 
 ```bash
-PYTHONPATH=$HOME/.claude/skills python3 -m embedder._lib.bootstrap
+PYTHONPATH=${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/skills python3 -m embedder._lib.bootstrap
 ```
 
 Expected behaviour:
@@ -296,7 +296,7 @@ Report the stdout line to the user so they have visible signal if any
 step was skipped. After bootstrap, the user can verify with:
 
 ```bash
-PYTHONPATH=$HOME/.claude/skills python3 -m embedder cli doctor
+PYTHONPATH=${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/skills python3 -m embedder cli doctor
 ```
 
 ## Output

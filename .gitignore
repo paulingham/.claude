@@ -26,8 +26,8 @@
 # pipeline-state: only README is seed; runtime task dirs live in $HARNESS_DATA
 !pipeline-state/README.md
 !setup.sh
-!bootstrap.sh
 !managed-settings.json
+!PORTING-NOTES.md
 !statusline-command.sh
 !statusline-robbyrussell.sh
 !version-pin

@@ -65,13 +65,13 @@ Before spawning any agents:
 
 3. **Initialise session memory** (if not exists):
    ```bash
-   source "$HOME/.claude/hooks/_lib/project-hash.sh"
+   source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/project-hash.sh"
    PROJECT_HASH=$(_project_hash)
-   PROJ_DIR="$HOME/.claude/session-memory/$PROJECT_HASH"
+   PROJ_DIR="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/session-memory/$PROJECT_HASH"
    mkdir -p "$PROJ_DIR"
    for SUB in codebase-map build-test patterns fragility active-work; do
      [[ -f "$PROJ_DIR/$SUB.md" ]] && continue
-     cp "$HOME/.claude/session-memory/config/templates/$SUB.md" "$PROJ_DIR/$SUB.md"
+     cp "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/session-memory/config/templates/$SUB.md" "$PROJ_DIR/$SUB.md"
    done
    ```
 
