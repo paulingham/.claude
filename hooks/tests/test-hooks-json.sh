@@ -88,7 +88,7 @@ import json
 with open('$HOOKS_JSON') as f:
     content = f.read()
 import re
-pattern = r'\$\{CLAUDE_CONFIG_DIR:-\\\$HOME/\.claude\}/hooks/'
+pattern = r'\$\{CLAUDE_CONFIG_DIR:-\$HOME/\.claude\}/hooks/'
 matches = re.findall(pattern, content)
 print(len(matches))
 ")
