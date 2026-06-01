@@ -79,11 +79,11 @@ When the pipeline state contains a `build.md` file with a `## Sandbox Verify` se
 
 ```python
 import sys
-sys.path.insert(0, "$HOME/.claude/hooks/_lib")
+sys.path.insert(0, f"{os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ.get('CLAUDE_CONFIG_DIR') or os.path.join(os.path.expanduser('~'), '.claude')}/hooks/_lib")
 from sandbox_verify_observation import diverging_tests_from_build_md
 from pathlib import Path
 
-build_md_path = Path(f"~/.claude/pipeline-state/{task_id}/build.md").expanduser()
+build_md_path = Path(os.environ.get('CLAUDE_PLUGIN_DATA') or os.environ.get('CLAUDE_CONFIG_DIR') or os.path.join(os.path.expanduser('~'), '.claude')) / f"pipeline-state/{task_id}/build.md"
 if build_md_path.is_file():
     diverging = diverging_tests_from_build_md(build_md_path.read_text())
     if diverging:

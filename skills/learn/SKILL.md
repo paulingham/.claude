@@ -25,12 +25,12 @@ The key insight: hooks observe 100% of tool usage (deterministic). Pipeline anal
 Resolve the project hash and ensure the per-project instincts directory exists. `mkdir -p` is idempotent — this must succeed on first `/learn` invocation in a project (when no instincts have been created yet) without erroring.
 
 ```bash
-source "$HOME/.claude/hooks/_lib/project-hash.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/project-hash.sh"
 PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
 
 # Idempotent: safe to run on first invocation (no instincts yet) and on repeat runs.
-mkdir -p "$HOME/.claude/learning/$PROJECT_HASH/instincts"
+mkdir -p "${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/learning/$PROJECT_HASH/instincts"
 ```
 
 On first run in a project, this directory will be empty. `/learn` must still succeed — step 5 will populate it from the accumulated observations.
@@ -40,11 +40,11 @@ On first run in a project, this directory will be empty. `/learn` must still suc
 BEFORE any expensive work in steps 2+. This sentinel is the in-flight signal the pre-flight queue mechanism (`orchestrator/pipeline-orchestration.md` § Learn-Status Pre-flight Check) reads to detect overlap and defer the next pipeline's `/learn` invocation. Pair with the Step 10 completion stamp (`last_learn_run`).
 
 ```bash
-STATE="$HOME/.claude/learning/$PROJECT_HASH/.learn-state.json"
+STATE="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/learning/$PROJECT_HASH/.learn-state.json"
 NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 python3 - "$STATE" "$NOW" <<'PY'
 import os, sys
-sys.path.insert(0, f"{os.environ['HOME']}/.claude/hooks/_lib")
+sys.path.insert(0, f"{os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ.get('CLAUDE_CONFIG_DIR') or os.path.join(os.path.expanduser('~'), '.claude')}/hooks/_lib")
 import learn_status
 learn_status.mark_started(sys.argv[1], sys.argv[2])
 PY
@@ -102,10 +102,10 @@ The mining algorithm clusters flat-string `scratchpad_findings` by `sha1(categor
 **Persona-categorical role tagging** (Slice B). When contributing observations carry `phases.patch_critic.persona_rejections` entries whose `persona` field maps to a recognised role token, the emitted instinct's `roles:` is set to the persona-categorical token(s) **REPLACING** the default `[software-engineer, frontend-engineer]` (M3 — persona path REPLACES, never unions with, defaults). Canonical mapping (single-sourced as `_PERSONA_TO_ROLE` in `hooks/_lib/learn_persona_roles.py`): `correctness` → `patch-critic-correctness`; `regression-risk` → `patch-critic-regression`; `scope-creep` → `patch-critic-scope`. Multi-persona union rendered alphabetically (M5 — diff stability). Mixed-path rule: if ANY contributing pipeline carries a recognised persona, persona-only roles emit; else default roles. Unknown personas (not in the mapping) and malformed entries are silently skipped from the role-tagging path; clusters whose gate cleared ONLY via patch-critic AND whose every persona entry was malformed/unknown are dropped (no derivable role tag). When the gate clears via `phases.patch_critic.rounds >= 2` but the observation has no `persona_rejections` field at all (patch-critic ran but produced no per-persona signal), the cluster emits with default roles `[software-engineer, frontend-engineer]` — distinct from the dropped case where the field is present but every entry is malformed/unknown.
 
 ```bash
-python3 - "$HOME/.claude/learning/$PROJECT_HASH/observations.jsonl" \
-         "$HOME/.claude/learning/$PROJECT_HASH/instincts" <<'PY'
+python3 - "${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/learning/$PROJECT_HASH/observations.jsonl" \
+         "${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/learning/$PROJECT_HASH/instincts" <<'PY'
 import os, sys
-sys.path.insert(0, f"{os.environ['HOME']}/.claude/hooks/_lib")
+sys.path.insert(0, f"{os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ.get('CLAUDE_CONFIG_DIR') or os.path.join(os.path.expanduser('~'), '.claude')}/hooks/_lib")
 from learn_anti_pattern_mining import mine_anti_patterns
 from pathlib import Path
 written = mine_anti_patterns(observations_path=Path(sys.argv[1]),
@@ -122,10 +122,10 @@ Emitted files carry `category: anti-pattern` in the YAML frontmatter; the render
 Mine recurring `SANDBOX_FAILED` divergences as `fragility` instincts. The producer is `learn_sandbox_fragility_mining.mine_sandbox_fragility`, the consumer-facing wrapper around the same `is_present`-filtered scan used by `/forensics`. Confidence 0.5 (matches the scratchpad → instinct promotion rule); roles `[software-engineer, sandbox-verify-engineer]`; domain `testing`; category `fragility`.
 
 ```bash
-python3 - "$HOME/.claude/learning/$PROJECT_HASH/observations.jsonl" \
-         "$HOME/.claude/learning/$PROJECT_HASH/instincts" <<'PY'
+python3 - "${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/learning/$PROJECT_HASH/observations.jsonl" \
+         "${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/learning/$PROJECT_HASH/instincts" <<'PY'
 import os, sys
-sys.path.insert(0, f"{os.environ['HOME']}/.claude/hooks/_lib")
+sys.path.insert(0, f"{os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ.get('CLAUDE_CONFIG_DIR') or os.path.join(os.path.expanduser('~'), '.claude')}/hooks/_lib")
 from learn_sandbox_fragility_mining import mine_sandbox_fragility
 from pathlib import Path
 written = mine_sandbox_fragility(observations_path=Path(sys.argv[1]),
@@ -286,10 +286,10 @@ For each tool name passing the gate that does NOT already have `~/.claude/skills
 
 ```bash
 TOOL=<tool-name>
-SKILL_DIR="$HOME/.claude/skills/$TOOL"
+SKILL_DIR="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/skills/$TOOL"
 if [[ ! -d "$SKILL_DIR" ]]; then
   mkdir -p "$SKILL_DIR"
-  cp "$HOME/.claude/skills/_template/SKILL.md" "$SKILL_DIR/SKILL.md"
+  cp "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/skills/_template/SKILL.md" "$SKILL_DIR/SKILL.md"
   # Pre-fill name; reviewer fills the rest.
   sed -i.bak "s/__SKILL_NAME__/$TOOL/g" "$SKILL_DIR/SKILL.md" && rm "$SKILL_DIR/SKILL.md.bak"
 fi
@@ -385,9 +385,9 @@ Reset the gate counters so `auto-learn-gate.sh` does not re-fire immediately. Ru
 Preserve `last_observation_offset`, `last_fired_pipeline_id`, AND `last_learn_started` (do NOT reset) — the offset tracks file position independent of gate firing; `last_fired_pipeline_id` maintains idempotency against re-firing for the same pipeline; `last_learn_started` is the symmetric companion stamped by Step 1b and is used by forensics to reconstruct the in-flight window for any given run.
 
 ```bash
-source "$HOME/.claude/hooks/_lib/project-hash.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/project-hash.sh"
 PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
-STATE="$HOME/.claude/learning/$PROJECT_HASH/.learn-state.json"
+STATE="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/learning/$PROJECT_HASH/.learn-state.json"
 NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # Preserve offset + last_fired_pipeline_id + last_learn_started; reset counters + timestamp.

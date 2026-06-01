@@ -60,12 +60,12 @@ The path-allowlist is established by `hooks/_lib/spec-blind-allow-paths.{sh,txt}
 
 ## Recursion Guard
 
-When the project repo IS the harness itself (i.e. cwd resolves to `${CLAUDE_CONFIG_DIR:-$HOME/.claude}`), the validator emits `SPEC_BLIND_INSUFFICIENT_SURFACE` with reason `harness-internal-recursion` and exits before any read attempt. The harness has no `interface.{ext}` or `index.{ext}` of its own (it ships hooks, skills, agents, and protocol .md files), so authoring spec-blind tests against the harness would either leak hook source via the test-runner shell or produce no signal.
+When the project repo IS the harness itself (i.e. cwd resolves to `${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}`), the validator emits `SPEC_BLIND_INSUFFICIENT_SURFACE` with reason `harness-internal-recursion` and exits before any read attempt. The harness has no `interface.{ext}` or `index.{ext}` of its own (it ships hooks, skills, agents, and protocol .md files), so authoring spec-blind tests against the harness would either leak hook source via the test-runner shell or produce no signal.
 
 The recursion-detection helper lives at `hooks/_lib/spec-blind-recursion.sh` and exposes `is_harness_internal_cwd <cwd>`. Detection requires BOTH:
 
-1. `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/rules/core.md` exists, AND
-2. `realpath($(git -C <cwd> rev-parse --show-toplevel))` equals `realpath(${CLAUDE_CONFIG_DIR:-$HOME/.claude})`.
+1. `${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/rules/core.md` exists, AND
+2. `realpath($(git -C <cwd> rev-parse --show-toplevel))` equals `realpath(${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}})`.
 
 The `git remote` heuristic was considered and dropped — it is fragile across forks, mirrors, and stale remotes.
 

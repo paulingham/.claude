@@ -8,7 +8,12 @@ from tiering import default_project_hash
 
 
 def _home() -> Path:
-    return Path(os.path.expanduser("~/.claude"))
+    root = (
+        os.environ.get("CLAUDE_PLUGIN_DATA")
+        or os.environ.get("CLAUDE_CONFIG_DIR")
+        or os.path.join(os.path.expanduser("~"), ".claude")
+    )
+    return Path(root)
 
 
 def obs_path(arg: str | None, phash: str) -> Path:

@@ -50,7 +50,7 @@ Automated pull request creation with validation:
 Before any branch operations, verify that `/product-acceptance` has authorized this PR:
 
 ```bash
-source "$HOME/.claude/hooks/_lib/approval-token.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/approval-token.sh"
 bash "$(dirname "$0")/lib/check-approval-token.sh"
 GATE_EXIT=$?
 if [ "$GATE_EXIT" -ne 0 ]; then
@@ -171,8 +171,8 @@ Before calling `gh pr create`, append the eval-baseline stamp to the body:
 ```bash
 # Capture the stamp (harness repo only; no-op in other projects)
 STAMP=""
-if [ -x "$HOME/.claude/skills/internal-eval/score/stamp-pr-body.sh" ]; then
-  STAMP="$(bash "$HOME/.claude/skills/internal-eval/score/stamp-pr-body.sh" 2>/dev/null || true)"
+if [ -x "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/skills/internal-eval/score/stamp-pr-body.sh" ]; then
+  STAMP="$(bash "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/skills/internal-eval/score/stamp-pr-body.sh" 2>/dev/null || true)"
 fi
 
 # Create PR with detailed description + eval baseline stamp.

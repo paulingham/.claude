@@ -894,8 +894,9 @@ else
 fi
 
 # SKILL.md contract: /learn first step must include mkdir -p for per-project instincts
+# Accepts both the legacy $HOME/.claude form and the portable ${CLAUDE_PLUGIN_DATA:-...} chain.
 SKILL_FILE="$HOOKS_DIR/../skills/learn/SKILL.md"
-if grep -q 'mkdir -p "\$HOME/.claude/learning/\$PROJECT_HASH/instincts"' "$SKILL_FILE"; then
+if grep -qE 'mkdir -p .*learning/\$PROJECT_HASH/instincts' "$SKILL_FILE"; then
   pass "per-project instincts: /learn SKILL.md has idempotent mkdir -p for per-project instincts"
 else
   fail "per-project instincts: /learn SKILL.md has idempotent mkdir -p for per-project instincts" "present" "missing"

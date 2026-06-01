@@ -333,6 +333,233 @@ if [[ "$B7_COUNT" -eq 0 ]]; then pass "B7: zero residual expanduser(~/\.claude/<
 else fail "B7: zero residual expanduser(~/\.claude/<state-seg>) literals in hooks/ .py files (excl tests/)" 0 "$B7_COUNT"; fi
 
 # ---------------------------------------------------------------------------
+# B7b (Slice 5a): residual expanduser("~/.claude/<state-seg>") in skills/**/*.py
+# Companion to B7 that extends the same canary into the skills/ tree.
+# Excludes skills/ paths that contain 'tests'.
+# RED proof: plant a scratch .py with a violation, confirm scanner FIRES (>=1),
+# then run the real tree check (GREEN, must be 0).
+# ---------------------------------------------------------------------------
+echo "-- B7b: residual expanduser(~/\.claude/<state-seg>) literals in skills/ .py files (excl tests/) --"
+echo "-- B7b RED proof: scanner fires on planted violation --"
+B7B_SCRATCH_DIR="${TMPDIR:-/tmp}/b7b-red-proof-$$"
+mkdir -p "$B7B_SCRATCH_DIR"
+printf 'path = os.path.expanduser("~/.claude/pipeline-state/foo")\n' \
+  > "$B7B_SCRATCH_DIR/planted_residual.py"
+B7B_RED_COUNT=$(python3 - "$B7B_SCRATCH_DIR" <<'B7BREDHEREDOC'
+import os, re, sys
+SEG = r'(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|state|tasks|teams|plan-cache)'
+pattern = re.compile(
+    r'expanduser\(["' + chr(39) + r']~/.claude/' + SEG
+)
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root):
+    dirs[:] = [x for x in dirs if x != 'tests']
+    for f in files:
+        if not f.endswith('.py'):
+            continue
+        path = os.path.join(d, f)
+        with open(path) as fp:
+            for line in fp:
+                if pattern.search(line):
+                    count += 1
+print(count)
+B7BREDHEREDOC
+)
+B7B_RED_COUNT="${B7B_RED_COUNT// /}"
+rm -rf "$B7B_SCRATCH_DIR"
+if [[ "$B7B_RED_COUNT" -ge 1 ]]; then pass "B7b-RED: scanner fires on planted expanduser(~/.claude/pipeline-state) violation (got $B7B_RED_COUNT)"
+else fail "B7b-RED: scanner fires on planted violation" ">=1" "$B7B_RED_COUNT"; fi
+
+echo "-- B7b GREEN: zero residual expanduser(~/\.claude/<state-seg>) in skills/ .py (excl tests/) --"
+B7B_COUNT=$(python3 - "$REPO_ROOT" <<'B7BPYEOF'
+import os, re, sys
+SEG = r'(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|state|tasks|teams|plan-cache)'
+# Match expanduser("~/.claude/<seg>") or expanduser('~/.claude/<seg>') with trailing seg.
+# Use chr(39) for single-quote to avoid heredoc delimiter collision.
+pattern = re.compile(
+    r'expanduser\(["' + chr(39) + r']~/.claude/' + SEG
+)
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root + '/skills'):
+    dirs[:] = [x for x in dirs if x != 'tests']
+    for f in files:
+        if not f.endswith('.py'):
+            continue
+        path = os.path.join(d, f)
+        with open(path) as fp:
+            for line in fp:
+                if pattern.search(line):
+                    count += 1
+print(count)
+B7BPYEOF
+)
+B7B_COUNT="${B7B_COUNT// /}"
+if [[ "$B7B_COUNT" -eq 0 ]]; then pass "B7b: zero residual expanduser(~/\.claude/<state-seg>) literals in skills/ .py files (excl tests/)"
+else fail "B7b: zero residual expanduser(~/\.claude/<state-seg>) literals in skills/ .py files (excl tests/)" 0 "$B7B_COUNT"; fi
+
+# ---------------------------------------------------------------------------
+# B8 (Slice 5a): residual executable $HOME/.claude/<seg> in skills/**/*.md
+# Scans for bare $HOME/.claude/<state-seg> literals AND os.environ['HOME']...claude
+# f-string forms that would break in plugin mode.
+# Count must be 0 after Item 4 path fixes.
+# RED proof: plant a scratch .md with both violation forms, confirm scanner FIRES (>=1),
+# then run the real tree check (GREEN, must be 0).
+# ---------------------------------------------------------------------------
+echo "-- B8 RED proof: scanner fires on planted \$HOME/.claude and os.environ violations --"
+B8_SCRATCH_DIR="${TMPDIR:-/tmp}/b8-red-proof-$$"
+mkdir -p "$B8_SCRATCH_DIR"
+cat > "$B8_SCRATCH_DIR/planted_residual.md" <<'B8PLANTED'
+# Test snippet
+path = "$HOME/.claude/metrics/foo.jsonl"
+other = os.environ["HOME"] + "/.claude/pipeline-state"
+B8PLANTED
+B8_RED_COUNT=$(python3 - "$B8_SCRATCH_DIR" <<'B8REDHEREDOC'
+import os, re, sys
+SEG = r'(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|hooks|skills|state|tasks|teams|plan-cache)'
+raw_pattern = re.compile(r'\$HOME/\.claude/' + SEG)
+env_pattern = re.compile(r'''os\.environ\s*\[\s*['"]HOME['"]\s*\]\s*\+\s*['"]?/\.claude''')
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root):
+    dirs[:] = [x for x in dirs if x not in ['tests', '.git']]
+    for f in files:
+        if not f.endswith('.md'):
+            continue
+        path = os.path.join(d, f)
+        rel = os.path.relpath(path, root)
+        with open(path) as fp:
+            for lineno, line in enumerate(fp, 1):
+                if raw_pattern.search(line):
+                    if 'CLAUDE_PLUGIN_' not in line and 'CLAUDE_CONFIG_DIR' not in line:
+                        count += 1
+                if env_pattern.search(line):
+                    count += 1
+print(count)
+B8REDHEREDOC
+)
+B8_RED_COUNT="${B8_RED_COUNT// /}"
+rm -rf "$B8_SCRATCH_DIR"
+if [[ "$B8_RED_COUNT" -ge 1 ]]; then pass "B8-RED: scanner fires on planted \$HOME/.claude/metrics and os.environ[HOME]/.claude violations (got $B8_RED_COUNT)"
+else fail "B8-RED: scanner fires on planted violations" ">=1" "$B8_RED_COUNT"; fi
+
+echo "-- B8 GREEN: zero residual executable \$HOME/.claude/<state-seg> and os.environ[HOME]/.claude in skills/ .md --"
+B8_COUNT=$(python3 - "$REPO_ROOT" <<'B8PYEOF'
+import os, re, sys
+SEG = r'(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|hooks|skills|state|tasks|teams|plan-cache)'
+# Pattern 1: bare $HOME/.claude/<seg> NOT already wrapped in ${CLAUDE_PLUGIN_*:-...} or ${CLAUDE_CONFIG_DIR:-...}
+raw_pattern = re.compile(r'\$HOME/\.claude/' + SEG)
+# Pattern 2: os.environ['HOME']/.claude or os.environ["HOME"]/.claude f-string form
+env_pattern = re.compile(r'''os\.environ\s*\[\s*['"]HOME['"]\s*\]\s*\+\s*['"]?/\.claude''')
+# Exclude the mcp_memory illustrative path (line 46 of mcp_memory/SKILL.md)
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root + '/skills'):
+    dirs[:] = [x for x in dirs if x not in ['tests', '.git']]
+    for f in files:
+        if not f.endswith('.md'):
+            continue
+        path = os.path.join(d, f)
+        rel = os.path.relpath(path, root)
+        with open(path) as fp:
+            for lineno, line in enumerate(fp, 1):
+                # Exempt the single illustrative mcp_memory line
+                if 'mcp_memory' in rel and lineno == 46:
+                    continue
+                # Check raw pattern: only flag if NOT already inside a portable chain
+                if raw_pattern.search(line):
+                    # If the line contains CLAUDE_PLUGIN_ or CLAUDE_CONFIG_DIR wrapping, it is already ported
+                    if 'CLAUDE_PLUGIN_' not in line and 'CLAUDE_CONFIG_DIR' not in line:
+                        count += 1
+                # Check os.environ['HOME'] f-string form
+                if env_pattern.search(line):
+                    count += 1
+print(count)
+B8PYEOF
+)
+B8_COUNT="${B8_COUNT// /}"
+if [[ "$B8_COUNT" -eq 0 ]]; then pass "B8: zero residual executable \$HOME/.claude refs in skills/ .md (excl mcp_memory:46)"
+else fail "B8: zero residual executable \$HOME/.claude refs in skills/ .md (excl mcp_memory:46)" 0 "$B8_COUNT"; fi
+
+# ---------------------------------------------------------------------------
+# B9 (Slice 5a): overlay-equivalence — rewritten paths resolve to $HOME/.claude
+# when all plugin vars are unset (byte-identical to pre-change behaviour).
+# Tests two gate snippets: pr-creation approval-token and product-acceptance write-approval-token.
+# ---------------------------------------------------------------------------
+echo "-- B9: overlay-equivalence — plugin vars unset → paths resolve to \$HOME/.claude --"
+
+# B9a: pr-creation approval-token path resolves to $HOME/.claude/hooks/_lib/approval-token.sh
+B9A_RESULT=$(
+  unset CLAUDE_PLUGIN_ROOT 2>/dev/null || true
+  unset CLAUDE_CONFIG_DIR 2>/dev/null || true
+  EXPECTED="$HOME/.claude/hooks/_lib/approval-token.sh"
+  RESOLVED="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/approval-token.sh"
+  if [[ "$RESOLVED" == "$EXPECTED" ]]; then echo "pass"; else echo "fail:$RESOLVED"; fi
+)
+if [[ "$B9A_RESULT" == "pass" ]]; then pass "B9a: pr-creation approval-token resolves to \$HOME/.claude (plugin vars unset)"
+else fail "B9a: pr-creation approval-token resolves to \$HOME/.claude (plugin vars unset)" "$HOME/.claude/hooks/_lib/approval-token.sh" "${B9A_RESULT#fail:}"; fi
+
+# B9b: product-acceptance write-approval-token path resolves to $HOME/.claude/hooks/_lib/write-approval-token.sh
+B9B_RESULT=$(
+  unset CLAUDE_PLUGIN_ROOT 2>/dev/null || true
+  unset CLAUDE_CONFIG_DIR 2>/dev/null || true
+  EXPECTED="$HOME/.claude/hooks/_lib/write-approval-token.sh"
+  RESOLVED="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/write-approval-token.sh"
+  if [[ "$RESOLVED" == "$EXPECTED" ]]; then echo "pass"; else echo "fail:$RESOLVED"; fi
+)
+if [[ "$B9B_RESULT" == "pass" ]]; then pass "B9b: product-acceptance write-approval-token resolves to \$HOME/.claude (plugin vars unset)"
+else fail "B9b: product-acceptance write-approval-token resolves to \$HOME/.claude (plugin vars unset)" "$HOME/.claude/hooks/_lib/write-approval-token.sh" "${B9B_RESULT#fail:}"; fi
+
+# B9c: pr-creation approval-token resolves to an EXISTING FILE under CLAUDE_PLUGIN_ROOT
+# RED proof: point CLAUDE_PLUGIN_ROOT at a scratch dir (no approval-token.sh) → file absent
+B9C_SCRATCH="${TMPDIR:-/tmp}/b9c-red-proof-$$"
+mkdir -p "$B9C_SCRATCH/hooks/_lib"
+B9C_RED_RESULT=$(
+  export CLAUDE_PLUGIN_ROOT="$B9C_SCRATCH"
+  unset CLAUDE_CONFIG_DIR 2>/dev/null || true
+  RESOLVED="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/approval-token.sh"
+  if [[ ! -f "$RESOLVED" ]]; then echo "absent"; else echo "present"; fi
+)
+rm -rf "$B9C_SCRATCH"
+if [[ "$B9C_RED_RESULT" == "absent" ]]; then pass "B9c-RED: approval-token.sh absent in scratch dir (confirms existence test has real bite)"
+else fail "B9c-RED: approval-token.sh absent in scratch dir" "absent" "$B9C_RED_RESULT"; fi
+
+# GREEN: CLAUDE_PLUGIN_ROOT=$REPO_ROOT → approval-token.sh must exist on disk
+B9C_RESULT=$(
+  export CLAUDE_PLUGIN_ROOT="$REPO_ROOT"
+  unset CLAUDE_CONFIG_DIR 2>/dev/null || true
+  RESOLVED="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/approval-token.sh"
+  if [[ -f "$RESOLVED" ]]; then echo "pass"; else echo "fail:$RESOLVED"; fi
+)
+if [[ "$B9C_RESULT" == "pass" ]]; then pass "B9c: approval-token.sh exists at resolved path under CLAUDE_PLUGIN_ROOT=REPO_ROOT"
+else fail "B9c: approval-token.sh exists at resolved path under CLAUDE_PLUGIN_ROOT=REPO_ROOT" "exists" "${B9C_RESULT#fail:}"; fi
+
+# B9d: product-acceptance write-approval-token resolves to an EXISTING FILE under CLAUDE_PLUGIN_ROOT
+# RED proof: point CLAUDE_PLUGIN_ROOT at a scratch dir (no write-approval-token.sh) → file absent
+B9D_SCRATCH="${TMPDIR:-/tmp}/b9d-red-proof-$$"
+mkdir -p "$B9D_SCRATCH/hooks/_lib"
+B9D_RED_RESULT=$(
+  export CLAUDE_PLUGIN_ROOT="$B9D_SCRATCH"
+  unset CLAUDE_CONFIG_DIR 2>/dev/null || true
+  RESOLVED="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/write-approval-token.sh"
+  if [[ ! -f "$RESOLVED" ]]; then echo "absent"; else echo "present"; fi
+)
+rm -rf "$B9D_SCRATCH"
+if [[ "$B9D_RED_RESULT" == "absent" ]]; then pass "B9d-RED: write-approval-token.sh absent in scratch dir (confirms existence test has real bite)"
+else fail "B9d-RED: write-approval-token.sh absent in scratch dir" "absent" "$B9D_RED_RESULT"; fi
+
+# GREEN: CLAUDE_PLUGIN_ROOT=$REPO_ROOT → write-approval-token.sh must exist on disk
+B9D_RESULT=$(
+  export CLAUDE_PLUGIN_ROOT="$REPO_ROOT"
+  unset CLAUDE_CONFIG_DIR 2>/dev/null || true
+  RESOLVED="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/write-approval-token.sh"
+  if [[ -f "$RESOLVED" ]]; then echo "pass"; else echo "fail:$RESOLVED"; fi
+)
+if [[ "$B9D_RESULT" == "pass" ]]; then pass "B9d: write-approval-token.sh exists at resolved path under CLAUDE_PLUGIN_ROOT=REPO_ROOT"
+else fail "B9d: write-approval-token.sh exists at resolved path under CLAUDE_PLUGIN_ROOT=REPO_ROOT" "exists" "${B9D_RESULT#fail:}"; fi
+
+# ---------------------------------------------------------------------------
 # D4-D6 (Slice 2 Wave A): state-dir / hook-self-test / _smr_config_dir
 # ---------------------------------------------------------------------------
 echo "-- D4-D6: state-dir, hook-self-test sentinel, _smr_config_dir (Slice 2 Wave A) --"
@@ -565,6 +792,46 @@ F5_COUNT=$(git -C "$REPO_ROOT" ls-files agent-memory/spec-blind-validator/feedba
 F5_COUNT="${F5_COUNT// /}"
 if [[ "$F5_COUNT" -ge 1 ]]; then pass "F5: spec-blind-validator feedback seed is git-tracked"
 else fail "F5: spec-blind-validator feedback seed is git-tracked" "1" "$F5_COUNT"; fi
+
+# ---------------------------------------------------------------------------
+# G-series (Slice 5a): plugin-port cleanup ACs
+# G1: ROLLOUT.md has zero overlay-sync refs (bootstrap.sh / gh api / git-clone)
+# G2: PORTING-NOTES.md exists with 6 section headers
+# G3: bootstrap.sh is absent from repo root
+# G4: .gitignore no longer whitelists !bootstrap.sh
+# ---------------------------------------------------------------------------
+echo "-- G-series: plugin-port cleanup ACs (Slice 5a) --"
+
+# G1: ROLLOUT.md contains no overlay-sync refs
+G1_COUNT=$(grep -cE 'bootstrap\.sh|gh[[:space:]]+api[[:space:]]|git[[:space:]]+-C[[:space:]]+.*clone|git[[:space:]]+clone' \
+  "$REPO_ROOT/ROLLOUT.md" 2>/dev/null; true)
+G1_COUNT=$(printf '%s' "$G1_COUNT" | tr -d '[:space:]')
+G1_COUNT="${G1_COUNT:-0}"
+if [[ "$G1_COUNT" -eq 0 ]]; then pass "G1: ROLLOUT.md has zero overlay-sync refs (bootstrap.sh / gh api / git-clone)"
+else fail "G1: ROLLOUT.md has zero overlay-sync refs" 0 "$G1_COUNT"; fi
+
+# G2: PORTING-NOTES.md exists with at least 6 section headers
+G2_EXISTS=0
+G2_HEADS=0
+if [[ -f "$REPO_ROOT/PORTING-NOTES.md" ]]; then
+  G2_EXISTS=1
+  G2_HEADS=$(grep -c '^## ' "$REPO_ROOT/PORTING-NOTES.md" 2>/dev/null; true)
+  G2_HEADS=$(printf '%s' "$G2_HEADS" | tr -d '[:space:]')
+  G2_HEADS="${G2_HEADS:-0}"
+fi
+if [[ "$G2_EXISTS" -eq 1 && "$G2_HEADS" -ge 6 ]]; then pass "G2: PORTING-NOTES.md exists with >= 6 section headers (got $G2_HEADS)"
+else fail "G2: PORTING-NOTES.md exists with >= 6 section headers" "file+>=6 headers" "exists=$G2_EXISTS headers=$G2_HEADS"; fi
+
+# G3: bootstrap.sh is absent from repo root (was git-rm'd)
+if [[ ! -f "$REPO_ROOT/bootstrap.sh" ]]; then pass "G3: bootstrap.sh absent from repo root"
+else fail "G3: bootstrap.sh absent from repo root" "absent" "present"; fi
+
+# G4: .gitignore does not whitelist !bootstrap.sh
+G4_COUNT=$(grep -c '!bootstrap\.sh' "$REPO_ROOT/.gitignore" 2>/dev/null; true)
+G4_COUNT=$(printf '%s' "$G4_COUNT" | tr -d '[:space:]')
+G4_COUNT="${G4_COUNT:-0}"
+if [[ "$G4_COUNT" -eq 0 ]]; then pass "G4: .gitignore does not whitelist !bootstrap.sh"
+else fail "G4: .gitignore does not whitelist !bootstrap.sh" 0 "$G4_COUNT"; fi
 
 # ---------------------------------------------------------------------------
 # Summary
