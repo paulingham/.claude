@@ -465,6 +465,67 @@ PYEOF
 if [[ "$E3_RESULT" == "yes" ]]; then pass "E3: Python _is_path_contained falls back to \$HOME/.claude when both unset"
 else fail "E3: Python _is_path_contained falls back to \$HOME/.claude when both unset" "yes" "${E3_RESULT}"; fi
 
+# E4: resolve-cache-breakpoints.py _config_dir honours HARNESS_DATA precedence
+E4_HD="${TMPDIR:-/tmp}/hp-e4-hd-$$"
+E4_CCD="${TMPDIR:-/tmp}/hp-e4-ccd-$$"
+mkdir -p "$E4_HD" "$E4_CCD"
+E4_RESULT=$(HARNESS_DATA="$E4_HD" CLAUDE_CONFIG_DIR="$E4_CCD" python3 - <<'PYEOF'
+import os
+import importlib.util
+spec = importlib.util.spec_from_file_location("rcb", "hooks/_lib/resolve-cache-breakpoints.py")
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+got = mod._config_dir()
+expected = os.environ["HARNESS_DATA"]
+print("yes" if got == expected else f"no:{got}")
+PYEOF
+)
+rm -rf "$E4_HD" "$E4_CCD"
+if [[ "$E4_RESULT" == "yes" ]]; then pass "E4: resolve-cache-breakpoints._config_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR"
+else fail "E4: resolve-cache-breakpoints._config_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR" "yes" "${E4_RESULT}"; fi
+
+# E5: sast_triage_telemetry.py _metrics_dir honours HARNESS_DATA precedence
+E5_HD="${TMPDIR:-/tmp}/hp-e5-hd-$$"
+E5_CCD="${TMPDIR:-/tmp}/hp-e5-ccd-$$"
+mkdir -p "$E5_HD" "$E5_CCD"
+E5_RESULT=$(HARNESS_DATA="$E5_HD" CLAUDE_CONFIG_DIR="$E5_CCD" python3 - <<'PYEOF'
+import os
+from pathlib import Path
+import importlib.util
+os.environ.pop("CLAUDE_METRICS_DIR", None)
+spec = importlib.util.spec_from_file_location("stt", "hooks/_lib/sast_triage_telemetry.py")
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+got = str(mod._metrics_dir())
+expected = str(Path(os.environ["HARNESS_DATA"]) / "metrics")
+print("yes" if got == expected else f"no:{got}")
+PYEOF
+)
+rm -rf "$E5_HD" "$E5_CCD"
+if [[ "$E5_RESULT" == "yes" ]]; then pass "E5: sast_triage_telemetry._metrics_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR"
+else fail "E5: sast_triage_telemetry._metrics_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR" "yes" "${E5_RESULT}"; fi
+
+# E6: agent_parent_chain_warn.py _metrics_dir honours HARNESS_DATA precedence
+E6_HD="${TMPDIR:-/tmp}/hp-e6-hd-$$"
+E6_CCD="${TMPDIR:-/tmp}/hp-e6-ccd-$$"
+mkdir -p "$E6_HD" "$E6_CCD"
+E6_RESULT=$(HARNESS_DATA="$E6_HD" CLAUDE_CONFIG_DIR="$E6_CCD" python3 - <<'PYEOF'
+import os
+from pathlib import Path
+import importlib.util
+os.environ.pop("CLAUDE_METRICS_DIR", None)
+spec = importlib.util.spec_from_file_location("apcw", "hooks/_lib/agent_parent_chain_warn.py")
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+got = mod._metrics_dir()
+expected = str(Path(os.environ["HARNESS_DATA"]) / "metrics")
+print("yes" if got == expected else f"no:{got}")
+PYEOF
+)
+rm -rf "$E6_HD" "$E6_CCD"
+if [[ "$E6_RESULT" == "yes" ]]; then pass "E6: agent_parent_chain_warn._metrics_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR"
+else fail "E6: agent_parent_chain_warn._metrics_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR" "yes" "${E6_RESULT}"; fi
+
 # ---------------------------------------------------------------------------
 # F1-F4 (Slice 2 Wave C): gitignore + harness-paths.sh docs
 # ---------------------------------------------------------------------------
