@@ -2,7 +2,7 @@
 
 **Status:** PROPOSED (2026-05-24)
 **Owner:** orchestrator-derived recommendation from external research + cost forensics
-**Implementation track:** requires `/pipeline` run (touches three hooks, snapshot tests, CLAUDE.md prose)
+**Implementation track:** requires `/harness:pipeline` run (touches three hooks, snapshot tests, CLAUDE.md prose)
 
 ---
 
@@ -57,7 +57,7 @@ Combined, this is plausibly the difference between the documented "3 prompts = 1
 3. **Staged, measured rollout** — one hook at a time, 10-pipeline observation window between flips, with `eval/baselines/{latest}-opus-4-7.md` as the quality regression guard (same guard #124 used).
 4. **Gating only ever lowers cost on routine work**; `critical=true OR budget>=7` still promotes to xhigh/Opus where it matters, so high-stakes quality is untouched.
 
-## Implementation Checklist (for `/pipeline` run)
+## Implementation Checklist (for `/harness:pipeline` run)
 
 1. **Probe step (blocking gate for the rest):** in a throwaway session on 2.3.0, dispatch an Agent with `--effort high --model sonnet` and inspect the PreToolUse:Agent payload for `effort.level`. Record the result in this proposal's § Findings before proceeding. (`hooks/probe-modified-tool-input.sh` already exists for exactly this kind of schema probe — extend or mirror it.)
 2. `hooks/pre-agent-thinking.sh` — add an `ENFORCE` branch that emits resolved effort; gate it on a feature flag (`CLAUDE_THINKING_ENFORCE=1` initially) so the flip is itself reversible during soak.
@@ -79,4 +79,4 @@ Set the relevant `CLAUDE_*_ENFORCE` flag to 0 (or the existing `CLAUDE_DISABLE_*
 
 ---
 
-**Linked PR for the spec rewrite track:** this proposal. Once the probe confirms the schema, dispatch `/pipeline` with prompt: "Implement protocols/_proposals/2026-05-24-enforce-effort-model-gates.md, thinking-gate flip ONLY (step 1–3, 5–7). Budget: 7. Critical: true." Then repeat per remaining hook.
+**Linked PR for the spec rewrite track:** this proposal. Once the probe confirms the schema, dispatch `/harness:pipeline` with prompt: "Implement protocols/_proposals/2026-05-24-enforce-effort-model-gates.md, thinking-gate flip ONLY (step 1–3, 5–7). Budget: 7. Critical: true." Then repeat per remaining hook.

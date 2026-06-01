@@ -143,7 +143,7 @@ Shape guidance: the port is a pure signature surface — no implementation, no d
 
 ## Phases 3–6 — Outline (Future Work)
 
-Full procedural implementation is deferred to a follow-up pipeline. Until that pipeline ships, the standard Build phase drives these against the Phase 2 contract via `/build-implementation` using TDD.
+Full procedural implementation is deferred to a follow-up pipeline. Until that pipeline ships, the standard Build phase drives these against the Phase 2 contract via `/harness:build-implementation` using TDD.
 
 - **Phase 3 — Directory move + namespace**: move module files into `src/modules/{name}/` (or language equivalent: `app/modules/` for Rails, `internal/` for Go, `{package}/modules/` for Python). Update internal imports. Preserve external callers via shim/barrel export during transition.
 - **Phase 4 — Enforce the seam**: add a lint rule or compiler boundary check so external code can only import from the port (see per-language table below). Remove the transitional shim after all callers migrate.
@@ -168,9 +168,9 @@ Seam enforcement for Phase 4. This table lives here; `protocols/module-boundarie
 - **`EXTRACTION_BLOCKED: {reason}`** — one of the failure conditions from the phase table. Not an escalation to `/service-extraction` — it's a signal the module isn't ready to be a module yet.
 - **`WRONG_SKILL`** — a forcing function was detected mid-flow (should have been caught at intake). Hand off to `/service-extraction` with the same task context per the orchestrator's `WRONG_SKILL` handler contract.
 
-## Contrast: /module-extraction vs /service-extraction
+## Contrast: /harness:module-extraction vs /service-extraction
 
-| Dimension | `/module-extraction` | `/service-extraction` |
+| Dimension | `/harness:module-extraction` | `/service-extraction` |
 |-----------|----------------------|-----------------------|
 | Process boundary | Same process | New process |
 | Repo | Same repo | New repo |

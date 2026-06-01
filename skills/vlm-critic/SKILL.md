@@ -17,9 +17,9 @@ Adds a **semantic-diff Final Gate teammate** that compares baseline+current scre
 
 ## When to Invoke
 
-- Final Gate phase, in parallel with `/verify`, `/qa-test-strategy`, `/product-acceptance`, `/patch-critique`, and `/spec-blind-validate`.
+- Final Gate phase, in parallel with `/harness:verify`, `/harness:qa-test-strategy`, `/harness:product-acceptance`, `/harness:patch-critique`, and `/harness:spec-blind-validate`.
 - Only when design-qc emitted `SCREENSHOTS_CAPTURED` AND `index.json.visual_regression.captured == true` for the current run.
-- After `/code-review` and `/security-review` both APPROVED (Build phase complete).
+- After `/harness:code-review` and `/harness:security-review` both APPROVED (Build phase complete).
 
 If `index.json.visual_regression.captured == false` (e.g. baseline build on `main` failed — see plan § 7 row 1), this skill is NOT invoked; design-qc falls back to text-only product-review per `agents/product-reviewer.md:40`.
 

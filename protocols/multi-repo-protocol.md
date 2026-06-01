@@ -78,7 +78,7 @@ The pipeline updates the manifest as work proceeds:
 
 ### Detection (Automatic — Part of Pipeline Pre-flight)
 
-During pipeline pre-flight (Step 2 of `/pipeline`), detect multi-repo needs:
+During pipeline pre-flight (Step 2 of `/harness:pipeline`), detect multi-repo needs:
 
 1. Check `~/.claude/manifests/` for a manifest matching the current project
 2. If manifest exists → multi-repo mode
@@ -151,7 +151,7 @@ When the pipeline needs a new repo (service extraction, new service scaffold):
 3. gh api repos/{org}/{name}/branches/main/protection (if branch_protection: true)
 4. Clone to local path (sibling of current repo, or path from plan)
 5. Update manifest: add repo entry with status "active"
-6. Run /project-setup in new repo (auto — not a manual command)
+6. Run /harness:project-setup in new repo (auto — not a manual command)
 7. Commit initial scaffold in new repo
 ```
 
@@ -166,7 +166,7 @@ When the pipeline needs a new repo (service extraction, new service scaffold):
 GitHub repo creation is part of the scaffold phase. The pipeline:
 1. Detects "new repo needed" from the architect's plan
 2. Creates the repo automatically using the config
-3. Scaffolds it with `/infra-scaffold` + `/project-setup`
+3. Scaffolds it with `/harness:infra-scaffold` + `/harness:project-setup`
 4. Registers it in the manifest
 5. Continues with the build phase
 
@@ -176,7 +176,7 @@ The user never runs a separate command. If the pipeline needs a repo, it creates
 
 ### Linked PRs
 
-When shipping multi-repo work, `/pr-creation` creates PRs in dependency order:
+When shipping multi-repo work, `/harness:pr-creation` creates PRs in dependency order:
 
 1. Read the manifest's dependency graph
 2. Create PRs bottom-up (providers first, consumers last)
@@ -235,13 +235,13 @@ After all services deployed:
 
 | Skill | Multi-Repo Change |
 |-------|-------------------|
-| `/intake` | Classifies multi-repo signals, triggers manifest creation |
-| `/pipeline` | Reads manifest, dispatches per-repo, tracks multi-repo state |
-| `/project-setup` | Registers repo in manifest, populates Service Context |
+| `/harness:intake` | Classifies multi-repo signals, triggers manifest creation |
+| `/harness:pipeline` | Reads manifest, dispatches per-repo, tracks multi-repo state |
+| `/harness:project-setup` | Registers repo in manifest, populates Service Context |
 | `/service-extraction` | Creates repo via manifest config, updates manifest |
 | `/cross-service-pipeline` | Reads manifest for repo paths, runs concrete contract tests |
-| `/pr-creation` | Creates linked PRs, enforces merge order |
-| `/deploy` | Deploys in dependency order, cross-service verification |
+| `/harness:pr-creation` | Creates linked PRs, enforces merge order |
+| `/harness:deploy` | Deploys in dependency order, cross-service verification |
 | `/microservices-scaffold` | Creates repo via manifest config |
 
 All integrations are automatic. No skill requires manual invocation for multi-repo support.

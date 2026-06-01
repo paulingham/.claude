@@ -135,7 +135,7 @@ resumed_at: [current ISO 8601]
 resumed_from: [phase name]
 ```
 
-Then invoke `/pipeline` with context:
+Then invoke `/harness:pipeline` with context:
 - Current phase to resume from
 - Prior phase verdicts and artifacts
 - Key files from previous phases

@@ -15,7 +15,7 @@ Stage 0 of Plan Phase Dispatch. Computes a cache key from the current pipeline's
 ## When to Invoke
 
 - Plan phase, BEFORE Stage 1 recon dispatch (the orchestrator wiring lands in Slice D; until then this skill is callable but not yet wired).
-- Once per pipeline run. The Plan phase runs once per `/pipeline` invocation, so single-writer concurrency suffices (no flock).
+- Once per pipeline run. The Plan phase runs once per `/harness:pipeline` invocation, so single-writer concurrency suffices (no flock).
 - **Do NOT use when**: `CLAUDE_PLAN_CACHE_MODE=off` (default in Slice B) — the mode resolver short-circuits to `MISS reason=disabled`.
 
 ## Inputs
@@ -75,7 +75,7 @@ Stage 1+2 per Iron Law 6; the adapter is not re-invoked in this pipeline.
    next entry treats the template as stale.
 2. Write the resume-safety stub via `_plan_cache_write_resume_stub TASK_ID`
    (AC C8). Creates `pipeline-state/{task-id}/architect-context.md` with
-   body `<!-- cache_hit: true, recon-skipped -->` so `/pipeline-resume`
+   body `<!-- cache_hit: true, recon-skipped -->` so `/harness:pipeline-resume`
    readers don't stall on the missing recon output.
 3. Spawn the adapter agent (one Agent directive — single-shot, no loop):
 
@@ -156,7 +156,7 @@ the adapter spawn).
 - Stage 0 orchestrator wiring + Step 2c-bis in `skills/pipeline/SKILL.md` → Slice D.
 - `hooks/plan-cache-audit.sh` + `settings.json` PostToolUse entry → Slice E.
 - Status line copy + mode default flip `off`→`shadow` → Slice F.
-- `/plan-cache-rollout-gate` skill → Slice G.
+- `/harness:plan-cache-rollout-gate` skill → Slice G.
 
 ## References
 

@@ -1,6 +1,6 @@
 # Verdict Catalog
 
-Single source of truth for every verdict any skill in `~/.claude/skills/` is allowed to emit. The `/harness-audit` `verdict-consistency` step asserts this catalog and the actual skill frontmatter agree in both directions:
+Single source of truth for every verdict any skill in `~/.claude/skills/` is allowed to emit. The `/harness:harness-audit` `verdict-consistency` step asserts this catalog and the actual skill frontmatter agree in both directions:
 
 - Forward: every verdict declared in a skill MUST appear here.
 - Reverse: every catalog entry MUST be emitted by at least one skill.
@@ -17,26 +17,26 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 
 | Verdict | Polarity | Emitter skill | Phase | Downstream branch |
 |---------|----------|---------------|-------|-------------------|
-| `ROUTED` | info | `intake` | intake | `/pipeline`, `/tech-spike`, `/epic-breakdown`, or direct answer — payload includes `tier: T0..T6` (set by `/intake` Step 1.5) |
-| `STORIES_READY` | info | `epic-breakdown` | plan | One `/pipeline` per story |
+| `ROUTED` | info | `intake` | intake | `/harness:pipeline`, `/harness:tech-spike`, `/harness:epic-breakdown`, or direct answer — payload includes `tier: T0..T6` (set by `/harness:intake` Step 1.5) |
+| `STORIES_READY` | info | `epic-breakdown` | plan | One `/harness:pipeline` per story |
 | `ESTIMATED` | info | `estimation` | plan | Pipeline continues with budget |
-| `STORY_READY` | info | `story-writing` | plan | `/build-implementation` |
+| `STORY_READY` | info | `story-writing` | plan | `/harness:build-implementation` |
 | `RECON_COMPLETE` | info | `architect-context-recon` (agent) | plan | Architect reads concatenated `architect-context.md` before drafting |
 | `RECON_NULL` | info | `architect-context-recon` (agent) | plan | Architect proceeds with greenfield assumption; output file still written (anti-findings only) |
 | `PLAN_CACHE_MISS` | info | `plan-cache-lookup` | plan | Continue to Stage 1 recon dispatch — reason ∈ {`no-template`, `disabled`, `shadow-mode`} in Slice B; Slice C adds `adapter-rejected`, `adapter-pending-stale`, `template-corrupt`; Slice F adds `hash-drift`, `key-mismatch` |
 | `PLAN_CACHE_HIT` | info | `plan-cache-lookup` | plan | HIT path: Haiku adapter rewrote cached template; structural validator passed; skip Stage 1 (recon) and Stage 2 (architect) — Architect plan ready at `pipeline-state/{task-id}/plan.md` with `cache_hit: true` marker (Plan Validation challengers skip citation-alignment per `parallel-dispatch-details.md:134`) |
 | `SPIKE_COMPLETE` | info | `tech-spike` | utility | Findings feed back into planning |
-| `PLAN_APPROVED` | success | `plan-self-validation` | plan-validation | `/build-implementation` |
+| `PLAN_APPROVED` | success | `plan-self-validation` | plan-validation | `/harness:build-implementation` |
 | `PLAN_HOLES` | failure | `plan-self-validation` | plan-validation | Architect re-plans (max 1 revision, then escalate to heavy challengers) |
 | `ROUTING_UPSHIFTED` | info | `plan-self-validation` | plan-validation | Plan-phase re-fingerprint detected tier upshift T{n}→T{m}; pipeline re-dispatches downstream phases at new tier (per `protocols/work-class-routing.md` § Plan-phase re-fingerprint sanity check) |
-| `BUILD_COMPLETE` | success | `build-implementation` | build | `/code-review` + `/security-review` |
+| `BUILD_COMPLETE` | success | `build-implementation` | build | `/harness:code-review` + `/harness:security-review` |
 | `BUILD_FAILED` | failure | `build-implementation` | build | Halt; user escalation or re-dispatch |
-| `REFACTOR_COMPLETE` | success | `refactor` | build | `/code-review` + `/security-review` |
+| `REFACTOR_COMPLETE` | success | `refactor` | build | `/harness:code-review` + `/harness:security-review` |
 | `REFACTOR_FAILED` | failure | `refactor` | build | Halt; user escalation |
-| `BUG_FIXED` | success | `bug-fix` | build | `/code-review` + `/security-review` — payload MUST include `reproducer_artifact:` as a mapping with required keys `{path, red_evidence, green_evidence}` per AssertFlip Step 0 (arXiv 2507.17542). `red_evidence` captures the failing assertion (pre-fix RED state); `green_evidence` captures the passing assertion (post-fix). Verdict without all three keys is rejected by `hooks/bug-fixed-payload-validator.sh`. Single-string `<path>` form retained ONLY during DUAL_PATH soak (log-only 30d → warn 60d → strict — soak-end TBD). |
+| `BUG_FIXED` | success | `bug-fix` | build | `/harness:code-review` + `/harness:security-review` — payload MUST include `reproducer_artifact:` as a mapping with required keys `{path, red_evidence, green_evidence}` per AssertFlip Step 0 (arXiv 2507.17542). `red_evidence` captures the failing assertion (pre-fix RED state); `green_evidence` captures the passing assertion (post-fix). Verdict without all three keys is rejected by `hooks/bug-fixed-payload-validator.sh`. Single-string `<path>` form retained ONLY during DUAL_PATH soak (log-only 30d → warn 60d → strict — soak-end TBD). |
 | `BUG_UNRESOLVED` | failure | `bug-fix` | build | Halt; user escalation with hypothesis log |
 | `TOOL_SYNTHESISED` | info | `tool-synthesis` | build | Build agent uses the scratch tool, deletes after use |
-| `TOOL_SYNTHESISED_PROMOTABLE` | info | `tool-synthesis` | build | Same as TOOL_SYNTHESISED + flagged as reusable across pipelines; `/learn` counts cross-pipeline recurrences and scaffolds a permanent skill on the third hit (human review gate) |
+| `TOOL_SYNTHESISED_PROMOTABLE` | info | `tool-synthesis` | build | Same as TOOL_SYNTHESISED + flagged as reusable across pipelines; `/harness:learn` counts cross-pipeline recurrences and scaffolds a permanent skill on the third hit (human review gate) |
 | `TOOL_UNNECESSARY` | info | `tool-synthesis` | build | Build agent proceeds with standard tools |
 | `PBT_AUTHORED` | success | `property-based-test` | build | Build proceeds; ≥1 property authored at Step 1d, ≥0 counterexamples frozen, ≥0 functions justified-impossible |
 | `PBT_SKIPPED` | info | `property-based-test` | build | Build proceeds; reason ∈ {`env-hatch` (CLAUDE_PBT=0 set), `no-candidates` (no public-typed-changed-line functions), `no-framework-for-language` (language has no shipped PBT harness or harness not installed)} |
@@ -46,10 +46,10 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `DOM_SMOKE_FAILED` | failure | `build-implementation` | build | Console error or 4xx/5xx XHR detected after ignore-filter, OR `mcp-unavailable-after-warm`, OR `ignore-list-overbroad`, OR `dev-server-non-loopback`; payload `{route, errors: [{type, message, url, status}]}`; HALT Build, spawn fix-engineer in-cycle |
 | `PLAN_REFINED` | info | `continuous-planning` | build | Build agents re-read plan; never gates Build completion |
 | `PLAN_UNCHANGED` | info | `continuous-planning` | build | No effect; Build proceeds |
-| `BoN_WINNER_SELECTED` | success | `best-of-n` | build | `/code-review` + `/security-review` |
+| `BoN_WINNER_SELECTED` | success | `best-of-n` | build | `/harness:code-review` + `/harness:security-review` |
 | `BoN_FALLBACK_TO_SINGLE` | info | `best-of-n` | build | Single-candidate Build dispatch on the same slice |
 | `BoN_INSUFFICIENT_RESOURCES` | failure | `best-of-n` | build | Halt; user escalation |
-| `PDR_WINNER_SELECTED` | success | `pdr-rtv` | build | `/code-review` + `/security-review` |
+| `PDR_WINNER_SELECTED` | success | `pdr-rtv` | build | `/harness:code-review` + `/harness:security-review` |
 | `PDR_NO_CONSENSUS` | failure | `pdr-rtv` | build | Silent fallback to Best-of-N → standard Build; logged in `## Re-routes` with `fallback_reason` enum (`worktree-cap-exceeded` / `insufficient-green-builds` / `all-finalists-rejected`) |
 | `SANDBOX_VERIFIED` | success | `sandbox-verify` | build | Worktree pass set equals sandbox pass set; Build advances |
 | `SANDBOX_FAILED` | failure | `sandbox-verify` | build | Pass sets diverge OR cost-cap hard-trip; spawn fix-engineer with `diverging_tests` enumerated (or `reason: "cost-exceeded"` set) per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule |
@@ -65,10 +65,10 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `UNVERIFIED` | failure | `verify` | final-gate | Halt; back to Build to address tier failures |
 | `COVERED` | success | `qa-test-strategy` | final-gate | Pipeline advances to Accept phase |
 | `GAPS_FOUND` | failure | `qa-test-strategy` | final-gate | Spawn fix-engineer to fill test gaps |
-| `APPROVED` | success | `product-acceptance` | final-gate | Writes approval token; `/pr-creation` unblocked |
+| `APPROVED` | success | `product-acceptance` | final-gate | Writes approval token; `/harness:pr-creation` unblocked |
 | `APPROVED_WITH_CONDITIONS` | success | `product-acceptance` | final-gate | Approval token written; conditions resolved in-cycle |
 | `REJECTED` | failure | `product-acceptance` | final-gate | Halt; back to Build with AC violations |
-| `PATCH_APPROVED` | success | `patch-critique` | final-gate | `/pr-creation` unblocked |
+| `PATCH_APPROVED` | success | `patch-critique` | final-gate | `/harness:pr-creation` unblocked |
 | `PATCH_REJECTED` | failure | `patch-critique` | final-gate | Spawn fix-engineer (in-cycle, no user escalation) |
 | `SPEC_BLIND_VALIDATED` | success | `spec-blind-validate` | final-gate | Pipeline advances to next gate |
 | `SPEC_BLIND_FAILED` | failure | `spec-blind-validate` | final-gate | Spawn fix-engineer per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule (code-fix-only — fix-engineer MUST NOT mutate ACs) |
@@ -80,9 +80,9 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `NO_CHANGES_NEEDED` | info | `polish` | utility | Continue to Review |
 | `SCREENSHOTS_CAPTURED` | info | `design-qc` | utility | Product-reviewer consumes screenshots |
 | `CAPTURE_FAILED` | failure | `design-qc` | utility | Product-reviewer warned; falls back to text review |
-| `PR_CREATED` | success | `pr-creation` | ship | `/deploy` (if CD configured) |
+| `PR_CREATED` | success | `pr-creation` | ship | `/harness:deploy` (if CD configured) |
 | `PR_BLOCKED` | failure | `pr-creation` | ship | Halt; missing approval token or quality-gate failure |
-| `DEPLOYED` | success | `deploy` | deploy | `/deployment-verification` |
+| `DEPLOYED` | success | `deploy` | deploy | `/harness:deployment-verification` |
 | `DEPLOY_FAILED` | failure | `deploy` | deploy | Auto-rollback path |
 | `ROLLED_BACK` | failure | `deploy` | deploy | Halt; user notified |
 | `DEPLOYMENT_VERIFIED` | success | `deployment-verification` | deploy | Reflect |
@@ -159,7 +159,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 
 ## Notes
 
-- `ROUTED` carries a `tier: T0..T6` field in its payload, set by the `/intake` Step 1.5 fingerprint (per `protocols/work-class-routing.md`). The field gates downstream dispatch: T0-T3 exit `/pipeline`; T4-T6 proceed.
+- `ROUTED` carries a `tier: T0..T6` field in its payload, set by the `/harness:intake` Step 1.5 fingerprint (per `protocols/work-class-routing.md`). The field gates downstream dispatch: T0-T3 exit `/harness:pipeline`; T4-T6 proceed.
 - `WRONG_SKILL` and `EXTRACTION_BLOCKED` appear in two emitters each (microservices-scaffold + module-extraction; module-extraction + service-extraction). The audit step accepts a verdict shared across multiple emitters as long as every entry's emitter list resolves to a real skill.
 - `ORCHESTRATOR_APPLY_REQUIRED` is emitted by the `fix-engineer` agent (via its spawn output), not a skill — agents emit verdicts through their structured output rather than a `verdict:` frontmatter field. The catalog tracks it for forensic completeness; the verdict-consistency audit step skips reverse-direction enforcement for agent-emitted entries (`Emitter skill` does not need to resolve to a `skills/<name>/SKILL.md` when it names an agent).
 - `RECON_COMPLETE` and `RECON_NULL` are emitted by the `architect-context-recon` agent (Stage 1 of Plan Phase Dispatch), same agent-emitted-verdict pattern as `ORCHESTRATOR_APPLY_REQUIRED`. The catalog tracks them for forensic completeness.

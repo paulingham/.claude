@@ -110,7 +110,7 @@ logger = structlog.get_logger()
 
 ### Step 3: Health Endpoints
 
-Configure health checks per `/infra-scaffold` Step 5. Wire health endpoints into the observability stack:
+Configure health checks per `/harness:infra-scaffold` Step 5. Wire health endpoints into the observability stack:
 - Dashboard: display health check status on the overview row
 - Alerting: trigger "Zero traffic" alert if health endpoint stops responding
 - Kubernetes: map probes to the three-tier endpoints (`/health`, `/health/ready`, `/health/live`)

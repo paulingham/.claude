@@ -99,7 +99,7 @@ Branch convention: `feat/{workstream}/{task}` (e.g., `feat/auth/login-page`)
 
 ## Integration with Pipeline Resume
 
-`/pipeline-resume` uses the canonical four-glob discovery sequence (see `skills/pipeline-resume/SKILL.md` Step 1). Workstream-nested pipelines (`pipeline-state/workstreams/{name}/{task-id}/pipeline.md`) are returned alongside root-level pipelines (`pipeline-state/{task-id}/pipeline.md`). When the same `task_id` collides between root and workstream, **workstream wins**; ties within a layout class break by mtime.
+`/harness:pipeline-resume` uses the canonical four-glob discovery sequence (see `skills/pipeline-resume/SKILL.md` Step 1). Workstream-nested pipelines (`pipeline-state/workstreams/{name}/{task-id}/pipeline.md`) are returned alongside root-level pipelines (`pipeline-state/{task-id}/pipeline.md`). When the same `task_id` collides between root and workstream, **workstream wins**; ties within a layout class break by mtime.
 
 Display groups results for the user:
 - Workstream-nested pipelines (grouped by workstream name)

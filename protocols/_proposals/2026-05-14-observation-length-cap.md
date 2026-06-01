@@ -58,4 +58,4 @@ The planning-agent role demotes from Sonnet to Haiku in slice C. Because plannin
 
 **Canary:** Monitor PLAN_REFINED count over next 3 multi-slice pipelines; revert if zero refinements.
 
-`/health-scan` step counts the `PLAN_REFINED` vs `PLAN_UNCHANGED` ratio over the rolling 3 most recent multi-slice pipelines. If the ratio is zero (zero refinements emitted across 3 pipelines), the demotion is presumed to have degraded the role and slice C is reverted via a single-commit revert. This is the operator-quality signal called out as MED-8 in the round-2 plan.
+`/harness:health-scan` step counts the `PLAN_REFINED` vs `PLAN_UNCHANGED` ratio over the rolling 3 most recent multi-slice pipelines. If the ratio is zero (zero refinements emitted across 3 pipelines), the demotion is presumed to have degraded the role and slice C is reverted via a single-commit revert. This is the operator-quality signal called out as MED-8 in the round-2 plan.

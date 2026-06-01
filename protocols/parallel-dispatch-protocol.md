@@ -9,7 +9,7 @@ The pipeline uses **parallel subagent calls in a single message** as the default
 | Mechanism | When | Visibility | Activation |
 |-----------|------|-----------|------------|
 | **Subagent** (Agent tool) | All phases by default — parallel calls in a single message for parallelizable phases (Build multi-slice, Review, Final Gate, Plan Validation heavy) | None (background) | Always available |
-| **Team** (TeamCreate) | Same phases when human visibility is desired | Tmux split panes | Opt-in via `CLAUDE_VISIBLE_TEAMS=1` env var, `/pipeline --visible` flag, or interactive mode where the user requested it |
+| **Team** (TeamCreate) | Same phases when human visibility is desired | Tmux split panes | Opt-in via `CLAUDE_VISIBLE_TEAMS=1` env var, `/harness:pipeline --visible` flag, or interactive mode where the user requested it |
 
 The dispatch matrix below describes *which roles run in parallel*; the *mechanism* is parallel subagents unless the visible-teams flag is set. Persistent reviewer context across re-review rounds (the historical reason teams were the default) is preserved by re-dispatching the same `subagent_type` with the original finding + fix diff in the prompt — context is in the spawn prompt, not in a long-lived process.
 
@@ -32,7 +32,7 @@ In every other case (including all autonomous runs), parallel subagent calls are
 |----------|-----------|-----------|
 | Interactive mode | No team (user reviews) | N/A |
 | Autonomous mode + heavy gate (`critical OR Budget >= 7`) | product-reviewer + software-engineer challengers | Yes |
-| Autonomous mode + light gate (everything else) | No team — invoke `/plan-self-validation` | N/A |
+| Autonomous mode + light gate (everything else) | No team — invoke `/harness:plan-self-validation` | N/A |
 
 Heavy-team challengers remember the plan context on re-review — no prompt reconstruction. The light branch is a single skill invocation. See `skills/plan-self-validation/SKILL.md`. Orchestrator dispatch procedure (HARD SEQUENCING REQUIREMENT, 0-tool-use diagnostics, isolation rules) lives in `~/.claude/orchestrator/parallel-dispatch-details.md` § Plan Validation Phase Dispatch.
 
@@ -77,11 +77,11 @@ Five phases run simultaneously instead of sequentially. All five are read-only a
 
 | Teammate | Skill | Verdict |
 |----------|-------|---------|
-| qa-engineer (verify) | `/verify` | VERIFIED |
-| qa-engineer (test) | `/qa-test-strategy` | COVERED |
-| product-reviewer | `/product-acceptance` | APPROVED |
-| patch-critic | `/patch-critique` | PATCH_APPROVED |
-| spec-blind-validator | `/spec-blind-validate` | SPEC_BLIND_VALIDATED |
+| qa-engineer (verify) | `/harness:verify` | VERIFIED |
+| qa-engineer (test) | `/harness:qa-test-strategy` | COVERED |
+| product-reviewer | `/harness:product-acceptance` | APPROVED |
+| patch-critic | `/harness:patch-critique` | PATCH_APPROVED |
+| spec-blind-validator | `/harness:spec-blind-validate` | SPEC_BLIND_VALIDATED |
 
 `patch-critic` evaluates the candidate patch by **test results + diff** — NOT SOLID/DRY (that is the code-reviewer's job, gated upstream). Inspired by SWE-bench top scaffolds (Agentless, AutoCodeRover, MarsCode-Agent) where a critic step distinguishes high-scoring patches from regressions. Rubric: tests cover the change, diff minimal vs spec, no obvious regressions visible from diff, no incidental refactor. PATCH_REJECTED returns to fix-engineer per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule — never escalates to the user.
 
@@ -204,7 +204,7 @@ Emit `[CHECKPOINT] <marker>` lines on stdout at key milestones so the orchestrat
 
 ## Batch Execution
 
-For pre-planned batch work (production-readiness waves, bulk fixes), the entry point is `/batch-pipeline` instead of `/pipeline`. The batch pipeline skips Plan + Plan Validation but preserves state tracking, scratchpad, session memory, observations, and the mandatory Review step. Orchestrator-side rules (what must / must not be skipped, dispatch differences) live in `~/.claude/orchestrator/parallel-dispatch-details.md` § Batch Execution.
+For pre-planned batch work (production-readiness waves, bulk fixes), the entry point is `/harness:batch-pipeline` instead of `/harness:pipeline`. The batch pipeline skips Plan + Plan Validation but preserves state tracking, scratchpad, session memory, observations, and the mandatory Review step. Orchestrator-side rules (what must / must not be skipped, dispatch differences) live in `~/.claude/orchestrator/parallel-dispatch-details.md` § Batch Execution.
 
 ## Checkpoint Vocabulary
 

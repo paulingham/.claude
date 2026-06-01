@@ -223,7 +223,7 @@ After running the migration:
 
 ```
 Verdict: MIGRATION_COMPLETE / MIGRATION_BLOCKED
-Next: Deploy migration (staging first), then verify with /deploy
+Next: Deploy migration (staging first), then verify with /harness:deploy
 Artifacts: [migration files, schema diff, reversibility test results, index analysis]
 Downtime Risk: [none / requires two-phase deployment]
 ```

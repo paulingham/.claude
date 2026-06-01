@@ -28,8 +28,8 @@ The orchestrator (Claude) coordinates agents. It does NOT write, edit, or create
 - The orchestrator MAY edit `.md` files ONLY in `.claude/`, `memory/`, and `rules/` directories for documentation and state tracking
 - These are configuration and documentation files, not source code
 - TDD does not apply to markdown documentation
-- This exception does NOT extend to `.json`, `.yaml`, `.sh`, or any executable/config format — delegate those via `/harness-config` skill to infrastructure-engineer
-- **Explicitly NOT covered**: `settings.json`, `hooks/*.sh`, `*.yaml`, `*.yml`, `.gitignore` -- use `/harness-config` skill which delegates to infrastructure-engineer
+- This exception does NOT extend to `.json`, `.yaml`, `.sh`, or any executable/config format — delegate those via `/harness:harness-config` skill to infrastructure-engineer
+- **Explicitly NOT covered**: `settings.json`, `hooks/*.sh`, `*.yaml`, `*.yml`, `.gitignore` -- use `/harness:harness-config` skill which delegates to infrastructure-engineer
 
 ### Enforcement Note
 - The `orchestrator-discipline.sh` PreToolUse hook blocks Write/Edit on non-`.md` source files (exit 2)
@@ -50,7 +50,7 @@ The orchestrator (Claude) coordinates agents. It does NOT write, edit, or create
 ### What to do instead:
 - **Bug fix**: Spawn a frontend-engineer or software-engineer with the exact fix described
 - **Config change**: Spawn the appropriate engineer
-- **Harness change** (hooks, settings.json): Invoke `/harness-config` skill -- delegates to infrastructure-engineer
+- **Harness change** (hooks, settings.json): Invoke `/harness:harness-config` skill -- delegates to infrastructure-engineer
 - **Debug issue**: Spawn a frontend-engineer with the error details and ask them to diagnose and fix
 - **Review finding to address**: Spawn the engineer who built it with the specific finding
 
@@ -196,7 +196,7 @@ Before invoking `Agent(...)`, the orchestrator MUST resolve and splice the `## L
                 "subagent_type":"...","task_id":"..."}}
    ```
 
-   The hook writes a paired `source: "logged"` record on every spawn for forensic visibility — these are NOT a substitute for orchestrator-side injection. A `logged` record without a paired `orchestrator-injected` record (same session, same `subagent_type` + `task_id`) is a Path-B failure surfaced by `/forensics`.
+   The hook writes a paired `source: "logged"` record on every spawn for forensic visibility — these are NOT a substitute for orchestrator-side injection. A `logged` record without a paired `orchestrator-injected` record (same session, same `subagent_type` + `task_id`) is a Path-B failure surfaced by `/harness:forensics`.
 
 #### Output format
 
@@ -405,7 +405,7 @@ precedence layers, top-down — the first match wins:
    `learning/{project-hash}/instincts/*.md` carries `prefer_opus: true` and
    the instinct's `roles:` set intersects the spawning agent's expanded
    `instinct_categories`, the resolver returns `claude-opus-4-7` for that
-   spawn. Trigger: `/learn` is expected to set `prefer_opus: true` when ≥3
+   spawn. Trigger: `/harness:learn` is expected to set `prefer_opus: true` when ≥3
    pipelines in the same project show a Sonnet executor requiring ≥2 review
    rounds. **Not yet implemented — orchestrator reader deferred to the next learning slice. Manually-authored instincts may set the flag, but the orchestrator does not yet consume it.**
 3. **Frontmatter `executor:` field** — the default. After Wave 5/B6 the
@@ -428,7 +428,7 @@ Sonnet; the advisor is consulted on judgement calls (architectural choices,
 ambiguous spec interpretation, accessibility tradeoffs for FE). Opus is
 available via two routes: (a) `CLAUDE_FORCE_OPUS=1` for one-off operator
 escalation; (b) a `prefer_opus: true` instinct for data-driven escalation
-once `/learn` writes the flag (deferred). The other tunable agents
+once `/harness:learn` writes the flag (deferred). The other tunable agents
 (`database-engineer`, `infrastructure-engineer`, `qa-engineer`) keep their
 prior model selection — see the Agent Team table in `CLAUDE.md` for the
 canonical per-role default.
@@ -529,7 +529,7 @@ These are exactly the moments discipline matters most. The 30 seconds saved by a
 - Produces unreviewed code on the critical path
 - Has been called out by the user multiple times
 
-If a tool-level block fires (Edit blocked by `orchestrator-discipline.sh`), that is the system working correctly. The response is to invoke `/harness-config` — not to find a Bash equivalent. If agent overhead is genuinely blocking iteration, propose a process change to the user — do not silently bypass.
+If a tool-level block fires (Edit blocked by `orchestrator-discipline.sh`), that is the system working correctly. The response is to invoke `/harness:harness-config` — not to find a Bash equivalent. If agent overhead is genuinely blocking iteration, propose a process change to the user — do not silently bypass.
 
 ## Continuation From WIP
 

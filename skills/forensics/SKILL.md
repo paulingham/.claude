@@ -15,7 +15,7 @@ Post-incident investigation of pipeline runs. Reconstructs timelines, detects an
 - After a pipeline fails or requires >2 review rounds
 - When reflection identifies issues but root cause is unclear
 - When the user asks "what went wrong?"
-- Automatically invoked by `/pipeline` Step 7 (Reflect) when failures occurred
+- Automatically invoked by `/harness:pipeline` Step 7 (Reflect) when failures occurred
 
 ## Process
 
@@ -239,7 +239,7 @@ timestamp: {ISO 8601}
 
 ```
 Verdict: CLEAN / ANOMALIES_FOUND / INVESTIGATION_INCOMPLETE
-Next: Feed findings into /pipeline Step 7 (Reflect)
+Next: Feed findings into /harness:pipeline Step 7 (Reflect)
 Artifacts: pipeline-state/{task-id}/forensics.md
 ```
 $ARGUMENTS

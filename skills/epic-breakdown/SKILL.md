@@ -179,8 +179,8 @@ Add a "### Parallel Batches" section to the output showing which stories can be 
 ```
 Verdict: STORIES_READY (informational — plan validation gate follows)
 Next: Plan Validation (challengers review the plan before Build)
-      /build-implementation (per story, after plan approved)
-      /estimation if sizing not yet done
-      /story-writing if individual stories need refinement
+      /harness:build-implementation (per story, after plan approved)
+      /harness:estimation if sizing not yet done
+      /harness:story-writing if individual stories need refinement
 Artifacts: [story list with ACs, points, parallel batches]
 ```

@@ -18,11 +18,11 @@ For phases in the Team Phases table (see `rules/parallel-dispatch-protocol.md`),
 
 ## Best-of-N Build Dispatch (overview)
 
-Best-of-N Build dispatch fires when `/intake` tags the task with `bestofn: true` (`critical OR user_override`). N candidate engineers run in parallel worktrees, each on a different model; a single code-reviewer selects the winner. The winner still faces the normal Review → Final Gate → Ship gates. Cost is roughly 2-3x a standard build. The full procedure (pre-flight resource check, candidate roster, scoring rubric, merge & cleanup, fallback) lives in `~/.claude/orchestrator/parallel-dispatch-details.md` § Best-of-N Build Team Dispatch.
+Best-of-N Build dispatch fires when `/harness:intake` tags the task with `bestofn: true` (`critical OR user_override`). N candidate engineers run in parallel worktrees, each on a different model; a single code-reviewer selects the winner. The winner still faces the normal Review → Final Gate → Ship gates. Cost is roughly 2-3x a standard build. The full procedure (pre-flight resource check, candidate roster, scoring rubric, merge & cleanup, fallback) lives in `~/.claude/orchestrator/parallel-dispatch-details.md` § Best-of-N Build Team Dispatch.
 
 ## Build Phase Dispatch Variants
 
-The Build phase has three dispatch variants. Routing precedence is `pdr_rtv > bestofn > standard` — when multiple flags fire on the same slice, the strictly stronger variant wins. Both `pdr_rtv` and `bestofn` are computed by `/intake` Step 2d / 2d-bis and persisted to `pipeline-state/{task-id}/intake.md` frontmatter; `/pipeline` Step 3 reads them at Build dispatch time.
+The Build phase has three dispatch variants. Routing precedence is `pdr_rtv > bestofn > standard` — when multiple flags fire on the same slice, the strictly stronger variant wins. Both `pdr_rtv` and `bestofn` are computed by `/harness:intake` Step 2d / 2d-bis and persisted to `pipeline-state/{task-id}/intake.md` frontmatter; `/harness:pipeline` Step 3 reads them at Build dispatch time.
 
 | Flag combination | Dispatch | Why |
 |---|---|---|
@@ -100,7 +100,7 @@ timestamp: {ISO 8601}
 
 ### Orchestrator Responsibilities
 - Check `pipeline-state/` for in-progress work before starting any new pipeline (use `_psp_find_active_pipelines` or `find_pipeline_files` — they cover both layouts)
-- If in-progress state found: invoke `/pipeline-resume` to continue from the correct phase
+- If in-progress state found: invoke `/harness:pipeline-resume` to continue from the correct phase
 - `pipeline-state/` is the single source of truth — do NOT dual-write to `memory/`
 - Pass the previous phase's state file path to the next phase agent
 - Delete all state files for a task after pipeline completion or abandonment
@@ -117,29 +117,29 @@ Before advancing to any phase, verify the previous gate passed AND invoke the re
   2. Interactive mode: user approves the plan.
   3. Autonomous mode dispatch (chosen by criticality + budget):
      - **Heavy** (`critical == true OR Budget >= 7`): full alternatives table required (per step 1). Spawn product-reviewer + software-engineer challengers — both must APPROVE the plan. Maximum 2 rounds of revision before escalation.
-     - **Light** (everything else): invoke `/plan-self-validation` — architect re-reads its own plan against a structured holes-finding rubric. One-shot, no team. The rubric explicitly asks "did the architect miss an obvious alternative for this pattern?" so plan quality is checked even when the alternatives table is absent. Verdict: `PLAN_APPROVED` continues; `PLAN_HOLES` returns to architect with the hole list (max 1 revision; if still holes, escalate to heavy challengers).
+     - **Light** (everything else): invoke `/harness:plan-self-validation` — architect re-reads its own plan against a structured holes-finding rubric. One-shot, no team. The rubric explicitly asks "did the architect miss an obvious alternative for this pattern?" so plan quality is checked even when the alternatives table is absent. Verdict: `PLAN_APPROVED` continues; `PLAN_HOLES` returns to architect with the hole list (max 1 revision; if still holes, escalate to heavy challengers).
   4. Gate tracked in pipeline state as `Plan Validation` phase. Pipeline state records the dispatch mode (`heavy` or `light`) for forensic visibility.
-  Use `/epic-breakdown`, `/estimation`, `/story-writing`, `/tech-spike` as needed
-- **Build**: `/build-implementation` or `/refactor` or `/bug-fix` — ATDD, shape self-check, **then `/code-review` as Step 5 AND `/sandbox-verify` as Step 5b — both inline gates inside Build**. Code-review is no longer a separate phase boundary; sandbox-verify is the second inline gate that confirms the worktree's pass set reproduces in a fresh E2B sandbox. CHANGES_REQUESTED (Step 5) and SANDBOX_FAILED (Step 5b) both dispatch fix-engineer in-line with a single 2-round cap **combined across Step 5 and Step 5b** (NOT 2+2). Build's `BUILD_COMPLETE` verdict requires ATDD audit trail AND code-reviewer APPROVE AND sandbox-verify SANDBOX_VERIFIED or SANDBOX_SKIPPED.
-- **Review (Security)**: `/security-review` — security audit with own gate (different concern from code quality, justifies own phase). Must APPROVE.
+  Use `/harness:epic-breakdown`, `/harness:estimation`, `/harness:story-writing`, `/harness:tech-spike` as needed
+- **Build**: `/harness:build-implementation` or `/harness:refactor` or `/harness:bug-fix` — ATDD, shape self-check, **then `/harness:code-review` as Step 5 AND `/harness:sandbox-verify` as Step 5b — both inline gates inside Build**. Code-review is no longer a separate phase boundary; sandbox-verify is the second inline gate that confirms the worktree's pass set reproduces in a fresh E2B sandbox. CHANGES_REQUESTED (Step 5) and SANDBOX_FAILED (Step 5b) both dispatch fix-engineer in-line with a single 2-round cap **combined across Step 5 and Step 5b** (NOT 2+2). Build's `BUILD_COMPLETE` verdict requires ATDD audit trail AND code-reviewer APPROVE AND sandbox-verify SANDBOX_VERIFIED or SANDBOX_SKIPPED.
+- **Review (Security)**: `/harness:security-review` — security audit with own gate (different concern from code quality, justifies own phase). Must APPROVE.
 - **Final Gate** (Verify + Test + Accept + Patch Critique as team, parallel):
-  - `/verify` -- check E2E trigger matrix (`rules/e2e-protocol.md`) AND the External Oracle tier (Tier 5, `skills/verify/SKILL.md` § 4.75). When a known-good external comparator exists for the change (reference parser, upstream SQL engine, schema validator, reference implementation — GCC-as-oracle pattern), oracle-match is required for `VERIFIED`; emit `VERIFIED_WITH_SKIP` when the oracle applies but cannot execute, and N/A (no verdict impact) when no oracle applies.
-  - `/qa-test-strategy` -- all ACs covered, no gaps
-  - `/product-acceptance` -- APPROVED required
-  - `/patch-critique` -- PATCH_APPROVED required (rubric: tests cover change, diff minimal vs spec, no obvious regressions, no incidental refactor). PATCH_REJECTED returns to fix-engineer (no user escalation per § In-Cycle Fix Rule).
-- **Ship**: `/pr-creation` -- PR with narrative, quality gate passes. Requires `pipeline-state/{task-id}-approval.token` with verdict `APPROVED` or `APPROVED_WITH_CONDITIONS` (written by `/product-acceptance`). Gate checked at `/pr-creation` Step 0 via `hooks/_lib/approval-token.sh`. Missing or REJECTED token → `PR_BLOCKED`.
+  - `/harness:verify` -- check E2E trigger matrix (`rules/e2e-protocol.md`) AND the External Oracle tier (Tier 5, `skills/verify/SKILL.md` § 4.75). When a known-good external comparator exists for the change (reference parser, upstream SQL engine, schema validator, reference implementation — GCC-as-oracle pattern), oracle-match is required for `VERIFIED`; emit `VERIFIED_WITH_SKIP` when the oracle applies but cannot execute, and N/A (no verdict impact) when no oracle applies.
+  - `/harness:qa-test-strategy` -- all ACs covered, no gaps
+  - `/harness:product-acceptance` -- APPROVED required
+  - `/harness:patch-critique` -- PATCH_APPROVED required (rubric: tests cover change, diff minimal vs spec, no obvious regressions, no incidental refactor). PATCH_REJECTED returns to fix-engineer (no user escalation per § In-Cycle Fix Rule).
+- **Ship**: `/harness:pr-creation` -- PR with narrative, quality gate passes. Requires `pipeline-state/{task-id}-approval.token` with verdict `APPROVED` or `APPROVED_WITH_CONDITIONS` (written by `/harness:product-acceptance`). Gate checked at `/harness:pr-creation` Step 0 via `hooks/_lib/approval-token.sh`. Missing or REJECTED token → `PR_BLOCKED`.
 
 #### `gh pr create` Bypass (Residual Risk, Out of Scope)
 
-Direct `gh pr create` invocations via Bash bypass the `/pr-creation` skill and therefore bypass the approval token gate. The existing `main-branch-guard.sh` PreToolUse hook already enforces the worktree pattern for `gh pr create`, but does not check the approval token. A future `hooks/pr-approval-guard.sh` hook could extend coverage to direct Bash invocations — tracked as a follow-up, not in this wave.
+Direct `gh pr create` invocations via Bash bypass the `/harness:pr-creation` skill and therefore bypass the approval token gate. The existing `main-branch-guard.sh` PreToolUse hook already enforces the worktree pattern for `gh pr create`, but does not check the approval token. A future `hooks/pr-approval-guard.sh` hook could extend coverage to direct Bash invocations — tracked as a follow-up, not in this wave.
 
 ## Review Protocol
 
 ### Code Review (inside Build phase)
-Code-review runs as the final step of `/build-implementation` — see the build-implementation skill for the inline dispatch. Build does not emit `BUILD_COMPLETE` until code-reviewer APPROVES. CHANGES_REQUESTED inside Build spawns fix-engineer, re-runs the suite, and re-dispatches code-reviewer with the original finding + fix diff (max 2 rounds, then escalate).
+Code-review runs as the final step of `/harness:build-implementation` — see the build-implementation skill for the inline dispatch. Build does not emit `BUILD_COMPLETE` until code-reviewer APPROVES. CHANGES_REQUESTED inside Build spawns fix-engineer, re-runs the suite, and re-dispatches code-reviewer with the original finding + fix diff (max 2 rounds, then escalate).
 
 ### Security Review (separate phase)
-After Build emits `BUILD_COMPLETE`, dispatch `/security-review` as its own phase. Security review uses a separate gate from code review because the concern is orthogonal — a security finding is not "another category of code quality issue".
+After Build emits `BUILD_COMPLETE`, dispatch `/harness:security-review` as its own phase. Security review uses a separate gate from code review because the concern is orthogonal — a security finding is not "another category of code quality issue".
 
 Both reviewers use the same severity threshold: CRITICAL, HIGH, or MEDIUM findings trigger CHANGES_REQUESTED. LOW and INFO findings are included in the review output for the PR narrative but do not gate advancement.
 
@@ -188,7 +188,7 @@ The build agent self-reviews before completion. Hooks enforce shape compliance. 
 When a built feature passes unit tests but fails in a real environment (device, staging, browser, external system), the pipeline enters a debugging loop:
 
 ### Persistent State
-When entering the debugging loop, invoke `/debug` to create persistent state in `pipeline-state/{task-id}-debug.md`. This ensures hypotheses, elimination results, and fix attempts survive context compaction and session boundaries.
+When entering the debugging loop, invoke `/harness:debug` to create persistent state in `pipeline-state/{task-id}-debug.md`. This ensures hypotheses, elimination results, and fix attempts survive context compaction and session boundaries.
 
 ### Entry criteria
 - Feature was built and tests pass

@@ -233,7 +233,7 @@ Both rosters live in `hooks/_lib/thinking_role.py`: the four gated promotions ar
 
 ### Forensic / Source-Field Integration Note
 
-Downstream tooling reads `result["source"]` from the resolver — namely `/forensics`, observation-capture in the Reflect step (`learning/{project-hash}/observations.jsonl`), and eval baseline diffs. Both promotions (3a) and downgrades (3b) report `source="role"` because they are produced by the same `role_effort()` callsite. Tooling that needs to differentiate promotion-vs-downgrade must inspect the `effort` value, not the `source` field:
+Downstream tooling reads `result["source"]` from the resolver — namely `/harness:forensics`, observation-capture in the Reflect step (`learning/{project-hash}/observations.jsonl`), and eval baseline diffs. Both promotions (3a) and downgrades (3b) report `source="role"` because they are produced by the same `role_effort()` callsite. Tooling that needs to differentiate promotion-vs-downgrade must inspect the `effort` value, not the `source` field:
 
 - `source=="role" AND effort=="xhigh"` ⇒ promotion (3a fired)
 - `source=="role" AND effort in {"high","low"}` ⇒ downgrade (3b fired)

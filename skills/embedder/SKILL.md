@@ -125,18 +125,18 @@ CLAUDE_EMBEDDER=fake PYTHONPATH=skills python3 -m embedder cli doctor   # tests 
 ## Bootstrap gates embedding
 
 Capture-time embedding is gated on model file presence, not an env
-flag. `/project-setup` downloads the model and writes
+flag. `/harness:project-setup` downloads the model and writes
 `ORT_DYLIB_PATH` + `BGE_MODEL_PATH` to `~/.claude/settings.json`. If
 either path cannot be resolved to an existing file, `maybe_embed`
 skips the embed without importing `embedder.*` (zero-cost invariant)
 and emits a one-time stderr warning:
 
     embedder model not bootstrapped; semantic recall disabled.
-    Run /project-setup to enable.
+    Run /harness:project-setup to enable.
 
 `embedder doctor` reports the gate state via an `embed:` line:
 
-    embed: off (no model — run /project-setup)   # models missing
+    embed: off (no model — run /harness:project-setup)   # models missing
     embed: on (pending first write)              # present, no success yet
     embed: on                                    # present + last_success_at set
 

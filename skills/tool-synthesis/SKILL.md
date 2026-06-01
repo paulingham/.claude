@@ -29,7 +29,7 @@ If a built-in tool (Grep, Glob, Read, Bash one-liner) covers it, USE IT — do n
 
 ### Promotability Gate
 
-If the synthesised tool's signature (name + one-line description + invocation pattern) would be **reusable across pipelines** (not just this task's accidental shape), record that explicitly in the scratchpad with `promotable: true`. The `/learn` skill scans observations for this marker; when the same tool signature appears in ≥3 pipelines it generates a permanent skill scaffold for human review (see `skills/learn/SKILL.md`). Use the verdict `TOOL_SYNTHESISED_PROMOTABLE` instead of `TOOL_SYNTHESISED` when this is the case.
+If the synthesised tool's signature (name + one-line description + invocation pattern) would be **reusable across pipelines** (not just this task's accidental shape), record that explicitly in the scratchpad with `promotable: true`. The `/harness:learn` skill scans observations for this marker; when the same tool signature appears in ≥3 pipelines it generates a permanent skill scaffold for human review (see `skills/learn/SKILL.md`). Use the verdict `TOOL_SYNTHESISED_PROMOTABLE` instead of `TOOL_SYNTHESISED` when this is the case.
 
 Promotability heuristics (each "yes" raises the score):
 
@@ -53,7 +53,7 @@ Scratch tools MUST NOT:
 - Modify code outside the worktree
 - Hit the network without explicit user authorisation
 - Persist beyond the current pipeline run
-- Be promoted to a "real" tool without going through `/skill-builder` and full review
+- Be promoted to a "real" tool without going through `/harness:skill-builder` and full review
 
 ## Procedure
 
@@ -131,14 +131,14 @@ Before signalling BUILD_COMPLETE:
 ~/.claude/skills/tool-synthesis/lib/register.sh --cleanup ${WORKTREE}
 ```
 
-This removes the entire `.claude-scratch-tools/` directory. If the tool proved generally useful, propose it through `/skill-builder` as a real, reviewed addition — do not smuggle scratch tools into `main`.
+This removes the entire `.claude-scratch-tools/` directory. If the tool proved generally useful, propose it through `/harness:skill-builder` as a real, reviewed addition — do not smuggle scratch tools into `main`.
 
 The `.gitignore` rule is the safety net: even if cleanup is skipped, `git status` shows nothing under `.claude-scratch-tools/` and the merge cannot carry the directory.
 
 ## Verdict
 
-- **TOOL_SYNTHESISED**: tool registered, used, and either (a) cleaned up or (b) flagged for promotion via `/skill-builder`.
-- **TOOL_SYNTHESISED_PROMOTABLE**: same as `TOOL_SYNTHESISED` plus the tool's signature is reusable across pipelines. The `/learn` skill picks this up and counts cross-pipeline recurrences; on the third occurrence it scaffolds a permanent skill at `skills/<tool-name>/SKILL.md` (from `skills/_template/`) and surfaces it for human review. The scratch tool is still cleaned up from the worktree — the permanent scaffold is the path forward, not a smuggled scratch tool.
+- **TOOL_SYNTHESISED**: tool registered, used, and either (a) cleaned up or (b) flagged for promotion via `/harness:skill-builder`.
+- **TOOL_SYNTHESISED_PROMOTABLE**: same as `TOOL_SYNTHESISED` plus the tool's signature is reusable across pipelines. The `/harness:learn` skill picks this up and counts cross-pipeline recurrences; on the third occurrence it scaffolds a permanent skill at `skills/<tool-name>/SKILL.md` (from `skills/_template/`) and surfaces it for human review. The scratch tool is still cleaned up from the worktree — the permanent scaffold is the path forward, not a smuggled scratch tool.
 - **TOOL_UNNECESSARY**: built-in tools cover the operation; no synthesis performed.
 
 ## Phase Output
@@ -175,7 +175,7 @@ The empirical lift is conditional on three properties this skill enforces:
 
 1. **Per-worktree isolation** — scratch tools never leak to `main` (`.gitignore` + cleanup gate).
 2. **Auditability** — `registry.json` records every synthesis decision so reviewers can challenge the tool's existence.
-3. **Promotion path** — useful tools graduate via `/skill-builder` and `/learn` (the TOOL_SYNTHESISED_PROMOTABLE → permanent-skill scaffold), so reusable patterns harden into the harness instead of disappearing with the worktree.
+3. **Promotion path** — useful tools graduate via `/harness:skill-builder` and `/harness:learn` (the TOOL_SYNTHESISED_PROMOTABLE → permanent-skill scaffold), so reusable patterns harden into the harness instead of disappearing with the worktree.
 
 Without those three guards, scratch-tool synthesis becomes a way to smuggle untested code into production. With them, it is a controlled inference-time capability that has an empirical track record.
 $ARGUMENTS

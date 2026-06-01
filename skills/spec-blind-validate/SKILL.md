@@ -1,6 +1,6 @@
 ---
 name: spec-blind-validate
-description: "Final-Gate teammate that authors black-box behavioural tests from the AC plan + public API surface ONLY — never from src/. Catches the SWE-Bench-Pro-vs-Verified failure mode. Read/Bash content-leak shapes are blocked by three PreToolUse hooks (read-guard, write-guard, bash-guard). Invoked in parallel with /verify, /qa-test-strategy, /product-acceptance, /patch-critique."
+description: "Final-Gate teammate that authors black-box behavioural tests from the AC plan + public API surface ONLY — never from src/. Catches the SWE-Bench-Pro-vs-Verified failure mode. Read/Bash content-leak shapes are blocked by three PreToolUse hooks (read-guard, write-guard, bash-guard). Invoked in parallel with /harness:verify, /harness:qa-test-strategy, /harness:product-acceptance, /harness:patch-critique."
 verdict: SPEC_BLIND_VALIDATED|SPEC_BLIND_FAILED|SPEC_BLIND_INSUFFICIENT_SURFACE|SPEC_BLIND_BLOCKED
 phase: final-gate
 dispatch: subagent
@@ -17,8 +17,8 @@ The "second body of tests" is the value-add: spec-blind tests pass + build-time 
 
 ## When to Invoke
 
-- Final Gate phase, in parallel with `/verify`, `/qa-test-strategy`, `/product-acceptance`, `/patch-critique`
-- After `/code-review` and `/security-review` both APPROVED (Build phase complete)
+- Final Gate phase, in parallel with `/harness:verify`, `/harness:qa-test-strategy`, `/harness:product-acceptance`, `/harness:patch-critique`
+- After `/harness:code-review` and `/harness:security-review` both APPROVED (Build phase complete)
 - All five Final Gate teammates run independently against the same final state — no lock contention
 
 ## Inputs

@@ -10,7 +10,7 @@ description: "Rebuild ~/.claude/db/memory.sqlite from learning/*/observations.js
 Rebuilds `~/.claude/db/memory.sqlite` — a derived SQLite index with FTS5 —
 from the canonical `learning/{project_hash}/observations.jsonl` files and
 scratchpad findings. The JSONL files remain the source of truth; this DB
-is a fast, queryable read index used by Stories 3-5 (`/recall`, MCP memory
+is a fast, queryable read index used by Stories 3-5 (`/harness:recall`, MCP memory
 server, and embedding similarity search).
 
 ## When To Use

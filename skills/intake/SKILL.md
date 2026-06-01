@@ -1,6 +1,6 @@
 ---
 name: "intake"
-description: "Entry point for all user requests. Classifies work type (feature, refactor, bug, spike, question), estimates complexity, determines pipeline entry point, and invokes /pipeline. Use when receiving any new task from the user."
+description: "Entry point for all user requests. Classifies work type (feature, refactor, bug, spike, question), estimates complexity, determines pipeline entry point, and invokes /harness:pipeline. Use when receiving any new task from the user."
 argument-hint: "Feature, bug, or task description"
 ---
 
@@ -16,22 +16,22 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 
 | Signal | Classification | Entry Point |
 |--------|---------------|-------------|
-| "Add feature", "Implement", new AC | **Feature** | `/pipeline` → `/build-implementation` |
-| "Refactor", "Decompose", "Extract", shape violation | **Refactor** | `/pipeline` → `/refactor` |
-| "Bug", "Fix", "Broken", "Error", failing test | **Bug Fix** | `/pipeline` → `/bug-fix` |
-| "Spike", "Investigate", "Evaluate", "Research" | **Tech Spike** | `/tech-spike` (no pipeline) |
-| "Epic", "Feature set", multiple stories | **Epic** | `/epic-breakdown` → `/pipeline` per story |
+| "Add feature", "Implement", new AC | **Feature** | `/harness:pipeline` → `/harness:build-implementation` |
+| "Refactor", "Decompose", "Extract", shape violation | **Refactor** | `/harness:pipeline` → `/harness:refactor` |
+| "Bug", "Fix", "Broken", "Error", failing test | **Bug Fix** | `/harness:pipeline` → `/harness:bug-fix` |
+| "Spike", "Investigate", "Evaluate", "Research" | **Tech Spike** | `/harness:tech-spike` (no pipeline) |
+| "Epic", "Feature set", multiple stories | **Epic** | `/harness:epic-breakdown` → `/harness:pipeline` per story |
 | Question, "How does", "Explain", "What is" | **Question** | Answer directly (no pipeline) |
-| "Set up", new repo, no CLAUDE.md | **Project Setup** | `/project-setup` → Plan phase |
-| "Build me", "Create a", "new app", "from scratch", empty directory, no package.json/Gemfile/go.mod | **Greenfield** | `/greenfield-scaffold` → `/epic-breakdown` → `/pipeline` per story |
-| "API", "endpoint", "resource" (new API) | **Feature + Scaffold** | `/pipeline` → `/api-scaffold` → `/build-implementation` |
-| "Migration", "schema", "add column" | **Feature + Scaffold** | `/pipeline` → `/db-migration` → `/build-implementation` |
-| "Docker", "CI/CD", "deploy", "infra" | **Infrastructure** | `/pipeline` → `/infra-scaffold` |
-| "Extract", "split out", "carve out", "separate", "move into its own" (no FF named) | **Module Extraction** | `/pipeline` → `/module-extraction` (same repo) |
-| "Extract to a service", "new repo", "own service", "separate deploy", or any FF named explicitly | **Service Extraction** | `/pipeline` → `/service-extraction` (multi-repo) |
-| "Logging", "monitoring", "observability" | **Infrastructure** | `/pipeline` → `/observability-setup` |
-| Multiple repos referenced, "API + frontend", cross-service | **Multi-Repo Feature** | `/pipeline` (multi-repo mode) |
-| "New service" + FF named, "new repo" + FF named, scaffold-service request | **Service Scaffold** | `/pipeline` → `/microservices-scaffold` (multi-repo) |
+| "Set up", new repo, no CLAUDE.md | **Project Setup** | `/harness:project-setup` → Plan phase |
+| "Build me", "Create a", "new app", "from scratch", empty directory, no package.json/Gemfile/go.mod | **Greenfield** | `/harness:greenfield-scaffold` → `/harness:epic-breakdown` → `/harness:pipeline` per story |
+| "API", "endpoint", "resource" (new API) | **Feature + Scaffold** | `/harness:pipeline` → `/harness:api-scaffold` → `/harness:build-implementation` |
+| "Migration", "schema", "add column" | **Feature + Scaffold** | `/harness:pipeline` → `/harness:db-migration` → `/harness:build-implementation` |
+| "Docker", "CI/CD", "deploy", "infra" | **Infrastructure** | `/harness:pipeline` → `/harness:infra-scaffold` |
+| "Extract", "split out", "carve out", "separate", "move into its own" (no FF named) | **Module Extraction** | `/harness:pipeline` → `/harness:module-extraction` (same repo) |
+| "Extract to a service", "new repo", "own service", "separate deploy", or any FF named explicitly | **Service Extraction** | `/harness:pipeline` → `/service-extraction` (multi-repo) |
+| "Logging", "monitoring", "observability" | **Infrastructure** | `/harness:pipeline` → `/harness:observability-setup` |
+| Multiple repos referenced, "API + frontend", cross-service | **Multi-Repo Feature** | `/harness:pipeline` (multi-repo mode) |
+| "New service" + FF named, "new repo" + FF named, scaffold-service request | **Service Scaffold** | `/harness:pipeline` → `/microservices-scaffold` (multi-repo) |
 | "New service" with no FF named | **Ambiguous — probe** | Intake runs the forcing-function decision tree below |
 
 ### Step 1b — Forcing-Function Decision Tree (always runs when Step 1 routes to Service Extraction / Scaffold — exits at step 1 if FF is explicit)
@@ -42,7 +42,7 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 2. **Project already multi-repo?**
    - Project CLAUDE.md has a `## Service Context` section → route to service.
    - No → continue.
-3. **Default**: route to `/module-extraction`. Log the decision to `pipeline-state/{task-id}/intake.md` with rationale: "No FF detected; no existing Service Context. Defaulting to module extraction."
+3. **Default**: route to `/harness:module-extraction`. Log the decision to `pipeline-state/{task-id}/intake.md` with rationale: "No FF detected; no existing Service Context. Defaulting to module extraction."
 
 **No user prompt.** Plan Validation challengers receive the routing rationale and can flip it if wrong.
 
@@ -138,7 +138,7 @@ Score each dimension 1-3 and sum. This is not optional — routing depends on th
 | 7-8 | Compound — plan first, then build | Small/Medium |
 | 9-10 | Compound — plan first, then build | Medium |
 | 11-12 | Multi-session — break into sub-tasks | Large |
-| 13-15 | **Must decompose** before starting — use `/epic-breakdown` | Epic |
+| 13-15 | **Must decompose** before starting — use `/harness:epic-breakdown` | Epic |
 
 **Output the score explicitly:**
 ```
@@ -151,7 +151,7 @@ Score each dimension 1-3 and sum. This is not optional — routing depends on th
 Before routing to a full pipeline, confirm the approach is validated:
 
 1. **Integration point**: "Where does this render / execute / integrate? Does it replace existing behavior, extend it, or live separately?"
-2. **Fidelity**: "Should I build a throwaway prototype first, or go straight to production code?" If prototype → route to `/tech-spike`
+2. **Fidelity**: "Should I build a throwaway prototype first, or go straight to production code?" If prototype → route to `/harness:tech-spike`
 3. **External data**: "Do I have the real data structure (API response, HTML, schema), or am I guessing?" If guessing → request it before building
 4. **Approach validation**: If multiple implementation approaches exist (e.g., injection vs component, server vs client, sync vs async), confirm the approach with the user before committing
 
@@ -233,11 +233,11 @@ Always print one of:
 [Intake] Criticality: standard
 ```
 
-Persist the flag to `pipeline-state/{task-id}/intake.md` frontmatter as `critical: true|false`. `/pipeline` reads this flag to decide whether the Build phase routes to `/best-of-n` or the standard `/build-implementation`.
+Persist the flag to `pipeline-state/{task-id}/intake.md` frontmatter as `critical: true|false`. `/harness:pipeline` reads this flag to decide whether the Build phase routes to `/harness:best-of-n` or the standard `/harness:build-implementation`.
 
 ### Step 2d-bis: Best-of-N + PDR-RTV Tags (MANDATORY)
 
-Derive two Build-phase dispatch flags. Both are persisted to `pipeline-state/{task-id}/intake.md` frontmatter and read by `/pipeline` Step 3 at Build dispatch time. Routing precedence is `pdr_rtv > bestofn > standard` per `protocols/pipeline-protocol.md` § Build Phase Dispatch Variants.
+Derive two Build-phase dispatch flags. Both are persisted to `pipeline-state/{task-id}/intake.md` frontmatter and read by `/harness:pipeline` Step 3 at Build dispatch time. Routing precedence is `pdr_rtv > bestofn > standard` per `protocols/pipeline-protocol.md` § Build Phase Dispatch Variants.
 
 **Tier gate (post-fingerprint)**: both `bestofn` and `pdr_rtv` only fire at **T6**. At T4/T5, force both flags to `false` regardless of derivation — heavy Build variants exist for critical/cross-cutting work, not for standard features or bug fixes. Spec `protocols/work-class-routing.md:193` is the source of truth.
 
@@ -253,7 +253,7 @@ Where `user_override` is true when the user's request contains the literal token
 Derive `pdr_rtv`:
 `pdr_rtv = budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-10} AND critical == true`
 
-The default trigger floor is `budget >= 10` AND `critical == true` (both clauses required), NOT `budget >= 9 OR critical` (the prior OR-clause empirically over-spent on non-critical mid-budget work). The `CLAUDE_PDR_RTV_BUDGET_FLOOR` env var (range 5–15) provides opt-in override for operators wanting an empirical lower-floor experiment, but the AND-clause still requires `critical == true` regardless of floor. Migration plan to relax the trigger (e.g. back to OR semantics, or floor below 10) is documented in `skills/pdr-rtv/SKILL.md` § Anti-Patterns: only after `/eval-model-effectiveness` confirms ≥5% Pass@1 lift on the harness regression suite at the relaxed trigger.
+The default trigger floor is `budget >= 10` AND `critical == true` (both clauses required), NOT `budget >= 9 OR critical` (the prior OR-clause empirically over-spent on non-critical mid-budget work). The `CLAUDE_PDR_RTV_BUDGET_FLOOR` env var (range 5–15) provides opt-in override for operators wanting an empirical lower-floor experiment, but the AND-clause still requires `critical == true` regardless of floor. Migration plan to relax the trigger (e.g. back to OR semantics, or floor below 10) is documented in `skills/pdr-rtv/SKILL.md` § Anti-Patterns: only after `/harness:eval-model-effectiveness` confirms ≥5% Pass@1 lift on the harness regression suite at the relaxed trigger.
 
 PDR-RTV is mutually exclusive with Best-of-N at dispatch time (when both fire, PDR-RTV wins as the strictly stronger variant). The cost is roughly 4-5× standard Build (vs Best-of-N's 2-3×) — justifying the tightened conjunctive trigger.
 
@@ -328,8 +328,8 @@ If `(none)`, this is the explicit justification for skipping Tier 0 — record i
 ### Step 3: Pre-flight Check
 
 Before invoking pipeline, verify and auto-fix:
-1. **CLAUDE.md** — if not present, check if the working directory is also empty (no `package.json`, `Gemfile`, `go.mod`, `pyproject.toml`, `Cargo.toml`, `pom.xml`, no `src/` or `app/` or `lib/` directory). If empty AND the request describes building something new → classify as **Greenfield** and route to `/greenfield-scaffold`. If not empty but just missing CLAUDE.md → invoke `/project-setup`. Do not ask.
-2. **In-progress pipeline** — check `pipeline-state/*-pipeline.md`. If found, automatically invoke `/pipeline-resume` instead of starting a new pipeline. Inform the user: "Found in-progress pipeline [name]. Resuming from [phase]."
+1. **CLAUDE.md** — if not present, check if the working directory is also empty (no `package.json`, `Gemfile`, `go.mod`, `pyproject.toml`, `Cargo.toml`, `pom.xml`, no `src/` or `app/` or `lib/` directory). If empty AND the request describes building something new → classify as **Greenfield** and route to `/harness:greenfield-scaffold`. If not empty but just missing CLAUDE.md → invoke `/harness:project-setup`. Do not ask.
+2. **In-progress pipeline** — check `pipeline-state/*-pipeline.md`. If found, automatically invoke `/harness:pipeline-resume` instead of starting a new pipeline. Inform the user: "Found in-progress pipeline [name]. Resuming from [phase]."
 3. **Feature branch** — if on `main`/`master` and the work is a feature, refactor, or bug fix: automatically create and switch to a feature branch. Branch name: `feat/[kebab-case-summary]`, `fix/[kebab-case-summary]`, or `refactor/[kebab-case-summary]`. Do not ask — just create it.
 4. **Working tree clean** — if uncommitted changes exist, warn the user before proceeding. Do not auto-commit — the user may have in-progress work.
 5. **Test runner worktree exclusion** — on first pipeline run in a project, check that the test runner config excludes `.claude/worktrees/`. If not configured, add the exclusion automatically (Jest: `testPathIgnorePatterns`, pytest: `testpaths`, rspec: `--exclude-pattern`).
@@ -351,13 +351,13 @@ Output the classification and route:
 
 The `[Intake] task_id:` line is read by `hooks/intake-fingerprint-audit.sh` (PostToolUse) to resolve the intake.md path for forensic emit. Single-source — NO mtime fallback. Emit exactly once per intake (the hook resolves the last occurrence defensively if duplicated).
 
-Then invoke `/pipeline` (or the appropriate skill for non-pipeline work).
+Then invoke `/harness:pipeline` (or the appropriate skill for non-pipeline work).
 
 ## Phase Output
 
 ```
 Verdict: ROUTED (informational — no gate)
-Next: /pipeline, /tech-spike, /epic-breakdown, or direct answer
+Next: /harness:pipeline, /harness:tech-spike, /harness:epic-breakdown, or direct answer
 Classification: [feature/refactor/bug/spike/epic/question/setup]
 Complexity: [small/medium/large]
 ```

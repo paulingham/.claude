@@ -14,7 +14,7 @@ Runs load tests against a deployed environment to verify performance under expec
 
 ## When to Invoke
 
-- After `/verify` completes, before `/qa-test-strategy` (optional performance gate)
+- After `/harness:verify` completes, before `/harness:qa-test-strategy` (optional performance gate)
 - Before production deployment of performance-critical changes
 - When establishing initial performance baselines for a new service
 - After significant architectural changes (new database queries, new caching layer)

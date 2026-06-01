@@ -2,7 +2,7 @@
 
 **Status:** PROPOSED (2026-05-24)
 **Owner:** orchestrator-derived recommendation from external research (community log audits)
-**Implementation track:** requires `/pipeline` run (touches `skills/cache-audit`, `statusline-command.sh`, `CLAUDE.md` capacity note)
+**Implementation track:** requires `/harness:pipeline` run (touches `skills/cache-audit`, `statusline-command.sh`, `CLAUDE.md` capacity note)
 
 ---
 
@@ -15,11 +15,11 @@ Two externally-sourced cost facts (2026-04/05) are not yet visible to the harnes
 2. **Opus 4.7 tokenizer inflation.** Opus 4.7 ships a new tokenizer that can emit **up to 35% more tokens for the same input** vs 4.6. The `$5/$25` headline is unchanged, but real tokens-per-request — i.e. **quota burn** — can rise 0–35%. The harness's `eval/baselines` "80% claim" cost basis and any capacity forecast predate this.
    - Source: finout.io / cloudzero.com Opus 4.7 pricing analyses (2026-04).
 
-The harness already records the raw signal: `hooks/cost-feed.sh` writes `cache_read_input_tokens` / `cache_creation_input_tokens` per spawn to `metrics/{session}/cache.jsonl`, and `/cache-audit` computes `read_ratio` against `READ_RATIO_TARGET = 0.65`. What's missing is a **regression-shaped alert**: a high `cache_creation : cache_read` ratio *on resumed or multi-subagent sessions* is the 5m-TTL fingerprint, and nothing surfaces it loudly.
+The harness already records the raw signal: `hooks/cost-feed.sh` writes `cache_read_input_tokens` / `cache_creation_input_tokens` per spawn to `metrics/{session}/cache.jsonl`, and `/harness:cache-audit` computes `read_ratio` against `READ_RATIO_TARGET = 0.65`. What's missing is a **regression-shaped alert**: a high `cache_creation : cache_read` ratio *on resumed or multi-subagent sessions* is the 5m-TTL fingerprint, and nothing surfaces it loudly.
 
 ## Proposed Change
 
-1. **Add a TTL-regression detector to `/cache-audit`.** Beyond the existing below-target read-ratio list, flag any session where `cache_creation_input_tokens / max(cache_read_input_tokens, 1) > REWRITE_RATIO_ALERT` (start at `0.5`, i.e. rewrites are >50% of reads) **and** the session spans ≥2 subagent dispatches or a >5-minute inter-turn gap. Emit a named verdict line in the report: *"Cache-rewrite bleed detected in N sessions — likely 5m-TTL exposure; see mitigations."*
+1. **Add a TTL-regression detector to `/harness:cache-audit`.** Beyond the existing below-target read-ratio list, flag any session where `cache_creation_input_tokens / max(cache_read_input_tokens, 1) > REWRITE_RATIO_ALERT` (start at `0.5`, i.e. rewrites are >50% of reads) **and** the session spans ≥2 subagent dispatches or a >5-minute inter-turn gap. Emit a named verdict line in the report: *"Cache-rewrite bleed detected in N sessions — likely 5m-TTL exposure; see mitigations."*
 2. **Surface a one-glyph cache-health indicator in `statusline-command.sh`** (it already renders session telemetry): green when read_ratio ≥ target, amber when the rewrite-ratio alert trips. Cheap, always-visible early warning.
 3. **Document mitigations** in `protocols/cost-discipline.md` (don't auto-apply any third-party proxy):
    - Keep the spawn preamble byte-stable (the May 8 subagent-summary cache fix already depends on this — call out the drift surfaces: agent frontmatter, session-memory sync, instinct ordering).
@@ -38,14 +38,14 @@ The harness already records the raw signal: `hooks/cost-feed.sh` writes `cache_r
 2. **`READ_RATIO_TARGET` single-source discipline is preserved** — the new `REWRITE_RATIO_ALERT` constant lives once in `skills/cache-audit/SKILL.md` § Step 1 alongside it, same staged-flip governance.
 3. **No third-party code is wired in.** The proxy is documented as an explicitly-unaudited option, not a default.
 
-## Implementation Checklist (for `/pipeline` run)
+## Implementation Checklist (for `/harness:pipeline` run)
 
 1. `skills/cache-audit/SKILL.md` — define `REWRITE_RATIO_ALERT = 0.5` next to `READ_RATIO_TARGET`; add a `## Cache-Rewrite Bleed` report section computing the per-session rewrite ratio + multi-subagent/gap heuristic; render the verdict sentence verbatim with the literal threshold.
 2. `skills/cache-audit/tests/` — add fixtures: one clean session (high read-ratio, low rewrite) and one 5m-TTL-shaped session (high rewrite, multi-subagent); assert the detector fires only on the latter.
 3. `statusline-command.sh` — add the amber/green cache-health glyph sourced from the most recent `cache.jsonl`; keep it cheap (no extra API calls).
 4. `protocols/cost-discipline.md` — add § Cache-TTL Mitigations (byte-stable preamble, longer turns, the unaudited-proxy note with warning).
 5. `CLAUDE.md` § Cost Discipline — one-line Opus 4.7 tokenizer-inflation capacity note + pointer to cost-discipline.md.
-6. Run `/cache-audit` on the last 30 days of `metrics/` post-merge; if the bleed detector fires, open an observation quantifying the exposure and decide on mitigation #3.
+6. Run `/harness:cache-audit` on the last 30 days of `metrics/` post-merge; if the bleed detector fires, open an observation quantifying the exposure and decide on mitigation #3.
 
 ## Counter-arguments considered
 
@@ -58,4 +58,4 @@ Remove the `## Cache-Rewrite Bleed` section and the statusline glyph; the underl
 
 ---
 
-**Linked PR for the spec rewrite track:** this proposal. Dispatch `/pipeline` with prompt: "Implement protocols/_proposals/2026-05-24-cache-burn-diagnostic.md exactly as specified. Budget: 5. Critical: false."
+**Linked PR for the spec rewrite track:** this proposal. Dispatch `/harness:pipeline` with prompt: "Implement protocols/_proposals/2026-05-24-cache-burn-diagnostic.md exactly as specified. Budget: 5. Critical: false."

@@ -266,7 +266,7 @@ Use framework tooling where available:
 
 ```
 Verdict: API_SCAFFOLDED
-Next: Implement business logic in service layer, then /build-implementation for TDD
+Next: Implement business logic in service layer, then /harness:build-implementation for TDD
 Artifacts: [route definitions, controllers, validation schemas, error handlers, OpenAPI spec, rate limit config]
 ```
 $ARGUMENTS

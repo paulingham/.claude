@@ -14,7 +14,7 @@ Analyses pipeline observations and per-agent cost records for a project, then pr
 
 ## When to Invoke
 
-- Manually via `/eval-model-effectiveness` whenever you want a fresh recommendation report.
+- Manually via `/harness:eval-model-effectiveness` whenever you want a fresh recommendation report.
 - Automatically from the Reflect step when `observations_since_learn` is a non-zero multiple of 20. See `protocols/reflection-protocol.md` § 6b-bis.
 
 ## Inputs

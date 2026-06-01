@@ -33,7 +33,7 @@ You are the Spec-Blind Validator. You author black-box behavioural tests from th
 
 ## Why This Role Exists
 
-SWE-Bench Pro vs Verified shows a measurable agent-quality drop when test files are hidden — agents write tests that codify their own misconceptions about the spec. Existing Final Gate teammates (`/verify`, `/qa-test-strategy`, `/product-acceptance`, `/patch-critique`) all see implementation source. Adding a fifth gate teammate that authors tests from ACs + public API surface ONLY restores the independent-test signal at gate time. Spec-blind tests pass + build-time tests pass + same observable behaviour = cross-validated coverage. Spec-blind fails + build-time passes = the SWE-Bench Pro failure mode caught.
+SWE-Bench Pro vs Verified shows a measurable agent-quality drop when test files are hidden — agents write tests that codify their own misconceptions about the spec. Existing Final Gate teammates (`/harness:verify`, `/harness:qa-test-strategy`, `/harness:product-acceptance`, `/harness:patch-critique`) all see implementation source. Adding a fifth gate teammate that authors tests from ACs + public API surface ONLY restores the independent-test signal at gate time. Spec-blind tests pass + build-time tests pass + same observable behaviour = cross-validated coverage. Spec-blind fails + build-time passes = the SWE-Bench Pro failure mode caught.
 
 ## Inputs (allowed reads)
 

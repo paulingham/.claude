@@ -10,7 +10,7 @@ dispatch: team
 
 ## When to Invoke
 
-Routed by `/pipeline` only when `/intake` set `bestofn: true` (`critical OR [best-of-n]` user override). Never user-facing; never invoked directly. Standard Build dispatches are the default — this is a Build dispatch *mode*, not a substitute for Review or Final Gate.
+Routed by `/harness:pipeline` only when `/harness:intake` set `bestofn: true` (`critical OR [best-of-n]` user override). Never user-facing; never invoked directly. Standard Build dispatches are the default — this is a Build dispatch *mode*, not a substitute for Review or Final Gate.
 
 ## Inputs
 
@@ -25,14 +25,14 @@ See `~/.claude/orchestrator/parallel-dispatch-details.md` § Best-of-N Build Tea
 ## Output
 
 - Pipeline state: `pipeline-state/{task-id}/best-of-n.md` (frontmatter `verdict`, sections: Candidates Run, Winner SHA, Per-Candidate Scores, Selection Rationale, Total Cost USD via `cost_estimator`, Cluster Sizes — `N/A` until FMV is wired).
-- Scratchpad: `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` (`category: decision`) — always carries the verbatim Selection Rationale; additionally carries a divergence record with diff-stat + Jaccard when the top two candidates clear the Step 5 tie-breaker boundary AND have changed-files Jaccard < 0.5 (mining path: `observations.jsonl` → `/learn` Step 3d, never direct scratchpad → anti-pattern). Tie-breaker source + spec: see orchestrator details § Best-of-N Step 5.
+- Scratchpad: `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` (`category: decision`) — always carries the verbatim Selection Rationale; additionally carries a divergence record with diff-stat + Jaccard when the top two candidates clear the Step 5 tie-breaker boundary AND have changed-files Jaccard < 0.5 (mining path: `observations.jsonl` → `/harness:learn` Step 3d, never direct scratchpad → anti-pattern). Tie-breaker source + spec: see orchestrator details § Best-of-N Step 5.
 - Winner branch merged into the pipeline working branch; loser worktrees + branches removed.
 
 ## Verdict
 
 | Verdict | Meaning | Downstream |
 |---------|---------|------------|
-| `BoN_WINNER_SELECTED` | ≥2 candidates produced green builds; reviewer picked one. | Winner proceeds to `/code-review` + `/security-review` (standard Review). |
+| `BoN_WINNER_SELECTED` | ≥2 candidates produced green builds; reviewer picked one. | Winner proceeds to `/harness:code-review` + `/harness:security-review` (standard Review). |
 | `BoN_FALLBACK_TO_SINGLE` | <2 valid candidates after validation/runs (e.g. external `required_env` unset, all but one failed own tests). Fallback is silent and logged in `## Re-routes`. | Single-candidate Build dispatch on the same slice. |
 | `BoN_INSUFFICIENT_RESOURCES` | Pre-flight worktree-capacity check exceeded the cap. | Halt this dispatch; pipeline escalates to user (or falls back to single-engineer if policy permits). |
 

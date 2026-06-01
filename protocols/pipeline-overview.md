@@ -8,7 +8,7 @@ The orchestrator (Claude) coordinates work. It never writes code, reads source f
 
 **Flow (parallel-subagents default):**
 ```
-User → /intake (classify + score) → /pipeline (drive phases)
+User → /harness:intake (classify + score) → /harness:pipeline (drive phases)
   → Sequential subagent phases (Plan, single-slice Build, Ship, Deploy):
     → Skill tool or Agent tool → agent works → returns verdict
   → Parallelizable phases (multi-slice Build, Review, Final Gate):
@@ -16,7 +16,7 @@ User → /intake (classify + score) → /pipeline (drive phases)
     → Each agent reads its skill file, works, returns verdict
     → Orchestrator collects all verdicts before advancing
 
-  Visible mode (opt-in: CLAUDE_VISIBLE_TEAMS=1 or /pipeline --visible):
+  Visible mode (opt-in: CLAUDE_VISIBLE_TEAMS=1 or /harness:pipeline --visible):
     → TeamCreate("pipeline-{task-id}") + spawn teammates into team
     → Tmux panes show parallel work in real time
     → Teammates shut down after phase
@@ -47,7 +47,7 @@ User → /intake (classify + score) → /pipeline (drive phases)
 - `protocols/agent-protocol.md` — Worktree isolation, commit protocol, scratchpad, agent memory, fix-receiving rules, dynamic agents, resource bounds, per-agent tool scoping
 - `protocols/pipeline-protocol.md` — Pipeline phases, review loop with in-cycle fix detail, environment-dependent debugging loop, enforcement
 - `protocols/engineering-invariants.md` — Engineering baseline: shape decomposition rules, naming, SOLID, error handling, dependency resolution, testing standards, security baseline
-- `protocols/atdd-procedure.md` — Full ATDD cycle, mutation gate, per-behaviour TDD exceptions (loaded by `/build-implementation` and `/bug-fix`)
+- `protocols/atdd-procedure.md` — Full ATDD cycle, mutation gate, per-behaviour TDD exceptions (loaded by `/harness:build-implementation` and `/harness:bug-fix`)
 - `protocols/operational-protocol.md` — Complexity Budget, error recovery principles, escalation decision tree
 - `protocols/parallel-dispatch-protocol.md` — Hybrid dispatch: teams for Build/Review/Final Gate, subagents for Plan/Ship/Deploy, Best-of-N team variant
 - `protocols/module-boundaries-protocol.md` — Modular monolith default, canonical forcing-function list (FF1–FF5)

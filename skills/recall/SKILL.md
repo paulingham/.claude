@@ -4,7 +4,7 @@ description: Progressive-disclosure read-only query API over memory.sqlite (obse
 argument-hint: "[search <query> | timeline] [--source observations|scratchpad|both] [--limit N] [--db PATH]"
 ---
 
-# /recall — Progressive Disclosure Over memory.sqlite
+# /harness:recall — Progressive Disclosure Over memory.sqlite
 
 Three query tiers tune token cost to caller need. Read-only, stdlib only.
 

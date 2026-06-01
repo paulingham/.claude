@@ -158,7 +158,7 @@ Persona 2 (PM Who Shipped a Feature That Flopped) must be answered substantively
 #### visual_regression machine pre-check (frontend-touching changes)
 
 Before scoring UX heuristics, run a machine pre-check against the
-visual-regression artifacts produced by `/design-qc` + `vlm-critic`:
+visual-regression artifacts produced by `/harness:design-qc` + `vlm-critic`:
 
 1. Read `pipeline-state/{task-id}/design-qc/index.json`.
 2. If the change is frontend-touching (any `.tsx`, `.jsx`, `.ts`, `.js`,

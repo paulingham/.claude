@@ -96,7 +96,7 @@ After the final check passes, produce:
 
 ```
 Verdict: REFACTOR_COMPLETE / REFACTOR_FAILED
-Next: /code-review + /security-review (parallel, single message)
+Next: /harness:code-review + /harness:security-review (parallel, single message)
 Artifacts: [list of changed/created files]
 Agent summaries: [engineer's 2-3 sentence contribution summary]
 ```

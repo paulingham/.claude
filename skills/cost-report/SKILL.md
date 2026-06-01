@@ -13,8 +13,8 @@ argument-hint: "Optional: --since YYYY-MM-DD or --out <path>"
 
 - **Operator request**: "show me what the harness cost this month", "which agents are burning the most tokens", "cost-per-PR by project".
 - **Periodic check**: scheduled via `/loop` (e.g. weekly) so spend trends are visible without manual prompting.
-- **Adjacent to `/eval-model-effectiveness`**: that skill compares model success rates per role; this skill grounds those comparisons in dollars.
-- **Do NOT use when**: a single pipeline's cost is the question — that lives on the per-pipeline observation record (`cost_estimate_usd`, written by `/learn` per B12.2).
+- **Adjacent to `/harness:eval-model-effectiveness`**: that skill compares model success rates per role; this skill grounds those comparisons in dollars.
+- **Do NOT use when**: a single pipeline's cost is the question — that lives on the per-pipeline observation record (`cost_estimate_usd`, written by `/harness:learn` per B12.2).
 
 ## Inputs
 
@@ -183,7 +183,7 @@ Range: last 30 days. Files scanned: 47. Records processed: 12,394.
 
 ```
 Verdict: COST_REPORT_READY
-Next: human reviews; optional follow-up to /eval-model-effectiveness for
+Next: human reviews; optional follow-up to /harness:eval-model-effectiveness for
       cost-grounded routing recommendations
 Artifacts: ~/.claude/metrics/reports/{YYYY-MM-DD}-cost.md
 ```

@@ -102,7 +102,7 @@ Validate every tool declared in agent frontmatter against a known catalog (Claud
 - `([^_-]+(?:-[^_-]+)*)` captures the server slug; allows internal hyphens (e.g. `gh-cache`) but not underscores (the `__` is the separator)
 - `__.+$` requires the second `__` and a non-empty tool name
 
-**Fast-lib note**: `_haf_check_agents_frontmatter()` in `hooks/_lib/harness-audit-fast.sh` performs a lightweight frontmatter-presence check that the SessionStart `harness-audit-advisory.sh` hook reuses. This Step 3b provides the full catalog-validation procedure for the complete `/harness-audit` run.
+**Fast-lib note**: `_haf_check_agents_frontmatter()` in `hooks/_lib/harness-audit-fast.sh` performs a lightweight frontmatter-presence check that the SessionStart `harness-audit-advisory.sh` hook reuses. This Step 3b provides the full catalog-validation procedure for the complete `/harness:harness-audit` run.
 
 Verdict for this step: `TOOLS_VALID` if every tool resolves; otherwise list every flagged `(agent, tool, reason)` tuple.
 
@@ -193,16 +193,16 @@ Date: [timestamp]
 - ⚠️ orphan-hook.sh — file exists but not registered in settings.json
 
 ### Skills (N/N passing)
-- ✅ /pipeline — SKILL.md found
+- ✅ /harness:pipeline — SKILL.md found
 - ❌ /missing-skill — SKILL.md not found
 
 ### Skill Structure (N/N matching template)
-- ✅ /verify — frontmatter + required sections present
+- ✅ /harness:verify — frontmatter + required sections present
 - ⚠️ /old-skill — missing `verdict` frontmatter field, missing `## When to Invoke` heading
 - ⚠️ /another-skill — no `tests/` directory
 
 ### Verdict Catalog (N/N consistent both directions)
-- ✅ /code-review — emits APPROVE/CHANGES_REQUESTED, both in catalog
+- ✅ /harness:code-review — emits APPROVE/CHANGES_REQUESTED, both in catalog
 - ⚠️ /custom-skill — emits CUSTOM_VERDICT, not in `rules/verdict-catalog.md`
 - ⚠️ catalog row `LEGACY_VERDICT` has no emitter (dead entry)
 - ⚠️ catalog row `BUILD_COMPLETE` has invalid polarity `done` (must be success/failure/info)
@@ -241,7 +241,7 @@ Date: [timestamp]
 
 ```
 Verdict: HEALTHY / WARNINGS / CRITICAL
-Next: Fix flagged issues, re-run /harness-audit to confirm
+Next: Fix flagged issues, re-run /harness:harness-audit to confirm
 Artifacts: [health report with itemised findings]
 ```
 $ARGUMENTS

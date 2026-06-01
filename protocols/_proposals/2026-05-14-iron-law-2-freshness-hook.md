@@ -2,7 +2,7 @@
 
 **Status:** PROPOSED (2026-05-14)
 **Owner:** orchestrator-derived recommendation from production-readiness audit
-**Implementation track:** requires `/pipeline` run (touches a new hook, state-file schema, and 3 skill input contracts)
+**Implementation track:** requires `/harness:pipeline` run (touches a new hook, state-file schema, and 3 skill input contracts)
 
 ---
 
@@ -46,11 +46,11 @@ A new PreToolUse hook `hooks/verification-freshness-guard.sh` that runs on Agent
 }
 ```
 
-The state file is written by the `/verify` skill at the end of each tier and re-written on every re-run. It is read by the freshness guard before any spawn that depends on test evidence.
+The state file is written by the `/harness:verify` skill at the end of each tier and re-written on every re-run. It is read by the freshness guard before any spawn that depends on test evidence.
 
 ### Freshness rules
 
-1. **`git_head` mismatch**: `verification-evidence.git_head` does not equal current worktree HEAD → `would_block` with `reason: git_head_mismatch`, `staleness_class: hard`. This catches the case where a fix-engineer re-dispatch (the In-Cycle Fix loop hot path) advanced HEAD after `/verify`.
+1. **`git_head` mismatch**: `verification-evidence.git_head` does not equal current worktree HEAD → `would_block` with `reason: git_head_mismatch`, `staleness_class: hard`. This catches the case where a fix-engineer re-dispatch (the In-Cycle Fix loop hot path) advanced HEAD after `/harness:verify`.
 2. **Missing state file**: no `verification-evidence.json` exists → `would_block` with `reason: state_file_missing`.
 3. **Hard staleness (TTL)**: `generated_at` is older than `HARD_TTL_SEC` (default 86400 / 24h) → `would_block` with `reason: hard_staleness`. Soft staleness (`advisory_warn`) is deferred to a follow-up — see § Out of Scope.
 4. **Sandbox staleness**: `sandbox_run.status` is not `SANDBOX_VERIFIED` → `would_block` with `reason: sandbox_staleness`. Sandbox check runs BEFORE `git_head` check; first-failure wins.
@@ -67,12 +67,12 @@ Emit format (matches other Path-B hooks; written via `hooks/_lib/log-injection.s
 {"timestamp":"2026-05-14T12:35:00Z","source":"path-b-advisory","agent_role":"patch-critic","resolved":{"action":"would_block","reason":"git_head_mismatch","state_file_head":"9a1b2c3d","worktree_head":"deadbeef","task_id":"iron-law-2-freshness-hook","tier_results_summary":"VERIFIED","staleness_class":"hard"}}
 ```
 
-Logged to `metrics/{session}/freshness-guard.jsonl`. `/forensics` consumes the file.
+Logged to `metrics/{session}/freshness-guard.jsonl`. `/harness:forensics` consumes the file.
 
 ## Integration Points
 
 1. **`skills/verify/SKILL.md`** — add Step 6: "Write `pipeline-state/{task-id}/verification-evidence.json` with the schema above using `os.replace` atomic rename. Resolve the write target via `_psp_verification_evidence_path` relative to `$CLAUDE_REPO_ROOT` (not cwd)."
-2. **`skills/patch-critique/SKILL.md`** — append one row to the `## Inputs` table: `Verification evidence | pipeline-state/{task-id}/verification-evidence.json written by /verify Step 6`. Existing missing-input semantics inherit (returns `PATCH_REJECTED` with `reason: missing input: {name}`).
+2. **`skills/patch-critique/SKILL.md`** — append one row to the `## Inputs` table: `Verification evidence | pipeline-state/{task-id}/verification-evidence.json written by /harness:verify Step 6`. Existing missing-input semantics inherit (returns `PATCH_REJECTED` with `reason: missing input: {name}`).
 3. **`skills/pr-creation/SKILL.md` quality-gate check** — `_qg_check_freshness` is added to `hooks/_lib/quality-gate-checks.sh` and `freshness` is added to the `for check in tests lint audit shape contract` loop in `hooks/quality-gate.sh:31`. Synchronous blocking gate on `gh pr create`.
 4. **`agents/patch-critic.md`** — its Operating Discipline already states "Stale results from earlier in the session are not evidence" (line 34). APPEND a sentence after the trailing parenthetical pointing at the hook: ` Enforcement: hooks/verification-freshness-guard.sh (log-only at v2.1.141; blocks once permissionDecision ships on Agent matcher).` (S5 — append-only edit, not a replacement of the broader paragraph).
 5. **`hooks/_lib/pipeline-state-paths.sh`** — add `_psp_verification_evidence_path "$task" "$ws"` helper, follows the existing `_psp_*` convention (corrects the proposal's earlier `_state_verification_evidence_path` / `state_paths.sh` reference — see intake discrepancy #2).
@@ -83,14 +83,14 @@ Logged to `metrics/{session}/freshness-guard.jsonl`. `/forensics` consumes the f
 - **Worktree HEAD vs. main HEAD**: the agent worktree always runs ahead of `main`. The hook reads from `$CLAUDE_WORKTREE_PATH` first (orchestrator-supplied), `tool_input.cwd` second, skip-clean third. State file is per-task-id, not per-worktree.
 - **No changes since last test run**: PASS — `git_head` matches → fresh.
 - **CI pre-merge re-run**: orthogonal to this hook. CI runs are separate from local pipeline verification evidence; the PR-creation gate already integrates CI status separately.
-- **`isolation: "worktree"` race**: state file is task-id-scoped, not slice-scoped. `/verify` writes via `os.replace` for atomic rename.
-- **`fix-engineer` re-dispatch in code-review loop**: every fix-engineer Edit invalidates the state file's `git_head`. The hook will log `would_block` (v2.1.141) / block (post-promotion) on the next patch-critic dispatch until `/verify` re-runs. This is the intended behaviour — fix-engineer rounds are the most common source of stale-evidence completion claims.
+- **`isolation: "worktree"` race**: state file is task-id-scoped, not slice-scoped. `/harness:verify` writes via `os.replace` for atomic rename.
+- **`fix-engineer` re-dispatch in code-review loop**: every fix-engineer Edit invalidates the state file's `git_head`. The hook will log `would_block` (v2.1.141) / block (post-promotion) on the next patch-critic dispatch until `/harness:verify` re-runs. This is the intended behaviour — fix-engineer rounds are the most common source of stale-evidence completion claims.
 
 ## Cost
 
 - Hook execution time: < 50ms (single file read + `timeout 2 git rev-parse HEAD`). Negligible against subagent spawn cost.
-- New state file write per `/verify` run: < 1KB. Negligible.
-- Failure recovery: if `/verify` must re-run because the freshness guard blocked patch-critic, the cost is one extra `/verify` spawn (~10–15% of a pipeline's total cost). This is **a feature, not a bug**: the alternative is shipping code that doesn't work and re-doing the entire pipeline.
+- New state file write per `/harness:verify` run: < 1KB. Negligible.
+- Failure recovery: if `/harness:verify` must re-run because the freshness guard blocked patch-critic, the cost is one extra `/harness:verify` spawn (~10–15% of a pipeline's total cost). This is **a feature, not a bug**: the alternative is shipping code that doesn't work and re-doing the entire pipeline.
 
 ## Implementation Checklist
 
@@ -106,7 +106,7 @@ Logged to `metrics/{session}/freshness-guard.jsonl`. `/forensics` consumes the f
 10. **`tests/test_freshness_guard.py`** (new) — ≥17 unit tests covering the spec scenarios.
 11. **`tests/test_settings_registers_freshness_hook.py`** (new) and update of `tests/test_settings_registers_instinct_hook.py` EXPECTED_ORDER (10 entries).
 12. **`rules/core.md` Iron Law 2** — append parenthetical naming hook at v2.1.141.
-13. **`/forensics`** — add a check for `freshness-guard.jsonl` records with `action="would_block"` and `source="path-b-advisory"`. These are the cases where a pipeline almost-shipped on stale evidence and the team needs to see them.
+13. **`/harness:forensics`** — add a check for `freshness-guard.jsonl` records with `action="would_block"` and `source="path-b-advisory"`. These are the cases where a pipeline almost-shipped on stale evidence and the team needs to see them.
 
 ## Counter-arguments considered
 
@@ -134,15 +134,15 @@ Promotion PR is a single-file change to `hooks/verification-freshness-guard.sh` 
 | reason | stderr_post_promotion | forensics_label | recovery_action |
 |---|---|---|---|
 | `fresh` | (no stderr — PASS path) | Fresh | (no action) |
-| `state_file_missing` | `[freshness] no verification-evidence; run /verify` | Missing evidence | Re-run `/verify` |
-| `git_head_mismatch` | `[freshness] state=X worktree=Y; HEAD moved since /verify` | HEAD moved post-/verify | Re-run `/verify` |
-| `hard_staleness` | `[freshness] evidence is older than 24h; re-verify` | Evidence stale | Re-run `/verify` |
+| `state_file_missing` | `[freshness] no verification-evidence; run /harness:verify` | Missing evidence | Re-run `/harness:verify` |
+| `git_head_mismatch` | `[freshness] state=X worktree=Y; HEAD moved since /harness:verify` | HEAD moved post-/verify | Re-run `/harness:verify` |
+| `hard_staleness` | `[freshness] evidence is older than 24h; re-verify` | Evidence stale | Re-run `/harness:verify` |
 | `no_worktree_resolvable` | `[freshness] cannot resolve worktree; set $CLAUDE_WORKTREE_PATH on dispatch` | Worktree unresolvable | Verify `$CLAUDE_WORKTREE_PATH` is set on the spawning Agent call; grep recent dispatch logs at `metrics/{session}/`. See `orchestrator/agent-orchestration.md § Worktree Env Propagation` for the contract. |
-| `sandbox_staleness` | `[freshness] sandbox verdict missing or pre-empted; re-run sandbox-verify` | Sandbox stale | Re-run `/sandbox-verify` |
-| `state_file_parse_error` | `[freshness] evidence file unparseable; re-verify` | Parse error | Re-run `/verify` |
+| `sandbox_staleness` | `[freshness] sandbox verdict missing or pre-empted; re-run sandbox-verify` | Sandbox stale | Re-run `/harness:sandbox-verify` |
+| `state_file_parse_error` | `[freshness] evidence file unparseable; re-verify` | Parse error | Re-run `/harness:verify` |
 | `git_timeout` | `[freshness] git rev-parse hung; investigate worktree state` | git timeout | Inspect worktree `.git/index.lock` |
 | `invalid_task_id` | `[freshness] CLAUDE_PIPELINE_TASK_ID failed [a-z0-9_-]+ validation` | Invalid task_id | Inspect orchestrator dispatch — task_id must match `^[a-z0-9_-]+$` |
-| `verdict_not_verified` | `[freshness] verdict=$verdict; re-verify` | Verdict not VERIFIED | Re-run `/verify` with `--force` if a prior tier failed; if state file was manually edited, restore from `/verify` re-run |
+| `verdict_not_verified` | `[freshness] verdict=$verdict; re-verify` | Verdict not VERIFIED | Re-run `/harness:verify` with `--force` if a prior tier failed; if state file was manually edited, restore from `/harness:verify` re-run |
 
 ## Out of Scope
 
@@ -150,9 +150,9 @@ Promotion PR is a single-file change to `hooks/verification-freshness-guard.sh` 
 2. Soft staleness / `advisory_warn` — deferred follow-up after orchestrator-env-propagation soak.
 3. BFF / multi-channel propagation of `verification-evidence.json`.
 4. Cross-pipeline freshness check.
-5. Auto-re-run `/verify` on staleness from orchestrator — state-machine concern, separate PR.
+5. Auto-re-run `/harness:verify` on staleness from orchestrator — state-machine concern, separate PR.
 6. GUI dashboard for `freshness-guard.jsonl`.
-7. Modifying `/verify`'s tier-execution logic — only adds Step 6.
+7. Modifying `/harness:verify`'s tier-execution logic — only adds Step 6.
 8. Behavioural test asserting every orchestrator dispatch site sets `$CLAUDE_WORKTREE_PATH` — covered by forensics review during promotion-window soak; promotion criterion clause (a) is the load-bearing check.
 
 ---

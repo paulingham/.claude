@@ -34,7 +34,7 @@ Agent({
 
     1. Map each AC to existing test(s) that verify it
     2. Identify gaps: ACs without tests, missing error paths, untested edge cases
-    3. Write integration tests for gaps (including frozen PBT counterexamples promoted to unit tests by `/property-based-test` at Build Step 1d)
+    3. Write integration tests for gaps (including frozen PBT counterexamples promoted to unit tests by `/harness:property-based-test` at Build Step 1d)
     4. Write E2E test flows for critical user paths
     5. Verify 80% coverage on critical paths
 
@@ -53,13 +53,13 @@ Uses `isolation: "worktree"` — qa-engineer writes test files.
 
 ### Property-Based Coverage Verification (Final-Gate role)
 
-PBT authoring is performed earlier in the pipeline by `/property-based-test` at Build Step 1d (see `skills/property-based-test/SKILL.md`). At Final Gate, qa-engineer's responsibility is **verification only**:
+PBT authoring is performed earlier in the pipeline by `/harness:property-based-test` at Build Step 1d (see `skills/property-based-test/SKILL.md`). At Final Gate, qa-engineer's responsibility is **verification only**:
 
 - Confirm ≥1 property exists per public function on changed lines, OR a documented justification why a property is impossible (per the QA Checklist below).
 - Confirm any frozen counterexamples joined the deterministic unit-test tier with harness-native syntax (`@example` / seeded `fc.assert`).
 - Report the matrix in the `### Property-Based Coverage Report` section of the Test Coverage Report Format.
 
-If the matrix is incomplete, return GAPS_FOUND and dispatch fix-engineer (per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule). qa-engineer does NOT author PBTs at this gate — re-running `/property-based-test` is the in-cycle fix path.
+If the matrix is incomplete, return GAPS_FOUND and dispatch fix-engineer (per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule). qa-engineer does NOT author PBTs at this gate — re-running `/harness:property-based-test` is the in-cycle fix path.
 
 ### 3. Process Report
 
@@ -125,13 +125,13 @@ If the matrix is incomplete, return GAPS_FOUND and dispatch fix-engineer (per `p
 
 ## Prerequisite
 
-- Verify phase complete: `/verify` returned VERIFIED
+- Verify phase complete: `/harness:verify` returned VERIFIED
 
 ## Phase Output
 
 ```
 Verdict: COVERED / GAPS_FOUND
-Next: If COVERED → /product-acceptance
+Next: If COVERED → /harness:product-acceptance
       If GAPS_FOUND → QA writes missing tests in worktree, re-verify coverage, then re-run this skill
 Coverage: [percentage on critical paths]
 Agent summaries: [qa-engineer's 2-3 sentence summary]

@@ -63,7 +63,7 @@ Inserted between Tier 0 contract assertions (Step 1c) and Step 2 batched RED. Au
 
 Procedure:
 
-1. Invoke `/property-based-test` (see `skills/property-based-test/SKILL.md`). The skill spawns `pbt-engineer` in your worktree (worktree-reuse, mirrors `fix-engineer`).
+1. Invoke `/harness:property-based-test` (see `skills/property-based-test/SKILL.md`). The skill spawns `pbt-engineer` in your worktree (worktree-reuse, mirrors `fix-engineer`).
 2. The engineer identifies candidate functions from `git diff --name-only` (public, typed signature, on changed lines), picks the harness from the language → framework table, generates ≥1 property per candidate from one of `{idempotence, inverse, oracle, metamorphic}`, time-boxes 60s/function, and freezes any counterexamples inline using harness-native syntax (`@example`, seeded `fc.assert`, frozen `?FORALL`).
 3. Read the verdict and act accordingly:
    - **`PBT_AUTHORED`** — ≥1 property authored. Proceed to Step 2.
@@ -239,7 +239,7 @@ If any hard rule is violated, refactor BEFORE moving to the next test case.
 
 ### Step 3b: Optional Tool Synthesis Escalation
 
-If the standard toolset (Read, Grep, Glob, Bash one-liners, project-shipped scripts) is insufficient and a one-shot scratch tool would unblock progress, invoke `/tool-synthesis`. Triggers (any one):
+If the standard toolset (Read, Grep, Glob, Bash one-liners, project-shipped scripts) is insufficient and a one-shot scratch tool would unblock progress, invoke `/harness:tool-synthesis`. Triggers (any one):
 
 - The same lookup/transformation has been performed manually **3+ times** in this task
 - No extant tool covers the operation cleanly (no `rg` pattern, no `ast-grep` rule, no project script)
@@ -262,7 +262,7 @@ Before declaring the build complete:
 - [ ] Step 2b ran with the correct cap for the slice's task class (greenfield: default-on, cap=5; refactor: opt-in via `CLAUDE_ADVERSARIAL_TESTS_REFACTOR=1`, cap=3), OR was skipped per `CLAUDE_ADVERSARIAL_TESTS=0` (master kill-switch), OR is N/A for a bug-fix slice
 - [ ] Step 1d ran (PBT_AUTHORED or PBT_SKIPPED), OR was skipped per `CLAUDE_PBT=0`
 - [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `protocols/e2e-protocol.md` trigger matrix)
-- [ ] If `/tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries
+- [ ] If `/harness:tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries
 - [ ] Patches for edits-to-existing-files apply cleanly via `git apply --check`.
 
 ## Worktree Isolation
@@ -295,9 +295,9 @@ Agent({
 
 ## Prerequisite
 
-- Plan phase complete: story/AC defined (from `/epic-breakdown` or `/story-writing`)
-- OR: refactoring target identified (use `/refactor` instead)
-- OR: bug reproduction steps known (use `/bug-fix` instead)
+- Plan phase complete: story/AC defined (from `/harness:epic-breakdown` or `/harness:story-writing`)
+- OR: refactoring target identified (use `/harness:refactor` instead)
+- OR: bug reproduction steps known (use `/harness:bug-fix` instead)
 
 ## Self-Review Gate (Mandatory Before Completion)
 
@@ -328,7 +328,7 @@ This reduces the need for separate Verify and QA phases on small tasks. For Budg
 
 ### Step 4a: On-RED Branch
 
-After running the suite at the end of Step 2 step (2) IMPLEMENT CLEANLY — or any subsequent same-suite invocation in this slice — if GREEN proceed to Step 5. If RED, enter the iterative-refinement loop (Step 4b). The loop is the Build phase's in-cycle fix mechanism (Iron Law 6); `/bug-fix` is invoked only on exhaustion (Step 4c). Mutation-gate failure at Step 2 step (3) is NOT the trigger for this loop — it has its own remediation (add tests, return to Step 2).
+After running the suite at the end of Step 2 step (2) IMPLEMENT CLEANLY — or any subsequent same-suite invocation in this slice — if GREEN proceed to Step 5. If RED, enter the iterative-refinement loop (Step 4b). The loop is the Build phase's in-cycle fix mechanism (Iron Law 6); `/harness:bug-fix` is invoked only on exhaustion (Step 4c). Mutation-gate failure at Step 2 step (3) is NOT the trigger for this loop — it has its own remediation (add tests, return to Step 2).
 
 ### Step 4b: Iterative Refinement on RED (ReVeal, arXiv 2506.11442)
 
@@ -345,7 +345,7 @@ After running the suite at the end of Step 2 step (2) IMPLEMENT CLEANLY — or a
 
 Each iteration appends exactly one `test-failure-feedback` finding; the count IS the counter. Inspired by ReVeal's iterative test-feedback refinement (arXiv 2506.11442).
 
-### Step 4c: Exhaustion — Route to /bug-fix
+### Step 4c: Exhaustion — Route to /harness:bug-fix
 
 ```
 MAX_ITER="${CLAUDE_BUILD_ITERATIONS:-3}"
@@ -365,31 +365,31 @@ When the iteration counter reaches `MAX_ITER` (cap exceeded):
 2. Emit verdict `BUILD_FAILED` with
    - `reason: iteration_cap_exhausted`
    - `handoff: pipeline-state/{task-id}/build-handoff.md`
-   The orchestrator detects this verdict + reason and dispatches `/bug-fix` per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule. The build agent does NOT invoke `/bug-fix` directly (Skill is in the build agent's disallowedTools).
+   The orchestrator detects this verdict + reason and dispatches `/harness:bug-fix` per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule. The build agent does NOT invoke `/harness:bug-fix` directly (Skill is in the build agent's disallowedTools).
 3. Escape-hatch: `CLAUDE_BUILD_ITERATIONS=0` SKIPS the loop entirely — first RED at Step 4a writes the handoff (single entry: current failure) and emits `BUILD_FAILED reason: iteration_loop_disabled`.
 
-The exhaustion path is NOT deferral — `/bug-fix` runs within the same pipeline per Iron Law 6.
+The exhaustion path is NOT deferral — `/harness:bug-fix` runs within the same pipeline per Iron Law 6.
 
 ## Step 5: Inline Code Review (mandatory before BUILD_COMPLETE)
 
-After the self-review checklist passes, the build agent (or orchestrator on its behalf) dispatches `/code-review` inline. Code-review is no longer a separate phase boundary — it runs as the final step of Build because the value-add is "second model with different priors", not a phase gate.
+After the self-review checklist passes, the build agent (or orchestrator on its behalf) dispatches `/harness:code-review` inline. Code-review is no longer a separate phase boundary — it runs as the final step of Build because the value-add is "second model with different priors", not a phase gate.
 
 Procedure:
 1. Dispatch `code-reviewer` agent (read-only, no worktree) per `skills/code-review/SKILL.md`.
 2. If APPROVE → emit `BUILD_COMPLETE`.
 3. If CHANGES_REQUESTED → spawn `fix-engineer` on the same worktree, re-run the suite, re-dispatch `code-reviewer` with the original finding + fix diff. Max 2 rounds total at the current model tier. On the 3rd CHANGES_REQUESTED (round_idx==3): if fix-engineer was running at Opus (budget>=7), Round 3: downgrade to Sonnet for one final attempt; if already at Sonnet (or the Sonnet downgrade round also returns CHANGES_REQUESTED), escalate to user. Log the downgrade event to `pipeline-state/{task-id}/scratchpad/fix-engineer-downgrade.md` (category: decision) AND call `hooks/_lib/fix_engineer_retry_log.py::emit_retry_record` to append a JSONL line to `metrics/{session}/fix-engineer-retry.jsonl`.
 
-Security review is a separate phase that runs after `BUILD_COMPLETE` — do NOT dispatch `/security-review` from inside Build.
+Security review is a separate phase that runs after `BUILD_COMPLETE` — do NOT dispatch `/harness:security-review` from inside Build.
 
 ### Step 5b: Inline Sandbox Verify (mandatory before BUILD_COMPLETE)
 
-After Step 5 returns APPROVE, the build agent (or orchestrator on its behalf) dispatches `/sandbox-verify` inline. Step 5b is the second inline gate inside Build — it confirms the worktree's pass set reproduces inside a fresh E2B sandbox so machine-specific or "works on my worktree" patches do not reach Final Gate. Like Step 5, this is a gate inside Build, NOT a separate pipeline phase.
+After Step 5 returns APPROVE, the build agent (or orchestrator on its behalf) dispatches `/harness:sandbox-verify` inline. Step 5b is the second inline gate inside Build — it confirms the worktree's pass set reproduces inside a fresh E2B sandbox so machine-specific or "works on my worktree" patches do not reach Final Gate. Like Step 5, this is a gate inside Build, NOT a separate pipeline phase.
 
 The build agent writes the build-phase state file `pipeline-state/{task-id}/build.md` with three append-only sections: `## Decision Record`, `## Context for Review`, and (added by Step 5b) `## Sandbox Verify`. The exact `## Sandbox Verify` section template — including its body table with columns `Test | Worktree | Sandbox | Diff` — is documented in `### Sandbox Verify Section (Mandatory After Step 5b)` below, which appears in the file AFTER the `### Context for Next Phase` subsection so Story-4 forensics can locate the block deterministically.
 
 Procedure:
 1. **State stub first** — write the `## Sandbox Verify` section header to `pipeline-state/{task-id}/build.md` BEFORE invoking the skill (state-before-expensive-op — the E2B microVM is timeout-bounded and may be killed at the wall-clock cap; the stub makes the round recoverable).
-2. Dispatch `sandbox-verify-engineer` agent via `/sandbox-verify` (worktree-reuse — the engineer inherits the prior build's worktree path). The engineer parses the worktree's pytest/jest/rspec pass set, runs the same suite inside an E2B microVM, compares both pass sets, and returns one of three verdicts.
+2. Dispatch `sandbox-verify-engineer` agent via `/harness:sandbox-verify` (worktree-reuse — the engineer inherits the prior build's worktree path). The engineer parses the worktree's pytest/jest/rspec pass set, runs the same suite inside an E2B microVM, compares both pass sets, and returns one of three verdicts.
 3. Branch on verdict:
    - **SANDBOX_VERIFIED** → write the final `## Sandbox Verify` body (per the template subsection below) and emit `BUILD_COMPLETE`.
    - **SANDBOX_SKIPPED** with `reason ∈ {no-e2b-token, no-testable-changes, env-hatch}` → write the `## Sandbox Verify` body noting the skip reason and emit `BUILD_COMPLETE`. The three benign skip reasons are: `no-e2b-token` (no `E2B_API_KEY` available — Story-1 path), `no-testable-changes` (docs-only diff per `git diff --name-only $BASE...HEAD` against the project's testable-paths set — Story 2), and `env-hatch` (operator set `CLAUDE_DISABLE_SANDBOX_VERIFY=1` — Story 2).
@@ -397,9 +397,9 @@ Procedure:
 
 The `Test | Worktree | Sandbox | Diff` table columns and the `## Sandbox Verify` heading itself are pinned by the template subsection below — the build agent renders the same column layout on every spawn so the Story-4 forensics consumer can join rows by test name.
 
-**Section overwrite semantics — last-writer-wins.** Round 2's `/sandbox-verify` spawn overwrites the `## Sandbox Verify` section in `build.md` produced by round 1 — the final state file reflects the round-2 outcome, never a merge.
+**Section overwrite semantics — last-writer-wins.** Round 2's `/harness:sandbox-verify` spawn overwrites the `## Sandbox Verify` section in `build.md` produced by round 1 — the final state file reflects the round-2 outcome, never a merge.
 
-**Escape hatch.** Set `CLAUDE_DISABLE_SANDBOX_VERIFY=1` in the environment to skip Step 5b — `/sandbox-verify` fast-exits with `SANDBOX_SKIPPED` reason `env-hatch` and appends one JSONL line to `metrics/{session-id}/sandbox-verify-skips.jsonl`. Build then proceeds to `BUILD_COMPLETE`. The hatch matches the canonical `CLAUDE_DISABLE_*=1` shape used by `CLAUDE_DISABLE_AUTO_LEARN`, `CLAUDE_DISABLE_INSTINCT_INJECTION`, and six sibling hooks.
+**Escape hatch.** Set `CLAUDE_DISABLE_SANDBOX_VERIFY=1` in the environment to skip Step 5b — `/harness:sandbox-verify` fast-exits with `SANDBOX_SKIPPED` reason `env-hatch` and appends one JSONL line to `metrics/{session-id}/sandbox-verify-skips.jsonl`. Build then proceeds to `BUILD_COMPLETE`. The hatch matches the canonical `CLAUDE_DISABLE_*=1` shape used by `CLAUDE_DISABLE_AUTO_LEARN`, `CLAUDE_DISABLE_INSTINCT_INJECTION`, and six sibling hooks.
 
 ## Verdict
 
@@ -411,7 +411,7 @@ After Step 5 completes:
 
 ```
 Verdict: BUILD_COMPLETE / BUILD_FAILED
-Next: /code-review + /security-review (parallel, single message)
+Next: /harness:code-review + /harness:security-review (parallel, single message)
 Artifacts: [list of changed/created files]
 Agent summaries: [each engineer's 2-3 sentence contribution summary]
 ```

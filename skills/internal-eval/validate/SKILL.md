@@ -1,6 +1,6 @@
 ---
 name: "internal-eval-validate"
-description: "Delivery validation for /internal-eval: proves the baseline → inject → diff → restore → confirm-clean flow end-to-end with a stubbed inner pipeline. Runs locally and in CI; does NOT execute real /pipeline cases."
+description: "Delivery validation for /harness:internal-eval: proves the baseline → inject → diff → restore → confirm-clean flow end-to-end with a stubbed inner pipeline. Runs locally and in CI; does NOT execute real /harness:pipeline cases."
 context: fork
 agent: qa-engineer
 argument-hint: "[tmp-dir]"
@@ -10,7 +10,7 @@ argument-hint: "[tmp-dir]"
 
 ## What This Skill Does
 
-Demonstrates that the /internal-eval flow correctly detects regressions. The
+Demonstrates that the /harness:internal-eval flow correctly detects regressions. The
 sequence runs in five phases:
 
 1. **Phase A — Baseline**: seed 3 deterministic cases, run-suite with the
@@ -43,7 +43,7 @@ and reversible — unlike mutating `agents/code-reviewer.md` directly, which
 would risk contaminating the live harness mid-test.
 
 Live-harness baseline capture is a separate **ship-phase activity**: the
-first real baseline is stamped by `/pr-creation` against `main` after the
+first real baseline is stamped by `/harness:pr-creation` against `main` after the
 internal-eval harness is merged.
 
 ## Usage

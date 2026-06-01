@@ -89,6 +89,6 @@ Reject if:
 
 ```
 Verdict: STORY_READY (informational — no gate)
-Next: /estimation if sizing needed, then /build-implementation
+Next: /harness:estimation if sizing needed, then /harness:build-implementation
 Artifacts: [story with value statement, ACs, complexity budget, test stubs]
 ```

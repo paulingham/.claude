@@ -69,13 +69,13 @@ This ensures the fix is isolated and can be discarded if the approach is wrong.
 
 ## Complex Bug Escalation
 
-If the bug meets ANY of these criteria, invoke `/debug` to create persistent debug state:
+If the bug meets ANY of these criteria, invoke `/harness:debug` to create persistent debug state:
 - Requires environment-dependent testing (device, staging, browser)
 - Root cause is not obvious after initial analysis
 - Multiple hypotheses need systematic elimination
 - Fix requires more than 2 fix-test cycles
 
-The `/debug` skill creates `pipeline-state/{task-id}/debug.md` that survives context compaction and session boundaries. See the debug skill for the full hypothesis tracking protocol.
+The `/harness:debug` skill creates `pipeline-state/{task-id}/debug.md` that survives context compaction and session boundaries. See the debug skill for the full hypothesis tracking protocol.
 
 ## Design Patterns for Prevention
 
@@ -106,7 +106,7 @@ After the fix verification checklist passes, produce:
 
 ```
 Verdict: BUG_FIXED / BUG_UNRESOLVED
-Next: /code-review + /security-review (parallel, single message)
+Next: /harness:code-review + /harness:security-review (parallel, single message)
 Reproducer artifact: mapping {path, red_evidence, green_evidence} (REQUIRED on BUG_FIXED — AssertFlip Step 0 output; all three keys mandatory)
 Artifacts: [list of changed/created files, regression test file]
 Root cause: [1-2 sentence summary]

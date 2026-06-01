@@ -16,7 +16,7 @@ Creates and maintains persistent debug state for complex bugs that require multi
 - Root cause is not obvious after initial analysis
 - Multiple hypotheses need systematic elimination
 - Fix requires more than 2 fix-test cycles
-- `/bug-fix` escalates to this skill for complex bugs
+- `/harness:bug-fix` escalates to this skill for complex bugs
 
 ## Process
 

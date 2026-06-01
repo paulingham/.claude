@@ -1,12 +1,12 @@
 # Work-Class Routing Protocol
 
-How `/intake` and `/pipeline` decide **which dispatch shape a task gets** before complexity-budget computation. The goal is to prevent a doc edit from paying feature-sized dispatch cost while preserving full pipeline rigour for real engineering work.
+How `/harness:intake` and `/harness:pipeline` decide **which dispatch shape a task gets** before complexity-budget computation. The goal is to prevent a doc edit from paying feature-sized dispatch cost while preserving full pipeline rigour for real engineering work.
 
-This protocol is read by `/intake` (fingerprint step) and `/pipeline` (route step). It is auto-loaded when either skill spawns.
+This protocol is read by `/harness:intake` (fingerprint step) and `/harness:pipeline` (route step). It is auto-loaded when either skill spawns.
 
 ## Why this exists
 
-Today `/intake` recognises 8 task classifications but emits only `(budget, critical, bestofn, pdr_rtv)` for the dispatcher. A doc-only sweep and a feature share the same pipeline shape if their budget+critical happen to match. User phrasing (`critical`, `important`) is trusted directly — there is no fingerprint cross-check. Result: low-stakes work routes through Plan → heavy challenger team → multi-slice Build → 5-agent Final Gate, burning 12-15 subagent spawns for what amounts to a find/replace.
+Today `/harness:intake` recognises 8 task classifications but emits only `(budget, critical, bestofn, pdr_rtv)` for the dispatcher. A doc-only sweep and a feature share the same pipeline shape if their budget+critical happen to match. User phrasing (`critical`, `important`) is trusted directly — there is no fingerprint cross-check. Result: low-stakes work routes through Plan → heavy challenger team → multi-slice Build → 5-agent Final Gate, burning 12-15 subagent spawns for what amounts to a find/replace.
 
 ## Design principle
 
@@ -22,19 +22,19 @@ Three rules govern routing:
 
 | Tier | Class | Examples | Dispatch target |
 |---|---|---|---|
-| **T0** | Question / Spike | "How does X work?", "Investigate Y" | Direct answer or `/tech-spike` |
+| **T0** | Question / Spike | "How does X work?", "Investigate Y" | Direct answer or `/harness:tech-spike` |
 | **T1** | Doc-only | README/CLAUDE.md edits, protocol updates, comments | **Orchestrator direct edit** (Iron Law 3 exception) |
-| **T2** | Config-only | settings.json keys, agent frontmatter, hook entry syntax (NOT hook script bodies) | **`/harness-config`** |
-| **T3** | Mechanical sweep | rename, find/replace, lint-fix, import-sort, dependency bump | **`/batch-pipeline`** |
-| **T4** | Bug fix | Failing test + targeted fix | `/pipeline` (lightweight) |
-| **T5** | Standard feature | New AC, single-slice, isolated module | `/pipeline` (standard) |
-| **T6** | Critical / cross-cutting | Auth, payment, security, multi-repo, system-wide | `/pipeline` (heavy: Best-of-N or PDR-RTV) |
+| **T2** | Config-only | settings.json keys, agent frontmatter, hook entry syntax (NOT hook script bodies) | **`/harness:harness-config`** |
+| **T3** | Mechanical sweep | rename, find/replace, lint-fix, import-sort, dependency bump | **`/harness:batch-pipeline`** |
+| **T4** | Bug fix | Failing test + targeted fix | `/harness:pipeline` (lightweight) |
+| **T5** | Standard feature | New AC, single-slice, isolated module | `/harness:pipeline` (standard) |
+| **T6** | Critical / cross-cutting | Auth, payment, security, multi-repo, system-wide | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |
 
-T0-T3 are fast paths. T4-T6 are today's `/pipeline`, unchanged.
+T0-T3 are fast paths. T4-T6 are today's `/harness:pipeline`, unchanged.
 
 ## Fingerprint (the auto-detection step)
 
-Inserted into `/intake` as **Step 1.5: Fingerprint**, between Step 1 (classify) and Step 2 (budget). Hybrid model: rule-based first, Haiku tiebreaker on ambiguity.
+Inserted into `/harness:intake` as **Step 1.5: Fingerprint**, between Step 1 (classify) and Step 2 (budget). Hybrid model: rule-based first, Haiku tiebreaker on ambiguity.
 
 ### Phase 1 — Rule-based pass (no model call, $0)
 
@@ -95,8 +95,8 @@ Average fingerprint cost: ~$0.0002 per intake. Compared to ~$0.15 wasted on misc
 | Phase | T0 | T1 | T2 | T3 | T4 | T5 | T6 |
 |---|---|---|---|---|---|---|---|
 | Plan (architect) | — | — | — | — | light | full | full |
-| Plan Validation | — | — | — | — | `/plan-self-validation` | heavy if `budget≥7` | heavy always |
-| Build | — | direct .md edit | `/harness-config` | `/batch-pipeline` parallel | single agent | single or multi-slice | Best-of-N or PDR-RTV |
+| Plan Validation | — | — | — | — | `/harness:plan-self-validation` | heavy if `budget≥7` | heavy always |
+| Build | — | direct .md edit | `/harness:harness-config` | `/harness:batch-pipeline` parallel | single agent | single or multi-slice | Best-of-N or PDR-RTV |
 | Polish | — | — | — | — | — | if `budget≥7` | yes |
 | Code Review | — | — | reviewer reads diff only | code-reviewer (diff-only) | code-reviewer | code-reviewer | code-reviewer + adversarial |
 | Security Review | — | — | only if hooks touched | only if security-sensitive | yes | yes | yes |
@@ -117,7 +117,7 @@ Average fingerprint cost: ~$0.0002 per intake. Compared to ~$0.15 wasted on misc
 
 ## Plan-phase re-fingerprint sanity check
 
-The fingerprint runs on the user prompt at `/intake`. Architect's Plan reveals the actual scope. **Re-run the fingerprint against the Plan's affected-files list** as Step 0 of Plan Validation. If the new tier is higher than the original, upshift the rest of the pipeline and emit `ROUTING_UPSHIFTED`. Downshifts at this stage are not honoured — once a pipeline is dispatched at T4+, it completes at T4+.
+The fingerprint runs on the user prompt at `/harness:intake`. Architect's Plan reveals the actual scope. **Re-run the fingerprint against the Plan's affected-files list** as Step 0 of Plan Validation. If the new tier is higher than the original, upshift the rest of the pipeline and emit `ROUTING_UPSHIFTED`. Downshifts at this stage are not honoured — once a pipeline is dispatched at T4+, it completes at T4+.
 
 Catches the failure mode: user says "tidy up the docs" but architect's plan actually touches 8 source files.
 
@@ -156,7 +156,7 @@ Every fingerprint resolution and every override writes a JSONL line to `metrics/
 }
 ```
 
-Read by `/forensics` to detect:
+Read by `/harness:forensics` to detect:
 - Silent miscategorisation (downshift followed by escalation later in pipeline)
 - Override abuse (high `[force-class:T1]` rate from a single source)
 - Detector blind spots (high `fallthrough` rate)
@@ -175,7 +175,7 @@ Read by `/forensics` to detect:
 
 ## Hook implementation
 
-`hooks/intake-fingerprint-audit.sh` (PostToolUse Skill matcher for `/intake`):
+`hooks/intake-fingerprint-audit.sh` (PostToolUse Skill matcher for `/harness:intake`):
 
 - Reads emitted `task_class` from intake output
 - Reads override metadata
@@ -186,9 +186,9 @@ Read by `/forensics` to detect:
 
 ## Interaction with existing protocols
 
-- **Iron Law 5** ("NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.") applies to **T4-T6**. T0-T3 dispatch outside `/pipeline` and are governed by their own skill's verdict catalog entry. This is not an exception to the Iron Law — it is a clarification that the Iron Law's scope is the pipeline, not all work.
+- **Iron Law 5** ("NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.") applies to **T4-T6**. T0-T3 dispatch outside `/harness:pipeline` and are governed by their own skill's verdict catalog entry. This is not an exception to the Iron Law — it is a clarification that the Iron Law's scope is the pipeline, not all work.
 - **Iron Law 3** (orchestrator never writes source code; `.md` exception in `.claude/`, `memory/`, `rules/`) is the legal basis for T1 direct edits. The orchestrator commits the change with full audit trail.
-- **Complexity Budget** still computes (`/intake` Step 2). It controls *intra-tier* dispatch shape (multi-slice Build at T5, Best-of-N vs PDR-RTV at T6). It no longer controls *which* tier.
+- **Complexity Budget** still computes (`/harness:intake` Step 2). It controls *intra-tier* dispatch shape (multi-slice Build at T5, Best-of-N vs PDR-RTV at T6). It no longer controls *which* tier.
 - **`critical` flag** still computes but is **fingerprint-filtered**. If fingerprint = T1/T2 and no safety-override file in scope, `critical: true` from user phrasing is rejected and logged.
 - **`bestofn` and `pdr_rtv` flags** only fire at T6 AND budget>=7. T4/T5 force both false regardless of critical or budget. `bestofn` also requires `critical==true`; the `[best-of-n]` override token bypasses the tier+budget gate. SSOT: `hooks/_lib/bestofn_gate.py`.
 

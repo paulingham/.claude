@@ -13,7 +13,7 @@ argument-hint: "Optional: --since YYYY-MM-DD or --out <path>"
 
 - **Operator request**: "what's our prompt-cache hit rate", "which agents are missing the cache", "show me cache discipline trends".
 - **Periodic check**: scheduled via `/loop` (e.g. weekly) so cache-stability regressions are visible without manual prompting.
-- **Adjacent to `/cost-report`**: that skill grounds spend in dollars; this skill grounds cache health in `cache_read_input_tokens` ratios.
+- **Adjacent to `/harness:cost-report`**: that skill grounds spend in dollars; this skill grounds cache health in `cache_read_input_tokens` ratios.
 - **Do NOT use when**: a single pipeline's cache miss is the question — that lives in the per-spawn `metrics/{session}/cache.jsonl` records directly.
 
 ## Inputs
@@ -152,7 +152,7 @@ Sessions below 0.65 read_ratio target (the harness's `READ_RATIO_TARGET`):
 
 ```
 Verdict: CACHE_AUDIT_READY
-Next: human reviews; optional follow-up to /cost-report for dollar-grounded cache
+Next: human reviews; optional follow-up to /harness:cost-report for dollar-grounded cache
       analysis
 Artifacts: ~/.claude/metrics/reports/{YYYY-MM-DD}-cache.md
 ```

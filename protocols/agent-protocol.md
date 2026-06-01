@@ -271,13 +271,13 @@ If commands fail with "command not found", check the project CLAUDE.md first.
 
 ## Internal Eval Gate (harness changes)
 
-PRs that modify ANY of the following directories MUST run `/internal-eval run` and produce zero regressions before merge:
+PRs that modify ANY of the following directories MUST run `/harness:internal-eval run` and produce zero regressions before merge:
 - `rules/`
 - `hooks/`
 - `skills/`
 - `agents/`
 
-The agent opening the PR is responsible for invoking `/internal-eval run`. The verdict must be `EVAL_PASSED` (zero regressions on deterministic cases). `EVAL_FAILED` blocks merge.
+The agent opening the PR is responsible for invoking `/harness:internal-eval run`. The verdict must be `EVAL_PASSED` (zero regressions on deterministic cases). `EVAL_FAILED` blocks merge.
 
 `eval/` changes themselves do NOT trigger this gate (would be circular).
 

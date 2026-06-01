@@ -68,8 +68,8 @@ Score each dimension 1-3. Total budget determines action.
 
 ```
 Verdict: ESTIMATED (informational — no gate)
-Next: If budget ≤ 10 → /build-implementation
-      If budget 11-12 → /epic-breakdown to decompose further
+Next: If budget ≤ 10 → /harness:build-implementation
+      If budget 11-12 → /harness:epic-breakdown to decompose further
       If budget 13-15 → MUST decompose before proceeding
 Artifacts: [complexity budget scores, action recommendation]
 ```

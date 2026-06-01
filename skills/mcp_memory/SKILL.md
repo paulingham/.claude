@@ -3,7 +3,7 @@ name: mcp_memory
 description: MCP stdio server exposing recall memory as JSON-RPC 2.0 tools. Four read-only tools over ~/.claude/db/memory.sqlite.
 ---
 
-# /mcp_memory — MCP Memory Server
+# /harness:mcp_memory — MCP Memory Server
 
 Long-lived stdio process that any MCP-compatible client can spawn to read
 observations + scratchpad findings from `memory.sqlite`. Built directly on

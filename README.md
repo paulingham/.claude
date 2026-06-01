@@ -19,7 +19,7 @@ You describe what you want. The system:
 9. **Ships** a PR with quality gate enforcement
 10. **Deploys** with post-deploy verification and automatic rollback
 
-**Modular monolith is the default.** New work lives as a bounded context inside the existing repo with an explicit port (in-process module). When a module needs stronger boundaries short of a separate service, `/module-extraction` is the first-class, default extraction path. Splitting a module into its own repo is **advanced** and gated behind a named forcing function (see `protocols/module-boundaries-protocol.md`) — the Advanced service/multi-repo skills are invoked only when a forcing function applies.
+**Modular monolith is the default.** New work lives as a bounded context inside the existing repo with an explicit port (in-process module). When a module needs stronger boundaries short of a separate service, `/harness:module-extraction` is the first-class, default extraction path. Splitting a module into its own repo is **advanced** and gated behind a named forcing function (see `protocols/module-boundaries-protocol.md`) — the Advanced service/multi-repo skills are invoked only when a forcing function applies.
 
 11. **Learns** from every run — agents share discoveries in real-time, engineering context survives context compaction, and the system builds instincts that make future runs smarter
 
@@ -33,7 +33,7 @@ You describe what you want. The system:
     agent-protocol.md          #   Worktree isolation, commit protocol, scratchpad
     pipeline-protocol.md       #   Pipeline phases, review loops, state management
     engineering-invariants.md  #   Code shape, naming, error handling, deps, testing, security
-    atdd-procedure.md          #   Full ATDD cycle (skill-loaded by /build-implementation)
+    atdd-procedure.md          #   Full ATDD cycle (skill-loaded by /harness:build-implementation)
     operational-protocol.md    #   Complexity Budget scoring, error recovery
     parallel-dispatch-protocol.md  # Parallel review/build dispatch
     multi-repo-protocol.md     #   Project manifests, multi-repo pipelines
@@ -83,15 +83,15 @@ You describe what you want. The system:
 ```
 Intake → Plan → Plan Validation → Scaffold → Build → Review → Verify → Test → Accept → Ship → Deploy
   │                   │               │          │        │        │        │       │       │
-  │                   │               │          │        │        │        │       │       └─ /deploy
-  │                   │               │          │        │        │        │       └─ /product-acceptance
-  │                   │               │          │        │        │        └─ /qa-test-strategy
-  │                   │               │          │        │        └─ /verify (contract + smoke + mutation)
-  │                   │               │          │        └─ /code-review + /security-review (parallel)
-  │                   │               │          └─ /build-implementation (incremental TDD)
-  │                   │               └─ /api-scaffold, /db-migration, /infra-scaffold, ...
+  │                   │               │          │        │        │        │       │       └─ /harness:deploy
+  │                   │               │          │        │        │        │       └─ /harness:product-acceptance
+  │                   │               │          │        │        │        └─ /harness:qa-test-strategy
+  │                   │               │          │        │        └─ /harness:verify (contract + smoke + mutation)
+  │                   │               │          │        └─ /harness:code-review + /harness:security-review (parallel)
+  │                   │               │          └─ /harness:build-implementation (incremental TDD)
+  │                   │               └─ /harness:api-scaffold, /harness:db-migration, /harness:infra-scaffold, ...
   │                   └─ Interactive: user approves. Autonomous: agent challengers.
-  └─ /intake (classify, score Complexity Budget, route)
+  └─ /harness:intake (classify, score Complexity Budget, route)
 ```
 
 ## Autonomous Intelligence
@@ -113,10 +113,10 @@ Engineering-focused notes that survive context compaction. Not conversation hist
 Sections: Active Work · Codebase Map · Build & Test · Critical Paths · Patterns · Discoveries · Agent Effectiveness
 
 ### Continuous Learning Loop
-Every pipeline run captures structured observations. After 3+ pipelines, the system auto-invokes `/learn` to extract instincts — atomic patterns with confidence scores (0.0–0.95) that modify agent behavior:
+Every pipeline run captures structured observations. After 3+ pipelines, the system auto-invokes `/harness:learn` to extract instincts — atomic patterns with confidence scores (0.0–0.95) that modify agent behavior:
 
 ```
-Pipeline Run → Observation → /learn → Instinct created
+Pipeline Run → Observation → /harness:learn → Instinct created
   [0.72] "Read types.ts before editing services in this project"
   [0.85] "Always validate input at controller boundary"
 
@@ -130,22 +130,22 @@ Review findings classified as "preventable by build agent" become build-targeted
 ### Pipeline & Orchestration
 | Skill | Purpose |
 |-------|---------|
-| `/intake` | Entry point — classify work, score complexity, route |
-| `/pipeline` | Autonomous conductor — drives all phases in sequence |
-| `/pipeline-resume` | Resume interrupted pipeline from state files |
-| `/epic-breakdown` | Decompose epics into estimated stories |
-| `/estimation` | Complexity Budget scoring (5 dimensions) |
-| `/story-writing` | Write stories with Given/When/Then ACs |
+| `/harness:intake` | Entry point — classify work, score complexity, route |
+| `/harness:pipeline` | Autonomous conductor — drives all phases in sequence |
+| `/harness:pipeline-resume` | Resume interrupted pipeline from state files |
+| `/harness:epic-breakdown` | Decompose epics into estimated stories |
+| `/harness:estimation` | Complexity Budget scoring (5 dimensions) |
+| `/harness:story-writing` | Write stories with Given/When/Then ACs |
 
 ### Build Phase
 | Skill | Purpose |
 |-------|---------|
-| `/build-implementation` | Incremental TDD with shape enforcement |
-| `/refactor` | Safe refactoring with characterization tests |
-| `/bug-fix` | Root cause analysis + regression test + fix |
-| `/module-extraction` | Default extraction path — bounded context → in-process module with an explicit port (same repo, no forcing function needed) |
-| `/tool-synthesis` | Author a one-shot scratch tool inside the worktree mid-task (custom search/AST/lint). Tool lives in `.claude-scratch-tools/`, cleaned up before merge |
-| `/tech-spike` | Time-boxed technical research |
+| `/harness:build-implementation` | Incremental TDD with shape enforcement |
+| `/harness:refactor` | Safe refactoring with characterization tests |
+| `/harness:bug-fix` | Root cause analysis + regression test + fix |
+| `/harness:module-extraction` | Default extraction path — bounded context → in-process module with an explicit port (same repo, no forcing function needed) |
+| `/harness:tool-synthesis` | Author a one-shot scratch tool inside the worktree mid-task (custom search/AST/lint). Tool lives in `.claude-scratch-tools/`, cleaned up before merge |
+| `/harness:tech-spike` | Time-boxed technical research |
 
 **Continuous Planning**: On multi-slice Build runs (≥2 engineer slices), a `planning-agent` teammate (Sonnet 4.6) monitors the pipeline scratchpad and refines the active plan when findings contradict it. The planning-agent appends `## Plan Update` sections to the plan file and broadcasts updates to active build teammates. It is advisory only — Build engineers never block on it. Controlled by `should_spawn_planning_agent(slice_count, dispatch_mode, phase)` in `hooks/_lib/should_spawn_planning_agent.py`.
 
@@ -154,16 +154,16 @@ Review findings classified as "preventable by build agent" become build-targeted
 ### Scaffolding (Auto-Detected)
 | Skill | Trigger |
 |-------|---------|
-| `/project-setup` | New repo, no CLAUDE.md |
-| `/design-system-init` | Frontend project with no design tokens |
-| `/api-scaffold` | New API endpoints needed |
-| `/db-migration` | Schema changes needed |
-| `/infra-scaffold` | No Dockerfile/CI/CD |
-| `/observability-setup` | No logging/monitoring |
+| `/harness:project-setup` | New repo, no CLAUDE.md |
+| `/harness:design-system-init` | Frontend project with no design tokens |
+| `/harness:api-scaffold` | New API endpoints needed |
+| `/harness:db-migration` | Schema changes needed |
+| `/harness:infra-scaffold` | No Dockerfile/CI/CD |
+| `/harness:observability-setup` | No logging/monitoring |
 | `/voice-scaffold` | Voice skill needed (Alexa/Google/Twilio) |
 
 ### Advanced — Service / Multi-Repo (forcing function required)
-Invoked only when a forcing function from `protocols/module-boundaries-protocol.md` applies. Routing is automatic — `/microservices-scaffold` gates on this at its Step 0 (returns `WRONG_SKILL` if no forcing function is named). For same-repo boundary work, use `/module-extraction` instead.
+Invoked only when a forcing function from `protocols/module-boundaries-protocol.md` applies. Routing is automatic — `/microservices-scaffold` gates on this at its Step 0 (returns `WRONG_SKILL` if no forcing function is named). For same-repo boundary work, use `/harness:module-extraction` instead.
 
 | Skill | Trigger |
 |-------|---------|
@@ -175,38 +175,38 @@ Invoked only when a forcing function from `protocols/module-boundaries-protocol.
 ### Quality Gates
 | Skill | Verdict |
 |-------|---------|
-| `/code-review` | APPROVE / CHANGES_REQUESTED |
-| `/security-review` | APPROVE / CHANGES_REQUESTED |
-| `/verify` | VERIFIED / UNVERIFIED |
-| `/load-test` | PERFORMANCE_VERIFIED / FAILED |
-| `/qa-test-strategy` | COVERED / GAPS_FOUND |
-| `/product-acceptance` | APPROVED / REJECTED |
-| `/patch-critique` | PATCH_APPROVED / PATCH_REJECTED |
-| `/pr-creation` | PR_CREATED / PR_BLOCKED |
-| `/deploy` | DEPLOYED / ROLLED_BACK |
-| `/deployment-verification` | DEPLOYMENT_VERIFIED / AUTO_ROLLBACK |
+| `/harness:code-review` | APPROVE / CHANGES_REQUESTED |
+| `/harness:security-review` | APPROVE / CHANGES_REQUESTED |
+| `/harness:verify` | VERIFIED / UNVERIFIED |
+| `/harness:load-test` | PERFORMANCE_VERIFIED / FAILED |
+| `/harness:qa-test-strategy` | COVERED / GAPS_FOUND |
+| `/harness:product-acceptance` | APPROVED / REJECTED |
+| `/harness:patch-critique` | PATCH_APPROVED / PATCH_REJECTED |
+| `/harness:pr-creation` | PR_CREATED / PR_BLOCKED |
+| `/harness:deploy` | DEPLOYED / ROLLED_BACK |
+| `/harness:deployment-verification` | DEPLOYMENT_VERIFIED / AUTO_ROLLBACK |
 
 ### Operations & Tooling
 | Skill | Purpose |
 |-------|---------|
-| `/harness-config` | Modify hooks, settings.json (delegates to infra-engineer) |
-| `/harness-audit` | Health check of ~/.claude/ config (+ agnix integration) |
-| `/debug` | Persistent debug state for complex, multi-session bugs |
-| `/forensics` | Post-incident pipeline investigation |
-| `/workstream` | Manage isolated workstreams for parallel development |
-| `/polish` | Mechanical cleanup between Build and Review (Haiku, Budget >= 7) |
-| `/design-qc` | Visual QA screenshots for product acceptance (frontend changes) |
-| `/learn` | Extract instincts from observed behavior (auto-invoked after 3+ pipelines) |
-| `/greenfield-scaffold` | Full project bootstrap from scratch: discovery → running app |
-| `/creative-direction` | Pre-build design thinking: brand brief → fonts, palette, layout |
-| `/health-scan` | Proactive codebase health: security, deps, coverage, tech debt |
-| `/skill-builder` | Create new Claude Code skills with YAML frontmatter and structure |
+| `/harness:harness-config` | Modify hooks, settings.json (delegates to infra-engineer) |
+| `/harness:harness-audit` | Health check of ~/.claude/ config (+ agnix integration) |
+| `/harness:debug` | Persistent debug state for complex, multi-session bugs |
+| `/harness:forensics` | Post-incident pipeline investigation |
+| `/harness:workstream` | Manage isolated workstreams for parallel development |
+| `/harness:polish` | Mechanical cleanup between Build and Review (Haiku, Budget >= 7) |
+| `/harness:design-qc` | Visual QA screenshots for product acceptance (frontend changes) |
+| `/harness:learn` | Extract instincts from observed behavior (auto-invoked after 3+ pipelines) |
+| `/harness:greenfield-scaffold` | Full project bootstrap from scratch: discovery → running app |
+| `/harness:creative-direction` | Pre-build design thinking: brand brief → fonts, palette, layout |
+| `/harness:health-scan` | Proactive codebase health: security, deps, coverage, tech debt |
+| `/harness:skill-builder` | Create new Claude Code skills with YAML frontmatter and structure |
 
 ### Reference Patterns
 | Skill | Domain |
 |-------|--------|
-| `/web-frontend-patterns` | React/Next.js, state, a11y, caching, security |
-| `/react-native-patterns` | Expo, NativeWind, Maestro E2E |
+| `/harness:web-frontend-patterns` | React/Next.js, state, a11y, caching, security |
+| `/harness:react-native-patterns` | Expo, NativeWind, Maestro E2E |
 
 ## Knowledge Library (37 files)
 
@@ -248,7 +248,7 @@ Invoked only when a forcing function from `protocols/module-boundaries-protocol.
 | `subagent-stop-trajectory.sh` | Records agent completion to pipeline trajectory | Passive |
 | `session-start-bootstrap.sh` | Skill awareness, supervisor auto-start, pipeline/session detection | Bootstrap |
 | `commit-checkpoint.sh` | Shape + type check on staged files before commit | Advisory |
-| `intake-reminder.sh` | Nudges `/intake` when implementation keywords detected | Advisory |
+| `intake-reminder.sh` | Nudges `/harness:intake` when implementation keywords detected | Advisory |
 | `pipeline-analytics.sh` | Aggregates phase verdicts into `metrics/pipelines.jsonl` | Passive |
 | `subagent-validation.sh` | Reminds orchestrator to validate worktree changes on agent stop | Advisory |
 | `depth-guard.sh` | Resource Bounds: refuses subagent spawn beyond max recursion depth (3) | Hard block |
@@ -261,8 +261,8 @@ violation log schemas, and the Path-B disclosure on shutdown semantics.
 
 | Channel | Knowledge | Scaffold | Patterns |
 |---------|-----------|----------|----------|
-| Web | `web-frontend-patterns` | `/infra-scaffold` + `/design-system-init` | React/Next.js, a11y, design system |
-| Mobile | `react-native-patterns` | `/infra-scaffold` | Expo, NativeWind, Maestro |
+| Web | `web-frontend-patterns` | `/harness:infra-scaffold` + `/harness:design-system-init` | React/Next.js, a11y, design system |
+| Mobile | `react-native-patterns` | `/harness:infra-scaffold` | Expo, NativeWind, Maestro |
 | Voice | `voice-patterns` | `/voice-scaffold` | Alexa, Google, Twilio, SSML |
 | Device/IoT | `device-iot-patterns` | `/microservices-scaffold` | MQTT, OTA, device shadow |
 | Cross-channel | `omnichannel-patterns` | `/bff-scaffold` | BFF, unified identity, session continuity |
@@ -373,7 +373,7 @@ Environment variables                ← highest priority
 A single supervisor manages all repo daemons automatically:
 
 ```bash
-# Register repos (one-time, or auto-registered by /project-setup)
+# Register repos (one-time, or auto-registered by /harness:project-setup)
 ~/.claude/automation/supervisor.sh add /path/to/api-service
 ~/.claude/automation/supervisor.sh add /path/to/web-frontend
 
@@ -399,7 +399,7 @@ The supervisor:
 - Graceful shutdown cascades to all managed daemons
 
 Repos are auto-registered in two ways:
-- When `/project-setup` creates an `automation.env`
+- When `/harness:project-setup` creates an `automation.env`
 - **On session start** — if the current repo has `.claude/automation.env`, it's added to `repos.conf` automatically and the supervisor is signalled to reload
 
 ## Configuration
@@ -461,7 +461,7 @@ done
 
 The setup script is idempotent — safe to run multiple times. It checks what's already installed and only installs what's missing.
 
-For new projects without a CLAUDE.md, the system automatically runs `/project-setup` to detect your stack, configure commands, classify service architecture, and generate a design system.
+For new projects without a CLAUDE.md, the system automatically runs `/harness:project-setup` to detect your stack, configure commands, classify service architecture, and generate a design system.
 
 ### Linux / Claude Code Cloud
 
@@ -540,7 +540,7 @@ Source-tree path is configurable via `CLAUDE_SRC=...`:
 CLAUDE_SRC=/srv/claude-harness bash scripts/web-session-bootstrap.sh
 ```
 
-After the bootstrap runs and the session restarts, verify in Claude Code: `/intake "test"` should resolve (was "Unknown skill" before), and any Edit on a 51-line `.py` file should fire `code-shape-check.sh`.
+After the bootstrap runs and the session restarts, verify in Claude Code: `/harness:intake "test"` should resolve (was "Unknown skill" before), and any Edit on a 51-line `.py` file should fire `code-shape-check.sh`.
 
 The portable-config-dir convention this bootstrap depends on is documented in `protocols/agent-protocol.md` § Portable Config Dir.
 
@@ -550,7 +550,7 @@ The internal-eval harness runs a fixed suite of real Claude Code cases against t
 
 - Skill: `skills/internal-eval/` with sub-skills `capture/`, `run/`, `score/`, `validate/`
 - Invoke: `bash skills/internal-eval/run/run-suite.sh --run-id <id> --model opus`
-- Baselines: `eval/baselines/` (per-model, append-only — promotion gated by `/internal-eval`)
+- Baselines: `eval/baselines/` (per-model, append-only — promotion gated by `/harness:internal-eval`)
 - Privacy gate: requires `eval/.privacy-acked` marker OR `CLAUDE_EVAL_CAPTURE_ACKED=1` in the environment before any session capture runs
 - **80% claim**: Measured on `eval/baselines/{latest}-opus-4-7.md`, not SWE-bench Verified. Methodology: strict binary pass (all ACs satisfied AND all pipeline gates green). Case count, contamination filter, and flakiness tiers documented in `skills/internal-eval/SKILL.md`.
 

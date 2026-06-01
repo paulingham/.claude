@@ -27,7 +27,7 @@ Automated pull request creation with validation:
 
 **Symptom**: On the first Ship-phase dispatch the skill returns "standing by" (or an equivalent ack-only response) instead of executing Steps 0-5 below. No branch is created. No PR is opened. The pipeline stalls at the Ship gate with no verdict.
 
-**Suspected root cause (not yet proven)**: the model-invocation routing layer scans the skill `description` field for action cues. Skills that auto-invoke reliably (e.g. `/internal-eval`, `/build-implementation`, `/code-review`, `/security-review`, `/verify`, `/product-acceptance`, `/patch-critique`, `/learn`) all start their description with the literal phrase `"Use when user wants to ..."`. Before this fix the pr-creation description started with `"GitHub pull request workflow ..."` — no `"Use when ..."` cue, no `argument-hint`, no `## Process` anchor. Without those, the skill body may have been loaded as reference documentation rather than an executable procedure.
+**Suspected root cause (not yet proven)**: the model-invocation routing layer scans the skill `description` field for action cues. Skills that auto-invoke reliably (e.g. `/harness:internal-eval`, `/harness:build-implementation`, `/harness:code-review`, `/harness:security-review`, `/harness:verify`, `/harness:product-acceptance`, `/harness:patch-critique`, `/harness:learn`) all start their description with the literal phrase `"Use when user wants to ..."`. Before this fix the pr-creation description started with `"GitHub pull request workflow ..."` — no `"Use when ..."` cue, no `argument-hint`, no `## Process` anchor. Without those, the skill body may have been loaded as reference documentation rather than an executable procedure.
 
 **Workaround (when the misfire still recurs after the description fix)**:
 1. Orchestrator dispatches a `fix-engineer` directly with a build-style spawn whose prompt is the literal contents of this SKILL.md's Steps 0-5.
@@ -47,7 +47,7 @@ Automated pull request creation with validation:
 
 ## Step 0 — Approval Token Gate (HARD GATE)
 
-Before any branch operations, verify that `/product-acceptance` has authorized this PR:
+Before any branch operations, verify that `/harness:product-acceptance` has authorized this PR:
 
 ```bash
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/approval-token.sh"
@@ -72,7 +72,7 @@ Cross-references: `hooks/auto-pr.sh` performs an advisory read of the same token
 
 ## Verification Freshness Dependency
 
-`hooks/quality-gate.sh` runs on `gh pr create` and includes the new `_qg_check_freshness` check (extension landed in this slice). The check reads `pipeline-state/{task-id}/verification-evidence.json` written by `/verify` Step 6 and FAILs (rc=1 → quality-gate exit 2) when the recorded `git_head` does not match the current worktree HEAD, the file is missing, or the verdict is not `VERIFIED` / `VERIFIED_WITH_SKIP`. Operators must re-run `/verify` before re-attempting `gh pr create` in that case.
+`hooks/quality-gate.sh` runs on `gh pr create` and includes the new `_qg_check_freshness` check (extension landed in this slice). The check reads `pipeline-state/{task-id}/verification-evidence.json` written by `/harness:verify` Step 6 and FAILs (rc=1 → quality-gate exit 2) when the recorded `git_head` does not match the current worktree HEAD, the file is missing, or the verdict is not `VERIFIED` / `VERIFIED_WITH_SKIP`. Operators must re-run `/harness:verify` before re-attempting `gh pr create` in that case.
 
 ## Worktree Precondition (HARD GATE)
 
@@ -299,9 +299,9 @@ The orchestrator handles merge ordering — this skill only creates PRs. It adds
 
 ## Prerequisite
 
-- Accept phase complete: `/product-acceptance` returned APPROVED
+- Accept phase complete: `/harness:product-acceptance` returned APPROVED
 - All prior phase verdicts: BUILD_COMPLETE, APPROVE (both reviews), VERIFIED, COVERED, APPROVED
-- Approval token written by /product-acceptance (verified at Step 0 above).
+- Approval token written by /harness:product-acceptance (verified at Step 0 above).
 
 ## Verdict
 

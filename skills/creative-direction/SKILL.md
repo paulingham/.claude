@@ -10,7 +10,7 @@ argument-hint: "Brand context: product name, target audience, personality keywor
 
 ## What This Skill Does
 
-Produces a distinctive design brief that drives all downstream visual decisions. This is the creative thinking phase — it runs BEFORE `/design-system-init` and BEFORE `/build-implementation` for frontend features.
+Produces a distinctive design brief that drives all downstream visual decisions. This is the creative thinking phase — it runs BEFORE `/harness:design-system-init` and BEFORE `/harness:build-implementation` for frontend features.
 
 **Why this exists**: Without creative direction, Claude defaults to Inter + blue + 8px radius + centered hero + 3-column card grid. This is "distributive convergence" — reproducing the statistical center of design decisions. This skill breaks that pattern by forcing intentional, distinctive choices.
 
@@ -48,7 +48,7 @@ If no argument provided, infer from:
 
 If ALL of these are true: (a) no project CLAUDE.md exists, (b) no existing UI code exists, (c) no pipeline state design brief exists — this is a greenfield project.
 
-1. **Product brief**: Check `pipeline-state/{task-id}/product-brief.md` (from `/greenfield-scaffold` Step 1). If found, extract product type, target audience, and personality clues.
+1. **Product brief**: Check `pipeline-state/{task-id}/product-brief.md` (from `/harness:greenfield-scaffold` Step 1). If found, extract product type, target audience, and personality clues.
 
 2. **Competitive differentiation**: From the product brief's product type, identify 2-3 visual patterns common in that space. The design brief should DIFFERENTIATE from these, not reproduce them.
 
@@ -226,7 +226,7 @@ If the project already has a design system with distinctive branding:
 
 ```
 Verdict: CREATIVE_DIRECTION_COMPLETE / CREATIVE_DIRECTION_SKIPPED
-Next: /design-system-init (consumes the design brief) or /build-implementation
+Next: /harness:design-system-init (consumes the design brief) or /harness:build-implementation
 Artifacts: [design-brief.md path, font names, palette HSL values, interaction paradigm]
 ```
 $ARGUMENTS

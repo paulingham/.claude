@@ -48,7 +48,7 @@ If shape violations reach you, flag it as a process issue ("build hooks should h
 ## When to Invoke
 
 - After Build phase completes (tests green, shape constraints met)
-- Run IN PARALLEL with `/security-review` — both are read-only, independent
+- Run IN PARALLEL with `/harness:security-review` — both are read-only, independent
 - Both must APPROVE before advancing to Verify phase
 
 ## Process
@@ -120,8 +120,8 @@ When dispatched in parallel:
 
 ## Prerequisite
 
-- Build phase complete: BUILD_COMPLETE verdict from `/build-implementation`, `/refactor`, or `/bug-fix`
-- Must be dispatched IN PARALLEL with `/security-review` via Parallel Dispatch Protocol
+- Build phase complete: BUILD_COMPLETE verdict from `/harness:build-implementation`, `/harness:refactor`, or `/harness:bug-fix`
+- Must be dispatched IN PARALLEL with `/harness:security-review` via Parallel Dispatch Protocol
 
 ## Severity Grading
 
@@ -148,13 +148,13 @@ For each finding, classify whether the build agent could have prevented it:
 | **Preventable** | Standard pattern violation a build agent should catch | Missing input validation, SOLID violation, naming issue |
 | **Review-level** | Requires cross-cutting perspective only a reviewer has | Architectural concern, subtle race condition, design inconsistency |
 
-Tag each finding with `preventable: true/false`. The `/learn` skill uses this during Reflect to create build-targeted instincts that prevent the same findings in future pipelines.
+Tag each finding with `preventable: true/false`. The `/harness:learn` skill uses this during Reflect to create build-targeted instincts that prevent the same findings in future pipelines.
 
 ## Phase Output
 
 ```
 Verdict: APPROVE / CHANGES_REQUESTED
-Next: If BOTH code-review and security-review APPROVE → /verify
+Next: If BOTH code-review and security-review APPROVE → /harness:verify
       If CHANGES_REQUESTED → spawn engineer to fix → re-invoke BOTH review skills
 Findings: [list of specific findings with severity and preventability]
 Agent summaries: [code-reviewer's 2-3 sentence summary]

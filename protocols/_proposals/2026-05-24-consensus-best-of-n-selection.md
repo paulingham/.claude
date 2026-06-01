@@ -2,7 +2,7 @@
 
 **Status:** PROPOSED (2026-05-24)
 **Owner:** orchestrator-derived recommendation from external research (Majority-of-the-Bests; LLM-as-judge bias)
-**Implementation track:** requires `/pipeline` run (touches `skills/best-of-n/config.json`, selection logic in `orchestrator/parallel-dispatch-details.md` § Best-of-N Step 5, tests)
+**Implementation track:** requires `/harness:pipeline` run (touches `skills/best-of-n/config.json`, selection logic in `orchestrator/parallel-dispatch-details.md` § Best-of-N Step 5, tests)
 
 ---
 
@@ -39,7 +39,7 @@ Wire the stubbed consensus signal and let it **replace the subjective-quality bo
 3. **Reversible** — drop `consensus_bonus` back to 0 in `config.json` and the selector reverts to today's behaviour; `tie_breaker_order` is untouched.
 4. **Bounded scope** — Best-of-N is already gated to `critical OR [best-of-n]` and `budget >= 5` (config `min_budget`), so this touches only the small fraction of pipelines that run N-candidate Build.
 
-## Implementation Checklist (for `/pipeline` run)
+## Implementation Checklist (for `/harness:pipeline` run)
 
 1. `orchestrator/parallel-dispatch-details.md` § Best-of-N Step 5 — specify the clustering computation (Jaccard ≥ 0.5 on changed files; identical pass/fail vectors on the union test set where a shared runner exists) and the "largest cluster wins, critic breaks intra-cluster ties" ordering.
 2. `skills/best-of-n/config.json` — add `consensus_bonus: 60` to `selection_weights` above `subjective_quality_bonus`.
@@ -59,4 +59,4 @@ Set `consensus_bonus: 0` in `config.json`; selection reverts to test-pass + shap
 
 ---
 
-**Linked PR for the spec rewrite track:** this proposal. Dispatch `/pipeline` with prompt: "Implement protocols/_proposals/2026-05-24-consensus-best-of-n-selection.md exactly as specified. Budget: 6. Critical: false."
+**Linked PR for the spec rewrite track:** this proposal. Dispatch `/harness:pipeline` with prompt: "Implement protocols/_proposals/2026-05-24-consensus-best-of-n-selection.md exactly as specified. Budget: 6. Critical: false."

@@ -1,7 +1,7 @@
 ---
 disable-model-invocation: true
 name: "deployment-verification"
-description: "Use when user wants to Post-deploy verification: health checks, smoke tests against live URL, error rate monitoring, automatic rollback trigger. Runs after /deploy."
+description: "Use when user wants to Post-deploy verification: health checks, smoke tests against live URL, error rate monitoring, automatic rollback trigger. Runs after /harness:deploy."
 context: fork
 agent: infrastructure-engineer
 argument-hint: "Deployed URL and environment (e.g., 'https://staging.app.com staging')"
@@ -11,11 +11,11 @@ argument-hint: "Deployed URL and environment (e.g., 'https://staging.app.com sta
 
 ## What This Skill Does
 
-Verifies a deployment is healthy after `/deploy` completes. Hits the live URL, runs smoke tests, monitors error rates, and triggers rollback if verification fails. This is the automated gate between "deployed" and "confirmed working."
+Verifies a deployment is healthy after `/harness:deploy` completes. Hits the live URL, runs smoke tests, monitors error rates, and triggers rollback if verification fails. This is the automated gate between "deployed" and "confirmed working."
 
 ## When to Invoke
 
-- Automatically after `/deploy` reports DEPLOYED
+- Automatically after `/harness:deploy` reports DEPLOYED
 - Manually when verifying a deployment in any environment
 
 ## Process
@@ -32,7 +32,7 @@ curl -sf "${DEPLOY_URL}/health/ready" | jq .
 
 Retry up to 5 times with 10-second intervals (services may need startup time).
 
-If health check fails after 5 retries: **TRIGGER ROLLBACK** (invoke `/deploy` with rollback flag).
+If health check fails after 5 retries: **TRIGGER ROLLBACK** (invoke `/harness:deploy` with rollback flag).
 
 ### Step 2: Smoke Tests
 
@@ -84,7 +84,7 @@ Tools (check what's available):
 | Minor warnings, endpoints respond | DEPLOYMENT_VERIFIED_WITH_WARNINGS |
 
 On AUTO_ROLLBACK:
-1. Execute platform rollback (per `/deploy` Step 5)
+1. Execute platform rollback (per `/harness:deploy` Step 5)
 2. Verify rollback health check passes
 3. Report: what failed, rollback status, recommended investigation
 

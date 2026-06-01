@@ -2,7 +2,7 @@
 
 **Status:** PROPOSED (2026-05-24)
 **Owner:** orchestrator-derived recommendation from external research (GitHub Spec Kit, AWS Kiro, agent-test-oracle literature)
-**Implementation track:** requires `/pipeline` run (touches `skills/story-writing`, light touch to `skills/spec-blind-validate` input contract)
+**Implementation track:** requires `/harness:pipeline` run (touches `skills/story-writing`, light touch to `skills/spec-blind-validate` input contract)
 
 ---
 
@@ -42,12 +42,12 @@ EARS turns each AC into a single trigger→response clause with explicit pre-con
 3. **Measured** — the AC-form field lets us prove or disprove the benefit on real pipelines before making EARS mandatory (or reverting).
 4. **Mainstream, not experimental** — EARS is a 2009 requirements-engineering standard adopted by Kiro and widely used; this is borrowing a proven notation, not a research bet.
 
-## Implementation Checklist (for `/pipeline` run)
+## Implementation Checklist (for `/harness:pipeline` run)
 
 1. `skills/story-writing/SKILL.md` — add an § Acceptance Criteria Form section documenting the five EARS templates with one worked example each; instruct: prefer EARS where the AC is a trigger→response, fall back to prose only for narrative ACs.
 2. `skills/story-writing` output — tag each AC with `form: ears-<type> | prose` in the `plan.md` AC list.
 3. `skills/spec-blind-validate/SKILL.md` § Inputs — note that ACs may carry a `form` tag; an EARS clause maps trigger→arrange, response→assert; no read-model change.
-4. Verdict payload — add `ac_forms: {ears: N, prose: M}` to the spec-blind output so `/learn` can correlate form vs pass-rate.
+4. Verdict payload — add `ac_forms: {ears: N, prose: M}` to the spec-blind output so `/harness:learn` can correlate form vs pass-rate.
 5. Tests — `skills/story-writing/tests/` assert each EARS form renders correctly and the `form` tag is emitted; one `spec-blind-validate` fixture with an EARS AC asserting the derived test shape.
 6. Open an observation after 10 pipelines comparing `SPEC_BLIND_FAILED` rate and false-pass incidence on EARS vs prose ACs; if EARS shows no benefit, revert to prose-default.
 
@@ -63,4 +63,4 @@ Remove the EARS § from story-writing and the `form` tag; ACs revert to free-for
 
 ---
 
-**Linked PR for the spec rewrite track:** this proposal. Dispatch `/pipeline` with prompt: "Implement protocols/_proposals/2026-05-24-ears-acceptance-criteria.md exactly as specified. Budget: 5. Critical: false."
+**Linked PR for the spec rewrite track:** this proposal. Dispatch `/harness:pipeline` with prompt: "Implement protocols/_proposals/2026-05-24-ears-acceptance-criteria.md exactly as specified. Budget: 5. Critical: false."
