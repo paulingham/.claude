@@ -95,6 +95,10 @@ db/*.sqlite-journal
 db/*.sqlite-wal
 db/*.sqlite-shm
 
+# Plugin manifests — tracked so the harness ships as an installable plugin.
+!.claude-plugin/
+!.claude-plugin/**
+
 # Worktree-scoped scratch tools — see skills/tool-synthesis/. Per-worktree only;
 # never merged. The skill also adds this entry to target repos' .gitignore.
 .claude-scratch-tools/
