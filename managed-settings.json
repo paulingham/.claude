@@ -1,45 +1,72 @@
 {
-  "env": {
-    "CLAUDE_MANAGED_SETTINGS_CANARY": "phase-0-test"
+  "extraKnownMarketplaces": {
+    "adviser-group": {
+      "source": { "source": "github", "repo": "Adviser-Group/.claude" }
+    }
   },
+  "enabledPlugins": {
+    "harness@adviser-group": true
+  },
+  "strictKnownMarketplaces": [
+    { "source": "github", "repo": "Adviser-Group/.claude" },
+    { "source": "hostPattern", "hostPattern": "^github\\.com$" }
+  ],
+  "env": {
+    "CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE": "1",
+    "CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS": "300000",
+    "CLAUDE_HOOK_PROFILE": "standard",
+    "ENABLE_TOOL_SEARCH": "true",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
+    "CLAUDE_PIPELINE_MODE": "autonomous",
+    "CLAUDE_ENABLE_TRACE": "0",
+    "CLAUDE_SUBAGENT_MAX_DEPTH": "3",
+    "CLAUDE_SUBAGENT_MAX_RUNTIME": "1800",
+    "CLAUDE_TEAMMATE_MAX_RUNTIME": "3600",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Bash(rm -rf /Users*)",
+      "Bash(rm -rf $HOME*)",
+      "Bash(rm -rf /tmp*)",
+      "Bash(dd if=*)",
+      "Bash(mkfs*)",
+      "Bash(> /dev/sda*)",
+      "Bash(chmod -R 777 /*)",
+      "Bash(git push --force origin main)",
+      "Bash(git push --force origin master)",
+      "Bash(git push -f origin main)",
+      "Bash(git push -f origin master)",
+      "Bash(git reset --hard*)",
+      "Bash(git branch -D main)",
+      "Bash(git branch -D master)"
+    ]
+  },
+  "claudeMd": "# Adviser Harness — Organization Doctrine (managed)\n\nThis org uses the Adviser Group Claude Code harness (plugin: harness@adviser-group). Drive non-trivial work through the harness pipeline.\n\nHarness skills, agents, protocols, and rules live in the installed plugin directory. To read a protocol/rule, first run `echo $CLAUDE_PLUGIN_ROOT`, then read `$CLAUDE_PLUGIN_ROOT/protocols/<file>.md` or `$CLAUDE_PLUGIN_ROOT/rules/<file>.md`.\n\n## Entry\nStart every task via /harness:intake (classify + route), which drives /harness:pipeline (phases).\n\n## Iron Laws (hooks enforce these — do not bypass)\n1. No acceptance criterion ships without a failing-then-passing test for it plus >=70% mutation score on changed lines.\n2. No completion claims without fresh verification evidence — re-run before claiming done.\n3. The orchestrator never writes source code — it coordinates agents.\n4. Repo HEAD stays on main — all HEAD-mutating git runs via worktree delegation.\n5. No phase skipped, no gate bypassed, no skill omitted.\n6. Findings surfaced in review are fixed in this pipeline — no follow-ups, no user questions.\n7. Every pipeline produces an observation.\n\n## Session start (automatic)\nCheck for an in-progress pipeline and resume it; if a merged PR is pending deploy, continue the deploy.\n\n## Pipeline phase order\nPlan -> Plan Validation -> Build (code-review as final step) -> Security Review -> Final Gate (Verify + Test + Accept + Patch Critique) -> Ship -> Deploy -> Reflect.",
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "*",
+        "matcher": "startup|resume",
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'date -u +%FT%TZ > /tmp/managed-test-canary; echo \"env=$CLAUDE_MANAGED_SETTINGS_CANARY\" >> /tmp/managed-test-canary; true'"
-          },
+            "command": "case \"$(uname -s 2>/dev/null)\" in Darwin|Linux|*BSD*) ;; *) exit 0;; esac; case \"${OSTYPE:-}\" in msys*|cygwin*|win32) exit 0;; esac; command -v claude >/dev/null 2>&1 || exit 0; C=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}\"; mkdir -p \"$C/logs\" 2>/dev/null; t=\"${GITHUB_TOKEN:-${GH_TOKEN:-}}\"; if [ -z \"$t\" ] && command -v gh >/dev/null 2>&1; then t=\"$(gh auth token 2>/dev/null)\"; fi; [ -n \"$t\" ] && export GITHUB_TOKEN=\"$t\"; export CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE=1; ( claude plugin marketplace list 2>/dev/null | grep -q adviser-group || claude plugin marketplace add Adviser-Group/.claude; if claude plugin list 2>/dev/null | grep -q adviser-group; then : > \"$C/.adviser-harness-installed\"; claude plugin marketplace update adviser-group; else claude plugin install harness@adviser-group && : > \"$C/.adviser-harness-installed\"; fi ) >> \"$C/logs/harness-bootstrap.log\" 2>&1 & exit 0"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
           {
             "type": "command",
-            "command": "bash -c '(gh auth status >/dev/null 2>&1 && gh api /repos/Adviser-Group/.claude/contents/bootstrap.sh -H \"Accept: application/vnd.github.v3.raw\" 2>/dev/null | bash) >/tmp/claude-harness-bootstrap.log 2>&1 & disown 2>/dev/null; true'"
+            "command": "[ \"${ADVISER_HARNESS_OPT_OUT:-}\" = \"1\" ] && exit 0; case \"$(uname -s 2>/dev/null)\" in Darwin|Linux|*BSD*) ;; *) exit 0;; esac; case \"${OSTYPE:-}\" in msys*|cygwin*|win32) exit 0;; esac; C=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}\"; [ -f \"$C/.adviser-harness-installed\" ] && exit 0; if [ -f \"$C/plugins/known_marketplaces.json\" ] && grep -q adviser-group \"$C/plugins/known_marketplaces.json\" 2>/dev/null; then exit 0; fi; printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Adviser harness not detected. It should auto-install on your NEXT Claude Code restart. If not: run gh auth login (or export GITHUB_TOKEN) then restart; or install manually: claude plugin marketplace add Adviser-Group/.claude && claude plugin install harness@adviser-group then restart. One-off bypass: export ADVISER_HARNESS_OPT_OUT=1 then restart. Help #eng-harness.\"}}'; exit 0"
           }
         ]
       }
     ]
-  },
-  "permissions": {
-    "deny": [
-      "Bash(rm -rf /tmp/managed-test-canary)"
-    ]
-  },
-  "sandbox": {
-    "autoAllowBashIfSandboxed": true,
-    "enabled": true,
-    "filesystem": {
-      "read": {
-        "allowWithinDeny": [
-          "$HOME/.ssh/known_hosts"
-        ]
-      },
-      "write": {
-        "allowOnly": [
-          "$HOME/.gnupg",
-          "$HOME/.ssh",
-          "$HOME/.config/gh"
-        ]
-      }
-    }
   }
 }
