@@ -10,8 +10,16 @@ from pathlib import Path
 
 
 def _metrics_dir():
-    return os.environ.get("CLAUDE_METRICS_DIR") or str(
-        Path.home() / ".claude" / "metrics")
+    base = os.environ.get("CLAUDE_METRICS_DIR")
+    if base:
+        return base
+    # Precedence: HARNESS_DATA > CLAUDE_CONFIG_DIR > $HOME/.claude
+    config_dir = (
+        os.environ.get("HARNESS_DATA")
+        or os.environ.get("CLAUDE_CONFIG_DIR")
+        or str(Path.home() / ".claude")
+    )
+    return str(Path(config_dir) / "metrics")
 
 
 def warn_missing_parent(child, missing):
