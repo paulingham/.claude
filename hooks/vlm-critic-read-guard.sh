@@ -45,15 +45,15 @@ fi
 
 # Lazy-load logging only when we know we'll potentially block.
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Read|Grep|Glob"
 trap 'log_hook_event $?' EXIT
 
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/vlm-critic-guard-common.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/vlm-critic-guard-common.sh"
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/vlm-critic-path.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/vlm-critic-path.sh"
 _vlm_critic_parse_input
 
 # Exact-match comparison — substring "vlm-critic-v2" would not match here.
@@ -82,7 +82,7 @@ ABS_REAL="$(_vlm_critic_realpath "$ABS_PATH")"
 [[ -z "$ABS_REAL" ]] && ABS_REAL="$ABS_PATH"
 
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/vlm-critic-allow-paths.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/vlm-critic-allow-paths.sh"
 
 if is_path_allowed_for_vlm_critic "$ABS_REAL"; then
   exit 0

@@ -7,12 +7,12 @@
 # enforces: protocols/agent-protocol.md:Pipeline Scratchpad Protocol
 # protects: pipeline
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SubagentStart"
 trap 'log_hook_event $?' EXIT
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 # shellcheck source=_lib/state-dir.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/state-dir.sh"
 _ensure_state_dir

@@ -36,15 +36,15 @@ fi
 
 # Lazy-load logging only when we know we'll potentially block.
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Read|Grep|Glob"
 trap 'log_hook_event $?' EXIT
 
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/spec-blind-guard-common.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/spec-blind-guard-common.sh"
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/spec-blind-path.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/spec-blind-path.sh"
 _spec_blind_parse_input
 
 # Exact-match comparison — substring "spec-blind-validator-v2" would not match here.
@@ -73,7 +73,7 @@ ABS_REAL="$(_spec_blind_realpath "$ABS_PATH")"
 [[ -z "$ABS_REAL" ]] && ABS_REAL="$ABS_PATH"
 
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/spec-blind-allow-paths.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/spec-blind-allow-paths.sh"
 
 if is_path_allowed_for_spec_blind "$ABS_REAL"; then
   exit 0

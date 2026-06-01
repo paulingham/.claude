@@ -15,7 +15,7 @@
 # enforces: protocols/autonomous-intelligence.md:Prompt Tracing
 # protects: debug-trace
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Agent"
 trap 'log_hook_event $?' EXIT

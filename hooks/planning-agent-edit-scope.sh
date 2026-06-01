@@ -12,7 +12,7 @@
 #
 # enforces: protocols/parallel-dispatch-protocol.md:Planning Agent
 # protects: build-implementation
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:${TOOL_NAME:-Write}"
 trap 'log_hook_event $?' EXIT

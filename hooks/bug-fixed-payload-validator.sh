@@ -8,7 +8,7 @@
 set -uo pipefail
 
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/bug_fixed_payload_validator.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/bug_fixed_payload_validator.sh"
 
 INPUT=$(cat)
 STOP_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo false)

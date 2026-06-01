@@ -4,12 +4,12 @@
 # protects: harness-audit
 # Sources _lib/harness-audit-fast.sh; never invokes skill /harness-audit.
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SessionStart"
 trap 'log_hook_event $?' EXIT
 
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/harness-audit-fast.sh" 2>/dev/null
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/harness-audit-fast.sh" 2>/dev/null
 
 RESULT=$(_haf_run_all 2>/dev/null)
 CRITICALS=$(echo "$RESULT" | grep -oE 'criticals=[0-9]+' | cut -d= -f2)

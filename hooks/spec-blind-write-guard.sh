@@ -31,15 +31,15 @@ if ! printf '%s' "$INPUT" | grep -F -q "spec-blind-validator" \
 fi
 
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/log.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Write|Edit"
 trap 'log_hook_event $?' EXIT
 
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/spec-blind-guard-common.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/spec-blind-guard-common.sh"
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/spec-blind-path.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/spec-blind-path.sh"
 _spec_blind_parse_input
 
 [[ "$SUBAGENT_TYPE" != "spec-blind-validator" ]] && exit 0
@@ -60,7 +60,7 @@ ABS_REAL="$(_spec_blind_realpath "$ABS_PATH")"
 [[ -z "$ABS_REAL" ]] && ABS_REAL="$ABS_PATH"
 
 # shellcheck source=/dev/null
-source "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/_lib/spec-blind-allow-paths.sh"
+source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/spec-blind-allow-paths.sh"
 
 if is_path_allowed_for_spec_blind_write "$ABS_REAL"; then
   exit 0
