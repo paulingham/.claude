@@ -298,6 +298,41 @@ if [[ "$B6_COUNT" -eq 0 ]]; then pass "B6: zero residual \$HOME/.claude/<state-s
 else fail "B6: zero residual \$HOME/.claude/<state-seg> literals in hooks/ (excl tests/, comments)" 0 "$B6_COUNT"; fi
 
 # ---------------------------------------------------------------------------
+# B7 (Slice 2 Fix Cycle): residual expanduser("~/.claude/<state-seg>") in .py
+# Companion to B6 that catches Python helpers hardcoding state paths.
+# Must NOT flag: os.path.join(os.path.expanduser("~"), ".claude") — that form
+# has ".claude" as a separate join arg (no trailing state-seg), and is the
+# legitimate cold-start fallback.
+# ---------------------------------------------------------------------------
+echo "-- B7: residual expanduser(~/\.claude/<state-seg>) literals in .py (excl tests/) --"
+B7_COUNT=$(python3 - "$REPO_ROOT" <<'B7PYEOF'
+import os, re, sys
+SEG = r'(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|state|tasks|teams|plan-cache)'
+# Match expanduser("~/.claude/<seg>") or expanduser('~/.claude/<seg>') with trailing seg
+# Use chr(39) for single-quote to avoid heredoc delimiter collision.
+pattern = re.compile(
+    r'expanduser\(["' + chr(39) + r']~/.claude/' + SEG
+)
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root + '/hooks'):
+    dirs[:] = [x for x in dirs if x != 'tests']
+    for f in files:
+        if not f.endswith('.py'):
+            continue
+        path = os.path.join(d, f)
+        with open(path) as fp:
+            for line in fp:
+                if pattern.search(line):
+                    count += 1
+print(count)
+B7PYEOF
+)
+B7_COUNT="${B7_COUNT// /}"
+if [[ "$B7_COUNT" -eq 0 ]]; then pass "B7: zero residual expanduser(~/\.claude/<state-seg>) literals in hooks/ .py files (excl tests/)"
+else fail "B7: zero residual expanduser(~/\.claude/<state-seg>) literals in hooks/ .py files (excl tests/)" 0 "$B7_COUNT"; fi
+
+# ---------------------------------------------------------------------------
 # D4-D6 (Slice 2 Wave A): state-dir / hook-self-test / _smr_config_dir
 # ---------------------------------------------------------------------------
 echo "-- D4-D6: state-dir, hook-self-test sentinel, _smr_config_dir (Slice 2 Wave A) --"

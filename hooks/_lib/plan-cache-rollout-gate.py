@@ -129,9 +129,11 @@ def main(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--metrics-dir",
-        default=os.environ.get(
-            "CLAUDE_HOOK_LOG_DIR",
-            os.path.expanduser("~/.claude/metrics"),
+        default=os.environ.get("CLAUDE_HOOK_LOG_DIR") or os.path.join(
+            os.environ.get("HARNESS_DATA")
+            or os.environ.get("CLAUDE_CONFIG_DIR")
+            or os.path.expanduser("~/.claude"),
+            "metrics",
         ),
     )
     args = parser.parse_args(argv[1:])

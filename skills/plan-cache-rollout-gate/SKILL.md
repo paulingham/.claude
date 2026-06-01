@@ -4,7 +4,7 @@ description: "Executable rollout gate that decides whether the agentic plan-cach
 verdict: "ROLLOUT_GATE_PASS"
 phase: "utility"
 dispatch: "skill-tool"
-argument-hint: "Optional: --metrics-dir <path> (default $CLAUDE_HOOK_LOG_DIR or ~/.claude/metrics)"
+argument-hint: "Optional: --metrics-dir <path> (default $CLAUDE_HOOK_LOG_DIR or $CLAUDE_PLUGIN_DATA/metrics or $CLAUDE_CONFIG_DIR/metrics or ~/.claude/metrics)"
 ---
 
 # Plan Cache Rollout Gate
@@ -32,13 +32,14 @@ payload from this skill (plan.md § Decision Drivers — HIGH-prod-1, MEDIUM-pro
 
 - **Filesystem**:
   `$CLAUDE_HOOK_LOG_DIR/<session>/plan-cache.jsonl` (default
-  `~/.claude/metrics/<session>/plan-cache.jsonl`). One file per pipeline
-  session. Each line has the 10 keys emitted by
+  `${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-~/.claude}}/metrics/<session>/plan-cache.jsonl`).
+  One file per pipeline session. Each line has the 10 keys emitted by
   `hooks/_lib/plan-cache-audit-emit.py`:
   `task_id, cache_key, verdict, adapter_cost_tokens, miss_reason,
   hit_template_path, hit_count_after, pv_outcome, session_id, timestamp,
   saved_architect_tokens_estimate`.
-- **Environment**: `CLAUDE_HOOK_LOG_DIR` overrides metrics root.
+- **Environment**: `CLAUDE_HOOK_LOG_DIR` overrides metrics root (highest priority);
+  `CLAUDE_PLUGIN_DATA` beats `CLAUDE_CONFIG_DIR` beats `$HOME/.claude`.
 
 ## Procedure
 
@@ -48,7 +49,7 @@ The skill is a one-shot script wrapper around the aggregator.
 
 ```bash
 python3 hooks/_lib/plan-cache-rollout-gate.py \
-  --metrics-dir "${CLAUDE_HOOK_LOG_DIR:-$HOME/.claude/metrics}"
+  --metrics-dir "${CLAUDE_HOOK_LOG_DIR:-${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/metrics}"
 ```
 
 Stdout is a JSON document; capture and parse it.
