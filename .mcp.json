@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "gh-cache": {
+      "command": "python3",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/_lib/github-cache-server.py"]
+    },
+    "memory": {
+      "command": "python3",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/skills/mcp_memory/server.py"]
+    },
+    "lsp-typescript": {
+      "command": "python3",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/_lib/lsp-bridge-server.py", "--language", "ts"]
+    },
+    "lsp-pyright": {
+      "command": "python3",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/_lib/lsp-bridge-server.py", "--language", "py"]
+    }
+  }
+}
