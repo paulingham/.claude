@@ -18,8 +18,8 @@ _ssvc_version_lt() {
   for i in 0 1 2; do
     ac=${av[i]:-0}
     bc=${bv[i]:-0}
-    (( ac < bc )) && return 0
-    (( ac > bc )) && return 1
+    (( 10#$ac < 10#$bc )) && return 0
+    (( 10#$ac > 10#$bc )) && return 1
   done
   return 1
 }

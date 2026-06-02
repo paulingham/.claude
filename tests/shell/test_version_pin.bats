@@ -87,6 +87,41 @@ load_helper() {
   [ "$status" -eq 0 ]
 }
 
+# --- Finding 1: regex guard pins non-empty malformed operands (silent false) ---
+# Regression-pin: defends the ^[0-9]+(\.[0-9]+)*$ guard against a mutation that
+# weakens it (e.g. to a start-anchor-only ^[0-9]). Asserts malformed operands on
+# either side return 1 silently rather than being parsed and compared.
+
+@test "_ssvc_version_lt: malformed A operand (2.1.x) returns false silently" {
+  load_helper
+  run _ssvc_version_lt 2.1.x 2.1.160
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+}
+
+@test "_ssvc_version_lt: malformed B operand (abc) returns false silently" {
+  load_helper
+  run _ssvc_version_lt 2.1.160 abc
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+}
+
+# --- Finding 2: leading-zero components compare base-10, no octal stderr noise ---
+
+@test "_ssvc_version_lt: leading-zero component (2.1.008) compares as 8 < 160, no stderr" {
+  load_helper
+  run _ssvc_version_lt 2.1.008 2.1.160
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "_ssvc_version_lt: leading-zero component (2.1.020 vs 2.1.008) compares as 20 >= 8" {
+  load_helper
+  run _ssvc_version_lt 2.1.020 2.1.008
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+}
+
 # --- AC1: _ssvc_check_version minimum-version semantics ---
 
 @test "_ssvc_check_version: running equal to floor is silent" {
