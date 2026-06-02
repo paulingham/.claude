@@ -2,137 +2,164 @@
 
 How this harness gets onto engineer Macs via the Claude Code plugin system.
 
+> **Why this is not a vanilla `github` marketplace.** Claude Code's built-in plugin
+> installer cannot clone this marketplace from a `github` source: the repo is **private**
+> *and* named `.claude` (leading dot). Its bundled git fails the clone (`Marketplace file
+> not found …/Adviser-Group--claude/.claude-plugin/marketplace.json`), and a
+> `strictKnownMarketplaces` `github` matcher cannot match the dot-named repo either. The
+> rollout therefore clones the repo with **system git** and registers it as a **local
+> directory marketplace**. If Anthropic fixes private/dot-name cloning, this can revert to
+> a plain `github` source + a two-line bootstrap.
+
 ## Administrator setup (one-time)
 
 Paste the contents of `managed-settings.json` into the Anthropic enterprise console's
-managed-settings section for the organisation. This file configures:
+managed-settings section. It configures:
 
-- `enabledPlugins` — grants `harness@adviser-group` from the Adviser-Group private
-  marketplace.
-- `hooks` — the `SessionStart` entry that triggers plugin installation automatically.
-- `permissions` — deny/allow rules applied to all engineers.
+- `enabledPlugins` — force-enables `harness@adviser-group`.
+- `hooks.SessionStart` — clones the repo with **system git** into
+  `~/.claude/local-marketplaces/adviser-group`, registers it as a **local** marketplace,
+  and installs the plugin. (The explicit install covers CLI gap #45323 — `enabledPlugins`
+  alone does not trigger a CLI install.)
+- `hooks.PreToolUse` — a nudge that fires on Edit/Write if the harness is absent.
+- `env`, `permissions`, `claudeMd` — org-wide operational config, destructive-op deny
+  rules, and doctrine.
+
+Do **not**, for this repo:
+- add an `extraKnownMarketplaces` entry with a `github` source — it triggers the failing
+  native clone (and the `adviser-group (managed) — Marketplace file not found` error);
+- set `strictKnownMarketplaces` — its `github` matcher does not match the `.claude`
+  dot-name and blocks the marketplace (`not in the allowed marketplace list`).
 
 Do not commit secrets into `managed-settings.json`.
 
 ## How installation works
 
-1. The enterprise console pushes `managed-settings.json` to every engineer's Claude Code
-   install.
-2. On first session start the `SessionStart` hook runs:
-   ```bash
-   claude plugin marketplace add Adviser-Group/.claude
-   claude plugin install harness@adviser-group
-   ```
-   The two-step sequence is required because the CLI does not auto-install plugins that
-   become available via a newly added marketplace entry (CLI gap #45323 — install step
-   remains explicit until that is resolved).
-3. If the plugin is already installed the hook exits silently.
-4. If the plugin is absent at `PreToolUse` time a nudge fires reminding the engineer to
-   run the manual install command (see Self-Remediation below).
+1. The enterprise console pushes `managed-settings.json` to every engineer.
+2. On session start the `SessionStart` hook (backgrounded, non-blocking):
+   - resolves a GitHub token: `GITHUB_TOKEN` → `GH_TOKEN` → `gh auth token`;
+   - clones (or `git pull`s) `Adviser-Group/.claude` with **system git** into
+     `~/.claude/local-marketplaces/adviser-group` — the token is injected per-command and
+     then stripped from the stored remote, so it is never persisted to `.git/config`;
+   - `claude plugin marketplace add <that directory>` (a **directory** source);
+   - `claude plugin install harness@adviser-group`.
+3. Subsequent sessions `git pull` to update, then exit silently (idempotent — guarded by
+   `~/.claude/.adviser-harness-installed`).
+4. If the harness is still absent at `PreToolUse` time, a nudge fires (see
+   Self-remediation).
+
+Logs: `~/.claude/logs/harness-bootstrap.log`.
 
 ## Engineer onboarding (one-time)
 
-Before the first Claude Code session, every engineer must authenticate the GitHub CLI so
-the hook can reach the private Adviser-Group marketplace:
+Authenticate the GitHub CLI so the hook can clone the private repo:
 
 ```bash
 gh auth login
 ```
 
-Choose GitHub.com → HTTPS → "Login with a web browser" and complete the device-flow
-prompt.
+Choose GitHub.com and complete the web/device flow with the account that has read access
+to `Adviser-Group/.claude`. That is the **only** per-engineer step — no SSH config, no
+`extraKnownMarketplaces`, no shared token, and `gh auth setup-git` is not required (the
+bootstrap injects the token into the clone URL directly).
 
-On first session start Claude Code will show a **one-time security-approval prompt** for
-the managed-settings policy. Review and approve it to allow the hooks and plugin to
-activate.
+On first session start Claude Code shows a **one-time security-approval prompt** for the
+managed-settings policy (it introduces hooks + env). Approve it.
 
 ## Verification
 
-After the first session completes, confirm the plugin is active:
-
 ```bash
-claude plugin list
-```
-
-Expected: `harness@adviser-group` appears with status `enabled`.
-
-For a detailed view:
-
-```bash
+claude plugin list                              # harness@adviser-group → enabled
 claude plugin details harness@adviser-group
 ```
 
-Expected output includes:
+Expected:
+
 ```
-Hooks: 14
-Skills: 65
-Agents: 19
+Status: ✔ enabled        Version: 1.1.0
+Skills (65)  Agents (19)  Hooks (14)  MCP servers (4)
 ```
 
-Inside a Claude Code session you can also run:
+The 4 MCP servers are `gh-cache`, `memory`, `lsp-typescript`, `lsp-pyright`.
 
-- `/status` — shows active hooks and loaded skills
-- `/permissions` — shows the deny/allow policy in effect
+> `/reload-plugins` reports a much smaller "skills" number — that counter does not include
+> SKILL.md-based plugin skills. `claude plugin details` is authoritative (65).
 
 ## Self-remediation
 
-If the plugin did not install (e.g. `gh auth` was incomplete, or the session started
-before the managed-settings push landed):
+If the harness did not install (e.g. `gh auth` incomplete, or the session started before
+the policy landed):
 
-1. Authenticate the GitHub CLI if not already done: `gh auth login`
-2. Add the marketplace manually:
-   ```bash
-   claude plugin marketplace add Adviser-Group/.claude
-   ```
-3. Install the plugin:
-   ```bash
-   claude plugin install harness@adviser-group
-   ```
-4. Restart Claude Code.
+```bash
+gh auth login
+D="$HOME/.claude/local-marketplaces/adviser-group"
+git clone https://github.com/Adviser-Group/.claude.git "$D"   # system git, uses your gh creds
+claude plugin marketplace add "$D"
+claude plugin install harness@adviser-group
+# then restart Claude Code
+```
 
-The `PreToolUse` nudge hook will remind you with the exact commands if it detects the
-plugin is absent at tool-call time.
+> **Do not** run `claude plugin marketplace add Adviser-Group/.claude` (the github
+> shorthand) — Claude Code's bundled git cannot clone this private, dot-named repo. Always
+> add the **local directory** path.
+
+One-off bypass of the nudge for a single session: `export ADVISER_HARNESS_OPT_OUT=1` then
+restart.
 
 ## Rollback
 
-To remove the harness plugin from an engineer's machine:
+Per machine:
 
 ```bash
 claude plugin uninstall harness@adviser-group
 claude plugin marketplace remove adviser-group
+rm -rf "$HOME/.claude/local-marketplaces/adviser-group"   # optional: drop the local clone
 ```
 
-To remove it org-wide, edit the enterprise console and remove `harness@adviser-group`
-from `enabledPlugins` in the managed-settings. The `SessionStart` hook will no longer
-install it on subsequent sessions.
+Org-wide: remove `harness@adviser-group` from `enabledPlugins` in the console (and/or
+remove the `SessionStart` hook). The bootstrap will no longer install on subsequent
+sessions.
+
+## Known limitations
+
+- **Native `github`/SSH plugin clone is unsupported for this repo** (private + dot-name).
+  Worked around via system-git + local directory marketplace. Worth a Claude Code bug
+  report; if fixed, revert to a plain `github` source.
+- **`.mcp.json` is committed (force-added past `.gitignore`)** so the 4 MCP servers ship
+  with the plugin — only `.mcp.json` at the plugin root is parsed; inline `mcpServers` and
+  the path-string form in `plugin.json` are **not**. Side effect: opening *this repo as a
+  project* tries to start those servers with `${CLAUDE_PLUGIN_ROOT}` unset and shows them
+  as failed. Harmless; affects only people working inside the harness repo itself.
 
 ## Out of scope
 
-- Claude Desktop app (`claude.ai`) — does not read `~/.claude/` or the plugin store.
-- Claude Code cloud runners — ephemeral containers. Use repo-level `CLAUDE.md` +
-  `.mcp.json` in each project instead.
+- Claude Desktop / claude.ai — does not read `~/.claude/` or the plugin store.
+- Claude Code cloud runners — ephemeral; use repo-level `CLAUDE.md` + `.mcp.json` per
+  project.
 
 ## Troubleshooting
 
-**Plugin not found after install**
+**`Marketplace file not found …/Adviser-Group--claude/.claude-plugin/marketplace.json`**
+The native `github` clone failed (expected for this repo). Use the local-directory method
+— it is the default in the shipped `managed-settings.json`; for a manual fix see
+Self-remediation.
 
-Check that `CLAUDE_PLUGIN_ROOT` is resolving correctly:
+**`Marketplace "adviser-group" is not in the allowed marketplace list`**
+`strictKnownMarketplaces` is set and its matcher does not match this repo. Remove
+`strictKnownMarketplaces` from managed-settings.
 
-```bash
-echo $CLAUDE_PLUGIN_ROOT
-```
+**`could not read Username` / permission denied during clone**
+`gh auth status` must show an authenticated account with read access to
+`Adviser-Group/.claude`. Run `gh auth login`.
 
-This variable must point to the directory where the harness was installed. If it is
-empty, Claude Code did not set it — file a support ticket or check the managed-settings
-`pluginDataDir` field.
+**Plugin fails to load: `Duplicate hooks file detected`**
+`plugin.json` must NOT declare `"hooks": "./hooks/hooks.json"` — the standard
+`hooks/hooks.json` is auto-loaded. Fixed in v1.1.0+.
 
-**Permission denied during install**
+**`MCP servers (0)` in `plugin details`**
+The servers must live in `.mcp.json` at the plugin root (not inline in `plugin.json`).
+Fixed in v1.1.0+.
 
-Ensure `gh auth status` shows an authenticated session for the account that has read
-access to `Adviser-Group/.claude`.
-
-**Hook fires but plugin keeps reinstalling**
-
-The session-start hook is idempotent. If it reinstalls on every session the version pin
-in `version-pin` may be drifting — check `claude plugin details harness@adviser-group`
-and compare the version with the pinned value.
+**`CLAUDE_PLUGIN_ROOT` empty**
+Only set inside plugin contexts. If a skill/hook cannot resolve it, the plugin failed to
+load — check `claude plugin list` for a load error and the bootstrap log.

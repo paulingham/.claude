@@ -1,18 +1,8 @@
 {
-  "extraKnownMarketplaces": {
-    "adviser-group": {
-      "source": { "source": "github", "repo": "Adviser-Group/.claude" }
-    }
-  },
   "enabledPlugins": {
     "harness@adviser-group": true
   },
-  "strictKnownMarketplaces": [
-    { "source": "github", "repo": "Adviser-Group/.claude" },
-    { "source": "hostPattern", "hostPattern": "^github\\.com$" }
-  ],
   "env": {
-    "CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE": "1",
     "CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS": "300000",
     "CLAUDE_HOOK_PROFILE": "standard",
     "ENABLE_TOOL_SEARCH": "true",
@@ -52,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "case \"$(uname -s 2>/dev/null)\" in Darwin|Linux|*BSD*) ;; *) exit 0;; esac; case \"${OSTYPE:-}\" in msys*|cygwin*|win32) exit 0;; esac; command -v claude >/dev/null 2>&1 || exit 0; C=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}\"; mkdir -p \"$C/logs\" 2>/dev/null; t=\"${GITHUB_TOKEN:-${GH_TOKEN:-}}\"; if [ -z \"$t\" ] && command -v gh >/dev/null 2>&1; then t=\"$(gh auth token 2>/dev/null)\"; fi; [ -n \"$t\" ] && export GITHUB_TOKEN=\"$t\"; export CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE=1; ( claude plugin marketplace list 2>/dev/null | grep -q adviser-group || claude plugin marketplace add Adviser-Group/.claude; if claude plugin list 2>/dev/null | grep -q adviser-group; then : > \"$C/.adviser-harness-installed\"; claude plugin marketplace update adviser-group; else claude plugin install harness@adviser-group && : > \"$C/.adviser-harness-installed\"; fi ) >> \"$C/logs/harness-bootstrap.log\" 2>&1 & exit 0"
+            "command": "case \"$(uname -s 2>/dev/null)\" in Darwin|Linux|*BSD*) ;; *) exit 0;; esac; command -v claude >/dev/null 2>&1 || exit 0; command -v git >/dev/null 2>&1 || exit 0; C=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}\"; mkdir -p \"$C/logs\" \"$C/local-marketplaces\" 2>/dev/null; D=\"$C/local-marketplaces/adviser-group\"; t=\"${GITHUB_TOKEN:-${GH_TOKEN:-}}\"; if [ -z \"$t\" ] && command -v gh >/dev/null 2>&1; then t=\"$(gh auth token 2>/dev/null)\"; fi; U=\"https://github.com/Adviser-Group/.claude.git\"; if [ -n \"$t\" ]; then AU=\"https://x-access-token:${t}@github.com/Adviser-Group/.claude.git\"; else AU=\"$U\"; fi; ( if [ -d \"$D/.git\" ]; then git -C \"$D\" pull --ff-only \"$AU\" main >/dev/null 2>&1 || true; else git clone --depth 1 \"$AU\" \"$D\" >/dev/null 2>&1 && git -C \"$D\" remote set-url origin \"$U\"; fi; [ -f \"$D/.claude-plugin/marketplace.json\" ] || exit 0; claude plugin marketplace list 2>/dev/null | grep -q adviser-group || claude plugin marketplace add \"$D\"; if claude plugin list 2>/dev/null | grep -q adviser-group; then : > \"$C/.adviser-harness-installed\"; else claude plugin install harness@adviser-group && : > \"$C/.adviser-harness-installed\"; fi ) >> \"$C/logs/harness-bootstrap.log\" 2>&1 & exit 0"
           }
         ]
       }
@@ -63,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ \"${ADVISER_HARNESS_OPT_OUT:-}\" = \"1\" ] && exit 0; case \"$(uname -s 2>/dev/null)\" in Darwin|Linux|*BSD*) ;; *) exit 0;; esac; case \"${OSTYPE:-}\" in msys*|cygwin*|win32) exit 0;; esac; C=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}\"; [ -f \"$C/.adviser-harness-installed\" ] && exit 0; if [ -f \"$C/plugins/known_marketplaces.json\" ] && grep -q adviser-group \"$C/plugins/known_marketplaces.json\" 2>/dev/null; then exit 0; fi; printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Adviser harness not detected. It should auto-install on your NEXT Claude Code restart. If not: run gh auth login (or export GITHUB_TOKEN) then restart; or install manually: claude plugin marketplace add Adviser-Group/.claude && claude plugin install harness@adviser-group then restart. One-off bypass: export ADVISER_HARNESS_OPT_OUT=1 then restart. Help #eng-harness.\"}}'; exit 0"
+            "command": "[ \"${ADVISER_HARNESS_OPT_OUT:-}\" = \"1\" ] && exit 0; case \"$(uname -s 2>/dev/null)\" in Darwin|Linux|*BSD*) ;; *) exit 0;; esac; C=\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}\"; [ -f \"$C/.adviser-harness-installed\" ] && exit 0; if [ -f \"$C/plugins/known_marketplaces.json\" ] && grep -q adviser-group \"$C/plugins/known_marketplaces.json\" 2>/dev/null; then exit 0; fi; printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Adviser harness not detected. It auto-installs on your NEXT Claude Code restart. If it does not: run gh auth login then restart. Logs: ~/.claude/logs/harness-bootstrap.log. One-off bypass: export ADVISER_HARNESS_OPT_OUT=1 then restart. Help #eng-harness.\"}}'; exit 0"
           }
         ]
       }
