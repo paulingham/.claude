@@ -165,6 +165,18 @@ load_helper() {
   [ -z "$output" ]
 }
 
+@test "_ssvc_check_version: pin file present but CLAUDE_VERSION unset and no claude binary is silent" {
+  echo "2.1.160" > "$CLAUDE_CONFIG_DIR/version-pin"
+  unset CLAUDE_VERSION
+  # Mask the claude binary so the fallback subshell produces empty output
+  function claude() { return 1; }
+  export -f claude
+  load_helper
+  run _ssvc_check_version
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 # --- AC2: real version-pin file value ---
 
 @test "version-pin file contains 2.1.160" {
