@@ -57,3 +57,62 @@ test('run_main always includes root route', async () => {
   assert.strictEqual(output.routes.length, 1);
   assert.strictEqual(output.routes[0].url, '/');
 });
+
+test('run_main multi-route one bad route yields EXIT.failed exit code', async () => {
+  const chunks = [];
+  const orig = process.stdout.write.bind(process.stdout);
+  process.stdout.write = chunk => { chunks.push(chunk); return true; };
+  let code;
+  try {
+    code = await run_main(
+      ['--url', 'http://localhost:3000/', '--url', 'http://localhost:3000/bad'],
+      {
+        axeRunFn: async (url) =>
+          url.includes('/bad') ? makeWcag2aaResult() : makeCleanResult(),
+      },
+    );
+  } finally {
+    process.stdout.write = orig;
+  }
+  assert.strictEqual(code, EXIT.failed, 'multi-route with one bad route must return EXIT.failed');
+});
+
+test('run_main gating_violations items carry route_url field', async () => {
+  const output = await captureStdout(() => run_main(
+    ['--url', 'http://localhost:3000/page'],
+    { axeRunFn: async () => makeWcag2aaResult() },
+  ));
+  assert.ok(output.gating_violations.length > 0, 'must have gating_violations');
+  assert.strictEqual(
+    output.gating_violations[0].route_url,
+    'http://localhost:3000/page',
+    'gating_violations item must carry route_url matching the scanned URL',
+  );
+});
+
+test('run_main skipped output carries skip_reason field', async () => {
+  const chunks = [];
+  const orig = process.stdout.write.bind(process.stdout);
+  process.stdout.write = chunk => { chunks.push(chunk); return true; };
+  let code;
+  try {
+    code = await run_main(
+      ['--url', 'http://localhost:3000/'],
+      { axeRunFn: async () => { throw new Error('browser-launch-failed'); } },
+    );
+  } finally {
+    process.stdout.write = orig;
+  }
+  assert.strictEqual(code, EXIT.skipped);
+  const output = JSON.parse(chunks.join(''));
+  assert.ok('skip_reason' in output, 'skipped output must carry skip_reason field');
+  assert.strictEqual(output.skip_reason, 'browser-launch-failed');
+});
+
+test('run_main violation with empty tags array does not gate', async () => {
+  const code = await run_main(
+    ['--url', 'http://localhost:3000/'],
+    { axeRunFn: async () => ({ violations: [{ id: 'x', tags: [], help: 'h', nodes: [] }], incomplete: [] }) },
+  );
+  assert.strictEqual(code, EXIT.ok, 'violation with empty tags must not gate (no GATING_TAG intersection)');
+});
