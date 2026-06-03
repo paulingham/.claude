@@ -11,20 +11,36 @@ Three-tier resolution (matches hooks/_lib/harness-paths.sh:13-14):
 import os
 from pathlib import Path
 
+_SHELL_METACHARS = frozenset('"$`; \t\n|&<>()')
+
+
+def _validate_base(p: Path) -> Path:
+    """Validate a resolved base path; raise ValueError on unsafe values."""
+    s = str(p)
+    if not s.startswith("/"):
+        raise ValueError(f"harness_paths: path must be absolute, got: {s!r}")
+    if ".." in Path(s).parts:
+        raise ValueError(f"harness_paths: path must not contain '..', got: {s!r}")
+    if any(c in s for c in _SHELL_METACHARS):
+        raise ValueError(f"harness_paths: path contains shell metachar, got: {s!r}")
+    return p
+
 
 def harness_data() -> Path:
     """Runtime-state base dir: CLAUDE_PLUGIN_DATA > CLAUDE_CONFIG_DIR > ~/.claude."""
-    return Path(
+    raw = (
         os.environ.get("CLAUDE_PLUGIN_DATA")
         or os.environ.get("CLAUDE_CONFIG_DIR")
         or Path.home() / ".claude"
     )
+    return _validate_base(Path(raw))
 
 
 def harness_root() -> Path:
     """Shipped-content base dir: CLAUDE_PLUGIN_ROOT > CLAUDE_CONFIG_DIR > ~/.claude."""
-    return Path(
+    raw = (
         os.environ.get("CLAUDE_PLUGIN_ROOT")
         or os.environ.get("CLAUDE_CONFIG_DIR")
         or Path.home() / ".claude"
     )
+    return _validate_base(Path(raw))

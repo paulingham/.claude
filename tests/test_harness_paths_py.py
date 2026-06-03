@@ -140,6 +140,138 @@ class TestAgentFrontmatterIoUsesHarnessRoot:
             assert result2 == Path.home() / ".claude" / "agents"
 
 
+class TestValidateBase:
+    """SEC-H1: _validate_base raises ValueError for unsafe paths."""
+
+    def test_non_absolute_raises(self):
+        import harness_paths
+        importlib.reload(harness_paths)
+        with pytest.raises(ValueError, match="absolute"):
+            harness_paths._validate_base(Path("relative/path"))
+
+    def test_dotdot_component_raises(self):
+        import harness_paths
+        importlib.reload(harness_paths)
+        with pytest.raises(ValueError, match=r"\.\.|absolute"):
+            harness_paths._validate_base(Path("/tmp/../etc"))
+
+    def test_double_quote_metachar_raises(self):
+        import harness_paths
+        importlib.reload(harness_paths)
+        with pytest.raises(ValueError, match="metachar"):
+            harness_paths._validate_base(Path('/tmp/a"b'))
+
+    def test_dollar_metachar_raises(self):
+        import harness_paths
+        importlib.reload(harness_paths)
+        with pytest.raises(ValueError, match="metachar"):
+            harness_paths._validate_base(Path("/tmp/a$b"))
+
+    def test_semicolon_metachar_raises(self):
+        import harness_paths
+        importlib.reload(harness_paths)
+        with pytest.raises(ValueError, match="metachar"):
+            harness_paths._validate_base(Path("/tmp/a;b"))
+
+    def test_valid_absolute_passes(self, tmp_path):
+        import harness_paths
+        importlib.reload(harness_paths)
+        result = harness_paths._validate_base(tmp_path)
+        assert result == tmp_path
+
+    def test_harness_data_with_metachar_env_raises(self, tmp_path):
+        with patch.dict(os.environ, {"CLAUDE_PLUGIN_DATA": '/tmp/a$b'}, clear=False):
+            import harness_paths
+            importlib.reload(harness_paths)
+            with pytest.raises(ValueError, match="metachar"):
+                harness_paths.harness_data()
+
+    def test_harness_data_non_absolute_env_raises(self):
+        with patch.dict(os.environ, {"CLAUDE_PLUGIN_DATA": 'relative/path'}, clear=False):
+            import harness_paths
+            importlib.reload(harness_paths)
+            with pytest.raises(ValueError, match="absolute"):
+                harness_paths.harness_data()
+
+
+class TestInjectionScanFailClosed:
+    """SEC-H2: injection-scan.sh exits 1 when HARNESS_DATA is empty.
+
+    harness-paths.sh (sourced via log.sh) always exports a non-empty HARNESS_DATA
+    using the $HOME/.claude fallback, so HARNESS_DATA is only empty when it is
+    explicitly cleared after sourcing (adversarial env mutation). The guard prevents
+    an empty prefix in the case match from matching every file path.
+    """
+
+    def test_injection_scan_fails_when_harness_data_empty(self, tmp_path):
+        import json
+        import subprocess
+        hook = _REPO_ROOT / "hooks" / "injection-scan.sh"
+        target = tmp_path / "file.txt"
+        target.write_text("safe content")
+        payload = {"tool_name": "Write",
+                   "tool_input": {"file_path": str(target)}}
+        env = {k: v for k, v in os.environ.items()}
+        env["CLAUDE_PLUGIN_ROOT"] = str(_REPO_ROOT)
+        env["CLAUDE_PLUGIN_DATA"] = str(tmp_path)
+        # Set source-guard so harness-paths.sh does NOT re-run and reset HARNESS_DATA.
+        # This simulates HARNESS_DATA being cleared after the initial source
+        # (adversarial env mutation that the [ -n "$HARNESS_DATA" ] guard catches).
+        env["_HARNESS_PATHS_LOADED"] = "1"
+        env["HARNESS_DATA"] = ""
+        result = subprocess.run(
+            ["bash", str(hook)],
+            input=json.dumps(payload),
+            capture_output=True, text=True, timeout=10, env=env,
+        )
+        assert result.returncode == 1, (
+            f"injection-scan must exit 1 when HARNESS_DATA is empty; "
+            f"rc={result.returncode}, stderr={result.stderr!r}"
+        )
+        assert "HARNESS_DATA unset" in result.stderr
+
+    def test_injection_scan_normal_path_exits_zero(self, tmp_path):
+        """Guard does not fire when HARNESS_DATA is properly set."""
+        import json
+        import subprocess
+        hook = _REPO_ROOT / "hooks" / "injection-scan.sh"
+        payload = {"tool_name": "Write",
+                   "tool_input": {"file_path": str(tmp_path / "outside.txt")}}
+        env = {k: v for k, v in os.environ.items()}
+        env["CLAUDE_PLUGIN_ROOT"] = str(_REPO_ROOT)
+        env["CLAUDE_PLUGIN_DATA"] = str(tmp_path)
+        env.pop("_HARNESS_PATHS_LOADED", None)
+        env.pop("HARNESS_DATA", None)
+        result = subprocess.run(
+            ["bash", str(hook)],
+            input=json.dumps(payload),
+            capture_output=True, text=True, timeout=10, env=env,
+        )
+        # File not under HARNESS_DATA/ → case falls through → exit 0
+        assert result.returncode == 0
+
+
+class TestResolvedHarnessData:
+    """A-M1: resolved_harness_data() returns HARNESS_DATA env or harness_data() string."""
+
+    def test_returns_harness_data_env_when_set(self, tmp_path):
+        val = str(tmp_path / "override")
+        with patch.dict(os.environ, {"HARNESS_DATA": val}, clear=False):
+            import harness_paths
+            importlib.reload(harness_paths)
+            assert harness_paths.resolved_harness_data() == val
+
+    def test_falls_back_to_harness_data_fn(self, tmp_path):
+        plugin_data = str(tmp_path / "plugin-data")
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("HARNESS_DATA", "CLAUDE_PLUGIN_DATA", "CLAUDE_CONFIG_DIR")}
+        env["CLAUDE_PLUGIN_DATA"] = plugin_data
+        with patch.dict(os.environ, env, clear=True):
+            import harness_paths
+            importlib.reload(harness_paths)
+            assert harness_paths.resolved_harness_data() == plugin_data
+
+
 class TestAgentToolsLoaderRetainsPrecedence:
     """CLAUDE_AGENTS_DIR env var takes precedence over harness_root()."""
 

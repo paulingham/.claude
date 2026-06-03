@@ -36,6 +36,11 @@ GATED = "patch-critic"
 
 _SITE_PP = ":".join(p for p in sys.path if "site-packages" in p)
 _REPO_ROOT = REPO_ROOT
+_GLOBAL_PLUGIN_DATA = Path(tempfile.mkdtemp(prefix="freshness-global-"))
+# Register cleanup so the tmpdir is removed on process exit (avoids leaking dirs).
+import atexit as _atexit
+import shutil as _shutil
+_atexit.register(_shutil.rmtree, str(_GLOBAL_PLUGIN_DATA), True)
 
 
 def _run_hook(payload, env=None, plugin_data=None):
@@ -53,9 +58,6 @@ def _run_hook(payload, env=None, plugin_data=None):
     return subprocess.run(
         ["bash", str(HOOK)], input=json.dumps(payload),
         capture_output=True, text=True, timeout=15, env=proc_env)
-
-
-_GLOBAL_PLUGIN_DATA = Path(tempfile.mkdtemp(prefix="freshness-global-"))
 
 
 def _log_path(session, filename="freshness-guard.jsonl", base=None):

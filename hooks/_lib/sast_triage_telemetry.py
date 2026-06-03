@@ -13,15 +13,15 @@ import time
 from pathlib import Path
 from typing import Any
 
-from harness_paths import harness_data
+from harness_paths import harness_data, resolved_harness_data
 
 
 def _metrics_dir() -> Path:
     base = os.environ.get("CLAUDE_METRICS_DIR")
     if base:
         return Path(base)
-    # Precedence: HARNESS_DATA > harness_data() fallback
-    return Path(os.environ.get("HARNESS_DATA") or str(harness_data())) / "metrics"
+    # Precedence: HARNESS_DATA env > harness_data() resolver fallback
+    return Path(resolved_harness_data()) / "metrics"
 
 
 def _session_id() -> str:

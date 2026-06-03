@@ -18,7 +18,7 @@ import json
 import os
 import sys
 
-from harness_paths import harness_data
+from harness_paths import harness_data, resolved_harness_data
 
 
 _PERSONA_TAIL_ANCHOR = {
@@ -37,8 +37,8 @@ _DEFERRED_ANCHORS = [
 
 
 def _config_dir() -> str:
-    """Runtime-state base: HARNESS_DATA > harness_data() fallback."""
-    return os.environ.get("HARNESS_DATA") or str(harness_data())
+    """Runtime-state base: HARNESS_DATA env > harness_data() resolver fallback."""
+    return resolved_harness_data()
 
 
 def _rules_core_path() -> "str | None":

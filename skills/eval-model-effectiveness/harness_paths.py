@@ -1,4 +1,4 @@
-"""Sibling path resolver for skills/capture — verbatim copy of hooks/_lib/harness_paths.py.
+"""Sibling path resolver for skills/eval-model-effectiveness — verbatim copy of hooks/_lib/harness_paths.py.
 
 Skills processes have an independent sys.path; cross-tree import from hooks/_lib is
 fragile (M-a). This module is a local copy of the two resolver functions.

@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 from agentic_security_gate import gate_decision
+from harness_paths import harness_data
 from log_allowlist_session import sanitize_session
 
 
@@ -32,12 +33,7 @@ def _metrics_dir() -> Path:
     base = os.environ.get("CLAUDE_METRICS_DIR")
     if base:
         return Path(base)
-    config = (
-        os.environ.get("HARNESS_DATA")
-        or os.environ.get("CLAUDE_CONFIG_DIR")
-        or str(Path.home() / ".claude")
-    )
-    return Path(config) / "metrics"
+    return harness_data() / "metrics"
 
 
 def _session_id() -> str:

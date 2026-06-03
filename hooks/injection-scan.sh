@@ -23,7 +23,10 @@ if [[ -z "$FILE_PATH" ]]; then
     exit 0
 fi
 
-# Only scan files under ~/.claude/
+# Fail-closed: HARNESS_DATA must be set before the case match
+[ -n "$HARNESS_DATA" ] || { echo "injection-scan: HARNESS_DATA unset" >&2; exit 1; }
+
+# Only scan files under HARNESS_DATA/
 case "$FILE_PATH" in
     "$HARNESS_DATA/"*) ;;
     *) exit 0 ;;

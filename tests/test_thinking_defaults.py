@@ -34,6 +34,10 @@ _RESOLVER_ENV_VARS = (
 
 _SITE_PP = ":".join(p for p in sys.path if "site-packages" in p)
 _GLOBAL_PLUGIN_DATA = Path(tempfile.mkdtemp(prefix="thinking-test-"))
+# Register cleanup so the tmpdir is removed on process exit (avoids leaking dirs).
+import atexit as _atexit
+import shutil as _shutil
+_atexit.register(_shutil.rmtree, str(_GLOBAL_PLUGIN_DATA), True)
 
 
 def _run_hook(payload, env=None):

@@ -12,4 +12,6 @@
 _HARNESS_PATHS_LOADED=1
 HARNESS_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
 HARNESS_DATA="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
+[[ "$HARNESS_DATA" = /* ]] || { echo "harness-paths: HARNESS_DATA must be absolute" >&2; return 1; }
+[[ "$HARNESS_ROOT" = /* ]] || { echo "harness-paths: HARNESS_ROOT must be absolute" >&2; return 1; }
 export HARNESS_ROOT HARNESS_DATA

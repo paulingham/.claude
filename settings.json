@@ -1187,7 +1187,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/statusline-robbyrussell.sh\""
+    "command": "bash \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/statusline-robbyrussell.sh\""
   },
   "enabledPlugins": {
     "pyright-lsp@claude-plugins-official": true,

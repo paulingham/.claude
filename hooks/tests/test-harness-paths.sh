@@ -976,6 +976,43 @@ if [[ "$B7C_COUNT" -eq 0 ]]; then pass "B7c: zero Path.home()/.claude constructs
 else fail "B7c: zero Path.home()/.claude constructs in hooks/_lib, skills, tests .py (excl exclusions)" 0 "$B7C_COUNT"; fi
 
 # ---------------------------------------------------------------------------
+# B-M2: expanduser fallback forms in skills/**/*.py — must be 0
+# Catches: os.path.join(os.path.expanduser("~"), ".claude") and
+#          os.path.join(Path.home(), ...) patterns used as state-path roots
+# (plain expanduser with ".claude" as separate join arg is the legitimate cold-start
+# fallback inside harness_paths.py itself, which is excluded)
+# ---------------------------------------------------------------------------
+echo "-- B-M2: residual expanduser/Path.home() home-join patterns in skills/ .py (excl harness_paths.py) --"
+BM2_COUNT=$(python3 - "$REPO_ROOT" <<'BM2PYEOF'
+import os, re, sys
+# Match: os.path.expanduser("~") used in a join with ".claude"
+# or os.path.join(os.path.expanduser("~"), ".claude")
+# or Path.home() used directly in os.path.join
+pattern_expand = re.compile(r'expanduser\(["\x27]~["\x27]\)')
+pattern_join_home = re.compile(r'os\.path\.join\s*\(\s*(?:os\.path\.expanduser\(["\x27]~["\x27]\)|Path\.home\(\))')
+EXCLUDED_FILES = {"harness_paths.py"}
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root + '/skills'):
+    dirs[:] = [x for x in dirs if x not in ('tests', '.git')]
+    for f in files:
+        if not f.endswith('.py') or f in EXCLUDED_FILES:
+            continue
+        path = os.path.join(d, f)
+        with open(path) as fp:
+            for line in fp:
+                if pattern_expand.search(line) and '.claude' in line:
+                    count += 1
+                elif pattern_join_home.search(line) and '.claude' in line:
+                    count += 1
+print(count)
+BM2PYEOF
+)
+BM2_COUNT="${BM2_COUNT// /}"
+if [[ "$BM2_COUNT" -eq 0 ]]; then pass "B-M2: zero expanduser/Path.home() home-join patterns in skills/ .py (excl harness_paths.py)"
+else fail "B-M2: zero expanduser/Path.home() home-join patterns in skills/ .py (excl harness_paths.py)" 0 "$BM2_COUNT"; fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

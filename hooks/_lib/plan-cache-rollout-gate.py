@@ -31,7 +31,7 @@ import json
 import os
 import sys
 
-from harness_paths import harness_data
+from harness_paths import harness_data, resolved_harness_data
 
 HIT_RATE_MIN = 0.10
 PV_PASS_RATE_MIN = 0.95
@@ -132,8 +132,7 @@ def main(argv):
     parser.add_argument(
         "--metrics-dir",
         default=os.environ.get("CLAUDE_HOOK_LOG_DIR") or os.path.join(
-            os.environ.get("HARNESS_DATA") or str(harness_data()),
-            "metrics",
+            resolved_harness_data(), "metrics",
         ),
     )
     args = parser.parse_args(argv[1:])
