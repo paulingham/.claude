@@ -147,7 +147,7 @@ JSONL violation logs at `metrics/$SESSION/vlm-critic-violations.jsonl` provide f
 - **VISUAL_DIFF_PASS** — every route PASS. Product-reviewer reads the same index.json and continues to APPROVE-gate logic.
 - **VISUAL_DIFF_FAIL** — any route FAIL. Spawn fix-engineer per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule (code-fix-only — fix-engineer MUST NOT mutate ACs).
 
-See `rules/verdict-catalog.md` for the agent-emitted footnote.
+See `protocols/verdict-catalog.md` for the agent-emitted footnote.
 
 ## Phase Output
 

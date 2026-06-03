@@ -9,9 +9,9 @@ These tests pin the contract for hooks/tool-timing-capture.sh:
   Missing optional fields are OMITTED, not null.
 - AC2: runtime-guard.sh start-files + Mode B cap enforcement preserved
   (regression guards). Header comment is verbatim load-bearing.
-- AC3: rules/agent-protocol.md Resource Bounds section references the
+- AC3: protocols/agent-protocol.md Resource Bounds section references the
   new hook, documents cleanup ownership, preserves Path-B disclosure.
-  Mirror in rules/parallel-dispatch-protocol.md is synced.
+  Mirror in protocols/parallel-dispatch-protocol.md is synced.
 - AC4: tool-timing-capture.sh appears in test_log_hook.sh test 11
   enumerated hook list (asserted by test 11 itself).
 """
@@ -28,8 +28,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOOK = REPO_ROOT / "hooks" / "tool-timing-capture.sh"
 RG_HOOK = REPO_ROOT / "hooks" / "runtime-guard.sh"
-AGENT_PROTOCOL = REPO_ROOT / "rules" / "agent-protocol.md"
-PARALLEL_PROTOCOL = REPO_ROOT / "rules" / "parallel-dispatch-protocol.md"
+AGENT_PROTOCOL = REPO_ROOT / "protocols" / "agent-protocol.md"
+PARALLEL_PROTOCOL = REPO_ROOT / "protocols" / "parallel-dispatch-protocol.md"
 
 
 def _post_payload(tool="Bash", duration_ms=42, subagent_type=None,
@@ -291,7 +291,7 @@ class TestRuntimeGuardPreserved(unittest.TestCase):
 
 
 class TestRulesUpdate(unittest.TestCase):
-    """AC3 — rules/agent-protocol.md and parallel-dispatch-protocol.md."""
+    """AC3 — protocols/agent-protocol.md and parallel-dispatch-protocol.md."""
 
     def setUp(self):
         self.agent_text = AGENT_PROTOCOL.read_text()

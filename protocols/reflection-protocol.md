@@ -67,13 +67,13 @@ Summarise to the user:
 **After a refactor:**
 > Learned: Session detection has multiple fallback layers for timing reasons. Added rule: prefer narrowing conditions over removing them.
 
-## 6. Autonomous Intelligence (Mandatory — see `rules/autonomous-intelligence.md`)
+## 6. Autonomous Intelligence (Mandatory — see `protocols/autonomous-intelligence.md`)
 
 After reflection steps 1-5, execute these in order:
 
 ### 6a. Capture Pipeline Observation
 
-Append a structured observation to `learning/{project-hash}/observations.jsonl`. Every pipeline produces one observation — successes and failures both. Include: phase verdicts, review rounds, scratchpad findings summary, rework flag, complexity budget. Format in `rules/autonomous-intelligence.md` § Observation Capture.
+Append a structured observation to `learning/{project-hash}/observations.jsonl`. Every pipeline produces one observation — successes and failures both. Include: phase verdicts, review rounds, scratchpad findings summary, rework flag, complexity budget. Format in `protocols/autonomous-intelligence.md` § Observation Capture.
 
 **Ordering note (Step 4d relocation):** for the regular delivery pipeline, the observation append runs at `skills/pipeline/SKILL.md` **Step 4d-i (Reflect-write, pre-Ship)** — BEFORE `/harness:pr-creation` — so the artifacts ship inside the feature-branch PR rather than landing as orphan `chore(learning):` commits on local `main` post-merge. The `record_type: "pipeline"` JSON template, mode invariants, and sandbox-safe Python `os.open` append snippet live in Step 4d-i. This § 6a entry remains the canonical schema reference; Step 4d-i is the canonical producer site.
 
@@ -115,7 +115,7 @@ The /harness:learn invocation resets the gate counters via `skills/learn/SKILL.m
 
 Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1` suppresses the hook.
 
-See `rules/autonomous-intelligence.md` § Consolidation Gate for full semantics.
+See `protocols/autonomous-intelligence.md` § Consolidation Gate for full semantics.
 
 **Synchronous variant (Step 4d-ii):** the regular delivery pipeline now invokes `/harness:learn` **synchronously** at `skills/pipeline/SKILL.md` Step 4d-ii (Reflect-write, pre-Ship) — NOT background-spawn — so the instinct `.md` files are flushed to disk before Step 4d-iii commits them to the feature-branch worktree. The async dispatch documented above is the legacy post-Ship variant, retained as the contract source for batch/utility callers that do not need pre-Ship commit semantics. The integration-test snapshot `DocsRecordBackgroundSpawnContract` continues to assert the literal phrases `Pipeline must NOT block on /harness:learn completion` and `run_in_background: true` — those still apply to background-spawn callers, not to Step 4d-ii.
 
@@ -130,7 +130,7 @@ This is advisory — the report is written to disk; no live config is changed. S
 
 ### 6c. Update Session Memory
 
-Spawn a `session-memory-updater` agent (Agent tool, `subagent_type: session-memory-updater`, `run_in_background: true`) with curated engineering facts from this pipeline. See `rules/autonomous-intelligence.md` § Update Mechanism for the required prompt contents.
+Spawn a `session-memory-updater` agent (Agent tool, `subagent_type: session-memory-updater`, `run_in_background: true`) with curated engineering facts from this pipeline. See `protocols/autonomous-intelligence.md` § Update Mechanism for the required prompt contents.
 
 ### 6d-bis. Named Deviation Acknowledgment Gate
 

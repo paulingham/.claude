@@ -35,6 +35,6 @@ _rg_increment_respawn() {
 }
 
 _rg_emit_respawn_block() {
-  printf 'BLOCKED: re-dispatch cap exceeded subagent_type=%s task_id=%s count=%s max=%s\nThe orchestrator must escalate to the user instead of re-spawning this role.\nSee rules/operational-protocol.md > Error Recovery Principles.\n' \
+  printf 'BLOCKED: re-dispatch cap exceeded subagent_type=%s task_id=%s count=%s max=%s\nThe orchestrator must escalate to the user instead of re-spawning this role.\nSee protocols/operational-protocol.md > Error Recovery Principles.\n' \
     "$1" "$2" "$3" "$4" >&2
 }

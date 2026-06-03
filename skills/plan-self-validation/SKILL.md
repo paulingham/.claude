@@ -34,7 +34,7 @@ Before scoring the rubric, re-run the fingerprint detectors from `protocols/work
 1. Read `tier_initial` from `pipeline-state/{task-id}/intake.md` frontmatter (set by `/harness:intake` Step 1.5 Fingerprint).
 2. Read the architect plan's `## Affected Files` list.
 3. **Re-run Phase 1 detectors** (T1_doc_only / T2_config_only / T3_mechanical_sweep glob/regex matchers) against that list.
-4. **Re-run Phase 2 safety override** including the rules/core.md path-pattern check: if any affected file matches `rules/core.md` / `protocols/atdd-procedure.md` / `rules/verdict-catalog.md` / `hooks/*.sh` body / `auth/*` / `secrets/*` / `*crypto*` / `*.env` / test files / auth-payment-crypto keywords → upshift to T6 (or T4 minimum for non-Iron-Law-surface). This is the HIGH-1 conservative check.
+4. **Re-run Phase 2 safety override** including the rules/core.md path-pattern check: if any affected file matches `rules/core.md` / `protocols/atdd-procedure.md` / `protocols/verdict-catalog.md` / `hooks/*.sh` body / `auth/*` / `secrets/*` / `*crypto*` / `*.env` / test files / auth-payment-crypto keywords → upshift to T6 (or T4 minimum for non-Iron-Law-surface). This is the HIGH-1 conservative check.
 5. Compute `tier_replanned` from steps 3-4.
 
 **Verdict**:

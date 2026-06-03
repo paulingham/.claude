@@ -15,7 +15,7 @@
 #   6. Line count ≤ 50.
 #   7. The ## Procedure body is exactly one non-blank line AND that line
 #      references `orchestrator/parallel-dispatch-details.md` (delegation).
-#   8. Both PDR_* verdicts registered in rules/verdict-catalog.md.
+#   8. Both PDR_* verdicts registered in protocols/verdict-catalog.md.
 #
 # Exit 0 + STRUCTURE_OK on success; exit 1 + FAIL: <reason> on any failure.
 
@@ -25,7 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILL="$REPO_ROOT/skills/pdr-rtv/SKILL.md"
 TESTS_DIR="$REPO_ROOT/skills/pdr-rtv/tests"
-CATALOG="$REPO_ROOT/rules/verdict-catalog.md"
+CATALOG="$REPO_ROOT/protocols/verdict-catalog.md"
 
 fail() {
   echo "FAIL: $1" >&2
@@ -124,10 +124,10 @@ fi
 pass "## Procedure body is single delegation line"
 
 # --- Check 8: verdicts registered in catalog --------------------------------
-[[ -f "$CATALOG" ]] || fail "rules/verdict-catalog.md not found at $CATALOG"
+[[ -f "$CATALOG" ]] || fail "protocols/verdict-catalog.md not found at $CATALOG"
 for verdict in PDR_WINNER_SELECTED PDR_NO_CONSENSUS; do
   if ! grep -Fq "\`${verdict}\`" "$CATALOG"; then
-    fail "verdict '$verdict' not registered in rules/verdict-catalog.md"
+    fail "verdict '$verdict' not registered in protocols/verdict-catalog.md"
   fi
 done
 pass "both PDR_* verdicts registered in verdict-catalog.md"

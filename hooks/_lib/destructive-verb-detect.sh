@@ -54,5 +54,5 @@ destructive_block_message() {
   printf '  command: %s\n' "$cmd" >&2
   printf 'Set CLAUDE_DESTRUCTIVE_CONFIRM=I-have-a-restorable-backup-elsewhere\n' >&2
   printf 'AND CLAUDE_DESTRUCTIVE_CONFIRM_TS=$(date +%%s) within the last 600 seconds.\n' >&2
-  printf 'See rules/agent-protocol.md > Non-LLM Gates on Destructive Verbs.\n' >&2
+  printf 'See protocols/agent-protocol.md > Non-LLM Gates on Destructive Verbs.\n' >&2
 }

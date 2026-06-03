@@ -392,7 +392,7 @@ class SkillDocsUseIntendedDefaultFraming(unittest.TestCase):
 _DOC_TOUCHPOINTS = [
     REPO_ROOT / "skills" / "code-review" / "SKILL.md",
     REPO_ROOT / "skills" / "security-review" / "SKILL.md",
-    REPO_ROOT / "rules" / "parallel-dispatch-protocol.md",
+    REPO_ROOT / "protocols" / "parallel-dispatch-protocol.md",
     REPO_ROOT / "CLAUDE.md",
 ]
 

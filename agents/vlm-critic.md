@@ -78,7 +78,7 @@ For every route in `index.json.routes[*]`, set:
 - **VISUAL_DIFF_PASS**: every route's `vlm_verdict == PASS`. Pipeline advances; product-reviewer consults the same index.json.
 - **VISUAL_DIFF_FAIL**: any route's `vlm_verdict == FAIL`. Returns to fix-engineer per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule. fix-engineer is **code-fix-only on this verdict** — it MUST NOT mutate ACs.
 
-Both verdicts are catalogued in `rules/verdict-catalog.md` with the agent-emitted footnote.
+Both verdicts are catalogued in `protocols/verdict-catalog.md` with the agent-emitted footnote.
 
 ## Escape Hatch (PR-3)
 

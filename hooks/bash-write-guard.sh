@@ -8,7 +8,7 @@
 #
 # Mirrors orchestrator-discipline.sh policy:
 #   - Calls from inside a worktree (.claude/worktrees/agent-*) are ALLOWED
-#     (subagents are trusted to write per rules/agent-protocol.md).
+#     (subagents are trusted to write per protocols/agent-protocol.md).
 #   - Calls from the orchestrator (PWD = main tree) targeting protected
 #     extensions (.json, .sh, .yaml, .yml) are BLOCKED.
 #

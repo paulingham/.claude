@@ -1032,7 +1032,7 @@ convention-poor projects). The spec-blind line is rendered **only when tier==T6*
 ```
 
 Same convention as the existing per-verdict summary lines. The `SPEC_BLIND_BLOCKED`
-line is operator-actionable (HALT routing per `rules/verdict-catalog.md`) —
+line is operator-actionable (HALT routing per `protocols/verdict-catalog.md`) —
 `/harness:pr-creation` will refuse to advance until the blocker is resolved.
 
 ## Multi-Persona Patch Critic Dispatch (uncertainty-escalated)

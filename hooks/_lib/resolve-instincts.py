@@ -4,7 +4,7 @@
 Reads the Agent tool_input payload, resolves which learned-instincts apply,
 and writes a forensic record to ~/.claude/metrics/{session}/instinct-injections.jsonl.
 Always exit 0 (Path B advisory). The orchestrator-side caller is responsible
-for actual prompt-string injection — see rules/autonomous-intelligence.md.
+for actual prompt-string injection — see protocols/autonomous-intelligence.md.
 """
 import os
 import sys

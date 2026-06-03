@@ -7,14 +7,14 @@ Detailed orchestrator procedures: see `~/.claude/orchestrator/pipeline-orchestra
 When a pipeline phase has a corresponding skill, the skill's procedure MUST be executed. The dispatch mechanism depends on the phase:
 
 - **Subagent phases** (Plan, Ship, Deploy, single-slice Build): Invoke via Skill tool or Agent tool with `isolation: "worktree"`. Ephemeral, no visibility.
-- **Team phases** (multi-slice Build, Review, Final Gate): Spawn teammates into the pipeline team via Agent tool with `team_name`. Visible in tmux panes. See `rules/parallel-dispatch-protocol.md`.
+- **Team phases** (multi-slice Build, Review, Final Gate): Spawn teammates into the pipeline team via Agent tool with `team_name`. Visible in tmux panes. See `protocols/parallel-dispatch-protocol.md`.
 - **Single-slice Build**: Use subagent with `isolation: "worktree"` (team overhead not justified for one engineer).
 
 **The skill IS the phase.** Whether invoked via Skill tool, read by a subagent, or read by a teammate, the full skill procedure must be followed.
 
 ### Team Dispatch
 
-For phases in the Team Phases table (see `rules/parallel-dispatch-protocol.md`), teammates are spawned into the pipeline team and read their own skill files. The orchestrator creates tasks and assigns them. See `orchestrator/parallel-dispatch-details.md` for exact dispatch procedure.
+For phases in the Team Phases table (see `protocols/parallel-dispatch-protocol.md`), teammates are spawned into the pipeline team and read their own skill files. The orchestrator creates tasks and assigns them. See `orchestrator/parallel-dispatch-details.md` for exact dispatch procedure.
 
 ## Best-of-N Build Dispatch (overview)
 
@@ -123,7 +123,7 @@ Before advancing to any phase, verify the previous gate passed AND invoke the re
 - **Build**: `/harness:build-implementation` or `/harness:refactor` or `/harness:bug-fix` — ATDD, shape self-check, **then `/harness:code-review` as Step 5 AND `/harness:sandbox-verify` as Step 5b — both inline gates inside Build**. Code-review is no longer a separate phase boundary; sandbox-verify is the second inline gate that confirms the worktree's pass set reproduces in a fresh E2B sandbox. CHANGES_REQUESTED (Step 5) and SANDBOX_FAILED (Step 5b) both dispatch fix-engineer in-line with a single 2-round cap **combined across Step 5 and Step 5b** (NOT 2+2). Build's `BUILD_COMPLETE` verdict requires ATDD audit trail AND code-reviewer APPROVE AND sandbox-verify SANDBOX_VERIFIED or SANDBOX_SKIPPED.
 - **Review (Security)**: `/harness:security-review` — security audit with own gate (different concern from code quality, justifies own phase). Must APPROVE.
 - **Final Gate** (Verify + Test + Accept + Patch Critique as team, parallel):
-  - `/harness:verify` -- check E2E trigger matrix (`rules/e2e-protocol.md`) AND the External Oracle tier (Tier 5, `skills/verify/SKILL.md` § 4.75). When a known-good external comparator exists for the change (reference parser, upstream SQL engine, schema validator, reference implementation — GCC-as-oracle pattern), oracle-match is required for `VERIFIED`; emit `VERIFIED_WITH_SKIP` when the oracle applies but cannot execute, and N/A (no verdict impact) when no oracle applies.
+  - `/harness:verify` -- check E2E trigger matrix (`protocols/e2e-protocol.md`) AND the External Oracle tier (Tier 5, `skills/verify/SKILL.md` § 4.75). When a known-good external comparator exists for the change (reference parser, upstream SQL engine, schema validator, reference implementation — GCC-as-oracle pattern), oracle-match is required for `VERIFIED`; emit `VERIFIED_WITH_SKIP` when the oracle applies but cannot execute, and N/A (no verdict impact) when no oracle applies.
   - `/harness:qa-test-strategy` -- all ACs covered, no gaps
   - `/harness:product-acceptance` -- APPROVED required
   - `/harness:patch-critique` -- PATCH_APPROVED required (rubric: tests cover change, diff minimal vs spec, no obvious regressions, no incidental refactor). PATCH_REJECTED returns to fix-engineer (no user escalation per § In-Cycle Fix Rule).

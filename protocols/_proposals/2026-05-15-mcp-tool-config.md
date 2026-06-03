@@ -41,7 +41,7 @@ Consumes:
 - `mcp_chrome_devtools_list_console_messages` — collect console errors after route load.
 - `mcp_chrome_devtools_list_network_requests` — collect 4xx/5xx XHR responses.
 
-Emits verdicts (declared in `rules/verdict-catalog.md`):
+Emits verdicts (declared in `protocols/verdict-catalog.md`):
 - `DOM_SMOKE_PASSED` — all routes loaded with no console errors and no 4xx/5xx XHR; Build proceeds.
 - `DOM_SMOKE_SKIPPED` — reason ∈ {`env-hatch`, `no-changed-routes`, `no-route-resolver`, `mcp-unavailable-first-run`}; Build proceeds.
 - `DOM_SMOKE_FAILED` — console error or 4xx/5xx XHR detected after ignore-filter, OR `mcp-unavailable-after-warm`, OR `ignore-list-overbroad`, OR `dev-server-non-loopback`; HALT Build, spawn fix-engineer in-cycle.

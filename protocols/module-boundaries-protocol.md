@@ -64,4 +64,4 @@ Language-specific lint/tool setup for enforcing module boundaries (ESLint `no-re
 
 ## Relationship to Multi-Repo Protocol
 
-`rules/multi-repo-protocol.md` applies only to projects that are already multi-repo. New projects default to the module boundaries defined here. Adopting multi-repo is a forward move from a modular monolith when a forcing function appears — not the starting point.
+`protocols/multi-repo-protocol.md` applies only to projects that are already multi-repo. New projects default to the module boundaries defined here. Adopting multi-repo is a forward move from a modular monolith when a forcing function appears — not the starting point.

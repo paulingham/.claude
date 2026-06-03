@@ -251,7 +251,7 @@ The section's content depends on the verdict:
 - **SPEC_BLIND_VALIDATED** — `spec-blind validator passed: independent test suite cross-validates the build-time tests.`
 - **SPEC_BLIND_INSUFFICIENT_SURFACE** — `spec-blind validator was skipped — no public-surface artifacts found in this repo. See SKILL.md § Future Work for V2 harness-aware path.`
 - **SPEC_BLIND_FAILED** — should not appear in a merged PR (gate must pass before Ship); included here for forensic traceability if the gate was suppressed.
-- **SPEC_BLIND_BLOCKED** — should not appear in a merged PR (HALT pipeline routing per `rules/verdict-catalog.md`); included here for operator visibility on suppressed-gate forensics.
+- **SPEC_BLIND_BLOCKED** — should not appear in a merged PR (HALT pipeline routing per `protocols/verdict-catalog.md`); included here for operator visibility on suppressed-gate forensics.
 
 The section makes the no-op visible — silent skips would let the gate become unattended on convention-poor projects (per the plan's AC18 mitigation).
 

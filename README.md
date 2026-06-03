@@ -29,7 +29,9 @@ You describe what you want. The system:
 ~/.claude/
   CLAUDE.md                    # Master playbook — philosophy, pipeline, skill directory
   settings.json                # Hook registration, permissions, env vars
-  rules/                       # Auto-loaded protocols (9 files) + skill-loaded
+  rules/                       # Auto-loaded tier (1 file only)
+    core.md                    #   Iron Laws, code shape, pipeline phase order — always loaded
+  protocols/                   # Full protocols + verdict catalog — loaded on demand
     agent-protocol.md          #   Worktree isolation, commit protocol, scratchpad
     pipeline-protocol.md       #   Pipeline phases, review loops, state management
     engineering-invariants.md  #   Code shape, naming, error handling, deps, testing, security
@@ -40,6 +42,7 @@ You describe what you want. The system:
     reflection-protocol.md     #   Post-pipeline reflection, auto-learn trigger
     autonomous-intelligence.md #   Scratchpad, session memory, continuous learning
     e2e-protocol.md            #   Multi-target E2E trigger matrix (mobile + web)
+    verdict-catalog.md         #   Harness-audit verdict registry (on-demand audit source)
   orchestrator/                # Orchestrator-only detailed procedures (4 files)
   agents/                      # 17 specialized agent definitions
   skills/                      # 59 skills (procedural workflows)

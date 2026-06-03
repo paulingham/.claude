@@ -295,8 +295,8 @@ _jsonl_path() {
   grep -q "DEPRECATED" "$REPO_ROOT/orchestrator/parallel-dispatch-details.md"
 }
 
-@test "T-DOC-2 rules/parallel-dispatch-protocol.md has Checkpoint Vocabulary section" {
-  grep -q "Checkpoint Vocabulary" "$REPO_ROOT/rules/parallel-dispatch-protocol.md"
-  grep -q "\[CHECKPOINT\]" "$REPO_ROOT/rules/parallel-dispatch-protocol.md"
-  grep -q "tests-green" "$REPO_ROOT/rules/parallel-dispatch-protocol.md"
+@test "T-DOC-2 protocols/parallel-dispatch-protocol.md has Checkpoint Vocabulary section" {
+  grep -q "Checkpoint Vocabulary" "$REPO_ROOT/protocols/parallel-dispatch-protocol.md"
+  grep -q "\[CHECKPOINT\]" "$REPO_ROOT/protocols/parallel-dispatch-protocol.md"
+  grep -q "tests-green" "$REPO_ROOT/protocols/parallel-dispatch-protocol.md"
 }

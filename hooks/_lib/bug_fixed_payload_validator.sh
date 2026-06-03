@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Helper for hooks/bug-fixed-payload-validator.sh.
 # Pure functions: classify payload shape, write JSONL audit line.
-# enforces: rules/verdict-catalog.md (BUG_FIXED row)
+# enforces: protocols/verdict-catalog.md (BUG_FIXED row)
 # Sourced by the SubagentStop hook only.
 
 # Classify a transcript string against the BUG_FIXED/DEBUG_RESOLVED payload contract.

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# AC3 — rules/verdict-catalog.md contains three DOM_SMOKE_* rows with correct
+# AC3 — protocols/verdict-catalog.md contains three DOM_SMOKE_* rows with correct
 # polarities and emitter `build-implementation`, plus a one-liner under ## Notes
 # linking back to build-implementation Step 2d.
 set -uo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-CATALOG="$REPO_ROOT/rules/verdict-catalog.md"
+CATALOG="$REPO_ROOT/protocols/verdict-catalog.md"
 
 PASS=0; FAIL=0
 

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-CATALOG = Path(__file__).resolve().parent.parent / "rules" / "verdict-catalog.md"
+CATALOG = Path(__file__).resolve().parent.parent / "protocols" / "verdict-catalog.md"
 
 def test_tools_valid_in_verdict_catalog():
     body = CATALOG.read_text()

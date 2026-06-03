@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Depth guard — PreToolUse Agent hook.
 # Refuses subagent spawn when CLAUDE_SUBAGENT_DEPTH >= max (default 3).
-# See rules/agent-protocol.md > Resource Bounds.
+# See protocols/agent-protocol.md > Resource Bounds.
 #
 # enforces: protocols/agent-protocol.md:Resource Bounds
 # protects: pipeline, build-implementation
@@ -37,7 +37,7 @@ _dg_block() {
   local depth="$1" max="$2" stype="$3"
   printf 'BLOCKED: subagent max recursion depth exceeded.\n' >&2
   printf '  current depth: %s, max: %s\n' "$depth" "$max" >&2
-  printf 'See rules/agent-protocol.md > Resource Bounds.\n' >&2
+  printf 'See protocols/agent-protocol.md > Resource Bounds.\n' >&2
   _dg_log_violation "$depth" "$max" "$stype"
 }
 

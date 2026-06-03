@@ -35,7 +35,7 @@ fi
 
 # Sanity probe — confirm the new rows are present (forward smoke against the
 # catalog; reverse is what the script just checked).
-CATALOG="$REPO_ROOT/rules/verdict-catalog.md"
+CATALOG="$REPO_ROOT/protocols/verdict-catalog.md"
 for verdict in DOM_SMOKE_PASSED DOM_SMOKE_SKIPPED DOM_SMOKE_FAILED; do
   if grep -qE "^\\| \`${verdict}\`" "$CATALOG"; then
     echo "  ok: catalog row present: $verdict"; PASS=$((PASS + 1))

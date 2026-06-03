@@ -1,6 +1,6 @@
 """Slice C AC-C4 — three new CACHE_FLIP_GATE_* verdicts declared in catalog.
 
-`rules/verdict-catalog.md` is the single source of truth for verdict names.
+`protocols/verdict-catalog.md` is the single source of truth for verdict names.
 Slice C adds:
   - `CACHE_FLIP_GATE_PASS` (success polarity)
   - `CACHE_FLIP_GATE_HOLD` (info polarity)
@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CATALOG = REPO_ROOT / "rules" / "verdict-catalog.md"
+CATALOG = REPO_ROOT / "protocols" / "verdict-catalog.md"
 
 
 class CacheFlipGateVerdictsRegistered(unittest.TestCase):
@@ -23,7 +23,7 @@ class CacheFlipGateVerdictsRegistered(unittest.TestCase):
                         "CACHE_FLIP_GATE_INSUFFICIENT_DATA"):
             self.assertIn(
                 f"`{verdict}`", text,
-                f"verdict `{verdict}` must be declared in rules/verdict-catalog.md")
+                f"verdict `{verdict}` must be declared in protocols/verdict-catalog.md")
             # also assert it is associated with the cache-flip-gate emitter
         # All three rows must reference the cache-flip-gate skill emitter.
         for line in text.splitlines():

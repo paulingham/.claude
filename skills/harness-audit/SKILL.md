@@ -51,13 +51,13 @@ For every `skills/*/SKILL.md` and `skills/_deferred/*/SKILL.md` (excluding `_tem
 
 Verdict for this step: `STRUCTURE_OK` if every skill conforms; otherwise list the drift findings (one bullet per skill, naming the missing fields/headings).
 
-**d. Verdict consistency (canonical catalog = `rules/verdict-catalog.md`):**
+**d. Verdict consistency (canonical catalog = `protocols/verdict-catalog.md`):**
 Cross-reference `skills/*/SKILL.md` and `skills/_deferred/*/SKILL.md` (excluding `_template/`) verdict declarations against the catalog in both directions. Without including `_deferred/`, the reverse-direction check would falsely flag verdicts emitted only by deferred skills (e.g. `VOICE_SCAFFOLDED`, `BFF_SCAFFOLDED`, `SERVICE_EXTRACTED`, `SERVICE_SCAFFOLDED`, `CROSS_SERVICE_VERIFIED`, `CROSS_SERVICE_BLOCKED`, `EXTRACTION_BLOCKED`, `WRONG_SKILL`) as orphan catalog rows.
 
-- **Forward direction**: every `verdict` value declared in any skill's frontmatter (or in any `Verdict: X / Y` line in the body for legacy skills) MUST appear in `rules/verdict-catalog.md`. Flag any skill emitting a verdict the catalog does not list.
-- **Reverse direction**: every entry in `rules/verdict-catalog.md` MUST be emitted by at least one skill. Flag catalog rows whose `Emitter skill` column resolves to a non-existent `skills/<name>/SKILL.md`, or whose listed emitter does not actually emit that verdict.
+- **Forward direction**: every `verdict` value declared in any skill's frontmatter (or in any `Verdict: X / Y` line in the body for legacy skills) MUST appear in `protocols/verdict-catalog.md`. Flag any skill emitting a verdict the catalog does not list.
+- **Reverse direction**: every entry in `protocols/verdict-catalog.md` MUST be emitted by at least one skill. Flag catalog rows whose `Emitter skill` column resolves to a non-existent `skills/<name>/SKILL.md`, or whose listed emitter does not actually emit that verdict.
 - **Polarity column**: every catalog row MUST have a `Polarity` value of `success`, `failure`, or `info`. Flag rows with missing or invalid polarity.
-- **Catalog absent**: if `rules/verdict-catalog.md` is missing entirely, this step reports `VERDICTS_NO_CATALOG` and no findings — running the audit before C3 lands is acceptable.
+- **Catalog absent**: if `protocols/verdict-catalog.md` is missing entirely, this step reports `VERDICTS_NO_CATALOG` and no findings — running the audit before C3 lands is acceptable.
 
 Verdict for this step: `VERDICTS_CONSISTENT` if both directions match; otherwise list drift findings (catalog entries with no emitter, skills with verdicts not in catalog, polarity violations).
 
@@ -203,7 +203,7 @@ Date: [timestamp]
 
 ### Verdict Catalog (N/N consistent both directions)
 - ✅ /harness:code-review — emits APPROVE/CHANGES_REQUESTED, both in catalog
-- ⚠️ /custom-skill — emits CUSTOM_VERDICT, not in `rules/verdict-catalog.md`
+- ⚠️ /custom-skill — emits CUSTOM_VERDICT, not in `protocols/verdict-catalog.md`
 - ⚠️ catalog row `LEGACY_VERDICT` has no emitter (dead entry)
 - ⚠️ catalog row `BUILD_COMPLETE` has invalid polarity `done` (must be success/failure/info)
 

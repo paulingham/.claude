@@ -1,6 +1,6 @@
 # Multi-Repo Protocol
 
-> This protocol applies to projects that are already multi-repo. New projects default to modular monolith per `rules/module-boundaries-protocol.md`. Adopt this protocol only when a forcing function is named and the pipeline has routed to `/service-extraction` or `/microservices-scaffold`.
+> This protocol applies to projects that are already multi-repo. New projects default to modular monolith per `protocols/module-boundaries-protocol.md`. Adopt this protocol only when a forcing function is named and the pipeline has routed to `/service-extraction` or `/microservices-scaffold`.
 
 ## Project Manifest
 

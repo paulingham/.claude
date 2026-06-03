@@ -64,7 +64,7 @@ Constraints the pattern obeys:
 
 ## Pipeline Scratchpad Protocol
 
-Agents share findings within a pipeline run via the scratchpad. See `rules/autonomous-intelligence.md` for full details.
+Agents share findings within a pipeline run via the scratchpad. See `protocols/autonomous-intelligence.md` for full details.
 
 ### Reading (On Spawn)
 The orchestrator injects scratchpad findings into the agent's prompt. Agents do not read the scratchpad directory directly — the orchestrator curates what's relevant.
@@ -360,7 +360,7 @@ source of truth):
   `SendMessage({type:"shutdown_request", name:"<display>"})` form,
   directly actionable per `## Teammate Lifecycle (team phases)` above.
 - **Non-team subagent**: stderr says "next tool call blocked; orchestrator
-  should re-dispatch per rules/operational-protocol.md". An equivalent
+  should re-dispatch per protocols/operational-protocol.md". An equivalent
   out-of-band kill is not currently exposed by the Agent tool input schema; the
   next tool the runaway subagent attempts is refused at PreToolUse, the
   orchestrator interprets the violation log, and decides re-dispatch

@@ -3,7 +3,7 @@
 # from `skills/harness-audit/SKILL.md` § verdict-consistency (Section 2d) so
 # bats, /harness-audit, and any other caller can invoke the same logic.
 #
-# Contract (see rules/verdict-catalog.md and the plan-state plan.md § C5):
+# Contract (see protocols/verdict-catalog.md and the plan-state plan.md § C5):
 # - Exits 0 when every catalog row's verdict is emitted by at least one skill
 #   AND every skill-frontmatter verdict is declared in the catalog.
 # - Exits 1 with a single-line diagnostic on stdout:

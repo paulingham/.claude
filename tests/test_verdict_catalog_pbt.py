@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CATALOG = REPO_ROOT / "rules" / "verdict-catalog.md"
+CATALOG = REPO_ROOT / "protocols" / "verdict-catalog.md"
 
 
 def _row_for(verdict, body):

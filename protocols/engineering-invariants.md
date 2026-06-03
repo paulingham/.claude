@@ -1,6 +1,6 @@
 # Engineering Invariants
 
-Always-loaded engineering baseline: code shape, naming, error handling, dependency resolution, testing standards, security baseline. The full ATDD cycle and per-behaviour TDD exceptions live in `rules/atdd-procedure.md` and are loaded by `/harness:build-implementation` only.
+Always-loaded engineering baseline: code shape, naming, error handling, dependency resolution, testing standards, security baseline. The full ATDD cycle and per-behaviour TDD exceptions live in `protocols/atdd-procedure.md` and are loaded by `/harness:build-implementation` only.
 
 ## Code Shape
 
@@ -72,7 +72,7 @@ When importing a new package:
 
 ## Testing Standards
 
-> The full ATDD cycle (batched RED, mutation gate, anti-patterns, audit trail) is in `rules/atdd-procedure.md`. The standards below are universal and always apply.
+> The full ATDD cycle (batched RED, mutation gate, anti-patterns, audit trail) is in `protocols/atdd-procedure.md`. The standards below are universal and always apply.
 
 ### Test Mix (behavior-driven, not ratio-driven)
 
@@ -106,7 +106,7 @@ Tests passing is necessary but not sufficient. For every feature, six tiers stac
 - **Tier 1.5 — Property-Based Tests** (Hypothesis / fast-check / PropEr / equivalent): for every public function on changed lines with typed signatures, ≥1 property covering idempotence / inverse / oracle / metamorphic relations, OR a documented justification why a property is impossible. Time-boxed at 60s per function. Frozen counterexamples promote into Tier 1 as deterministic regression tests. Procedure: `skills/qa-test-strategy/SKILL.md` § Property-Based Coverage. Source: A2.
 - **Tier 2 — Integration**: real boundaries, real DB, contract tests against LIVE collaborators (no mocks for critical paths), smoke tests that exercise the feature end-to-end.
 - **Tier 3 — Mutation**: targeted mutation testing on changed files (Stryker / Mutant / mutmut). HARD GATE at ≥70% kill rate per `protocols/atdd-procedure.md`.
-- **Tier 4 — E2E**: full user-journey tests (Maestro for mobile, Playwright/Cypress for web) for URL / auth / nav / WebView / cross-domain changes (conditional per `rules/e2e-protocol.md` trigger matrix).
+- **Tier 4 — E2E**: full user-journey tests (Maestro for mobile, Playwright/Cypress for web) for URL / auth / nav / WebView / cross-domain changes (conditional per `protocols/e2e-protocol.md` trigger matrix).
 
 Feature is VERIFIED when applicable tiers pass. Tiers 0-3 are always required. Tier 4 is conditional. Tier 0 is required only for changes touching public function signatures, schemas, or invariants — pure UI copy or log-format tweaks may skip with documented rationale. Tier 1.5 is required for changes touching public functions with typed signatures (same gate as the qa-engineer checklist).
 

@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CATALOG = REPO_ROOT / "rules" / "verdict-catalog.md"
+CATALOG = REPO_ROOT / "protocols" / "verdict-catalog.md"
 
 
 def _parse_catalog_rows():
@@ -49,7 +49,7 @@ class CacheAuditReadyRowPresentAndWellFormed(unittest.TestCase):
         by_verdict = {r["verdict"]: r for r in rows}
         self.assertIn(
             "CACHE_AUDIT_READY", by_verdict,
-            "rules/verdict-catalog.md must contain CACHE_AUDIT_READY row")
+            "protocols/verdict-catalog.md must contain CACHE_AUDIT_READY row")
         row = by_verdict["CACHE_AUDIT_READY"]
         self.assertEqual(
             row["polarity"], "info",
@@ -79,7 +79,7 @@ class PdrRtvVerdictsPresentAndValid(unittest.TestCase):
 
         self.assertIn(
             "PDR_WINNER_SELECTED", by_verdict,
-            "rules/verdict-catalog.md must contain PDR_WINNER_SELECTED row")
+            "protocols/verdict-catalog.md must contain PDR_WINNER_SELECTED row")
         winner = by_verdict["PDR_WINNER_SELECTED"]
         self.assertEqual(winner["polarity"], "success",
                          "PDR_WINNER_SELECTED must be polarity=success")
@@ -90,7 +90,7 @@ class PdrRtvVerdictsPresentAndValid(unittest.TestCase):
 
         self.assertIn(
             "PDR_NO_CONSENSUS", by_verdict,
-            "rules/verdict-catalog.md must contain PDR_NO_CONSENSUS row")
+            "protocols/verdict-catalog.md must contain PDR_NO_CONSENSUS row")
         no_consensus = by_verdict["PDR_NO_CONSENSUS"]
         self.assertEqual(no_consensus["polarity"], "failure",
                          "PDR_NO_CONSENSUS must be polarity=failure")

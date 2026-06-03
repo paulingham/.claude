@@ -6,12 +6,12 @@ setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 }
 
-@test "T4.1 rules/parallel-dispatch-protocol.md has ## Resource Bounds H2" {
-  grep -q '^## Resource Bounds' "$REPO_ROOT/rules/parallel-dispatch-protocol.md"
+@test "T4.1 protocols/parallel-dispatch-protocol.md has ## Resource Bounds H2" {
+  grep -q '^## Resource Bounds' "$REPO_ROOT/protocols/parallel-dispatch-protocol.md"
 }
 
-@test "T4.2 rules/agent-protocol.md has ## Resource Bounds H2" {
-  grep -q '^## Resource Bounds' "$REPO_ROOT/rules/agent-protocol.md"
+@test "T4.2 protocols/agent-protocol.md has ## Resource Bounds H2" {
+  grep -q '^## Resource Bounds' "$REPO_ROOT/protocols/agent-protocol.md"
 }
 
 @test "T4.3 orchestrator/agent-orchestration.md mentions CLAUDE_SUBAGENT_DEPTH" {
@@ -32,13 +32,13 @@ setup() {
 # T4.6 retired (per-task-subdirs refactor, 2026-05).
 # The original invariant — "rules/*.md show ZERO deletions vs main" — was a
 # wave1-B-specific guard while resource-bounds-protocol prose was being
-# additively layered into rules/agent-protocol.md and
-# rules/parallel-dispatch-protocol.md. The wave1-B work has long since
+# additively layered into protocols/agent-protocol.md and
+# protocols/parallel-dispatch-protocol.md. The wave1-B work has long since
 # merged. The per-task-subdirs refactor intentionally rewrites
 # pipeline-state path formats (e.g., `{task-id}-scratchpad/` →
-# `{task-id}/scratchpad/`) across rules/*.md, which is a legitimate
+# `{task-id}/scratchpad/`) across protocols/*.md, which is a legitimate
 # refactor, not a regression of the wave1-B additivity contract. Keeping
-# this assertion in place would block all future rules/*.md evolution.
+# this assertion in place would block all future protocols/*.md evolution.
 #
 # Replacement coverage: T4.1-T4.5, T4.7, T4.8 still pin the documented
 # anchors that wave1-B introduced (## Resource Bounds H2,
@@ -56,6 +56,6 @@ setup() {
 @test "T4.8 Teammate Prompt Template includes Subagent depth context line" {
   # AC4.6 (revised) — both the documented context line AND the surrounding
   # prose noting the spawn-shell env var.
-  grep -q 'Subagent depth: {N}' "$REPO_ROOT/rules/parallel-dispatch-protocol.md"
-  grep -q 'CLAUDE_SUBAGENT_DEPTH' "$REPO_ROOT/rules/parallel-dispatch-protocol.md"
+  grep -q 'Subagent depth: {N}' "$REPO_ROOT/protocols/parallel-dispatch-protocol.md"
+  grep -q 'CLAUDE_SUBAGENT_DEPTH' "$REPO_ROOT/protocols/parallel-dispatch-protocol.md"
 }

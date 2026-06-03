@@ -195,7 +195,7 @@ Tier 4 can run in parallel with Tier 3 (they are independent). Multi-target: mob
    - Any target = SKIP and no FAILs → VERIFIED_WITH_SKIP
    - All fired targets = PASS → VERIFIED
    - All N/A → VERIFIED
-   - **Side-channel emit (independent of composite)**: when Tier 4 web target status = `SKIP`, additionally emit `E2E_SKIP_NO_ENV` (info-level, per `rules/verdict-catalog.md`). This does NOT change the composite verdict — it travels alongside it so the Final Gate summary can render the loud yellow line and the product-reviewer can acknowledge.
+   - **Side-channel emit (independent of composite)**: when Tier 4 web target status = `SKIP`, additionally emit `E2E_SKIP_NO_ENV` (info-level, per `protocols/verdict-catalog.md`). This does NOT change the composite verdict — it travels alongside it so the Final Gate summary can render the loud yellow line and the product-reviewer can acknowledge.
 
 6. **First-fire release note**: on first web-target fire for a project (no prior `pipeline-state/{task_id}/scratchpad/qa-engineer-verify-screenshots/` history), emit one line in the verify report: "Web E2E gating now active because <reason>".
 

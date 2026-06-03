@@ -22,7 +22,7 @@ Tmux-visible teams remain the right choice when ANY of these is true:
 
 In every other case (including all autonomous runs), parallel subagent calls are equivalent in correctness and cheaper in tokens because no idle teammates burn context between assignments.
 
-> **Main-branch invariant.** All teammates and subagents commit to feature branches via worktrees, never to `main` in REPO_ROOT. Every HEAD-mutating git command MUST be expressed as `git -C "$WORKTREE" ...` or `(cd "$WORKTREE" && ...)`. Bare forms like `git checkout foo` and `gh pr create` are blocked by the `main-branch-guard.sh` PreToolUse hook regardless of caller cwd. REPO_ROOT HEAD must read `main` at every observation point. See `rules/agent-protocol.md > ## Main-Branch Invariant` for the canonical forbidden/allowed surface and the enforcement hooks.
+> **Main-branch invariant.** All teammates and subagents commit to feature branches via worktrees, never to `main` in REPO_ROOT. Every HEAD-mutating git command MUST be expressed as `git -C "$WORKTREE" ...` or `(cd "$WORKTREE" && ...)`. Bare forms like `git checkout foo` and `gh pr create` are blocked by the `main-branch-guard.sh` PreToolUse hook regardless of caller cwd. REPO_ROOT HEAD must read `main` at every observation point. See `protocols/agent-protocol.md > ## Main-Branch Invariant` for the canonical forbidden/allowed surface and the enforcement hooks.
 
 ## Team Phases
 
@@ -69,7 +69,7 @@ A long-lived Sonnet 4.6 `planning-agent` teammate is spawned **alongside** Build
 
 Key advantage: reviewer **remembers the codebase** on re-review -- no context reconstruction. On CHANGES_REQUESTED, spawn `fix-engineer` (see `agents/fix-engineer.md`) into the same team — fix-engineer reuses the prior build's worktree (NOT a fresh one) and operates with fix-cycle-specific guidance (verify finding validity first, no scope creep, no compliance commit messages). Then re-assign the review task to the raising reviewer (still alive, still has context).
 
-**Advisor-mode cost** (PROVISIONAL pending advisor-baseline run; see `eval/baselines/{latest}-advisor-baseline.md`): Sonnet+Opus-advisor pairing is roughly ~40% cheaper per review than naive Opus-solo, with quality-equivalence (≥95% verdict-agreement) targeted but not yet measured. Hook (`pre-agent-advisor.sh`) is log-only today — see `rules/thinking-defaults.md` for the parallel Path B status.
+**Advisor-mode cost** (PROVISIONAL pending advisor-baseline run; see `eval/baselines/{latest}-advisor-baseline.md`): Sonnet+Opus-advisor pairing is roughly ~40% cheaper per review than naive Opus-solo, with quality-equivalence (≥95% verdict-agreement) targeted but not yet measured. Hook (`pre-agent-advisor.sh`) is log-only today — see `protocols/thinking-defaults.md` for the parallel Path B status.
 
 ### Final Gate Team (always)
 
@@ -124,18 +124,18 @@ runtime tracking.
   appends one JSONL line per call to `metrics/$SID/tool-timings.jsonl`
   using the Claude Code 2.1.119+ `duration_ms` payload field. Capture
   vs. enforcement split: this hook owns capture; `runtime-guard.sh`
-  owns enforcement. See `rules/agent-protocol.md` § Resource Bounds.
+  owns enforcement. See `protocols/agent-protocol.md` § Resource Bounds.
 
 **Shutdown semantics (Path-B disclosure):**
 
 - **Teammate** (`team_name` set on the spawn): stderr block contains the
   exact `SendMessage({type:"shutdown_request", name:"<display>"})` form.
-  Directly actionable per `rules/agent-protocol.md` § Teammate Lifecycle.
+  Directly actionable per `protocols/agent-protocol.md` § Teammate Lifecycle.
 - **Non-team subagent**: out-of-band kill is not currently exposed by the
   Agent tool input schema. The stderr block surfaces the violation; the
   next tool the runaway subagent attempts is refused (PreToolUse exit 2);
   the orchestrator interprets the log and re-dispatches per
-  `rules/operational-protocol.md` (retry-twice-then-escalate). Mirrors the
+  `protocols/operational-protocol.md` (retry-twice-then-escalate). Mirrors the
   `pre-agent-thinking.sh` Path-B precedent — a degraded-but-correct
   enforcement today, single-file flip when the API surface lands.
 
@@ -173,7 +173,7 @@ Context:
 - Subagent depth: {N}
 
 ## Learned Patterns (from system learning)
-[instincts filtered by role — top 5 by confidence; selection contract in `rules/autonomous-intelligence.md` § Instinct Injection]
+[instincts filtered by role — top 5 by confidence; selection contract in `protocols/autonomous-intelligence.md` § Instinct Injection]
 
 ## Session Context (engineering notes for this project)
 [session memory content — full or priority sections by role]

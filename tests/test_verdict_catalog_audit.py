@@ -10,11 +10,11 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CATALOG = REPO_ROOT / "rules" / "verdict-catalog.md"
+CATALOG = REPO_ROOT / "protocols" / "verdict-catalog.md"
 SKILLS_DIR = REPO_ROOT / "skills"
 
 # Skills that legitimately do NOT emit a verdict (utility/pattern files).
-# Aligned with `rules/verdict-catalog.md > Notes` (capture, embedder, etc.)
+# Aligned with `protocols/verdict-catalog.md > Notes` (capture, embedder, etc.)
 SKILLS_WITHOUT_VERDICT = frozenset({
     "_template",
     "capture", "embedder", "mcp_memory", "recall",
@@ -120,7 +120,7 @@ def test_forward_skill_verdicts_appear_in_catalog():
             if v not in catalog_verdicts:
                 drift.append((skill_name, v))
     assert not drift, (
-        f"Skills emit verdicts not in `rules/verdict-catalog.md`: {drift}")
+        f"Skills emit verdicts not in `protocols/verdict-catalog.md`: {drift}")
 
 
 def _emitter_resolves(name, known_agents):
