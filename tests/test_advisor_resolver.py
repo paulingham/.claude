@@ -611,7 +611,6 @@ _NON_AGENT_PAYLOAD = {
 
 def _run_resolver_with_budget(payload, budget, env=None):
     """Run resolve-advisor.py with a fake pipeline-state that has the given budget."""
-    import tempfile
     proc_env = {
         **os.environ, **(env or {}),
         "ANTHROPIC_API_KEY": "sk-test",
@@ -631,7 +630,6 @@ def _run_resolver_with_budget(payload, budget, env=None):
 
 def _run_hook_with_budget(payload, budget, env=None):
     """Run pre-agent-advisor.sh with a fake pipeline-state that has the given budget."""
-    import tempfile
     proc_env = {
         **os.environ, **(env or {}),
         "ANTHROPIC_API_KEY": "sk-test",
@@ -723,7 +721,6 @@ class DisableGateShortCircuitsBeforeModelBinding(unittest.TestCase):
     """B6: CLAUDE_DISABLE_ADVISOR_GATE=1 → hook exits before resolver; stdout empty."""
 
     def test_disable_gate_hook_stdout_empty(self):
-        import tempfile
         with tempfile.TemporaryDirectory() as tmp:
             result = _run_hook(
                 _REVIEWER_PAYLOAD_BUDGET4,
@@ -763,7 +760,6 @@ class HookExitsZeroOnResolverCrash(unittest.TestCase):
     """B8: broken python path → hook exits 0 (never-block invariant)."""
 
     def test_never_block_on_bad_python_path(self):
-        import tempfile
         import shutil
         bash_path = shutil.which("bash") or "/bin/bash"
         bash_dir = str(Path(bash_path).parent)
@@ -786,8 +782,7 @@ class HookExitsZeroOnResolverCrash(unittest.TestCase):
             self.assertEqual(result.returncode, 0,
                              "hook must exit 0 even when resolver crashes")
         finally:
-            import shutil as _sh
-            _sh.rmtree(broken_python_bin, ignore_errors=True)
+            shutil.rmtree(broken_python_bin, ignore_errors=True)
 
 
 THINKING_HOOK = Path(__file__).resolve().parents[1] / "hooks" / "pre-agent-thinking.sh"
