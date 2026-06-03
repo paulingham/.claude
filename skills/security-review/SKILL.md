@@ -196,6 +196,7 @@ Agent({
     - Dependency vulnerabilities (run npm audit / bundle audit)
     - Secure cookie flags, HTTPS enforcement
     - Content-Type validation on file uploads
+    - If the diff touches learning/, agent-memory/, or hooks/, ALSO apply the Agentic OWASP Top 10 checklist (memory poisoning, instinct poisoning, tool misuse, goal hijacking) — see agents/security-engineer.md § OWASP Top 10 for Agentic Applications.
     Produce a verdict with severity levels: CRITICAL, HIGH, MEDIUM, LOW.
     APPROVE if no CRITICAL, HIGH, or MEDIUM findings. CHANGES_REQUESTED if any CRITICAL, HIGH, or MEDIUM findings exist. LOW and INFO findings are noted in the review output but do not block."
 })
@@ -220,6 +221,27 @@ No `isolation: "worktree"` — security-engineer is read-only.
 - [ ] No sensitive data in logs or error messages
 - [ ] HTTPS enforced for all external communication
 - [ ] File upload validation (type, size, content)
+
+## Agentic Surface Gate
+
+Changes touching the agent control plane — `learning/`, `agent-memory/`, or
+`hooks/` — require the **Agentic OWASP Top 10** checklist (memory poisoning,
+instinct poisoning, tool misuse, goal hijacking; see
+`agents/security-engineer.md` § OWASP Top 10 for Agentic Applications).
+
+**Enforcement.** The `agentic-security-gate.sh` PreToolUse:Agent hook computes
+the branch changeset and, when any agentic surface is touched, **blocks**
+(`exit 2`) the security-engineer spawn unless the spawn prompt carries the
+Agentic OWASP directive. The §1 spawn prompt above always carries it, so
+skill-driven reviews pass; the gate catches ad-hoc spawns that omit it.
+
+| Env var | Effect |
+|---|---|
+| `CLAUDE_DISABLE_AGENTIC_GATE=1` | Skip the gate; the spawn proceeds (logged to stderr) |
+
+Gating-trigger logic lives in `hooks/_lib/agentic_security_gate.py`
+(`touches_agentic_surface` / `gate_decision`); tests in
+`tests/hooks/test_agentic_security_gate.py`.
 
 ## Supply Chain Security (if Trail of Bits plugins available)
 

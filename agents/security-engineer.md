@@ -170,6 +170,45 @@ item; reviewers may invoke the audit manually against your output.
 - [ ] Allowlist for external service connections
 - [ ] No internal network access from user-controlled URLs
 
+## OWASP Top 10 for Agentic Applications
+
+> **Gated checklist.** When the branch diff touches `learning/`, `agent-memory/`,
+> or `hooks/`, this checklist is MANDATORY — the `agentic-security-gate.sh`
+> PreToolUse:Agent hook blocks the security-engineer spawn unless the prompt
+> carries the Agentic OWASP directive. Bypass: `CLAUDE_DISABLE_AGENTIC_GATE=1`.
+> See `skills/security-review/SKILL.md` § Agentic Surface Gate.
+
+These threats target the agent's control plane — memory, learned instincts, tool
+authority, and objective — rather than the application's data plane.
+
+### AA01: Memory Poisoning (`agent-memory/`, `learning/*/observations.jsonl`)
+- [ ] No untrusted/external content persisted verbatim into agent memory or observations
+- [ ] Memory writes pass capture-time sanitization (private-tag stripping + allowlist classification — see `skills/capture`)
+- [ ] Memory entries carry data, not imperative directives that re-enter prompts as commands (no instructions-as-data)
+- [ ] No unbounded memory growth that could crowd out guardrail context
+
+### AA02: Instinct Poisoning (`learning/instincts/`)
+- [ ] New/edited instincts carry provenance and a confidence score; no unsourced high-confidence instincts
+- [ ] Instinct text cannot smuggle prompt-injection or tool-authorization escalation
+- [ ] `min_confidence` thresholds are honored before an instinct is injected
+- [ ] Instinct edits do not weaken or contradict an Iron Law or security gate
+
+### AA03: Tool Misuse (`hooks/`, agent `tools:`/`disallowedTools:`)
+- [ ] Per-agent tool allowlists not widened; no Write/Edit/Agent grants to read-only roles
+- [ ] No hook change disables or short-circuits a security guardrail (`pre-agent-allowlist`, `orchestrator-discipline`, `agent-skill-reminder`, etc.)
+- [ ] New bypass env-vars write an audit/ledger record and fail safe (gate defaults on)
+- [ ] No shell/command execution paths reachable from untrusted memory or instinct content
+
+### AA04: Goal Hijacking / Excessive Agency (`hooks/`, spawn prompts)
+- [ ] No hook/prompt change redirects an agent's objective via injected context
+- [ ] Hook-injected `additionalContext`/stderr is bounded and advisory, never authoritative over the user's goal
+- [ ] Reversibility escapes still gate the intended objective and are logged
+- [ ] Agent autonomy scoped to its phase — no privilege/scope creep across phases
+
+> Broader OWASP Agentic / LLM Top 10 threats (excessive agency, tool supply
+> chain, sensitive-info disclosure via memory) map onto AA01–AA04 above; flag
+> anything not covered as an `INFO` finding for follow-up.
+
 ## Secrets Detection
 
 Scan for patterns:
