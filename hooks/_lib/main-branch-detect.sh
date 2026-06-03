@@ -60,7 +60,9 @@ _mbd_is_safe_merge() {
   [[ "$b" =~ ^(origin/main|main|upstream/main|origin|upstream)$ ]]
 }
 # Safe when deleting a branch that is not the currently checked-out branch.
-# Requires CLAUDE_WORKTREE_PATH; fail-closed otherwise (no bare fallback).
+# Precedence: (1) git -C $CLAUDE_WORKTREE_PATH if set; (2) bare git rev-parse
+# from hook cwd; (3) both empty → fail-closed. Detached HEAD yields literal
+# "HEAD" which no real branch name equals → allowed (correct: no branch here).
 _mbd_is_safe_branch_delete() {
   [[ "$1" =~ git[[:space:]]+branch[[:space:]]+-[dD]([[:space:]]|$) ]] || return 1
   local seen=0 b="" t
@@ -69,9 +71,13 @@ _mbd_is_safe_branch_delete() {
     [[ "$t" =~ ^-[dD]$ ]] && seen=1
   done
   [[ -z "$b" ]] && return 1
-  [[ -z "$CLAUDE_WORKTREE_PATH" ]] && return 1
-  local current
-  current=$(git -C "$CLAUDE_WORKTREE_PATH" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  local current=""
+  if [[ -n "$CLAUDE_WORKTREE_PATH" ]]; then
+    current=$(git -C "$CLAUDE_WORKTREE_PATH" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  fi
+  if [[ -z "$current" ]]; then
+    current=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+  fi
   [[ -z "$current" ]] && return 1
   [[ "$b" != "$current" ]]
 }
