@@ -69,10 +69,10 @@ The pipeline orchestrator starts the dev server per the project `## Dev Server` 
 After route detection (Step 1), invoke:
 
 ```bash
-node hooks/_lib/axe_runner.js --url <url1> [--url <url2>...] --out <out-path>
+node hooks/_lib/axe_runner.js --url <url1> [--url <url2>...]
 ```
 
-Parse the exit code and stdout JSON.
+Parse the exit code and stdout JSON (output is stdout-only).
 
 #### design-qc In-Process
 
@@ -150,6 +150,17 @@ category: warning
 
 axe-scan-failed: <skip_reason>. Route(s) not scanned: <urls>.
 ```
+
+### CLI Standalone Mode — Dependency Resolution
+
+When `axe_runner.js` is invoked directly (`node hooks/_lib/axe_runner.js --url ...`), it resolves `playwright-core` and `axe-core` in this order:
+
+1. `<process.cwd()>/node_modules/` — the consumer project's installed packages.
+2. `tests/fixtures/accessibility-check/.deps/node_modules/` — the fixture dependency cache (populated by the fixture integration test).
+
+If neither location provides both `playwright`/`playwright-core` and `axe-core`, the runner emits `A11Y_CHECK_SKIPPED` with `skip_reason: browser-launch-failed` and exits `2`. This is the legitimate env-unavailability path, not a hard failure.
+
+The resolver is DI-testable: `_resolve_cli_deps(candidates, requireFn, readFileFn)` accepts injectable require and readFile functions.
 
 ### Environment Escape Hatch
 
