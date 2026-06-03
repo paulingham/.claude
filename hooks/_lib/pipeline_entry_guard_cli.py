@@ -11,7 +11,6 @@ import re
 import sys
 import time
 from pathlib import Path
-from typing import Optional
 
 from log_allowlist_session import sanitize_session
 from pipeline_entry_guard import decide
@@ -21,6 +20,12 @@ _INTAKE_TIER_RE = re.compile(
     r'^\s*(?:tier_emitted|tier):\s*"?(T[0-6])"?\s*$',
     re.MULTILINE,
 )
+_PATH_COMPONENT_RE = re.compile(r"[^A-Za-z0-9_-]")
+
+
+def _sanitize_path_component(value: str) -> str:
+    """Allowlist-sanitize a path component; clamp to 64 chars."""
+    return _PATH_COMPONENT_RE.sub("_", value)[:64]
 
 
 def _pipeline_state_dir() -> str:
@@ -51,74 +56,90 @@ def _session_id() -> str:
 
 
 def _has_active_pipeline() -> bool:
-    """Return True when find_pipeline_files reports at least one active pipeline."""
+    """Return True when find_pipeline_files reports at least one active pipeline.
+
+    Catches all exceptions intentionally — fail-advisory safety net: any import
+    error, OS error, or unexpected failure returns False (no signal), never a crash.
+    """
     try:
         files = find_pipeline_files(Path(_pipeline_state_dir()))
         return bool(files)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — intentional fail-open
         sys.stderr.write(f"pipeline-entry-guard: find_pipeline_files failed: {exc}\n")
         return False
+
+
+def _intake_candidates(task_id_safe: str, ws_safe: str, state_dir: Path) -> list:
+    """Build ordered list of candidate intake.md paths."""
+    candidates = []
+    if ws_safe:
+        candidates.append(
+            state_dir / "workstreams" / ws_safe / task_id_safe / "intake.md"
+        )
+    candidates.append(state_dir / task_id_safe / "intake.md")
+    return candidates
+
+
+def _parse_tier(path: Path, state_dir: Path) -> str:
+    """Read path, return Tn tier string or '' if not found or path escapes state_dir."""
+    try:
+        resolved = path.resolve()
+        resolved.relative_to(state_dir.resolve())  # raises ValueError if outside
+        text = path.read_text(encoding="utf-8")
+        m = _INTAKE_TIER_RE.search(text)
+        return m.group(1) if m else ""
+    except (OSError, ValueError):
+        return ""
 
 
 def _intake_tier(task_id: str) -> str:
     """Extract Tn tier from intake.md for task_id; return '' on any failure."""
     if not task_id:
         return ""
-    ws = os.environ.get("CLAUDE_WORKSTREAM", "")
-    state_dir = _pipeline_state_dir()
-    candidates = []
-    if ws:
-        candidates.append(
-            Path(state_dir) / "workstreams" / ws / task_id / "intake.md"
-        )
-    candidates.append(Path(state_dir) / task_id / "intake.md")
-    for path in candidates:
-        try:
-            text = path.read_text(encoding="utf-8")
-            m = _INTAKE_TIER_RE.search(text)
-            if m:
-                return m.group(1)
-        except OSError:
-            continue
+    task_id_safe = _sanitize_path_component(task_id)
+    ws_safe = _sanitize_path_component(os.environ.get("CLAUDE_WORKSTREAM", ""))
+    state_dir = Path(_pipeline_state_dir())
+    for path in _intake_candidates(task_id_safe, ws_safe, state_dir):
+        tier = _parse_tier(path, state_dir)
+        if tier:
+            return tier
     return ""
+
+
+def _write_jsonl_record(path: Path, record: dict) -> None:
+    """Append one JSONL record to path; never raises."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record) + "\n")
+    except OSError as exc:
+        sys.stderr.write(f"pipeline-entry-guard: ledger write failed: {exc}\n")
 
 
 def _write_bypass_ledger(role: str) -> None:
     """Write one JSONL record to pipeline-entry-bypass.jsonl; never raises."""
     sid = _session_id()
-    out = _metrics_dir() / sid / "pipeline-entry-bypass.jsonl"
     record = {
         "ts": int(time.time()),
         "session_id": sid,
         "action": "bypass",
         "env_var": "CLAUDE_DISABLE_PIPELINE_ENTRY_GUARD",
-        "role": role,
+        "role": role[:128],
     }
-    try:
-        out.parent.mkdir(parents=True, exist_ok=True)
-        with out.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record) + "\n")
-    except OSError as exc:
-        sys.stderr.write(f"pipeline-entry-guard: bypass ledger write failed: {exc}\n")
+    _write_jsonl_record(_metrics_dir() / sid / "pipeline-entry-bypass.jsonl", record)
 
 
 def _write_advisory_ledger(role: str, reason: str) -> None:
     """Write one JSONL record to pipeline-entry-advisory.jsonl; never raises."""
     sid = _session_id()
-    out = _metrics_dir() / sid / "pipeline-entry-advisory.jsonl"
     record = {
         "ts": int(time.time()),
         "session_id": sid,
         "action": "would_block",
-        "role": role,
+        "role": role[:128],
         "reason": reason,
     }
-    try:
-        out.parent.mkdir(parents=True, exist_ok=True)
-        with out.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record) + "\n")
-    except OSError as exc:
-        sys.stderr.write(f"pipeline-entry-guard: advisory ledger write failed: {exc}\n")
+    _write_jsonl_record(_metrics_dir() / sid / "pipeline-entry-advisory.jsonl", record)
 
 
 def main() -> None:

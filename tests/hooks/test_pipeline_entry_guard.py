@@ -14,7 +14,11 @@ from pathlib import Path
 import pytest
 
 from pipeline_entry_guard import decide
-from pipeline_entry_guard_cli import _write_bypass_ledger, _write_advisory_ledger
+from pipeline_entry_guard_cli import (
+    _write_bypass_ledger,
+    _write_advisory_ledger,
+    _intake_tier,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -245,8 +249,49 @@ def test_advisory_ledger_written(monkeypatch, tmp_path):
 # AC-11/12: ledger write failure is fail-safe
 # ---------------------------------------------------------------------------
 
-def test_ledger_write_failure_is_fail_safe(monkeypatch):
+def test_ledger_write_failure_is_fail_safe(monkeypatch, capsys):
     monkeypatch.setenv("CLAUDE_METRICS_DIR", "/nonexistent-root-dir-xyz/no-write")
     # Must not raise — fail-safe
     _write_bypass_ledger("software-engineer")
     _write_advisory_ledger("software-engineer", "test reason")
+    # stdout must stay empty (errors go to stderr only)
+    captured = capsys.readouterr()
+    assert captured.out == ""
+
+
+# ---------------------------------------------------------------------------
+# AC-13: _intake_tier reads real temp files (tier: and tier_emitted: forms)
+# ---------------------------------------------------------------------------
+
+def test_intake_tier_reads_tier_short_form(monkeypatch, tmp_path):
+    state_dir = tmp_path / "pipeline-state"
+    task_dir = state_dir / "my-task-id"
+    task_dir.mkdir(parents=True)
+    (task_dir / "intake.md").write_text('tier: "T4"\n')
+    monkeypatch.setenv("HARNESS_DATA", str(tmp_path))
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("CLAUDE_WORKSTREAM", raising=False)
+    assert _intake_tier("my-task-id") == "T4"
+
+
+def test_intake_tier_reads_tier_emitted_form(monkeypatch, tmp_path):
+    state_dir = tmp_path / "pipeline-state"
+    task_dir = state_dir / "my-task-id"
+    task_dir.mkdir(parents=True)
+    (task_dir / "intake.md").write_text('tier_emitted: "T6"\n')
+    monkeypatch.setenv("HARNESS_DATA", str(tmp_path))
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("CLAUDE_WORKSTREAM", raising=False)
+    assert _intake_tier("my-task-id") == "T6"
+
+
+def test_intake_tier_path_traversal_blocked(monkeypatch, tmp_path):
+    """A task_id of ../../etc/passwd must not read outside state_dir."""
+    state_dir = tmp_path / "pipeline-state"
+    state_dir.mkdir(parents=True)
+    monkeypatch.setenv("HARNESS_DATA", str(tmp_path))
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+    monkeypatch.delenv("CLAUDE_WORKSTREAM", raising=False)
+    # Traversal attempt — must return "" not raise
+    result = _intake_tier("../../etc/passwd")
+    assert result == ""

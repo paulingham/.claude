@@ -21,7 +21,8 @@ source "${HOOK_DIR}/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Agent"
 SUBAGENT_TYPE=""
-trap 'log_hook_event $? "$SUBAGENT_TYPE"' EXIT
+SUBAGENT_TYPE_SAFE=""
+trap 'log_hook_event $? "$SUBAGENT_TYPE_SAFE"' EXIT
 
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "standard" || exit 0
@@ -31,6 +32,8 @@ TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
 [[ "$TOOL_NAME" == "Agent" ]] || exit 0
 
 SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // empty' 2>/dev/null)
+# Sanitize to safe set before use in log/echo — prevents log injection via newlines or ANSI.
+SUBAGENT_TYPE_SAFE="${SUBAGENT_TYPE//[^A-Za-z0-9_-]/_}"
 
 DECISION=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/pipeline_entry_guard_cli.py")
 if [[ $? -ne 0 ]]; then
@@ -38,11 +41,12 @@ if [[ $? -ne 0 ]]; then
     exit 0
 fi
 ACTION=$(printf '%s\n' "$DECISION" | sed -n '1p')
-REASON=$(printf '%s\n' "$DECISION" | sed -n '2p')
+# REASON is intentionally not extracted — the warning message is fixed-form to prevent log injection.
 
 case "$ACTION" in
     block)
-        echo "[pipeline-entry-guard] WARNING: ${SUBAGENT_TYPE} spawned without a pipeline-entry signal — run /harness:intake or /harness:pipeline first. (advisory mode — spawn NOT blocked)" >&2
+        # Warning message is fixed-form (no raw REASON interpolation) to prevent log injection.
+        echo "[pipeline-entry-guard] WARNING: ${SUBAGENT_TYPE_SAFE} spawned without a pipeline-entry signal — run /harness:intake or /harness:pipeline first. (advisory mode — spawn NOT blocked)" >&2
         # ADVISORY MODE (Path-B): log + warn only — spawn is NOT blocked.
         # PROMOTION CRITERION: flip the exit code on the line marked below once:
         #   N=10 distinct sessions have generated advisory events with ZERO confirmed
