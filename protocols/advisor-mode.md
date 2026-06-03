@@ -10,7 +10,7 @@ Detail prose for the Advisor-Mode Reviews mechanism — the Sonnet-executor + Op
 
 The `pre-agent-advisor.sh` PreToolUse hook logs the would-be pairing to `metrics/{session}/advisor-dispatch.jsonl`; no spawn is blocked, and no model is downgraded. The advisor field is parsed from the agent's frontmatter and recorded for forensic visibility only.
 
-Will become the enforced default the moment the `advisor:` field lands on the Agent tool input schema.
+The `advisor:` field remains not yet schema-exposed. Full advisor pairing (Sonnet-executor + Opus-advisor) remains advisory at v2.1.140. The `model` param IS now bound via `hookSpecificOutput.updatedInput.model` when the advisor resolver (`hooks/_lib/advisor_resolver.py::resolve_model_conditional`) yields `source == rule-match:*` (a conditional rule fires). Takes effect iff CC honors `updatedInput` on the Agent matcher (unverified at author time). Suppressed by `CLAUDE_DISABLE_MODEL_BINDING=1`.
 
 ## Cost Estimate (PROVISIONAL)
 
@@ -23,6 +23,7 @@ Pending advisor-baseline measurement (see `eval/baselines/{latest}-advisor-basel
 
 - `CLAUDE_REVIEW_ADVISOR_DISABLED=1` — force Opus-solo for the current session (escape hatch when the advisor pairing produces noisy verdicts on a specific run).
 - `CLAUDE_DISABLE_ADVISOR_GATE=1` — short-circuit `hooks/pre-agent-advisor.sh` to `exit 0` before invoking the resolver. Mirrors `CLAUDE_DISABLE_TOOL_ALLOWLIST` and `CLAUDE_DISABLE_THINKING_GATE`. Use when a future enforcement flip mis-classifies a legitimate spawn; the hook becomes inert for the affected session and no `advisor-dispatch.jsonl` line is appended.
+- `CLAUDE_DISABLE_MODEL_BINDING=1` — suppress `hookSpecificOutput.updatedInput.model` emission for the current session. JSONL logging is preserved. Use when model binding conflicts with a manual override.
 
 ## Scope
 
@@ -30,7 +31,7 @@ Applies only to `code-reviewer` and `security-engineer`. All other review/critic
 
 ## model_conditional Schema
 
-The `model_conditional` frontmatter block layers complexity-budget-aware model routing on top of the static `model:` / `executor:` / `advisor:` triple. The block is **advisory at v2.1.140** — the resolver function `resolve_model_conditional()` in `hooks/_lib/advisor_resolver.py` is pure and exercised by unit tests, but no caller wires it into spawn dispatch yet (see the named follow-up in `protocols/_proposals/2026-05-14-observation-length-cap.md`).
+The `model_conditional` frontmatter block layers complexity-budget-aware model routing on top of the static `model:` / `executor:` / `advisor:` triple. The block is **advisory at v2.1.140** — the resolver function `resolve_model_conditional()` in `hooks/_lib/advisor_resolver.py` is pure and exercised by unit tests. Bash-wrapper integration into `pre-agent-advisor.sh` is implemented in this release (WS-D bind-thinking-routing).
 
 ### Frontmatter fields
 
@@ -53,5 +54,5 @@ The `model_conditional` frontmatter block layers complexity-budget-aware model r
 
 ### Reference implementation
 
-The canonical resolver lives at `hooks/_lib/advisor_resolver.py::resolve_model_conditional`. It is pure (no `open`, no `subprocess`, no `os.environ` reads) so it can be unit-tested directly via `inspect.getsource`. Bash-wrapper integration into `pre-agent-advisor.sh` is the named follow-up tracked in the slice-A companion proposal.
+The canonical resolver lives at `hooks/_lib/advisor_resolver.py::resolve_model_conditional`. It is pure (no `open`, no `subprocess`, no `os.environ` reads) so it can be unit-tested directly via `inspect.getsource`. Bash-wrapper integration into `pre-agent-advisor.sh` is implemented in this release.
 
