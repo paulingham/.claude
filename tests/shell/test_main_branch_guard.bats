@@ -18,11 +18,21 @@ setup() {
   export CLAUDE_SESSION_ID="bats-mbg-$$"
   unset CLAUDE_PIPELINE_TASK_ID
   mkdir -p "$CLAUDE_STATE_DIR"
+  # Hermetic registered worktree for delegation validation tests.
+  TMP_REPO_MBG="$(mktemp -d)"
+  ( cd "$TMP_REPO_MBG" && git init -q -b main )
+  ( cd "$TMP_REPO_MBG" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO_MBG" && git commit -q --allow-empty -m init )
+  TMP_WT="$(mktemp -d)/wt"
+  ( cd "$TMP_REPO_MBG" && git worktree add -q -b feat/x "$TMP_WT" )
+  export CLAUDE_WORKTREE_PATH="$TMP_WT"
 }
 
 teardown() {
   rm -rf "$TMP_HOME"
-  unset CLAUDE_HOOK_PROFILE CLAUDE_SESSION_ID HOME CLAUDE_STATE_DIR
+  rm -rf "$(dirname "${TMP_WT:-/tmp/__nonexistent__}")"
+  rm -rf "${TMP_REPO_MBG:-}"
+  unset CLAUDE_HOOK_PROFILE CLAUDE_SESSION_ID HOME CLAUDE_STATE_DIR CLAUDE_WORKTREE_PATH
 }
 
 # Helper: pipe a {tool_name, tool_input.command} JSON record into the guard.
@@ -50,18 +60,18 @@ _run_guard_capture() {
   echo "$output" | grep -qE 'BLOCKED: REPO_ROOT HEAD must stay on .main.'
 }
 
-@test "AC2.2 git -C /tmp/wt checkout foo allowed" {
-  run _run_guard Bash 'git -C /tmp/wt checkout foo'
+@test "AC2.2 git -C <registered-wt> checkout foo allowed" {
+  run _run_guard Bash "git -C $TMP_WT checkout foo"
   [ "$status" -eq 0 ]
 }
 
-@test "AC2.3 (cd /tmp/wt && git checkout foo) allowed" {
-  run _run_guard Bash '(cd /tmp/wt && git checkout foo)'
+@test "AC2.3 (cd <registered-wt> && git checkout foo) allowed" {
+  run _run_guard Bash "(cd $TMP_WT && git checkout foo)"
   [ "$status" -eq 0 ]
 }
 
-@test "AC2.4 cd /tmp/wt && git checkout foo allowed" {
-  run _run_guard Bash 'cd /tmp/wt && git checkout foo'
+@test "AC2.4 cd <registered-wt> && git checkout foo allowed" {
+  run _run_guard Bash "cd $TMP_WT && git checkout foo"
   [ "$status" -eq 0 ]
 }
 
@@ -70,8 +80,8 @@ _run_guard_capture() {
   [ "$status" -eq 2 ]
 }
 
-@test "AC2.6 (cd /tmp/wt && gh pr create --title x) allowed" {
-  run _run_guard Bash '(cd /tmp/wt && gh pr create --title x)'
+@test "AC2.6 (cd <registered-wt> && gh pr create --title x) allowed" {
+  run _run_guard Bash "(cd $TMP_WT && gh pr create --title x)"
   [ "$status" -eq 0 ]
 }
 
@@ -209,4 +219,55 @@ _run_guard_capture() {
 @test "AC2.28 git pull origin feature-branch blocked" {
   run _run_guard Bash 'git pull origin feature-branch'
   [ "$status" -eq 2 ]
+}
+
+# ---------------------------------------------------------------------------
+# Delegation-target validation (AC2.29-AC2.36) — fix for REPO_ROOT bypass
+# ---------------------------------------------------------------------------
+
+@test "AC2.29 cd <REPO_ROOT_literal> && git checkout -b x blocked (exit 2)" {
+  run _run_guard Bash "cd $TMP_REPO_MBG && git checkout -b x"
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.30 git -C . checkout -b x blocked from harness root (exit 2)" {
+  run _run_guard Bash 'git -C . checkout -b x'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.31 git -C \"\" checkout x blocked (empty target, exit 2)" {
+  run _run_guard Bash 'git -C "" checkout x'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.32 git -C \"\$WORKTREE\" checkout foo allowed (variable-ref passthrough, exit 0)" {
+  run _run_guard Bash 'git -C "$WORKTREE" checkout foo'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.33 (cd \"\$TMP_WT\" && git checkout foo) allowed via CLAUDE_WORKTREE_PATH (exit 0)" {
+  run _run_guard Bash "(cd \"$TMP_WT\" && git checkout foo)"
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.34 git -C \"\$TMP_WT\" checkout foo allowed via CLAUDE_WORKTREE_PATH (exit 0)" {
+  run _run_guard Bash "git -C \"$TMP_WT\" checkout foo"
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.35 git -C /nonexistent/unregistered checkout foo blocked (unregistered path, exit 2)" {
+  local UNREGISTERED="/nonexistent/path-$(date +%s)"
+  run _run_guard Bash "git -C $UNREGISTERED checkout foo"
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.36 violation log entry for delegation-target bypass has expected fields" {
+  run _run_guard Bash "cd $TMP_REPO_MBG && git checkout -b x"
+  [ "$status" -eq 2 ]
+  log="$HOME/.claude/metrics/$CLAUDE_SESSION_ID/main-branch-violations.jsonl"
+  [ -f "$log" ]
+  last=$(tail -1 "$log")
+  [ "$(echo "$last" | jq -r .source)" = "prevented" ]
+  echo "$last" | jq -e '.timestamp' > /dev/null
+  echo "$last" | jq -e '.session_id' > /dev/null
 }

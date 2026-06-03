@@ -93,10 +93,34 @@ _assert_allowed() {
 # AC1.2 negative matrix — allowed/delegated forms (T25-T40)
 # ---------------------------------------------------------------------------
 
-@test "T25 allowed: git -C /tmp/wt checkout foo"                     { _assert_allowed 'git -C /tmp/wt checkout foo'; }
+@test "T25 allowed: git -C <registered-wt> checkout foo" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  local WT; WT="$(mktemp -d)/wt"
+  ( cd "$TMP_REPO" && git worktree add -q -b feat/x "$WT" )
+  CLAUDE_WORKTREE_PATH="$WT" _assert_allowed "git -C $WT checkout foo"
+  rm -rf "$(dirname "$WT")"
+}
 @test "T26 allowed: git --git-dir=/tmp/.git checkout foo"            { _assert_allowed 'git --git-dir=/tmp/.git checkout foo'; }
-@test "T27 allowed: cd /tmp && git checkout foo"                     { _assert_allowed 'cd /tmp && git checkout foo'; }
-@test "T28 allowed: (cd /tmp && git checkout foo)"                   { _assert_allowed '(cd /tmp && git checkout foo)'; }
+@test "T27 allowed: cd <registered-wt> && git checkout foo" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  local WT; WT="$(mktemp -d)/wt"
+  ( cd "$TMP_REPO" && git worktree add -q -b feat/x "$WT" )
+  CLAUDE_WORKTREE_PATH="$WT" _assert_allowed "cd $WT && git checkout foo"
+  rm -rf "$(dirname "$WT")"
+}
+@test "T28 allowed: (cd <registered-wt> && git checkout foo)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  local WT; WT="$(mktemp -d)/wt"
+  ( cd "$TMP_REPO" && git worktree add -q -b feat/x "$WT" )
+  CLAUDE_WORKTREE_PATH="$WT" _assert_allowed "(cd $WT && git checkout foo)"
+  rm -rf "$(dirname "$WT")"
+}
 @test "T29 allowed: (cd \"\$WT\" && gh pr create --title x)"          { _assert_allowed '(cd "$WT" && gh pr create --title x)'; }
 @test "T30 allowed: cd \"\$WT\" && gh pr create --title x"            { _assert_allowed 'cd "$WT" && gh pr create --title x'; }
 @test "T31 allowed: git status"                                      { _assert_allowed 'git status'; }
@@ -134,8 +158,24 @@ _assert_allowed() {
 # self-contained on a single clause and MUST NOT carry delegation across `&&`.
 @test "T44 forbidden: git -C /tmp/wt status && git checkout main"        { _assert_forbidden 'git -C /tmp/wt status && git checkout main'; }
 @test "T45 forbidden: git --git-dir=/tmp/.git status && git checkout main" { _assert_forbidden 'git --git-dir=/tmp/.git status && git checkout main'; }
-@test "T46 allowed: cd /tmp/wt && git status && git checkout main (cd persists)" { _assert_allowed 'cd /tmp/wt && git status && git checkout main'; }
-@test "T47 allowed: cd /tmp/wt && git status && gh pr create --title x"  { _assert_allowed 'cd /tmp/wt && git status && gh pr create --title x'; }
+@test "T46 allowed: cd <registered-wt> && git status && git checkout main (cd persists)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  local WT; WT="$(mktemp -d)/wt"
+  ( cd "$TMP_REPO" && git worktree add -q -b feat/x "$WT" )
+  CLAUDE_WORKTREE_PATH="$WT" _assert_allowed "cd $WT && git status && git checkout main"
+  rm -rf "$(dirname "$WT")"
+}
+@test "T47 allowed: cd <registered-wt> && git status && gh pr create --title x" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  local WT; WT="$(mktemp -d)/wt"
+  ( cd "$TMP_REPO" && git worktree add -q -b feat/x "$WT" )
+  CLAUDE_WORKTREE_PATH="$WT" _assert_allowed "cd $WT && git status && gh pr create --title x"
+  rm -rf "$(dirname "$WT")"
+}
 
 # CRITICAL-1 (security) — delete-remote-main via empty-source refspec.
 @test "T48 forbidden: git push origin :main (delete-remote)"             { _assert_forbidden 'git push origin :main'; }
@@ -259,3 +299,82 @@ _assert_allowed() {
 @test "T87 forbidden: git merge --ff-only (bare, no target — merges FETCH_HEAD)" { _assert_forbidden 'git merge --ff-only'; }
 @test "T88 forbidden: git merge --ff-only feature/x (non-main target)"   { _assert_forbidden 'git merge --ff-only feature/x'; }
 @test "T89 allowed: git merge --ff-only origin"                          { _assert_allowed 'git merge --ff-only origin'; }
+
+# ---------------------------------------------------------------------------
+# Delegation-target validation (T90-T100) — fix for REPO_ROOT bypass
+# ---------------------------------------------------------------------------
+
+@test "T90 forbidden: cd <REPO_ROOT_literal> && git checkout -b x (REPO_ROOT path)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  CLAUDE_WORKTREE_PATH="" _assert_forbidden "cd $TMP_REPO && git checkout -b x"
+}
+
+@test "T91 forbidden: git -C . checkout -b x (dot resolves to cwd = REPO_ROOT)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( cd "$TMP_REPO" && _assert_forbidden 'git -C . checkout -b x' )
+}
+
+@test "T92 forbidden: git -C \"\" checkout x (empty target after dequote)" {
+  _assert_forbidden 'git -C "" checkout x'
+}
+
+@test "T93 allowed: git -C \"\$WORKTREE\" checkout foo (variable-ref passthrough)" {
+  _assert_allowed 'git -C "$WORKTREE" checkout foo'
+}
+
+@test "T94 allowed: cd \"\$WORKTREE\" && git checkout foo (variable-ref passthrough)" {
+  _assert_allowed 'cd "$WORKTREE" && git checkout foo'
+}
+
+@test "T95 allowed: git -C <registered-wt> checkout foo (real registered worktree)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  local WT; WT="$(mktemp -d)/wt"
+  ( cd "$TMP_REPO" && git worktree add -q -b feat/x "$WT" )
+  CLAUDE_WORKTREE_PATH="$WT" _assert_allowed "git -C $WT checkout foo"
+  rm -rf "$(dirname "$WT")"
+}
+
+@test "T96 allowed: cd <registered-wt> && git checkout foo && git checkout feat/y (cd persists)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  local WT; WT="$(mktemp -d)/wt"
+  ( cd "$TMP_REPO" && git worktree add -q -b feat/x "$WT" )
+  CLAUDE_WORKTREE_PATH="$WT" _assert_allowed "cd $WT && git checkout foo && git checkout feat/y"
+  rm -rf "$(dirname "$WT")"
+}
+
+@test "T97 forbidden: git -C <registered-wt> status && git checkout main (git-C scoped to clause)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  local WT; WT="$(mktemp -d)/wt"
+  ( cd "$TMP_REPO" && git worktree add -q -b feat/x "$WT" )
+  CLAUDE_WORKTREE_PATH="$WT" _assert_forbidden "git -C $WT status && git checkout main"
+  rm -rf "$(dirname "$WT")"
+}
+
+@test "T98 forbidden: git -C <unregistered-dir> checkout foo (not in worktree list)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  local UNREGISTERED; UNREGISTERED="$(mktemp -d)"
+  _assert_forbidden "git -C $UNREGISTERED checkout foo"
+  rm -rf "$UNREGISTERED"
+}
+
+@test "T99 forbidden: cd <unregistered-dir> && git checkout foo (falls through; verb caught)" {
+  local UNREGISTERED; UNREGISTERED="$(mktemp -d)"
+  _assert_forbidden "cd $UNREGISTERED && git checkout foo"
+  rm -rf "$UNREGISTERED"
+}
+
+@test "T100 forbidden: git -C '\"\"' checkout -b x (double-empty-dequote edge)" {
+  _assert_forbidden "git -C '\"\"' checkout -b x"
+}
