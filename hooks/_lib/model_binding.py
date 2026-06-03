@@ -18,7 +18,7 @@ def should_emit_model(mc_result: dict) -> bool:
     """
     source = mc_result.get("source", "")
     model = mc_result.get("model")
-    return source.startswith("rule-match:") and bool(model)
+    return source.startswith("rule-match:") and isinstance(model, str) and bool(model)
 
 
 def build_hook_output(model: str) -> str:

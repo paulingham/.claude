@@ -64,6 +64,30 @@ class ShouldEmitModelReturnsFalseWhenModelNone(unittest.TestCase):
         self.assertFalse(result)
 
 
+class ShouldEmitModelReturnsFalseWhenModelIsDict(unittest.TestCase):
+    """A9: rule-match source but model is a dict (malformed YAML mapping) → no emit."""
+
+    def test_rule_match_dict_model_no_emit(self):
+        result = should_emit_model({"source": "rule-match:budget_lt:6", "model": {"injected": "x"}})
+        self.assertFalse(result)
+
+
+class ShouldEmitModelReturnsFalseWhenModelIsList(unittest.TestCase):
+    """A10: rule-match source but model is a list → no emit."""
+
+    def test_rule_match_list_model_no_emit(self):
+        result = should_emit_model({"source": "rule-match:budget_lt:6", "model": ["sonnet"]})
+        self.assertFalse(result)
+
+
+class ShouldEmitModelReturnsFalseWhenModelIsInt(unittest.TestCase):
+    """A11: rule-match source but model is an int → no emit."""
+
+    def test_rule_match_int_model_no_emit(self):
+        result = should_emit_model({"source": "rule-match:budget_lt:6", "model": 42})
+        self.assertFalse(result)
+
+
 class BuildHookOutputEmitsValidHookSpecificOutputJSON(unittest.TestCase):
     """A7: build_hook_output returns valid hookSpecificOutput JSON."""
 

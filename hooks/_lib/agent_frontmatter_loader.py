@@ -12,6 +12,7 @@ flat key-value parser suited for pipeline state files; it is NOT used here.
 """
 import os
 import re
+import sys
 from pathlib import Path
 
 _AGENTS_DIR = Path(os.environ.get("CLAUDE_AGENTS_DIR") or
@@ -30,7 +31,8 @@ def _parse_yaml_frontmatter(text):
         import yaml
         match = _FRONTMATTER_RE.match(text)
         return yaml.safe_load(match.group(1)) or {} if match else {}
-    except Exception:
+    except Exception as e:
+        print(f"[agent_frontmatter_loader] yaml parse failed for {text[:40]!r}: {e}", file=sys.stderr)
         return {}
 
 

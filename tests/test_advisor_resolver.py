@@ -665,8 +665,8 @@ class ResolverEmitsThreeLinesForReviewerWithConditional(unittest.TestCase):
 class ResolverThirdLineIsEmptyWhenNoModelConditional(unittest.TestCase):
     """B2: qa-engineer (no model_conditional) → line 3 is empty."""
 
-    def test_software_engineer_third_line_empty(self):
-        # qa-engineer has no model_conditional block; should_emit_model returns False.
+    def test_qa_engineer_third_line_empty(self):
+        # qa-engineer chosen because it has no model_conditional block, so no binding fires.
         result = _run_resolver_with_budget(_QA_PAYLOAD, budget=4)
         self.assertEqual(result.returncode, 0)
         lines = result.stdout.splitlines()
@@ -881,6 +881,32 @@ class AdvisorModeDocOperatorControlsHasDisableModelBinding(unittest.TestCase):
     def test_disable_model_binding_in_operator_controls(self):
         body = _ADVISOR_MODE_PATH.read_text()
         self.assertIn("CLAUDE_DISABLE_MODEL_BINDING", body)
+
+
+class MalformedAgentFrontmatterReturnsEmptyDict(unittest.TestCase):
+    """Finding #3: _parse_yaml_frontmatter must never raise on bad YAML; returns {}."""
+
+    def test_malformed_yaml_returns_empty_dict_not_raise(self):
+        import sys
+        import io
+        import importlib
+        import importlib.util
+        loader_path = REPO_ROOT / "hooks" / "_lib" / "agent_frontmatter_loader.py"
+        spec = importlib.util.spec_from_file_location("agent_frontmatter_loader", loader_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        # Unquoted colon-in-value is a YAML parse error.
+        bad_text = "---\nmodel: foo: bar\n---\n"
+        captured = io.StringIO()
+        old_stderr = sys.stderr
+        sys.stderr = captured
+        try:
+            result = mod._parse_yaml_frontmatter(bad_text)
+        finally:
+            sys.stderr = old_stderr
+        self.assertIsInstance(result, dict)
+        # Diagnostic must have been emitted to stderr.
+        self.assertIn("yaml parse failed", captured.getvalue())
 
 
 if __name__ == "__main__":
