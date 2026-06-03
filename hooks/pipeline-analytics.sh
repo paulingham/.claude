@@ -8,7 +8,7 @@
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
-source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "standalone"
 trap 'log_hook_event $?' EXIT
@@ -39,6 +39,21 @@ if [[ -n "$WORKSTREAM" ]]; then
   TASK_STATE_DIR="$PIPELINE_DIR/workstreams/${WORKSTREAM}/${TASK_ID}"
 else
   TASK_STATE_DIR="$PIPELINE_DIR/${TASK_ID}"
+fi
+
+# Second-tier probe: if TASK_STATE_DIR doesn't exist under HARNESS_DATA,
+# try the repo-root-relative pipeline-state/ directory. This handles the
+# common case where state was written relative to the checked-out repo
+# (e.g. during a pipeline run) rather than to $HARNESS_DATA.
+if [[ ! -d "$TASK_STATE_DIR" ]]; then
+  _REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+  if [[ -n "$_REPO_ROOT" ]]; then
+    if [[ -n "$WORKSTREAM" ]]; then
+      TASK_STATE_DIR="$_REPO_ROOT/pipeline-state/workstreams/${WORKSTREAM}/${TASK_ID}"
+    else
+      TASK_STATE_DIR="$_REPO_ROOT/pipeline-state/${TASK_ID}"
+    fi
+  fi
 fi
 
 # DUAL_PATH: prefer new layout, fall back to legacy (legacy form has no
