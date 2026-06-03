@@ -718,7 +718,8 @@ class HookStaysStdoutSilentForNonReviewer(unittest.TestCase):
 
 
 class DisableGateShortCircuitsBeforeModelBinding(unittest.TestCase):
-    """B6: CLAUDE_DISABLE_ADVISOR_GATE=1 → hook exits before resolver; stdout empty."""
+    """B6: CLAUDE_DISABLE_ADVISOR_GATE=1 → hook exits before resolver; stdout empty,
+    and NO advisor-dispatch.jsonl is written (short-circuit is pre-logging)."""
 
     def test_disable_gate_hook_stdout_empty(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -730,6 +731,31 @@ class DisableGateShortCircuitsBeforeModelBinding(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout.strip(), "",
                          "CLAUDE_DISABLE_ADVISOR_GATE=1 must suppress all stdout")
+
+    def test_disable_gate_does_not_write_jsonl(self):
+        """CLAUDE_DISABLE_ADVISOR_GATE=1 short-circuits at line 19 of the hook,
+        BEFORE JSONL logging — so no advisor-dispatch.jsonl must be created."""
+        session = f"test-b6-{uuid.uuid4()}"
+        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                result = _run_hook(
+                    _REVIEWER_PAYLOAD_BUDGET4,
+                    env={"CLAUDE_DISABLE_ADVISOR_GATE": "1",
+                         "ANTHROPIC_API_KEY": "sk-test",
+                         "CLAUDE_SESSION_ID": session,
+                         "CLAUDE_PIPELINE_STATE_DIR": tmp})
+            self.assertEqual(result.returncode, 0)
+            self.assertFalse(log_path.exists(),
+                             f"CLAUDE_DISABLE_ADVISOR_GATE=1 must NOT write JSONL at {log_path}")
+        finally:
+            if log_path.exists():
+                log_path.unlink()
+            if log_path.parent.exists():
+                try:
+                    log_path.parent.rmdir()
+                except OSError:
+                    pass
 
 
 class ExistingJsonlLoggingPreservedAlongsideBinding(unittest.TestCase):
@@ -831,6 +857,68 @@ class DisableModelBindingKeepsJsonlButSilencesStdout(unittest.TestCase):
                     log_path.parent.rmdir()
                 except OSError:
                     pass
+
+
+class FirstMatchingRuleWinsWhenTwoRulesBothMatch(unittest.TestCase):
+    """QA gap 1 — first-match-wins semantics.
+
+    A last-match mutant would survive single-rule tests. With two rules
+    both matching at budget=5 (budget_lt:10 and budget_lt:6), the FIRST
+    rule (budget_lt:10 → model=haiku) must be returned, not the second.
+    """
+
+    def test_first_matching_rule_wins_when_two_rules_both_match(self):
+        fm = {
+            "model": "opus",
+            "executor": "claude-sonnet-4-6",
+            "advisor": "claude-opus-4-7",
+            "model_conditional": {
+                "default": {
+                    "model": "opus",
+                    "executor": "claude-sonnet-4-6",
+                    "advisor": "claude-opus-4-7",
+                },
+                "rules": [
+                    {
+                        "when": {"budget_lt": 10},
+                        "model": "haiku",
+                        "executor": "claude-haiku-4-5",
+                        "advisor": "none",
+                    },
+                    {
+                        "when": {"budget_lt": 6},
+                        "model": "sonnet",
+                        "executor": "claude-sonnet-4-6",
+                        "advisor": "none",
+                    },
+                ],
+                "status": "advisory",
+            },
+        }
+        result = resolve_model_conditional(fm, budget=5)
+        self.assertEqual(result["model"], "haiku",
+                         "first matching rule must win, not the second")
+        self.assertEqual(result["source"], "rule-match:budget_lt:10",
+                         "source must reference the FIRST matched rule's budget_lt value")
+
+
+class ResolverThirdLineEmptyForDefaultArmWithConditionalPresent(unittest.TestCase):
+    """QA gap 2 — default-arm at integration level.
+
+    When model_conditional IS present but no rule fires (code-reviewer at
+    budget=8, rule is budget_lt:6), the resolver's 3rd stdout line must be
+    empty (no model binding emitted).
+    """
+
+    def test_resolver_third_line_empty_for_default_arm_code_reviewer_budget_8(self):
+        result = _run_resolver_with_budget(_REVIEWER_PAYLOAD_BUDGET4, budget=8)
+        self.assertEqual(result.returncode, 0)
+        lines = result.stdout.splitlines()
+        self.assertGreaterEqual(len(lines), 3,
+                                f"expected >=3 lines, got {len(lines)}: {result.stdout!r}")
+        self.assertEqual(lines[2], "",
+                         "line 3 must be empty when model_conditional is present "
+                         "but no rule fires (default-arm, budget=8 vs budget_lt:6)")
 
 
 # ---------------------------------------------------------------------------
