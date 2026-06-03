@@ -6,10 +6,12 @@ Mirrors `_lib/resolve-thinking.py` shape:
   line 2: resolved payload JSON with 4 anchors
 
 Anchor 1 (rules-core-tail) is `advisory` at v2.1.140 — we compute the
-segment hash (SHA-256 of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/rules/core.md`)
-and the byte position. The hook layer logs but does not mutate
-`tool_input.prompt`. Three other anchors are `deferred` with explicit reason
-enums — see plan.md § Scope Decisions.
+segment hash (SHA-256 of rules/core.md) and the byte position. The hook
+layer logs but does not mutate `tool_input.prompt`. Three other anchors
+are `deferred` with explicit reason enums — see plan.md § Scope Decisions.
+
+rules/core.md resolution precedence (plugin-install aware):
+  CLAUDE_PLUGIN_ROOT > HARNESS_DATA > CLAUDE_CONFIG_DIR > $HOME/.claude
 """
 import hashlib
 import json
@@ -32,17 +34,34 @@ _DEFERRED_ANCHORS = [
 ]
 
 
-def _config_dir() -> str:
-    # Precedence: HARNESS_DATA > CLAUDE_CONFIG_DIR > $HOME/.claude
-    return (
-        os.environ.get("HARNESS_DATA")
-        or os.environ.get("CLAUDE_CONFIG_DIR")
-        or os.path.join(os.path.expanduser("~"), ".claude")
-    )
+def _rules_core_path() -> "str | None":
+    """Return first resolvable path for rules/core.md, or None.
+
+    Precedence: CLAUDE_PLUGIN_ROOT > HARNESS_DATA > CLAUDE_CONFIG_DIR > $HOME/.claude
+    CLAUDE_PLUGIN_ROOT is checked first because in plugin-install mode the harness
+    code (including rules/) lives under the plugin root, which differs from
+    HARNESS_DATA (runtime state) and CLAUDE_CONFIG_DIR (overlay config).
+    """
+    candidates = [
+        os.environ.get("CLAUDE_PLUGIN_ROOT"),
+        os.environ.get("HARNESS_DATA"),
+        os.environ.get("CLAUDE_CONFIG_DIR"),
+        os.path.join(os.path.expanduser("~"), ".claude"),
+    ]
+    for base in candidates:
+        if not base:
+            continue
+        path = os.path.join(base, "rules", "core.md")
+        if os.path.isfile(path):
+            return path
+    return None
 
 
 def _rules_core_anchor() -> dict:
-    path = os.path.join(_config_dir(), "rules", "core.md")
+    path = _rules_core_path()
+    if path is None:
+        return {"name": "rules-core-tail", "status": "deferred",
+                "reason": "rules-core-md-missing"}
     try:
         data = open(path, "rb").read()
     except OSError:
