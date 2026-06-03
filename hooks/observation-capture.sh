@@ -144,8 +144,8 @@ if [[ -n "$OBS_JSON" ]]; then
             mv "$LIVE_LOG" "${LIVE_LOG}.1"
         fi
         printf '%s' "$OBS_JSON" | \
-            PYTHONPATH="$HOME/.claude/skills/reindex-memory" \
-            python3 "$HOME/.claude/skills/reindex-memory/_lib/live_writer.py" \
+            PYTHONPATH="$HARNESS_ROOT/skills/reindex-memory" \
+            python3 "$HARNESS_ROOT/skills/reindex-memory/_lib/live_writer.py" \
             2>>"$LIVE_LOG" || true
     fi
 fi

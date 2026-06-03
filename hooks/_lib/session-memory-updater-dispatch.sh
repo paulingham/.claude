@@ -6,6 +6,7 @@
 # Usage: session-memory-updater-dispatch.sh <targetFile> <targetSection>
 # Exit 0  → both fields present and non-blank; orchestrator may proceed.
 # Exit 1  → at least one field missing; do not spawn.
+source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 set -u
 
 _target_file="${1-}"
@@ -56,7 +57,7 @@ esac
 # session-memory/config/templates/{targetSection}.md so the updater can Read +
 # Edit on first run. Idempotent: if the file already exists, do nothing.
 if [[ ! -e "$_target_file" ]]; then
-  _config_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+  _config_dir="$HARNESS_ROOT"
   _template="$_config_dir/session-memory/config/templates/${_target_section}.md"
   if [[ -f "$_template" ]]; then
     mkdir -p "$(dirname "$_target_file")" 2>/dev/null || true

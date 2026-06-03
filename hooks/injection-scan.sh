@@ -25,7 +25,7 @@ fi
 
 # Only scan files under ~/.claude/
 case "$FILE_PATH" in
-    "$HOME/.claude/"*) ;;
+    "$HARNESS_DATA/"*) ;;
     *) exit 0 ;;
 esac
 

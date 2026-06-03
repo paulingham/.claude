@@ -7,6 +7,7 @@
 # protects: pr-creation, code-review
 # self-test: skip
 
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Bash"
@@ -46,7 +47,7 @@ Fix options:
   1. Set CLAUDE_PIPELINE_TASK_ID=<task-id> in your shell, OR
   2. Re-run via /pipeline (Step 2c sets it automatically), OR
   3. Refresh the stale stub yourself:
-     echo "{\"task_id\":\"unknown\",\"verdict\":\"VERIFIED\",\"git_head\":\"$(git rev-parse HEAD)\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"branch\":\"main\"}" > ~/.claude/pipeline-state/unknown/verification-evidence.json
+     echo "{\"task_id\":\"unknown\",\"verdict\":\"VERIFIED\",\"git_head\":\"$(git rev-parse HEAD)\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"branch\":\"main\"}" > "$HARNESS_DATA/pipeline-state/unknown/verification-evidence.json"
 
 Soak: log-only for 14d (see feedback_freshness_gate_no_t1_carveout.md).
 ADVISORY

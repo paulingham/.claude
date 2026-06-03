@@ -42,7 +42,7 @@ esac
 # realpath returns empty for non-existent files; relying on it would let
 # `pipeline-state/../../etc/x-plan.md` slip through the prefix check).
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKTREE_ROOT=$(git -C "$HOOK_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$HOME/.claude")
+WORKTREE_ROOT=$(git -C "$HOOK_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$HARNESS_DATA")
 ALLOWED_DIR=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "$WORKTREE_ROOT/pipeline-state" 2>/dev/null || echo "$WORKTREE_ROOT/pipeline-state")
 REAL_FILE=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "$FILE_PATH" 2>/dev/null || echo "$FILE_PATH")
 BASENAME=$(basename -- "$REAL_FILE")

@@ -298,6 +298,51 @@ if [[ "$B6_COUNT" -eq 0 ]]; then pass "B6: zero residual \$HOME/.claude/<state-s
 else fail "B6: zero residual \$HOME/.claude/<state-seg> literals in hooks/ (excl tests/, comments)" 0 "$B6_COUNT"; fi
 
 # ---------------------------------------------------------------------------
+# B6b (Slice a2): residual $HOME/.claude/(automation|scripts) literals in
+# hooks/ .sh (excl tests/) and automation/*.sh. Count must be 0 after slice-a2.
+# ---------------------------------------------------------------------------
+echo "-- B6b: residual \$HOME/.claude/(automation|scripts) literals (Slice a2) --"
+B6B_COUNT=$(python3 - "$REPO_ROOT" <<'B6BPYEOF'
+import os, re, sys
+SEG = r'(pipeline-state|metrics|db|session-memory|learning|screenshots|agent-memory|state|tasks|teams|\.hook-self-test-state|plan-cache|automation|scripts)'
+pattern = re.compile(
+    r'(\$HOME'
+    r'|\$\{HOME\}'
+    r'|\$\{HOME:-[^}]*\}'
+    r'|\$\{CLAUDE_CONFIG_DIR:-[^}]*\$HOME[^}]*\}'
+    r')/\.claude/' + SEG
+)
+comment = re.compile(r'^\s*#')
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root + '/hooks'):
+    dirs[:] = [x for x in dirs if x != 'tests']
+    for f in files:
+        if not f.endswith('.sh'):
+            continue
+        path = os.path.join(d, f)
+        with open(path) as fp:
+            for line in fp:
+                if pattern.search(line) and not comment.match(line):
+                    count += 1
+for d, dirs, files in os.walk(root + '/automation'):
+    dirs[:] = [x for x in dirs if x != '.git']
+    for f in files:
+        if not f.endswith('.sh'):
+            continue
+        path = os.path.join(d, f)
+        with open(path) as fp:
+            for line in fp:
+                if pattern.search(line) and not comment.match(line):
+                    count += 1
+print(count)
+B6BPYEOF
+)
+B6B_COUNT="${B6B_COUNT// /}"
+if [[ "$B6B_COUNT" -eq 0 ]]; then pass "B6b: zero \$HOME/.claude/(automation|scripts) literals in hooks/ + automation/ .sh (excl tests/, comments)"
+else fail "B6b: zero \$HOME/.claude/(automation|scripts) literals in hooks/ + automation/ .sh (excl tests/, comments)" 0 "$B6B_COUNT"; fi
+
+# ---------------------------------------------------------------------------
 # B7 (Slice 2 Fix Cycle): residual expanduser("~/.claude/<state-seg>") in .py
 # Companion to B6 that catches Python helpers hardcoding state paths.
 # Must NOT flag: os.path.join(os.path.expanduser("~"), ".claude") — that form
