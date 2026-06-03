@@ -615,51 +615,46 @@ if [[ $rc -eq 0 ]]; then pass "D6: _smr_config_dir returns HARNESS_DATA (not HAR
 else fail "D6: _smr_config_dir returns HARNESS_DATA (not HARNESS_ROOT)" "\$HARNESS_DATA" "\$HARNESS_ROOT or wrong"; fi
 
 # ---------------------------------------------------------------------------
-# E1-E3 (Slice 2 Wave B): Python helper HARNESS_DATA precedence
-# Tests intake-fingerprint-emit.py::_is_path_contained root derivation.
+# E1-E3 (Slice 2 Wave B / updated AC-A1e): Python helper CLAUDE_PLUGIN_DATA precedence.
+# After slice-a1 migration, callers use harness_paths.harness_data() which reads
+# CLAUDE_PLUGIN_DATA. Tests inject CLAUDE_PLUGIN_DATA explicitly to prove the new path.
 # ---------------------------------------------------------------------------
-echo "-- E1-E3: Python helper HARNESS_DATA precedence (Slice 2 Wave B) --"
+echo "-- E1-E3: Python helper CLAUDE_PLUGIN_DATA precedence (AC-A1e) --"
 
-# E1: HARNESS_DATA wins over CLAUDE_CONFIG_DIR
-E1_HD="${TMPDIR:-/tmp}/hp-e1-hd-$$"
+# E1: CLAUDE_PLUGIN_DATA wins over CLAUDE_CONFIG_DIR (via harness_data())
+E1_PD="${TMPDIR:-/tmp}/hp-e1-pd-$$"
 E1_CCD="${TMPDIR:-/tmp}/hp-e1-ccd-$$"
-mkdir -p "$E1_HD" "$E1_CCD"
-E1_RESULT=$(HARNESS_DATA="$E1_HD" CLAUDE_CONFIG_DIR="$E1_CCD" python3 - <<'PYEOF'
+mkdir -p "$E1_PD" "$E1_CCD"
+E1_RESULT=$(CLAUDE_PLUGIN_DATA="$E1_PD" CLAUDE_CONFIG_DIR="$E1_CCD" python3 - <<'PYEOF'
 import os, sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__) if False else ".", "hooks/_lib"))
-# Replicate the contract: HARNESS_DATA > CLAUDE_CONFIG_DIR > $HOME/.claude
-config_dir = (
-    os.environ.get("HARNESS_DATA")
-    or os.environ.get("CLAUDE_CONFIG_DIR")
-    or os.path.join(os.path.expanduser("~"), ".claude")
-)
-# Test intake-fingerprint-emit.py using same logic
-fp_path = os.path.join(os.path.dirname(os.path.abspath(__file__)) if False else "hooks/_lib", "intake-fingerprint-emit.py")
-# Read and extract the _is_path_contained function's config_dir derivation
+sys.path.insert(0, "hooks/_lib")
 import importlib.util
+# Unset HARNESS_DATA so the harness_data() path is exercised
+os.environ.pop("HARNESS_DATA", None)
 spec = importlib.util.spec_from_file_location("ifp", "hooks/_lib/intake-fingerprint-emit.py")
 mod = importlib.util.module_from_spec(spec)
-# Patch os.environ check - the module reads env at call time
 spec.loader.exec_module(mod)
-# Call _is_path_contained with a path we know is inside HARNESS_DATA/pipeline-state
-test_path = os.path.join(os.environ["HARNESS_DATA"], "pipeline-state")
+# Call _is_path_contained with a path inside CLAUDE_PLUGIN_DATA/pipeline-state
+test_path = os.path.join(os.environ["CLAUDE_PLUGIN_DATA"], "pipeline-state")
 os.makedirs(test_path, exist_ok=True)
 result = mod._is_path_contained(test_path)
 print("yes" if result else "no")
 PYEOF
 )
-rm -rf "$E1_HD" "$E1_CCD"
-if [[ "$E1_RESULT" == "yes" ]]; then pass "E1: Python _is_path_contained uses HARNESS_DATA over CLAUDE_CONFIG_DIR"
-else fail "E1: Python _is_path_contained uses HARNESS_DATA over CLAUDE_CONFIG_DIR" "yes" "${E1_RESULT}"; fi
+rm -rf "$E1_PD" "$E1_CCD"
+if [[ "$E1_RESULT" == "yes" ]]; then pass "E1: Python _is_path_contained uses CLAUDE_PLUGIN_DATA (via harness_data()) over CLAUDE_CONFIG_DIR"
+else fail "E1: Python _is_path_contained uses CLAUDE_PLUGIN_DATA (via harness_data()) over CLAUDE_CONFIG_DIR" "yes" "${E1_RESULT}"; fi
 
-# E2: CLAUDE_CONFIG_DIR used when HARNESS_DATA unset
+# E2: CLAUDE_CONFIG_DIR used when CLAUDE_PLUGIN_DATA unset (via harness_data() fallback)
 E2_CCD="${TMPDIR:-/tmp}/hp-e2-ccd-$$"
 mkdir -p "$E2_CCD"
 E2_RESULT=$(CLAUDE_CONFIG_DIR="$E2_CCD" python3 - <<'PYEOF'
-import os
+import os, sys
+sys.path.insert(0, "hooks/_lib")
 import importlib.util
-# Unset HARNESS_DATA for this test
+# Unset both HARNESS_DATA and CLAUDE_PLUGIN_DATA so CLAUDE_CONFIG_DIR wins
 os.environ.pop("HARNESS_DATA", None)
+os.environ.pop("CLAUDE_PLUGIN_DATA", None)
 spec = importlib.util.spec_from_file_location("ifp", "hooks/_lib/intake-fingerprint-emit.py")
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
@@ -670,88 +665,95 @@ print("yes" if result else "no")
 PYEOF
 )
 rm -rf "$E2_CCD"
-if [[ "$E2_RESULT" == "yes" ]]; then pass "E2: Python _is_path_contained uses CLAUDE_CONFIG_DIR when HARNESS_DATA unset"
-else fail "E2: Python _is_path_contained uses CLAUDE_CONFIG_DIR when HARNESS_DATA unset" "yes" "${E2_RESULT}"; fi
+if [[ "$E2_RESULT" == "yes" ]]; then pass "E2: Python _is_path_contained uses CLAUDE_CONFIG_DIR when CLAUDE_PLUGIN_DATA unset"
+else fail "E2: Python _is_path_contained uses CLAUDE_CONFIG_DIR when CLAUDE_PLUGIN_DATA unset" "yes" "${E2_RESULT}"; fi
 
-# E3: $HOME/.claude fallback when both unset
+# E3: $HOME/.claude fallback when all unset
 E3_RESULT=$(python3 - <<'PYEOF'
-import os
+import os, sys
+sys.path.insert(0, "hooks/_lib")
 import importlib.util
 os.environ.pop("HARNESS_DATA", None)
+os.environ.pop("CLAUDE_PLUGIN_DATA", None)
 os.environ.pop("CLAUDE_CONFIG_DIR", None)
 spec = importlib.util.spec_from_file_location("ifp", "hooks/_lib/intake-fingerprint-emit.py")
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 expected_root = os.path.join(os.path.expanduser("~"), ".claude", "pipeline-state")
-# We just verify the root is derived correctly by inspecting the path used
-# by calling with a canonical path that would be in the default root.
 result_in = mod._is_path_contained(expected_root)
 print("yes" if result_in else "no")
 PYEOF
 )
-if [[ "$E3_RESULT" == "yes" ]]; then pass "E3: Python _is_path_contained falls back to \$HOME/.claude when both unset"
-else fail "E3: Python _is_path_contained falls back to \$HOME/.claude when both unset" "yes" "${E3_RESULT}"; fi
+if [[ "$E3_RESULT" == "yes" ]]; then pass "E3: Python _is_path_contained falls back to \$HOME/.claude when all unset"
+else fail "E3: Python _is_path_contained falls back to \$HOME/.claude when all unset" "yes" "${E3_RESULT}"; fi
 
-# E4: resolve-cache-breakpoints.py _config_dir honours HARNESS_DATA precedence
-E4_HD="${TMPDIR:-/tmp}/hp-e4-hd-$$"
+# E4: resolve-cache-breakpoints.py _config_dir honours CLAUDE_PLUGIN_DATA (via harness_data())
+E4_PD="${TMPDIR:-/tmp}/hp-e4-pd-$$"
 E4_CCD="${TMPDIR:-/tmp}/hp-e4-ccd-$$"
-mkdir -p "$E4_HD" "$E4_CCD"
-E4_RESULT=$(HARNESS_DATA="$E4_HD" CLAUDE_CONFIG_DIR="$E4_CCD" python3 - <<'PYEOF'
-import os
+mkdir -p "$E4_PD" "$E4_CCD"
+E4_RESULT=$(CLAUDE_PLUGIN_DATA="$E4_PD" CLAUDE_CONFIG_DIR="$E4_CCD" python3 - <<'PYEOF'
+import os, sys
+sys.path.insert(0, "hooks/_lib")
 import importlib.util
+# Unset HARNESS_DATA so harness_data() is exercised
+os.environ.pop("HARNESS_DATA", None)
 spec = importlib.util.spec_from_file_location("rcb", "hooks/_lib/resolve-cache-breakpoints.py")
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 got = mod._config_dir()
-expected = os.environ["HARNESS_DATA"]
+expected = os.environ["CLAUDE_PLUGIN_DATA"]
 print("yes" if got == expected else f"no:{got}")
 PYEOF
 )
-rm -rf "$E4_HD" "$E4_CCD"
-if [[ "$E4_RESULT" == "yes" ]]; then pass "E4: resolve-cache-breakpoints._config_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR"
-else fail "E4: resolve-cache-breakpoints._config_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR" "yes" "${E4_RESULT}"; fi
+rm -rf "$E4_PD" "$E4_CCD"
+if [[ "$E4_RESULT" == "yes" ]]; then pass "E4: resolve-cache-breakpoints._config_dir uses CLAUDE_PLUGIN_DATA (via harness_data())"
+else fail "E4: resolve-cache-breakpoints._config_dir uses CLAUDE_PLUGIN_DATA (via harness_data())" "yes" "${E4_RESULT}"; fi
 
-# E5: sast_triage_telemetry.py _metrics_dir honours HARNESS_DATA precedence
-E5_HD="${TMPDIR:-/tmp}/hp-e5-hd-$$"
+# E5: sast_triage_telemetry.py _metrics_dir honours CLAUDE_PLUGIN_DATA (via harness_data())
+E5_PD="${TMPDIR:-/tmp}/hp-e5-pd-$$"
 E5_CCD="${TMPDIR:-/tmp}/hp-e5-ccd-$$"
-mkdir -p "$E5_HD" "$E5_CCD"
-E5_RESULT=$(HARNESS_DATA="$E5_HD" CLAUDE_CONFIG_DIR="$E5_CCD" python3 - <<'PYEOF'
-import os
+mkdir -p "$E5_PD" "$E5_CCD"
+E5_RESULT=$(CLAUDE_PLUGIN_DATA="$E5_PD" CLAUDE_CONFIG_DIR="$E5_CCD" python3 - <<'PYEOF'
+import os, sys
+sys.path.insert(0, "hooks/_lib")
 from pathlib import Path
 import importlib.util
+os.environ.pop("HARNESS_DATA", None)
 os.environ.pop("CLAUDE_METRICS_DIR", None)
 spec = importlib.util.spec_from_file_location("stt", "hooks/_lib/sast_triage_telemetry.py")
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 got = str(mod._metrics_dir())
-expected = str(Path(os.environ["HARNESS_DATA"]) / "metrics")
+expected = str(Path(os.environ["CLAUDE_PLUGIN_DATA"]) / "metrics")
 print("yes" if got == expected else f"no:{got}")
 PYEOF
 )
-rm -rf "$E5_HD" "$E5_CCD"
-if [[ "$E5_RESULT" == "yes" ]]; then pass "E5: sast_triage_telemetry._metrics_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR"
-else fail "E5: sast_triage_telemetry._metrics_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR" "yes" "${E5_RESULT}"; fi
+rm -rf "$E5_PD" "$E5_CCD"
+if [[ "$E5_RESULT" == "yes" ]]; then pass "E5: sast_triage_telemetry._metrics_dir uses CLAUDE_PLUGIN_DATA (via harness_data())"
+else fail "E5: sast_triage_telemetry._metrics_dir uses CLAUDE_PLUGIN_DATA (via harness_data())" "yes" "${E5_RESULT}"; fi
 
-# E6: agent_parent_chain_warn.py _metrics_dir honours HARNESS_DATA precedence
-E6_HD="${TMPDIR:-/tmp}/hp-e6-hd-$$"
+# E6: agent_parent_chain_warn.py _metrics_dir honours CLAUDE_PLUGIN_DATA (via harness_data())
+E6_PD="${TMPDIR:-/tmp}/hp-e6-pd-$$"
 E6_CCD="${TMPDIR:-/tmp}/hp-e6-ccd-$$"
-mkdir -p "$E6_HD" "$E6_CCD"
-E6_RESULT=$(HARNESS_DATA="$E6_HD" CLAUDE_CONFIG_DIR="$E6_CCD" python3 - <<'PYEOF'
-import os
+mkdir -p "$E6_PD" "$E6_CCD"
+E6_RESULT=$(CLAUDE_PLUGIN_DATA="$E6_PD" CLAUDE_CONFIG_DIR="$E6_CCD" python3 - <<'PYEOF'
+import os, sys
+sys.path.insert(0, "hooks/_lib")
 from pathlib import Path
 import importlib.util
+os.environ.pop("HARNESS_DATA", None)
 os.environ.pop("CLAUDE_METRICS_DIR", None)
 spec = importlib.util.spec_from_file_location("apcw", "hooks/_lib/agent_parent_chain_warn.py")
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 got = mod._metrics_dir()
-expected = str(Path(os.environ["HARNESS_DATA"]) / "metrics")
+expected = str(Path(os.environ["CLAUDE_PLUGIN_DATA"]) / "metrics")
 print("yes" if got == expected else f"no:{got}")
 PYEOF
 )
-rm -rf "$E6_HD" "$E6_CCD"
-if [[ "$E6_RESULT" == "yes" ]]; then pass "E6: agent_parent_chain_warn._metrics_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR"
-else fail "E6: agent_parent_chain_warn._metrics_dir uses HARNESS_DATA over CLAUDE_CONFIG_DIR" "yes" "${E6_RESULT}"; fi
+rm -rf "$E6_PD" "$E6_CCD"
+if [[ "$E6_RESULT" == "yes" ]]; then pass "E6: agent_parent_chain_warn._metrics_dir uses CLAUDE_PLUGIN_DATA (via harness_data())"
+else fail "E6: agent_parent_chain_warn._metrics_dir uses CLAUDE_PLUGIN_DATA (via harness_data())" "yes" "${E6_RESULT}"; fi
 
 # ---------------------------------------------------------------------------
 # F1-F4 (Slice 2 Wave C): gitignore + harness-paths.sh docs
@@ -832,6 +834,93 @@ G4_COUNT=$(printf '%s' "$G4_COUNT" | tr -d '[:space:]')
 G4_COUNT="${G4_COUNT:-0}"
 if [[ "$G4_COUNT" -eq 0 ]]; then pass "G4: .gitignore does not whitelist !bootstrap.sh"
 else fail "G4: .gitignore does not whitelist !bootstrap.sh" 0 "$G4_COUNT"; fi
+
+# ---------------------------------------------------------------------------
+# B7c (Slice a1 Wave 1): Path.home()/".claude" constructs in hooks/_lib, skills,
+# and tests .py files.
+# Excludes agentic_security_gate_cli.py (already-correct model per plan AC-A1c)
+# and tests/test_bootstrap_settings_disk_invariant.py (intentional live read).
+# Count must be 0 after slice-a1 completes.
+# RED proof: plant a scratch .py with a violation, confirm scanner FIRES (>=1),
+# then run the real tree check (GREEN, must be 0).
+# ---------------------------------------------------------------------------
+echo "-- B7c: Path.home()/\".claude\" constructs in hooks/_lib, skills, tests .py (excl exclusions) --"
+echo "-- B7c RED proof: scanner fires on planted Path.home()/.claude violation --"
+B7C_SCRATCH_DIR="${TMPDIR:-/tmp}/b7c-red-proof-$$"
+mkdir -p "$B7C_SCRATCH_DIR"
+printf 'path = Path.home() / ".claude" / "pipeline-state"\n' \
+  > "$B7C_SCRATCH_DIR/planted_residual.py"
+B7C_RED_COUNT=$(python3 - "$B7C_SCRATCH_DIR" <<'B7CREDHEREDOC'
+import os, re, sys
+# Match Path.home() adjacent to ".claude" — use chr(39) for single-quote
+pattern = re.compile(r'Path\.home\(\)\s*/\s*[' + chr(34) + chr(39) + r']\.claude[' + chr(34) + chr(39) + r']')
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root):
+    dirs[:] = [x for x in dirs if x != ".git"]
+    for f in files:
+        if not f.endswith(".py"):
+            continue
+        path = os.path.join(d, f)
+        with open(path) as fp:
+            for line in fp:
+                if pattern.search(line):
+                    count += 1
+print(count)
+B7CREDHEREDOC
+)
+B7C_RED_COUNT="${B7C_RED_COUNT// /}"
+rm -rf "$B7C_SCRATCH_DIR"
+if [[ "$B7C_RED_COUNT" -ge 1 ]]; then pass "B7c-RED: scanner fires on planted Path.home()/.claude violation (got $B7C_RED_COUNT)"
+else fail "B7c-RED: scanner fires on planted violation" ">=1" "$B7C_RED_COUNT"; fi
+
+echo "-- B7c GREEN: zero Path.home()/.claude constructs in hooks/_lib, skills, tests .py (excl exclusions) --"
+B7C_COUNT=$(python3 - "$REPO_ROOT" <<'B7CPYEOF'
+import os, re, sys
+
+# Use chr(34)=" and chr(39)=' to avoid heredoc quoting issues
+pattern = re.compile(r'Path\.home\(\)\s*/\s*[' + chr(34) + chr(39) + r']\.claude[' + chr(34) + chr(39) + r']')
+
+# Files explicitly excluded (intentional patterns):
+#   harness_paths.py — canonical resolver; Path.home()/.claude IS the cold-start fallback
+#   agentic_security_gate_cli.py — already-correct model (plan AC-A1c)
+#   test_bootstrap_settings_disk_invariant.py — intentional live read
+EXCLUDED_FILES = {
+    "harness_paths.py",
+    "agentic_security_gate_cli.py",
+    "test_bootstrap_settings_disk_invariant.py",
+}
+
+root = sys.argv[1]
+count = 0
+
+
+def scan_dir(dir_root):
+    global count
+    for d, dirs, files in os.walk(dir_root):
+        dirs[:] = [x for x in dirs if x != ".git"]
+        for f in files:
+            if not f.endswith(".py"):
+                continue
+            if f in EXCLUDED_FILES:
+                continue
+            path = os.path.join(d, f)
+            with open(path) as fp:
+                for line in fp:
+                    if pattern.search(line):
+                        count += 1
+
+
+scan_dir(root + "/hooks/_lib")
+scan_dir(root + "/skills")
+scan_dir(root + "/tests")
+
+print(count)
+B7CPYEOF
+)
+B7C_COUNT="${B7C_COUNT// /}"
+if [[ "$B7C_COUNT" -eq 0 ]]; then pass "B7c: zero Path.home()/.claude constructs in hooks/_lib, skills, tests .py (excl exclusions)"
+else fail "B7c: zero Path.home()/.claude constructs in hooks/_lib, skills, tests .py (excl exclusions)" 0 "$B7C_COUNT"; fi
 
 # ---------------------------------------------------------------------------
 # Summary

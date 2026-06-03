@@ -18,6 +18,8 @@ import json
 import os
 import sys
 
+from harness_paths import harness_data
+
 
 _PERSONA_TAIL_ANCHOR = {
     "name": "persona-tail",
@@ -34,19 +36,22 @@ _DEFERRED_ANCHORS = [
 ]
 
 
+def _config_dir() -> str:
+    """Runtime-state base: HARNESS_DATA > harness_data() fallback."""
+    return os.environ.get("HARNESS_DATA") or str(harness_data())
+
+
 def _rules_core_path() -> "str | None":
     """Return first resolvable path for rules/core.md, or None.
 
-    Precedence: CLAUDE_PLUGIN_ROOT > HARNESS_DATA > CLAUDE_CONFIG_DIR > $HOME/.claude
+    Precedence: CLAUDE_PLUGIN_ROOT > HARNESS_DATA > harness_data() fallback
     CLAUDE_PLUGIN_ROOT is checked first because in plugin-install mode the harness
     code (including rules/) lives under the plugin root, which differs from
-    HARNESS_DATA (runtime state) and CLAUDE_CONFIG_DIR (overlay config).
+    HARNESS_DATA (runtime state) and harness_data() (cold-start fallback).
     """
     candidates = [
         os.environ.get("CLAUDE_PLUGIN_ROOT"),
-        os.environ.get("HARNESS_DATA"),
-        os.environ.get("CLAUDE_CONFIG_DIR"),
-        os.path.join(os.path.expanduser("~"), ".claude"),
+        _config_dir(),
     ]
     for base in candidates:
         if not base:

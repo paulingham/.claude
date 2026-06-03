@@ -8,6 +8,7 @@ Uses yaml.safe_load — MUST NOT import pipeline_frontmatter (lists corrupt).
 import os
 from pathlib import Path
 
+from harness_paths import harness_data
 from instinct_loader_helpers import (
     parse_file, validate, normalize, log_warning,
 )
@@ -15,7 +16,7 @@ from instinct_loader_helpers import (
 
 def _base_dir(override):
     env = os.environ.get("CLAUDE_INSTINCTS_DIR")
-    return Path(override or env or Path.home() / ".claude" / "learning")
+    return Path(override or env or harness_data() / "learning")
 
 
 def _try_load(path, scope):

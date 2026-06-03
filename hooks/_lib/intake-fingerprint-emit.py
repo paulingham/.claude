@@ -15,6 +15,8 @@ import os
 import re
 import sys
 
+from harness_paths import harness_data
+
 REQUIRED_KEYS = [
     "tier_emitted", "tier_initial", "detector_phase", "detector_confidence",
     "user_phrasing_signals", "phrasing_honoured", "override_token",
@@ -33,12 +35,8 @@ def _is_path_contained(path):
     """Security HIGH-1 defence-in-depth: resolve symlinks and reject paths that
     escape CONFIG_DIR/pipeline-state/. Returns True only if the realpath of
     `path` is inside the canonical pipeline-state root."""
-    # Precedence: HARNESS_DATA > CLAUDE_CONFIG_DIR > $HOME/.claude
-    config_dir = (
-        os.environ.get("HARNESS_DATA")
-        or os.environ.get("CLAUDE_CONFIG_DIR")
-        or os.path.join(os.path.expanduser("~"), ".claude")
-    )
+    # Precedence: HARNESS_DATA > harness_data() fallback
+    config_dir = os.environ.get("HARNESS_DATA") or str(harness_data())
     root = os.path.realpath(os.path.join(config_dir, "pipeline-state"))
     try:
         resolved = os.path.realpath(path)

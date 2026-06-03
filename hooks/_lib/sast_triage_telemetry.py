@@ -13,18 +13,15 @@ import time
 from pathlib import Path
 from typing import Any
 
+from harness_paths import harness_data
+
 
 def _metrics_dir() -> Path:
     base = os.environ.get("CLAUDE_METRICS_DIR")
     if base:
         return Path(base)
-    # Precedence: HARNESS_DATA > CLAUDE_CONFIG_DIR > $HOME/.claude
-    config = (
-        os.environ.get("HARNESS_DATA")
-        or os.environ.get("CLAUDE_CONFIG_DIR")
-        or str(Path.home() / ".claude")
-    )
-    return Path(config) / "metrics"
+    # Precedence: HARNESS_DATA > harness_data() fallback
+    return Path(os.environ.get("HARNESS_DATA") or str(harness_data())) / "metrics"
 
 
 def _session_id() -> str:
