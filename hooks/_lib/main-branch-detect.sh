@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Main-branch invariant detection. Bash 3.2 SAFE; ERE only. Per-clause check is
-# the unit; `cd <path> &&` is the only whole-command early-exit (cd persists
-# across `&&`). `git -C`/`--git-dir=` are self-contained per clause. Regexes
-# live in main-branch-detect-regex.sh.
+# the unit; `cd <path> &&` whole-command early-exit validates cd target against
+# registered worktrees. `git -C`/`--git-dir=` are self-contained per clause.
+# Regexes live in main-branch-detect-regex.sh.
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/main-branch-detect-regex.sh"
 
@@ -92,15 +92,90 @@ _mbd_is_safe_branch_delete() {
   done
   return 0
 }
+# Extract the path token after `cd ` in a cd-prefix command.
+# Two-pass: quoted form first (`cd "..."` or `cd '...'`), then unquoted fallback.
+_mbd_extract_cd_target() {
+  local result
+  result=$(printf '%s' "$1" | sed -E "s#^[[:space:]]*\(?[[:space:]]*cd[[:space:]]+['\"]([^'\"]+)['\"].*#\1#")
+  if [[ "$result" != "$1" ]]; then printf '%s' "$result"; return; fi
+  printf '%s' "$1" | sed -E 's#^[[:space:]]*\(?[[:space:]]*cd[[:space:]]+([^[:space:]]+)[[:space:]].*#\1#'
+}
+
+# Extract the path token after `git -C ` from the start of a clause.
+_mbd_extract_git_c_target() {
+  printf '%s' "$1" | sed -E 's#^[[:space:]]*\(?[[:space:]]*git[[:space:]]+-C[[:space:]]+([^[:space:]]+).*#\1#'
+}
+
+# Strip the `-C <path>` from a git -C clause so the verb becomes visible.
+_mbd_strip_git_c_prefix() {
+  printf '%s' "$1" | sed -E 's#[[:space:]]+-C[[:space:]]+[^[:space:]]+##'
+}
+
+# Validate that a raw path token (possibly quoted) resolves to a registered
+# worktree — NOT REPO_ROOT. Fail-closed on empty, unresolvable, or unregistered.
+# If python3 is absent, fall through (return 0 = allow) to preserve old behaviour
+# rather than blocking all delegation in environments without python3.
+# Breadcrumb: if ALL delegation is blocked, verify hook cwd is within a git repo
+# and that python3 is in PATH.
+_mbd_target_is_valid_worktree() {
+  local raw="$1"
+  # Dequote surrounding double-quotes.
+  local target; target=$(printf '%s' "${raw:-}" | sed -E 's#^"(.*)"$#\1#')
+  # Empty after dequote → deny.
+  [[ -z "${target:-}" ]] && return 1
+  # Variable reference (starts with $) → allow at parse time.
+  [[ "${target:0:1}" = '$' ]] && return 0
+  # Require python3 for canonical path resolution; fall through if absent.
+  command -v python3 > /dev/null 2>&1 || return 0
+  local resolved; resolved=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "$target" 2>/dev/null)
+  [[ -z "${resolved:-}" ]] && return 1
+  # Get REPO_ROOT: CLAUDE_WORKTREE_PATH leg first for fast-path, then bare git.
+  local repo_real=""
+  if [[ -n "${CLAUDE_WORKTREE_PATH:-}" ]]; then
+    local cwp_real; cwp_real=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "${CLAUDE_WORKTREE_PATH}" 2>/dev/null)
+    if [[ -n "${cwp_real:-}" && "$cwp_real" = "$resolved" ]]; then
+      # Fast-path: matches CLAUDE_WORKTREE_PATH exactly → valid registered worktree.
+      return 0
+    fi
+  fi
+  # Resolve REPO_ROOT for denial check.
+  local repo_root; repo_root=$(git rev-parse --show-toplevel 2>/dev/null)
+  [[ -z "${repo_root:-}" ]] && return 1
+  repo_real=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "${repo_root}" 2>/dev/null)
+  [[ -z "${repo_real:-}" ]] && return 1
+  # REPO_ROOT itself → deny.
+  [[ "$resolved" = "$repo_real" ]] && return 1
+  # Check registered worktrees (skip first entry = main worktree = REPO_ROOT).
+  local wt_path wt_real
+  while IFS= read -r wt_path; do
+    [[ -z "${wt_path:-}" ]] && continue
+    wt_real=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "${wt_path}" 2>/dev/null)
+    [[ -n "${wt_real:-}" && "$wt_real" = "$resolved" ]] && return 0
+  done < <(CLAUDE_MBG_RESOLVING=1 git worktree list --porcelain 2>/dev/null \
+    | awk '/^worktree /{print $2}' | tail -n +2)
+  # Not found in registry → deny, fail-closed.
+  return 1
+}
+
 is_forbidden_clause() {
-  local clause="$1" norm
+  local clause="$1" norm git_c_target=""
   [[ "$clause" =~ $(_mbd_wrapper_re) ]] && return 0
+  # Detect git -C <path> prefix; extract target and strip before normalization.
+  if [[ "$clause" =~ $(_mbd_git_c_prefix_re) ]]; then
+    git_c_target=$(_mbd_extract_git_c_target "$clause")
+    clause=$(_mbd_strip_git_c_prefix "$clause")
+  fi
   norm=$(_mbd_normalize "$clause")
   [[ "$norm" =~ $(_mbd_forbidden_re) ]] || return 1
   _mbd_is_safe_fetch "$norm" && return 1
   _mbd_is_safe_pull "$norm" && return 1
   _mbd_is_safe_merge "$norm" && return 1
   _mbd_is_safe_branch_delete "$norm" && return 1
+  # If this clause had a git -C target, validate it; allow only registered worktrees.
+  if [[ -n "${git_c_target:-}" ]]; then
+    _mbd_target_is_valid_worktree "$git_c_target" && return 1
+    return 0
+  fi
   return 0
 }
 _mbd_any_clause_forbidden() {
@@ -111,7 +186,10 @@ _mbd_any_clause_forbidden() {
   return 1
 }
 is_forbidden_command() {
-  [[ "$1" =~ $(_mbd_cd_prefix_re) ]] && return 1
+  if [[ "$1" =~ $(_mbd_cd_prefix_re) ]]; then
+    _mbd_target_is_valid_worktree "$(_mbd_extract_cd_target "$1")" && return 1
+    # cd target invalid — fall through to clause-level check below.
+  fi
   local stripped; stripped=$(_mbd_strip_filter_tails "$1")
   _mbd_any_clause_forbidden "$stripped"
 }
