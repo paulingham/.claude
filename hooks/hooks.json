@@ -631,6 +631,15 @@
               "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/agentic-security-gate.sh\""
             ],
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/pipeline-entry-guard.sh\""
+            ],
+            "timeout": 5000
           }
         ]
       },
