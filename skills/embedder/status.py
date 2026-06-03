@@ -9,7 +9,9 @@ import os
 import tempfile
 from pathlib import Path
 
-DEFAULT = Path.home() / ".claude" / "state" / "embedder-status.json"
+from embedder._lib.harness_paths import harness_data
+
+DEFAULT = harness_data() / "state" / "embedder-status.json"
 
 
 def path():

@@ -4,7 +4,13 @@ Writes ORT_DYLIB_PATH via settings_patch (atomic, byte-preserving).
 Honors CLAUDE_SETTINGS_PATH override for testability.
 """
 import os
+import sys
 from pathlib import Path
+
+_LIB_DIR = str(Path(__file__).parent)
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+from harness_paths import harness_root  # noqa: E402
 
 from embedder._lib import settings_patch
 
@@ -35,4 +41,4 @@ def settings_path():
     override = os.environ.get("CLAUDE_SETTINGS_PATH")
     if override:
         return Path(override)
-    return Path.home() / ".claude" / "settings.json"
+    return harness_root() / "settings.json"

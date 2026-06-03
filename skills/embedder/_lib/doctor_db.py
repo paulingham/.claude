@@ -1,9 +1,15 @@
 """Count rows without matching embeddings row. Read-only, missing-DB safe."""
 import os
 import sqlite3
+import sys
 from pathlib import Path
 
-_DEFAULT_DB = Path.home() / ".claude" / "db" / "memory.sqlite"
+_LIB_DIR = str(Path(__file__).parent)
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+from harness_paths import harness_data  # noqa: E402
+
+_DEFAULT_DB = harness_data() / "db" / "memory.sqlite"
 
 
 def db_path():
