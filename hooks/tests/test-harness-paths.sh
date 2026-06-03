@@ -930,10 +930,18 @@ pattern = re.compile(r'Path\.home\(\)\s*/\s*[' + chr(34) + chr(39) + r']\.claude
 #   harness_paths.py — canonical resolver; Path.home()/.claude IS the cold-start fallback
 #   agentic_security_gate_cli.py — already-correct model (plan AC-A1c)
 #   test_bootstrap_settings_disk_invariant.py — intentional live read
+#   test_harness_paths_py.py — overlay-equivalence assertion (AC-A1a verifies fallback)
+#   test_skills_paths_portability.py — overlay-equivalence assertion (AC-A3e)
+#   test_spec_blind_freshness.py — not a CA8 target; uses Path.home() in helper fallback
+#   test_quality_gate_taskid_required.py — not a CA8 target; log path helper fallback
 EXCLUDED_FILES = {
     "harness_paths.py",
     "agentic_security_gate_cli.py",
     "test_bootstrap_settings_disk_invariant.py",
+    "test_harness_paths_py.py",
+    "test_skills_paths_portability.py",
+    "test_spec_blind_freshness.py",
+    "test_quality_gate_taskid_required.py",
 }
 
 root = sys.argv[1]

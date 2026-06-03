@@ -2,7 +2,9 @@
 import json
 import os
 import re
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 import uuid
@@ -30,9 +32,19 @@ _RESOLVER_ENV_VARS = (
 )
 
 
+_SITE_PP = ":".join(p for p in sys.path if "site-packages" in p)
+_GLOBAL_PLUGIN_DATA = Path(tempfile.mkdtemp(prefix="thinking-test-"))
+
+
 def _run_hook(payload, env=None):
+    existing_pp = os.environ.get("PYTHONPATH", "")
+    merged_pp = ":".join(filter(None, [_SITE_PP, existing_pp]))
     proc_env = {k: v for k, v in os.environ.items()
                 if k not in _RESOLVER_ENV_VARS}
+    proc_env["PYTHONPATH"] = merged_pp
+    proc_env["CLAUDE_PLUGIN_ROOT"] = str(REPO_ROOT)
+    proc_env["CLAUDE_PLUGIN_DATA"] = str(_GLOBAL_PLUGIN_DATA)
+    proc_env["HOME"] = str(_GLOBAL_PLUGIN_DATA)
     proc_env.update(env or {})
     return subprocess.run(
         ["bash", str(HOOK)], input=json.dumps(payload),
@@ -694,8 +706,7 @@ class ResolverEmitsDecisionLine(unittest.TestCase):
 
 
 def _cleanup_metric_session(session):
-    log_path = (Path.home() / ".claude" / "metrics" / session
-                / "hook-injections.jsonl")
+    log_path = _GLOBAL_PLUGIN_DATA / "metrics" / session / "hook-injections.jsonl"
     if log_path.exists():
         log_path.unlink()
     parent = log_path.parent
@@ -726,8 +737,7 @@ class HookLogsOnlyDoesNotBlock(unittest.TestCase):
         # ambient pipeline-state file does not leak `critical`/`budget` into
         # the subprocess and confound the no-state assertion.
         session = f"test-{uuid.uuid4()}"
-        log_path = (Path.home() / ".claude" / "metrics" / session
-                    / "hook-injections.jsonl")
+        log_path = _GLOBAL_PLUGIN_DATA / "metrics" / session / "hook-injections.jsonl"
         try:
             with tempfile.TemporaryDirectory() as empty_state_dir:
                 result = _run_hook(
@@ -750,8 +760,7 @@ class HookLogsOnlyDoesNotBlock(unittest.TestCase):
 class HookLogsDowngradeRole(unittest.TestCase):
     def test_missing_thinking_with_code_reviewer_logs_high(self):
         session = f"test-{uuid.uuid4()}"
-        log_path = (Path.home() / ".claude" / "metrics" / session
-                    / "hook-injections.jsonl")
+        log_path = _GLOBAL_PLUGIN_DATA / "metrics" / session / "hook-injections.jsonl"
         try:
             result = _run_hook(
                 {"tool_name": "Agent",
@@ -1085,8 +1094,7 @@ class HookLogsClaudeEffortEnvSourceToJsonl(unittest.TestCase):
 
     def test_hook_logs_claude_effort_env_source_to_jsonl(self):
         session = f"test-{uuid.uuid4()}"
-        log_path = (Path.home() / ".claude" / "metrics" / session
-                    / "hook-injections.jsonl")
+        log_path = _GLOBAL_PLUGIN_DATA / "metrics" / session / "hook-injections.jsonl"
         try:
             result = _run_hook(
                 {"tool_name": "Agent",

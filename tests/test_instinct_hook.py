@@ -10,7 +10,9 @@ test_pre_agent_allowlist.py).
 """
 import json
 import os
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 import uuid
@@ -19,9 +21,23 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOOK = REPO_ROOT / "hooks" / "instinct-injector.sh"
 
+_SITE_PP = ":".join(p for p in sys.path if "site-packages" in p)
 
-def _run_hook(payload, env=None):
-    proc_env = {**os.environ, **(env or {})}
+
+def _make_env(plugin_data=None):
+    existing_pp = os.environ.get("PYTHONPATH", "")
+    merged_pp = ":".join(filter(None, [_SITE_PP, existing_pp]))
+    env = {**os.environ, "PYTHONPATH": merged_pp,
+           "CLAUDE_PLUGIN_ROOT": str(REPO_ROOT)}
+    if plugin_data is not None:
+        env["CLAUDE_PLUGIN_DATA"] = str(plugin_data)
+        env["HOME"] = str(plugin_data)
+    return env
+
+
+def _run_hook(payload, env=None, plugin_data=None):
+    proc_env = _make_env(plugin_data)
+    proc_env.update(env or {})
     try:
         return subprocess.run(
             ["bash", str(HOOK)], input=json.dumps(payload),
@@ -30,9 +46,10 @@ def _run_hook(payload, env=None):
         raise AssertionError(f"hook timed out: {exc}") from exc
 
 
-def _session_paths():
+def _session_paths(base):
     session = f"test-instinct-{uuid.uuid4()}"
-    return session, Path.home() / ".claude" / "metrics" / session / "instinct-injections.jsonl"
+    root = base
+    return session, root / "metrics" / session / "instinct-injections.jsonl"
 
 
 def _cleanup(log_path):
@@ -62,12 +79,27 @@ def _write_instinct(instincts_dir, slug, roles, confidence=0.6):
     (instincts_dir / f"{slug}.md").write_text(body)
 
 
-class HookFastExitsOnNonAgentTool(unittest.TestCase):
+class _InstinctTestCase(unittest.TestCase):
+    def setUp(self):
+        self.plugin_data = Path(tempfile.mkdtemp(prefix="instinct-test-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.plugin_data, ignore_errors=True)
+
+    def _paths(self):
+        return _session_paths(base=self.plugin_data)
+
+    def _run(self, payload, extra_env=None):
+        return _run_hook(payload, env=extra_env, plugin_data=self.plugin_data)
+
+
+class HookFastExitsOnNonAgentTool(_InstinctTestCase):
     def test_hook_fast_exits_on_non_agent_tool(self):
-        session, log_path = _session_paths()
+        session, log_path = self._paths()
         try:
             result = _run_hook({"tool_name": "Bash", "tool_input": {}},
-                               env={"CLAUDE_SESSION_ID": session})
+                               env={"CLAUDE_SESSION_ID": session},
+                               plugin_data=self.plugin_data)
             self.assertEqual(result.returncode, 0)
             self.assertFalse(log_path.exists(),
                              "non-Agent tool should not create instinct log")
@@ -75,14 +107,15 @@ class HookFastExitsOnNonAgentTool(unittest.TestCase):
             _cleanup(log_path)
 
 
-class HookFastExitsOnMinimalProfile(unittest.TestCase):
+class HookFastExitsOnMinimalProfile(_InstinctTestCase):
     def test_hook_fast_exits_on_minimal_profile(self):
-        session, log_path = _session_paths()
+        session, log_path = self._paths()
         payload = {"tool_name": "Agent",
                    "tool_input": {"subagent_type": "software-engineer"}}
         try:
             result = _run_hook(payload, env={"CLAUDE_SESSION_ID": session,
-                                             "CLAUDE_HOOK_PROFILE": "minimal"})
+                                             "CLAUDE_HOOK_PROFILE": "minimal"},
+                               plugin_data=self.plugin_data)
             self.assertEqual(result.returncode, 0)
             self.assertFalse(log_path.exists(),
                              "minimal profile should suppress instinct log")
@@ -90,12 +123,13 @@ class HookFastExitsOnMinimalProfile(unittest.TestCase):
             _cleanup(log_path)
 
 
-class HookFastExitsWhenSubagentTypeMissing(unittest.TestCase):
+class HookFastExitsWhenSubagentTypeMissing(_InstinctTestCase):
     def test_hook_fast_exits_when_subagent_type_missing(self):
-        session, log_path = _session_paths()
+        session, log_path = self._paths()
         try:
             result = _run_hook({"tool_name": "Agent", "tool_input": {}},
-                               env={"CLAUDE_SESSION_ID": session})
+                               env={"CLAUDE_SESSION_ID": session},
+                               plugin_data=self.plugin_data)
             self.assertEqual(result.returncode, 0)
             self.assertFalse(log_path.exists(),
                              "missing subagent_type should not create log")
@@ -103,9 +137,9 @@ class HookFastExitsWhenSubagentTypeMissing(unittest.TestCase):
             _cleanup(log_path)
 
 
-class HookLogsLoggedWhenNoInstinctsDir(unittest.TestCase):
+class HookLogsLoggedWhenNoInstinctsDir(_InstinctTestCase):
     def test_hook_logs_logged_when_no_instincts_dir(self):
-        session, log_path = _session_paths()
+        session, log_path = self._paths()
         with tempfile.TemporaryDirectory() as tmp:
             empty_base = Path(tmp) / "learning"  # never created
             payload = {"tool_name": "Agent",
@@ -113,7 +147,8 @@ class HookLogsLoggedWhenNoInstinctsDir(unittest.TestCase):
             try:
                 result = _run_hook(payload, env={
                     "CLAUDE_SESSION_ID": session,
-                    "CLAUDE_INSTINCTS_DIR": str(empty_base)})
+                    "CLAUDE_INSTINCTS_DIR": str(empty_base)},
+                    plugin_data=self.plugin_data)
                 self.assertEqual(result.returncode, 0)
                 self.assertTrue(log_path.exists(),
                                 f"expected log at {log_path}")
@@ -125,7 +160,7 @@ class HookLogsLoggedWhenNoInstinctsDir(unittest.TestCase):
                 _cleanup(log_path)
 
 
-class HookLogsLoggedWhenMatchesPresent(unittest.TestCase):
+class HookLogsLoggedWhenMatchesPresent(_InstinctTestCase):
     """Path-B contract: hook ALWAYS writes source='logged' on the success
     path. The 'orchestrator-injected' source is reserved exclusively for
     the orchestrator caller after a real prompt splice. Mismatch (logged
@@ -133,7 +168,7 @@ class HookLogsLoggedWhenMatchesPresent(unittest.TestCase):
     detected by /forensics."""
 
     def test_hook_logs_logged_when_matches_present(self):
-        session, log_path = _session_paths()
+        session, log_path = self._paths()
         with tempfile.TemporaryDirectory() as tmp:
             base, agents = Path(tmp) / "learning", Path(tmp) / "agents"
             agents.mkdir()
@@ -145,7 +180,8 @@ class HookLogsLoggedWhenMatchesPresent(unittest.TestCase):
                      "tool_input": {"subagent_type": "software-engineer"}},
                     env={"CLAUDE_SESSION_ID": session,
                          "CLAUDE_INSTINCTS_DIR": str(base),
-                         "CLAUDE_AGENTS_DIR": str(agents)})
+                         "CLAUDE_AGENTS_DIR": str(agents)},
+                    plugin_data=self.plugin_data)
                 self.assertEqual(result.returncode, 0)
                 record = json.loads(log_path.read_text().strip().splitlines()[-1])
                 self.assertEqual(record["source"], "logged")
@@ -155,9 +191,9 @@ class HookLogsLoggedWhenMatchesPresent(unittest.TestCase):
                 _cleanup(log_path)
 
 
-class HookLogsLoadWarningOnMalformedInstinct(unittest.TestCase):
+class HookLogsLoadWarningOnMalformedInstinct(_InstinctTestCase):
     def test_hook_logs_load_warning_on_malformed_instinct_yaml(self):
-        session, log_path = _session_paths()
+        session, log_path = self._paths()
         with tempfile.TemporaryDirectory() as tmp:
             base, agents = Path(tmp) / "learning", Path(tmp) / "agents"
             agents.mkdir()
@@ -170,7 +206,8 @@ class HookLogsLoadWarningOnMalformedInstinct(unittest.TestCase):
                            "tool_input": {"subagent_type": "software-engineer"}},
                           env={"CLAUDE_SESSION_ID": session,
                                "CLAUDE_INSTINCTS_DIR": str(base),
-                               "CLAUDE_AGENTS_DIR": str(agents)})
+                               "CLAUDE_AGENTS_DIR": str(agents)},
+                          plugin_data=self.plugin_data)
                 lines = log_path.read_text().strip().splitlines()
                 sources = [json.loads(ln)["source"] for ln in lines]
                 self.assertIn("load-warning", sources)
@@ -178,9 +215,9 @@ class HookLogsLoadWarningOnMalformedInstinct(unittest.TestCase):
                 _cleanup(log_path)
 
 
-class HookHonoursMinConfidenceEnvOverride(unittest.TestCase):
+class HookHonoursMinConfidenceEnvOverride(_InstinctTestCase):
     def test_min_confidence_override_filters_low_confidence_instincts(self):
-        session, log_path = _session_paths()
+        session, log_path = self._paths()
         with tempfile.TemporaryDirectory() as tmp:
             base, agents = Path(tmp) / "learning", Path(tmp) / "agents"
             agents.mkdir()
@@ -193,7 +230,8 @@ class HookHonoursMinConfidenceEnvOverride(unittest.TestCase):
                     env={"CLAUDE_SESSION_ID": session,
                          "CLAUDE_INSTINCTS_DIR": str(base),
                          "CLAUDE_AGENTS_DIR": str(agents),
-                         "CLAUDE_INSTINCT_MIN_CONFIDENCE": "0.9"})
+                         "CLAUDE_INSTINCT_MIN_CONFIDENCE": "0.9"},
+                    plugin_data=self.plugin_data)
                 record = json.loads(log_path.read_text().strip().splitlines()[-1])
                 self.assertEqual(record["source"], "logged")
                 self.assertEqual(record["resolved"]["count_kept"], 0)
@@ -202,9 +240,9 @@ class HookHonoursMinConfidenceEnvOverride(unittest.TestCase):
                 _cleanup(log_path)
 
 
-class HookFiltersInstinctsByAgentCategories(unittest.TestCase):
+class HookFiltersInstinctsByAgentCategories(_InstinctTestCase):
     def test_instinct_with_unmatched_role_is_filtered_out(self):
-        session, log_path = _session_paths()
+        session, log_path = self._paths()
         with tempfile.TemporaryDirectory() as tmp:
             base, agents = Path(tmp) / "learning", Path(tmp) / "agents"
             agents.mkdir()
@@ -216,7 +254,8 @@ class HookFiltersInstinctsByAgentCategories(unittest.TestCase):
                      "tool_input": {"subagent_type": "software-engineer"}},
                     env={"CLAUDE_SESSION_ID": session,
                          "CLAUDE_INSTINCTS_DIR": str(base),
-                         "CLAUDE_AGENTS_DIR": str(agents)})
+                         "CLAUDE_AGENTS_DIR": str(agents)},
+                    plugin_data=self.plugin_data)
                 record = json.loads(log_path.read_text().strip().splitlines()[-1])
                 self.assertEqual(record["source"], "logged")
                 self.assertEqual(record["resolved"]["count_kept"], 0)
@@ -235,15 +274,16 @@ class HookNeverBlocksOnMalformedInput(unittest.TestCase):
         self.assertEqual(proc.returncode, 0)
 
 
-class HookRespectsDisableEnvVar(unittest.TestCase):
+class HookRespectsDisableEnvVar(_InstinctTestCase):
     def test_disable_env_var_skips_all_processing(self):
-        session, log_path = _session_paths()
+        session, log_path = self._paths()
         try:
             result = _run_hook(
                 {"tool_name": "Agent",
                  "tool_input": {"subagent_type": "software-engineer"}},
                 env={"CLAUDE_SESSION_ID": session,
-                     "CLAUDE_DISABLE_INSTINCT_INJECTION": "1"})
+                     "CLAUDE_DISABLE_INSTINCT_INJECTION": "1"},
+                plugin_data=self.plugin_data)
             self.assertEqual(result.returncode, 0)
             self.assertFalse(log_path.exists())
         finally:
