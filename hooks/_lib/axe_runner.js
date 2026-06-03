@@ -28,8 +28,8 @@ async function run_main(argv, deps) {
   return verdict === 'A11Y_CHECK_FAILED' ? EXIT.failed : EXIT.ok;
 }
 if (require.main === module) {
-  const noop = { axeRunFn: async () => { throw new Error('no axeRunFn for CLI'); } };
-  run_main(process.argv.slice(2), noop)
+  const cliDeps = { axeRunFn: async () => { throw new Error('no axeRunFn for CLI'); } };
+  run_main(process.argv.slice(2), cliDeps)
     .then(c => process.exit(c))
     .catch(e => { process.stderr.write(`axe_runner: ${e.message}\n`); process.exit(EXIT.failed); });
 }
