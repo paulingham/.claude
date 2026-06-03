@@ -39,6 +39,14 @@ _MAX_FILES = 5000
 _MAX_FILE_BYTES = 1024 * 1024  # 1 MB
 _SKIP_DIRS = frozenset({".git", ".claude"})
 
+# Stopwords filtered out before term matching (AC text keywords, short words)
+_STOPWORDS = frozenset({
+    "when", "while", "then", "shall", "should", "that", "with",
+    "this", "from", "have", "will", "been", "were", "they",
+    "system", "the", "and", "for", "not", "are", "its",
+    "also", "must", "each", "some", "any", "all",
+})
+
 
 # ---------------------------------------------------------------------------
 # GroundedAC
@@ -200,12 +208,6 @@ def _find_citation(text: str, codebase_index: list, db_path, recall_limit: int) 
 
 def _extract_terms(text: str) -> list:
     """Extract meaningful search terms from AC text (non-stopwords, len>=4)."""
-    _STOPWORDS = frozenset({
-        "when", "while", "then", "shall", "should", "that", "with",
-        "this", "from", "have", "will", "been", "were", "they",
-        "system", "the", "and", "for", "not", "are", "its",
-        "also", "must", "each", "some", "any", "all",
-    })
     words = re.findall(r"[A-Za-z_][A-Za-z0-9_]*", text)
     return [w for w in words if len(w) >= 4 and w.lower() not in _STOPWORDS]
 
