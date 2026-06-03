@@ -6,7 +6,7 @@ records for the /cache-audit skill. Uses os.open(O_APPEND|O_CREAT) so
 the harness bash-write-guard cannot trip on per-session paths.
 
 Argv (positional):
-  1: home_dir            ($HOME at hook invocation time)
+  1: metrics_base_dir    ($HARNESS_DATA/metrics at hook invocation time)
   2: session_id          (sanitised)
   3: timestamp           (ISO 8601 UTC)
   4: agent_role
@@ -16,6 +16,11 @@ Argv (positional):
 
 All errors are swallowed: this is an advisory log writer for forensic
 data, not a control-flow gate.
+
+NOTE: argv[1] is the metrics BASE directory (e.g. $HARNESS_DATA/metrics).
+The caller is responsible for passing the correct root so that plugin-install
+mode (where HARNESS_DATA differs from the overlay config dir) writes to the
+same location that cost-feed.sh uses for costs.jsonl.
 """
 import json
 import os
@@ -45,7 +50,7 @@ def main(argv):
         return 0
     try:
         record = _build_record(argv)
-        out_dir = os.path.join(argv[1], ".claude", "metrics", argv[2])
+        out_dir = os.path.join(argv[1], "metrics", argv[2])
         os.makedirs(out_dir, exist_ok=True)
         flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
         fd = os.open(os.path.join(out_dir, "cache.jsonl"), flags, 0o644)
