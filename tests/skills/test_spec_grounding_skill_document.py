@@ -55,7 +55,7 @@ def spec_blind_validate_skill_text():
 def test_ears_proposal_status_is_implemented(ears_proposal_text):
     assert "IMPLEMENTED" in ears_proposal_text
     # item-4-deferred note must be present (item 4 = ac_forms on spec-blind output)
-    assert "deferred" in ears_proposal_text.lower() or "item 4" in ears_proposal_text.lower()
+    assert "deferred" in ears_proposal_text.lower() and "item 4" in ears_proposal_text.lower()
 
 
 # ---------------------------------------------------------------------------
