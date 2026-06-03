@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 from agentic_security_gate import gate_decision
+from log_allowlist_session import sanitize_session
 
 
 def _changed_files():
@@ -40,15 +41,16 @@ def _metrics_dir() -> Path:
 
 
 def _session_id() -> str:
-    return os.environ.get("CLAUDE_SESSION_ID", "unknown-session")
+    return sanitize_session(os.environ.get("CLAUDE_SESSION_ID", "unknown-session"))
 
 
 def _write_bypass_ledger(surfaces: list) -> None:
     """Write one JSONL record to agentic-gate-bypass.jsonl; never raises."""
-    out = _metrics_dir() / _session_id() / "agentic-gate-bypass.jsonl"
+    sid = _session_id()
+    out = _metrics_dir() / sid / "agentic-gate-bypass.jsonl"
     record = {
         "ts": int(time.time()),
-        "session_id": _session_id(),
+        "session_id": sid,
         "action": "bypass",
         "env_var": "CLAUDE_DISABLE_AGENTIC_GATE",
         "surfaces": surfaces,
