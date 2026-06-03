@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accessible Fixture</title>
+  <style>
+    /* Sufficient contrast text — meets WCAG 2.1 AA (4.5:1 ratio) */
+    .good-contrast {
+      color: #333333;
+      background-color: #ffffff;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Fixture Page with No Accessibility Violations</h1>
+
+  <!-- Alt attribute present — satisfies WCAG 2.1 A (wcag2a: image-alt) -->
+  <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="A transparent placeholder image">
+
+  <!-- Good contrast text — meets WCAG 2.1 AA (wcag2aa: color-contrast) -->
+  <p class="good-contrast">This text has sufficient contrast ratio.</p>
+</body>
+</html>

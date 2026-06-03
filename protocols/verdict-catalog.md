@@ -156,6 +156,9 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `REINDEXED` | info | `reindex-memory` | utility | FTS5 index rebuilt |
 | `NOOP` | info | `reindex-memory` | utility | Nothing to do |
 | `FAILED` | failure | `reindex-memory` | utility | Fatal error during reindex |
+| `A11Y_CHECK_PASSED` | success | `accessibility-check` | utility | Pipeline continues |
+| `A11Y_CHECK_FAILED` | failure | `accessibility-check` | utility | Halt; list gating violations with id, help, nodes, route_url |
+| `A11Y_CHECK_SKIPPED` | info | `accessibility-check` | utility | Pipeline continues; reason ∈ {no-dev-server-contract, browser-launch-failed, env-hatch} |
 
 ## Notes
 
