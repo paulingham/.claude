@@ -103,6 +103,10 @@ def _compute_ratio(baseline_path, current_path, tmpdir):
         ["node", str(decoder), str(baseline_path), str(current_path)],
         capture_output=True, text=True, env=env, timeout=30, check=False,
     )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"decode_and_diff.js failed (rc={result.returncode}): {result.stderr[:400]}"
+        )
     return float(result.stdout.strip())
 
 
