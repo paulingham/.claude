@@ -318,3 +318,17 @@ _run_guard_capture() {
   run _run_guard Bash "git -C '$TMP_REPO_MBG' checkout -b x"
   [ "$status" -eq 2 ]
 }
+
+# ---------------------------------------------------------------------------
+# TAB-C — tab-separated -C must be blocked at guard level (AC2.44-AC2.45)
+# ---------------------------------------------------------------------------
+
+@test "AC2.44 git<TAB>-C<TAB>/tmp checkout -b evil blocked (tab-separated -C, exit 2)" {
+  run _run_guard Bash $'git\t-C\t/tmp checkout -b evil'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.45 git -C \"\$WORKTREE\"<TAB>-C<TAB>../../.. checkout -b x blocked (tab multi-C escape, exit 2)" {
+  run _run_guard Bash $'git -C "$WORKTREE"\t-C\t../../.. checkout -b x'
+  [ "$status" -eq 2 ]
+}

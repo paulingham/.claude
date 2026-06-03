@@ -465,3 +465,17 @@ _assert_allowed() {
   ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
   CLAUDE_WORKTREE_PATH="" _assert_forbidden "git -C '$TMP_REPO' checkout -b x"
 }
+
+# ---------------------------------------------------------------------------
+# TAB-C — tab-separated -C must be blocked (T111-T112)
+# The literal-space glob guard `*" -C "*` missed tab-separated forms, causing
+# fail-OPEN. These tests verify the fix catches all [[:space:]] variants.
+# ---------------------------------------------------------------------------
+
+@test "T111 forbidden: git<TAB>-C<TAB>/tmp checkout -b evil (tab-separated -C, single)" {
+  _assert_forbidden $'git\t-C\t/tmp checkout -b evil'
+}
+
+@test "T112 forbidden: git -C \"\$WORKTREE\"<TAB>-C<TAB>../../.. checkout -b x (tab multi-C escape)" {
+  _assert_forbidden $'git -C "$WORKTREE"\t-C\t../../.. checkout -b x'
+}

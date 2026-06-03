@@ -113,8 +113,8 @@ _mbd_strip_git_c_prefix() {
 
 # Validate that a raw path token (possibly quoted) resolves to a registered
 # worktree — NOT REPO_ROOT. Fail-closed on empty, unresolvable, or unregistered.
-# If python3 is absent, fall through (return 0 = allow) to preserve old behaviour
-# rather than blocking all delegation in environments without python3.
+# If python3 is absent, deny (return 1 = blocked) — fail-CLOSED; allowing
+# would re-enable the REPO_ROOT delegation bypass.
 # Breadcrumb: if ALL delegation is blocked, verify hook cwd is within a git repo
 # and that python3 is in PATH.
 _mbd_target_is_valid_worktree() {
@@ -170,13 +170,15 @@ is_forbidden_clause() {
   local clause="$1" norm git_c_target=""
   [[ "$clause" =~ $(_mbd_wrapper_re) ]] && return 0
   # Detect git -C <path> prefix; extract target and strip before normalization.
-  # Cheap glob guard: only call the subshell regex when ' -C ' is present.
-  if [[ "$clause" == *" -C "* ]] && [[ "$clause" =~ $(_mbd_git_c_prefix_re) ]]; then
+  # Cache regex once — _mbd_git_c_prefix_re uses [[:space:]] which matches tabs,
+  # so this correctly catches both space- and tab-separated -C forms.
+  local git_c_re; git_c_re=$(_mbd_git_c_prefix_re)
+  if [[ "$clause" =~ $git_c_re ]]; then
     git_c_target=$(_mbd_extract_git_c_target "$clause")
     clause=$(_mbd_strip_git_c_prefix "$clause")
     # Multiple -C flags: if stripping one -C still leaves another, deny outright.
     # (git applies -C cumulatively; last wins — agents never legitimately need 2+.)
-    if [[ "$clause" == *" -C "* ]] && [[ "$clause" =~ $(_mbd_git_c_prefix_re) ]]; then
+    if [[ "$clause" =~ $git_c_re ]]; then
       return 0
     fi
   fi

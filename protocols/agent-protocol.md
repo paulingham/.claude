@@ -123,7 +123,7 @@ Every git mutation that would move HEAD runs against a *worktree path*, expresse
 **Delegation-target constraints** — the `<worktree-path>` in each delegated form MUST:
 - Resolve to a registered worktree (present in `git worktree list --porcelain`).
 - NOT resolve to `REPO_ROOT`. A literal `.`, `""`, or the repo-root path is denied fail-closed.
-- `$WORKTREE` / `$WT` plain variable references are allowed at parse time (the guard cannot resolve shell variables; ensure the variable is set by the orchestrator before use).
+- `$WORKTREE` / `$WT` plain variable references are allowed at parse time (the guard cannot resolve shell variables; ensure the variable is set by the orchestrator before use). `$PWD` / `${PWD}` and any other unlisted plain variable are NOT sanctioned delegation targets — they expand to the current directory, which is `REPO_ROOT` when an agent runs in the main tree. Use only the orchestrator-set `CLAUDE_WORKTREE_PATH` / `$WORKTREE`.
 - An unset variable that expands to empty (e.g., `git -C "" checkout foo`) is blocked because the empty string resolves to the current cwd (typically REPO_ROOT).
 - **Command substitution is DENIED**: `$(...)` and backtick forms in the path (e.g., `git -C $(pwd) checkout foo`, `cd $(pwd) && git checkout foo`) are blocked regardless of what they expand to — they are structurally unsafe at parse time.
 - **Multiple `-C` flags are DENIED**: `git -C <path1> -C <path2> <cmd>` is always blocked. Git applies `-C` cumulatively (last wins), so the first validated path can be bypassed by a second. Use a single `-C` with the explicit worktree path.
