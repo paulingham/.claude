@@ -1,6 +1,6 @@
 """AC1 — verdict-catalog rows for the three SANDBOX verdicts.
 
-Parses `rules/verdict-catalog.md` with the same regex
+Parses `protocols/verdict-catalog.md` with the same regex
 `tests/test_verdict_catalog_consistency.py` uses, asserts each of the
 three new verdicts has the correct polarity, emitter (`sandbox-verify`),
 phase (`build`), AND that the SANDBOX_SKIPPED branch column mentions the
@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CATALOG = REPO_ROOT / "rules" / "verdict-catalog.md"
+CATALOG = REPO_ROOT / "protocols" / "verdict-catalog.md"
 
 
 def _parse_catalog_rows():
@@ -49,7 +49,7 @@ class SandboxVerdictsPresentWithCorrectPolarityAndEmitter(unittest.TestCase):
 
     def _assert_row(self, name, polarity):
         self.assertIn(name, self.by_verdict,
-                      f"rules/verdict-catalog.md must contain a `{name}` row")
+                      f"protocols/verdict-catalog.md must contain a `{name}` row")
         row = self.by_verdict[name]
         self.assertEqual(row["polarity"], polarity,
                          f"{name} must have polarity={polarity}")
@@ -82,7 +82,7 @@ class SandboxSkippedBranchEnumeratesStory2Reasons(unittest.TestCase):
         by_verdict = {r["verdict"]: r for r in rows}
         self.assertIn(
             "SANDBOX_SKIPPED", by_verdict,
-            "rules/verdict-catalog.md must contain a `SANDBOX_SKIPPED` row")
+            "protocols/verdict-catalog.md must contain a `SANDBOX_SKIPPED` row")
         self.skipped_branch = by_verdict["SANDBOX_SKIPPED"]["branch"]
 
     def test_ac3_sandbox_skipped_branch_enumerates_no_testable_changes(self):
@@ -100,7 +100,7 @@ class SandboxSkippedBranchEnumeratesStory2Reasons(unittest.TestCase):
 
 class SandboxSkippedReasonsLockstepWithSkillBody(unittest.TestCase):
     """Contract — the SANDBOX_SKIPPED reason enum in
-    `rules/verdict-catalog.md` MUST be a subset of the reasons documented
+    `protocols/verdict-catalog.md` MUST be a subset of the reasons documented
     in `skills/build-implementation/SKILL.md` Step 5b body (so any Story-3
     enum extension that updates the catalog row but forgets the SKILL.md
     text — or vice versa — fails CI).
@@ -114,7 +114,7 @@ class SandboxSkippedReasonsLockstepWithSkillBody(unittest.TestCase):
     """
 
     REPO_ROOT = Path(__file__).resolve().parents[1]
-    CATALOG = REPO_ROOT / "rules" / "verdict-catalog.md"
+    CATALOG = REPO_ROOT / "protocols" / "verdict-catalog.md"
     SKILL = (REPO_ROOT / "skills" / "build-implementation"
              / "SKILL.md")
 

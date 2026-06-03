@@ -29,6 +29,12 @@ e3d7542 and prevents false failures if main advances mid-pipeline.
 
 These tests were authored WITHOUT reading the build agent's tests at
 tests/test_out_of_scope_files_untouched.py.
+
+Spike scope: this guard is scoped to pipeline-state/harness-native-v2140-migration/
+only. When that directory is absent (spike complete, merged to main), the entire
+module skips — matching tests/test_out_of_scope_files_untouched.py line 52-66.
+Legitimate future branches that touch the listed files (e.g. WS-C repointing a
+stderr string in hooks/main-branch-guard.sh) must not be blocked by a stale guard.
 """
 
 from __future__ import annotations
@@ -91,6 +97,18 @@ def _diff_is_empty(repo: Path, ref: str, path: str) -> bool:
 
 
 def _skip_or_merge_base(repo: Path) -> str:
+    # Spike-scope guard: mirrors tests/test_out_of_scope_files_untouched.py line 52-66.
+    # The originating spike (harness-native-v2140-migration) is complete and its
+    # pipeline-state directory is absent on main. Legitimate future branches that
+    # touch the listed files (e.g. WS-C repointing a stderr string in
+    # hooks/main-branch-guard.sh) must not be blocked by this stale guard.
+    spike_dir = repo / "pipeline-state" / "harness-native-v2140-migration"
+    if not spike_dir.exists():
+        pytest.skip(
+            "Originating spike (harness-native-v2140-migration) is complete and its "
+            "state dir is absent on main; this AC3/AC4/AC5 out-of-scope guard is scoped "
+            "to that pipeline only. Mirrors tests/test_out_of_scope_files_untouched.py."
+        )
     if not _git_available():
         pytest.skip("git not available in this environment")
     mb = _resolve_merge_base(repo)

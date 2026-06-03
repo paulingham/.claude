@@ -53,6 +53,6 @@ setup() {
 
 @test "test_verdict_consistency_callable_passes_against_psv_skill" {
   # The new ROUTING_UPSHIFTED verdict in plan-self-validation skill must be
-  # consistent with rules/verdict-catalog.md per Slice A's callable.
+  # consistent with protocols/verdict-catalog.md per Slice A's callable.
   bash "$REPO_ROOT/hooks/_lib/verdict-consistency-check.sh"
 }

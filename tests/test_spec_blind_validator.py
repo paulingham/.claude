@@ -25,7 +25,7 @@ class VerdictCatalogContainsFourSpecBlindRows(unittest.TestCase):
     """AC1 — four verdicts present with correct routing for SPEC_BLIND_BLOCKED."""
 
     def test_verdict_catalog_contains_four_spec_blind_rows_with_blocked_routing(self):
-        catalog = _read("rules/verdict-catalog.md")
+        catalog = _read("protocols/verdict-catalog.md")
         self.assertIn("`SPEC_BLIND_VALIDATED`", catalog)
         self.assertIn("`SPEC_BLIND_FAILED`", catalog)
         self.assertIn("`SPEC_BLIND_INSUFFICIENT_SURFACE`", catalog)
@@ -212,7 +212,7 @@ class CatalogSkillParityRoundTrip(unittest.TestCase):
     """AC9 — every catalog SPEC_BLIND_* verdict appears in skill, and vice versa."""
 
     def test_catalog_skill_parity_round_trip(self):
-        catalog = _read("rules/verdict-catalog.md")
+        catalog = _read("protocols/verdict-catalog.md")
         skill = _read("skills/spec-blind-validate/SKILL.md")
         catalog_verdicts = set(re.findall(r"`(SPEC_BLIND_[A-Z_]+)`", catalog))
         skill_verdicts = set(re.findall(r"SPEC_BLIND_[A-Z_]+", skill))

@@ -65,7 +65,7 @@ If a detector resolves with high confidence, emit that tier as `tier_emitted` an
 ANY of these force T4+ regardless of Phase 1 verdict (set `safety_override_fired: true`):
 
 - Predicted scope includes `hooks/*.sh` body changes (not entry-syntax-only)
-- Predicted scope touches `rules/core.md`, `protocols/atdd-procedure.md`, or `rules/verdict-catalog.md` — **any touch upshifts to T6** (conservative — Iron-Law-surface floor per plan § HIGH-1)
+- Predicted scope touches `rules/core.md`, `protocols/atdd-procedure.md`, or `protocols/verdict-catalog.md` — **any touch upshifts to T6** (conservative — Iron-Law-surface floor per plan § HIGH-1)
 - Predicted scope includes any test file
 - User prompt contains `auth` / `payment` / `token` / `secret` / `crypto` / `password` / `session` in change-target context
 - Predicted scope includes `auth/*` / `secrets/*` / `*crypto*` / `*.env`

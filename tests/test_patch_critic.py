@@ -15,8 +15,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AGENT_MD = REPO_ROOT / "agents" / "patch-critic.md"
 SKILL_MD = REPO_ROOT / "skills" / "patch-critique" / "SKILL.md"
-PARALLEL_PROTOCOL = REPO_ROOT / "rules" / "parallel-dispatch-protocol.md"
-PIPELINE_PROTOCOL = REPO_ROOT / "rules" / "pipeline-protocol.md"
+PARALLEL_PROTOCOL = REPO_ROOT / "protocols" / "parallel-dispatch-protocol.md"
+PIPELINE_PROTOCOL = REPO_ROOT / "protocols" / "pipeline-protocol.md"
 CLAUDE_MD = REPO_ROOT / "CLAUDE.md"
 README_MD = REPO_ROOT / "README.md"
 

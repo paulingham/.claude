@@ -2,7 +2,7 @@
 # Runtime guard — PreToolUse Agent|Bash|Write|Edit hook.
 # Mode A (Agent): record start file. Mode B (Bash|Write|Edit): scan for over-cap.
 # Read intentionally excluded (highest-volume, fast-bounded).
-# See rules/agent-protocol.md > Resource Bounds.
+# See protocols/agent-protocol.md > Resource Bounds.
 # Historical per-call durations are captured separately by hooks/tool-timing-capture.sh
 # to metrics/{session}/tool-timings.jsonl. This guard owns wall-clock cap ENFORCEMENT only.
 #

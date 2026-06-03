@@ -4,7 +4,7 @@
 # per AssertFlip (arXiv 2507.17542). DEBUG_RESOLVED env-only carve-out preserved.
 #
 # Mode = CLAUDE_BUGFIX_VALIDATOR_MODE ∈ {log (default), warn, strict}.
-# enforces: rules/verdict-catalog.md (BUG_FIXED row)
+# enforces: protocols/verdict-catalog.md (BUG_FIXED row)
 set -uo pipefail
 
 # shellcheck source=/dev/null
@@ -59,14 +59,14 @@ case "$MODE" in
     exit 0 ;;
   warn)
     _bfpv_emit_jsonl "$JSONL" "$TASK_ID" "$SHAPE" "warn"
-    [[ "$SHAPE" != "valid" ]] && echo "warn: BUG_FIXED payload shape=$SHAPE (rules/verdict-catalog.md)" >&2
+    [[ "$SHAPE" != "valid" ]] && echo "warn: BUG_FIXED payload shape=$SHAPE (protocols/verdict-catalog.md)" >&2
     exit 0 ;;
   strict)
     if [[ "$SHAPE" = "valid" ]]; then
       _bfpv_emit_jsonl "$JSONL" "$TASK_ID" "$SHAPE" "pass"; exit 0
     fi
     _bfpv_emit_jsonl "$JSONL" "$TASK_ID" "$SHAPE" "reject"
-    echo "BUG_FIXED payload $(_bfpv_reject_message "$SHAPE"). See rules/verdict-catalog.md BUG_FIXED row." >&2
+    echo "BUG_FIXED payload $(_bfpv_reject_message "$SHAPE"). See protocols/verdict-catalog.md BUG_FIXED row." >&2
     exit 2 ;;
   *) exit 0 ;;
 esac

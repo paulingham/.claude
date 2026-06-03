@@ -42,7 +42,7 @@ def _import_canonical(config_dir: Path):
             sys.path.insert(0, str(candidate))
             break
     import test_verdict_catalog_audit as canonical
-    canonical.CATALOG = config_dir / "rules" / "verdict-catalog.md"
+    canonical.CATALOG = config_dir / "protocols" / "verdict-catalog.md"
     canonical.SKILLS_DIR = config_dir / "skills"
     return canonical
 

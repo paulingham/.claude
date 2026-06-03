@@ -6,7 +6,7 @@ Verdict surface exercised:
   - hooks/_lib/sandbox_secrets_allowlist.py — forward_env(allowlist)
   - hooks/_lib/sandbox_cost_meter.py        — tick(elapsed_seconds, rate_key)
   - hooks/_lib/sandbox_verify_diff.py       — parse_test_outcomes(output, runner)
-  - rules/verdict-catalog.md                — SANDBOX_SKIPPED / SANDBOX_FAILED rows
+  - protocols/verdict-catalog.md            — SANDBOX_SKIPPED / SANDBOX_FAILED rows
 
 These tests exercise the published function-envelope contracts (C1, C2, C3 from
 plan.md § Tier 0 Contract Assertions) and the AC literal — they do NOT
@@ -179,7 +179,7 @@ class AC4_AC5_VerdictCatalog_EnumDrift(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        catalog = _WORKTREE_ROOT / "rules" / "verdict-catalog.md"
+        catalog = _WORKTREE_ROOT / "protocols" / "verdict-catalog.md"
         cls.catalog_text = catalog.read_text()
         # Extract the three SANDBOX rows for targeted assertion.
         cls.skipped_row = next(

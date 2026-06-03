@@ -295,7 +295,7 @@ if [[ ! -d "$SKILL_DIR" ]]; then
 fi
 ```
 
-The scaffolded skill is **not** added to `rules/verdict-catalog.md` automatically — that requires a human-authored verdict + audit pass. The scaffold is a starting point; the reviewer either:
+The scaffolded skill is **not** added to `protocols/verdict-catalog.md` automatically — that requires a human-authored verdict + audit pass. The scaffold is a starting point; the reviewer either:
 
 1. **Promote** — fill in the skill body, add a verdict, run `/harness:harness-audit`, ship as a PR.
 2. **Reject** — `rm -rf` the scaffold; the originating tool stays scratch.
@@ -309,7 +309,7 @@ Permanent Skill Scaffolds (Live-SWE promotion — awaiting review):
   - skills/<tool-name>/SKILL.md (3 pipelines: PIPE-001, PIPE-014, PIPE-027)
 ```
 
-Never modify `rules/verdict-catalog.md`, never wire the new skill into a pipeline phase, never enable it as a slash command. The scaffold is a draft; the human is the gate.
+Never modify `protocols/verdict-catalog.md`, never wire the new skill into a pipeline phase, never enable it as a slash command. The scaffold is a draft; the human is the gate.
 
 Source for the recurrence threshold: same as scratchpad → instinct promotion (3+ pipelines), aligning with `protocols/autonomous-intelligence.md` § Scratchpad → Instinct Promotion. Inspired by Live-SWE-agent (arXiv 2511.13646).
 

@@ -13,7 +13,7 @@ Reviewers (`code-reviewer`) and verifier (qa-engineer running `/verify`) do NOT 
 ## Why
 
 - Detection roles, not design roles. xhigh's marginal value is in exploring an alternative space (architecture, threat modeling). Review and verify are bounded against a completed artifact — fewer alternatives to explore, more pattern-matching against known defect classes.
-- The xhigh Leakage Boundary section in `rules/thinking-defaults.md` (lines 92–100) explicitly excludes these roles. Test suite #13/#14/#15/#20 in `tests/test_thinking_defaults.py` locks the exclusion as a regression guard.
+- The xhigh Leakage Boundary section in `protocols/thinking-defaults.md` (lines 92–100) explicitly excludes these roles. Test suite #13/#14/#15/#20 in `tests/test_thinking_defaults.py` locks the exclusion as a regression guard.
 - Recovery cost asymmetry: a missed review finding triggers an in-cycle fix-engineer cycle (bounded, cheap). A missed design decision rebuilds the system (unbounded, expensive). xhigh budget should track recovery cost, not just task criticality.
 - Cost: every promotion to xhigh roughly doubles per-call token spend. Two roles × every critical-or-budget>=7 pipeline = a measurable budget hit for marginal quality lift.
 

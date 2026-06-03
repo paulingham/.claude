@@ -5,11 +5,11 @@
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/harness-paths.sh"
 _rg_emit_teammate_block() {
-  printf 'BLOCKED: teammate runtime cap exceeded (shutdown_request).\n  agent: %s  class: teammate  elapsed: %ss  cap: %ss\nThe orchestrator should issue:\n  SendMessage({type:"shutdown_request", name:"%s"})\nSee rules/agent-protocol.md > Resource Bounds.\n' "$1" "$2" "$3" "$1" >&2
+  printf 'BLOCKED: teammate runtime cap exceeded (shutdown_request).\n  agent: %s  class: teammate  elapsed: %ss  cap: %ss\nThe orchestrator should issue:\n  SendMessage({type:"shutdown_request", name:"%s"})\nSee protocols/agent-protocol.md > Resource Bounds.\n' "$1" "$2" "$3" "$1" >&2
 }
 
 _rg_emit_subagent_block() {
-  printf 'BLOCKED: subagent runtime cap exceeded.\n  agent: %s  class: subagent  elapsed: %ss  cap: %ss\nNext tool call blocked; orchestrator should re-dispatch per rules/operational-protocol.md.\nSee rules/agent-protocol.md > Resource Bounds.\n' "$1" "$2" "$3" >&2
+  printf 'BLOCKED: subagent runtime cap exceeded.\n  agent: %s  class: subagent  elapsed: %ss  cap: %ss\nNext tool call blocked; orchestrator should re-dispatch per protocols/operational-protocol.md.\nSee protocols/agent-protocol.md > Resource Bounds.\n' "$1" "$2" "$3" >&2
 }
 
 _rg_emit_block() {

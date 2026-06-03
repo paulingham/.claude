@@ -1,13 +1,13 @@
 #!/usr/bin/env bats
 # Slice A — AC4 (rows + Notes)
-# Asserts rules/verdict-catalog.md (a) contains a `ROUTING_UPSHIFTED` row with
+# Asserts protocols/verdict-catalog.md (a) contains a `ROUTING_UPSHIFTED` row with
 # the correct shape and emitter, (b) the row is positioned after `PLAN_HOLES`
 # and before `BUILD_COMPLETE`, (c) the `ROUTED` row carries the `tier: T0..T6`
 # payload addendum, and (d) the Notes section documents the tier field.
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-  TARGET="$REPO_ROOT/rules/verdict-catalog.md"
+  TARGET="$REPO_ROOT/protocols/verdict-catalog.md"
 }
 
 @test "verdict-catalog.md exists" {

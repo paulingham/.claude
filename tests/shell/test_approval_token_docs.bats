@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Approval token gate docs — Wave 4-N
-# Regression tests verifying SKILL.md and rules/pipeline-protocol.md
+# Regression tests verifying SKILL.md and protocols/pipeline-protocol.md
 # document the approval-token gate. These complement test_approval_token_gate.bats
 # (which covers the shell/lib code) by guarding the documentation surface.
 
@@ -8,7 +8,7 @@ setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   PRODUCT_ACCEPTANCE="$REPO_ROOT/skills/product-acceptance/SKILL.md"
   PR_CREATION="$REPO_ROOT/skills/pr-creation/SKILL.md"
-  PIPELINE_PROTOCOL="$REPO_ROOT/rules/pipeline-protocol.md"
+  PIPELINE_PROTOCOL="$REPO_ROOT/protocols/pipeline-protocol.md"
 }
 
 # --- product-acceptance/SKILL.md: Step 4 (Write Approval Token) ---
@@ -88,7 +88,7 @@ setup() {
   grep -qiF "Approval token written" "$PR_CREATION"
 }
 
-# --- rules/pipeline-protocol.md: three additions ---
+# --- protocols/pipeline-protocol.md: three additions ---
 
 @test "pipeline-protocol: file exists" {
   [ -f "$PIPELINE_PROTOCOL" ]

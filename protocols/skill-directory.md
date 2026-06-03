@@ -2,7 +2,7 @@
 
 Canonical catalog of every user-invocable skill in `skills/` plus the deferred forcing-function-gated skills under `skills/_deferred/`. CLAUDE.md keeps only a pointer here; the table below is the source of truth.
 
-Verdict semantics for every entry below are defined in `rules/verdict-catalog.md` — the audit step `/harness:harness-audit` asserts catalog/skill-frontmatter agreement in both directions.
+Verdict semantics for every entry below are defined in `protocols/verdict-catalog.md` — the audit step `/harness:harness-audit` asserts catalog/skill-frontmatter agreement in both directions.
 
 ## Active Skills
 

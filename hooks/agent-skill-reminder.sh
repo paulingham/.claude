@@ -64,14 +64,14 @@ done
 
 if [[ "$IS_WRITE_CAPABLE" == true ]]; then
     if [[ "$ISOLATION" != *"worktree"* ]]; then
-        echo "BLOCKED: Write-capable agent '$AGENT_TYPE' MUST be spawned with isolation: worktree. See rules/agent-protocol.md." >&2
+        echo "BLOCKED: Write-capable agent '$AGENT_TYPE' MUST be spawned with isolation: worktree. See protocols/agent-protocol.md." >&2
         exit 2
     fi
 fi
 
 # Universal block on Explore and general-purpose agents
 if [[ -z "$AGENT_TYPE" || "$AGENT_TYPE" == "Explore" || "$AGENT_TYPE" == "general-purpose" ]]; then
-    echo "BLOCKED: Explore and general-purpose agents are not permitted. Use a specialized agent type instead. See rules/agent-protocol.md for the pattern-to-agent mapping." >&2
+    echo "BLOCKED: Explore and general-purpose agents are not permitted. Use a specialized agent type instead. See protocols/agent-protocol.md for the pattern-to-agent mapping." >&2
     exit 2
 fi
 
@@ -87,7 +87,7 @@ done
 
 if [[ "$IS_REVIEWER" == true ]]; then
     if ! echo "$PROMPT_LOWER" | grep -qi "full diff\|changed file\|git diff"; then
-        echo "BLOCKED: Reviewer agent '$AGENT_TYPE' MUST receive pre-computed diff and changed file contents in the prompt. See rules/parallel-dispatch-protocol.md:19." >&2
+        echo "BLOCKED: Reviewer agent '$AGENT_TYPE' MUST receive pre-computed diff and changed file contents in the prompt. See protocols/parallel-dispatch-protocol.md:19." >&2
         exit 2
     fi
 fi

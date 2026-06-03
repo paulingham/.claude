@@ -1,6 +1,6 @@
 """Pure precedence engine for resolving per-agent tool allowlist decisions.
 
-No I/O. Path B precedent — see `rules/thinking-defaults.md > ## Hook Behavior`.
+No I/O. Path B precedent — see `protocols/thinking-defaults.md > ## Hook Behavior`.
 The Agent input schema does not currently expose `allowed_tools`; the bash
 wrapper is therefore log-only until the schema lands.
 

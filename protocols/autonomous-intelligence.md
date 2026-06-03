@@ -15,7 +15,7 @@ pipeline-state/{task-id}/scratchpad/
 
 Workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/scratchpad/{role}-{phase}.md`.
 
-Created by the orchestrator at pipeline start (alongside the pipeline state file). Cleaned up via `find pipeline-state/{task-id} -type f -delete && find pipeline-state/{task-id} -depth -type d -empty -delete` after completion — `rm -rf` on directories is sandbox-denied even on orchestrator-writable paths; see `skills/pipeline/SKILL.md` Step 7d for the canonical snippet. During the DUAL_PATH soak (see `rules/pipeline-protocol.md` § Structured Pipeline State), the legacy form `pipeline-state/{task-id}-scratchpad/` is still tolerated by readers; new pipelines write to the new layout only.
+Created by the orchestrator at pipeline start (alongside the pipeline state file). Cleaned up via `find pipeline-state/{task-id} -type f -delete && find pipeline-state/{task-id} -depth -type d -empty -delete` after completion — `rm -rf` on directories is sandbox-denied even on orchestrator-writable paths; see `skills/pipeline/SKILL.md` Step 7d for the canonical snippet. During the DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State), the legacy form `pipeline-state/{task-id}-scratchpad/` is still tolerated by readers; new pipelines write to the new layout only.
 
 ### Agent Writes
 

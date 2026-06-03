@@ -197,7 +197,7 @@ applies *after* the pre-check has passed.
 
 When the verify report carries the side-channel verdict `E2E_SKIP_NO_ENV`
 (Tier 4 web target = `SKIP` because no real-environment stack was
-available — see `rules/verdict-catalog.md` and `protocols/e2e-protocol.md`),
+available — see `protocols/verdict-catalog.md` and `protocols/e2e-protocol.md`),
 the product-reviewer MUST acknowledge the skip explicitly in the verdict
 body. This mirrors the existing Tier 3.5 SKIP acknowledgement pattern.
 

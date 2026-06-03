@@ -29,7 +29,7 @@ fi
 # If the harness did not supply tool_input.path (current behaviour for
 # Agent({isolation:"worktree"}) spawns), generate one under the repo's
 # .claude/worktrees/agent-<rand>. The harness-of-harness convention is
-# tracked at rules/agent-protocol.md > Worktree Lifecycle.
+# tracked at protocols/agent-protocol.md > Worktree Lifecycle.
 if [[ -z "$WORKTREE_PATH" ]]; then
   RAND=$(openssl rand -hex 4 2>/dev/null || printf '%s' "$RANDOM$RANDOM" | head -c 8)
   WORKTREE_PATH="$REPO_ROOT/.claude/worktrees/agent-${RAND}"

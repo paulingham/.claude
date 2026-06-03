@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Gate-integration check helpers. Each check ≤ 8 lines.
-RULES_DOC="rules/agent-protocol.md"
+RULES_DOC="protocols/agent-protocol.md"
 WORKFLOW="/.github/workflows/internal-eval.yml"
 _rules() { echo "$1/$RULES_DOC"; }
 _wf()    { echo "$1$WORKFLOW"; }
 
 check_rules_has_gate_section() {
-  assert "rules/agent-protocol.md has Internal Eval Gate section" \
+  assert "protocols/agent-protocol.md has Internal Eval Gate section" \
     grep -q "^## Internal Eval Gate" "$(_rules "$1")"
 }
 

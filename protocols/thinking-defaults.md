@@ -181,7 +181,7 @@ other PreToolUse Agent escapes in `protocols/agent-protocol.md` § Reversibility
 - `hooks/pre-agent-thinking.sh` — bash wrapper registered in `settings.json` under `PreToolUse > Agent`.
 - Tests: `tests/test_thinking_defaults.py` (resolver suite + hook log-only behavior).
 
-Note: teammate (TaskCreate) dispatches are covered transparently because teammates are spawned via the `Agent` tool (with `team_name` + `name`) per `rules/parallel-dispatch-protocol.md`. The hook does not register on `TaskCreate` — it doesn't need to.
+Note: teammate (TaskCreate) dispatches are covered transparently because teammates are spawned via the `Agent` tool (with `team_name` + `name`) per `protocols/parallel-dispatch-protocol.md`. The hook does not register on `TaskCreate` — it doesn't need to.
 
 ## xhigh Allocation Policy
 

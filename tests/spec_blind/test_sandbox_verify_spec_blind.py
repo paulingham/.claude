@@ -10,7 +10,7 @@ code may carry.
 Public surfaces exercised:
   - `skills/sandbox-verify/SKILL.md` (frontmatter contract)
   - `agents/sandbox-verify-engineer.md` (tools allowlist + instinct_categories)
-  - `rules/verdict-catalog.md` (registered verdicts table)
+  - `protocols/verdict-catalog.md` (registered verdicts table)
   - `learning/instincts/sandbox-verify-seed.md` (seed instinct frontmatter)
   - `hooks/_lib/sandbox_verify_diff.py:compare_pass_sets(worktree, sandbox)`
   - `hooks/_lib/sandbox_verify_skip.py:emit_skip_if_no_token(session_id, metrics_dir)`
@@ -41,7 +41,7 @@ sys.path.insert(0, str(REPO_ROOT / "hooks" / "_lib"))
 # ---------------------------------------------------------------------------
 
 class AC1VerdictCatalogTest(unittest.TestCase):
-    """AC1: rules/verdict-catalog.md contains exactly three SANDBOX_* rows.
+    """AC1: protocols/verdict-catalog.md contains exactly three SANDBOX_* rows.
 
     Each row: emitter=`sandbox-verify`, phase=`build`, polarity matches
     success/failure/info for SANDBOX_VERIFIED/FAILED/SKIPPED respectively.
@@ -57,7 +57,7 @@ class AC1VerdictCatalogTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        catalog_path = REPO_ROOT / "rules" / "verdict-catalog.md"
+        catalog_path = REPO_ROOT / "protocols" / "verdict-catalog.md"
         cls.catalog_text = catalog_path.read_text(encoding="utf-8")
 
     def _find_row(self, verdict_name):

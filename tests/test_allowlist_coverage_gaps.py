@@ -35,7 +35,7 @@ class AllAgentsDeclareToolsList(unittest.TestCase):
 
 class AgentProtocolDocumentsScoping(unittest.TestCase):
     def test_protocol_section_exists_with_required_anchors(self):
-        text = (REPO_ROOT / "rules" / "agent-protocol.md").read_text()
+        text = (REPO_ROOT / "protocols" / "agent-protocol.md").read_text()
         self.assertIn("## Per-Agent Tool Scoping", text)
         for anchor in ("pre-agent-allowlist.sh", "agent_tools_loader",
                        "would_block", "CLAUDE_DISABLE_TOOL_ALLOWLIST",

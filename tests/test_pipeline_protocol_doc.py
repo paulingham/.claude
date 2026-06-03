@@ -14,12 +14,12 @@ def _read(rel_path):
 
 
 def test_pipeline_protocol_documents_new_layout():
-    content = _read("rules/pipeline-protocol.md")
+    content = _read("protocols/pipeline-protocol.md")
     assert "{task-id}/{phase}.md" in content
     assert "90-day" in content
     assert "DUAL_PATH" in content
 
 
 def test_autonomous_intelligence_scratchpad_path_updated():
-    content = _read("rules/autonomous-intelligence.md")
+    content = _read("protocols/autonomous-intelligence.md")
     assert "pipeline-state/{task-id}/scratchpad/" in content

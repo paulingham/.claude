@@ -133,7 +133,7 @@ Catches the failure mode: user says "tidy up the docs" but architect's plan actu
 | Pipeline Phase Order text | **T5** |
 | "Where to Look Next" index (just redirectors) | **T1** allowed |
 
-Detection: a second-pass Haiku call (~300 tokens) reads the diff content and looks for Iron-Law-touching tokens (`Iron Law`, `IRON LAW`, `NEVER`, `ATTRIBUTION`). If matched, upshift. Same pattern applies to `protocols/atdd-procedure.md` (Iron Law 1 source) and `rules/verdict-catalog.md` (verdict additions = T4; verdict removals = T6).
+Detection: a second-pass Haiku call (~300 tokens) reads the diff content and looks for Iron-Law-touching tokens (`Iron Law`, `IRON LAW`, `NEVER`, `ATTRIBUTION`). If matched, upshift. Same pattern applies to `protocols/atdd-procedure.md` (Iron Law 1 source) and `protocols/verdict-catalog.md` (verdict additions = T4; verdict removals = T6).
 
 ## Forensic logging schema
 
@@ -199,7 +199,7 @@ Read by `/harness:forensics` to detect:
 | Complexity Budget dimensions | `protocols/operational-protocol.md` |
 | Pipeline phases (T4-T6) | `protocols/pipeline-protocol.md` |
 | Parallel dispatch (T5/T6 fan-out) | `protocols/parallel-dispatch-protocol.md` |
-| Verdicts emitted by intake | `rules/verdict-catalog.md` § fingerprint + routing entries |
+| Verdicts emitted by intake | `protocols/verdict-catalog.md` § fingerprint + routing entries |
 | Hook implementation | `hooks/intake-fingerprint-audit.sh` |
 | Orchestrator dispatch on tier | `skills/pipeline/SKILL.md` Step 3 |
 | Direct-edit (T1) protocol | Iron Law 3 in `rules/core.md` |

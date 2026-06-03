@@ -136,7 +136,7 @@ Every agent spawn includes: instincts + agent memory + session memory + scratchp
 
 ### Skill Directory
 
-Full catalog of user-invocable skills with entry conditions and verdicts: `protocols/skill-directory.md`. Verdict semantics: `rules/verdict-catalog.md`.
+Full catalog of user-invocable skills with entry conditions and verdicts: `protocols/skill-directory.md`. Verdict semantics: `protocols/verdict-catalog.md`.
 
 ### Definition of Done
 

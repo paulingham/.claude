@@ -166,4 +166,4 @@ the adapter spawn).
 - Adapter agent: `agents/plan-cache-adapter.md` (Slice C).
 - Pipeline-state reader: `hooks/_lib/pipeline-state-paths.sh::_psp_find_active_pipelines`.
 - Project-hash fallback idiom: `hooks/observation-capture.sh:30-38`.
-- Verdict rows: `rules/verdict-catalog.md` (`PLAN_CACHE_MISS`, `PLAN_CACHE_HIT`).
+- Verdict rows: `protocols/verdict-catalog.md` (`PLAN_CACHE_MISS`, `PLAN_CACHE_HIT`).

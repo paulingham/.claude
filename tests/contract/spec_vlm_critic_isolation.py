@@ -10,7 +10,7 @@ Per plan.md § 3 Tier 0 Contract Assertions (lines 112-119), seven assertions:
   3. `hooks/_lib/vlm-critic-allow-paths.txt` first include line matches the
      literal ERE `pipeline-state/.+/visual-baselines/[^/]+\\.png` (SE-4 pin —
      verbatim regex, not "or equivalent").
-  4. `rules/verdict-catalog.md` contains BOTH `VISUAL_DIFF_PASS` and
+  4. `protocols/verdict-catalog.md` contains BOTH `VISUAL_DIFF_PASS` and
      `VISUAL_DIFF_FAIL` rows.
   5. `hooks/_lib/vlm-critic-guard-common.sh` defines all three public functions
      verbatim (`grep -E '^_vlm_critic_(parse_input|redact|log_violation)\\(\\)'`
@@ -41,7 +41,7 @@ VLM_CRITIC_SKILL = ROOT / "skills" / "vlm-critic" / "SKILL.md"
 VLM_CRITIC_READ_GUARD = ROOT / "hooks" / "vlm-critic-read-guard.sh"
 VLM_CRITIC_GUARD_COMMON = ROOT / "hooks" / "_lib" / "vlm-critic-guard-common.sh"
 VLM_CRITIC_ALLOW_PATHS = ROOT / "hooks" / "_lib" / "vlm-critic-allow-paths.txt"
-VERDICT_CATALOG = ROOT / "rules" / "verdict-catalog.md"
+VERDICT_CATALOG = ROOT / "protocols" / "verdict-catalog.md"
 
 
 def _read(path):

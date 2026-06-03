@@ -226,7 +226,7 @@ class ShipPhaseEvalVerdictContract(unittest.TestCase):
     contains the EVAL_PASSED entry and the Ship pipeline step gates on it."""
 
     def test_eval_passed_remains_in_verdict_catalog(self):
-        catalog = (REPO_ROOT / "rules" / "verdict-catalog.md").read_text()
+        catalog = (REPO_ROOT / "protocols" / "verdict-catalog.md").read_text()
         self.assertIn("EVAL_PASSED", catalog)
         self.assertIn("`internal-eval`", catalog)
 

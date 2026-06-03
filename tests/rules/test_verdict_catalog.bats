@@ -1,9 +1,9 @@
 #!/usr/bin/env bats
-# Slice B — AC B4: PLAN_CACHE_MISS row in rules/verdict-catalog.md.
+# Slice B — AC B4: PLAN_CACHE_MISS row in protocols/verdict-catalog.md.
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-  CATALOG="$REPO_ROOT/rules/verdict-catalog.md"
+  CATALOG="$REPO_ROOT/protocols/verdict-catalog.md"
 }
 
 @test "B4 PLAN_CACHE_MISS row present with polarity=info" {
@@ -26,6 +26,6 @@ setup() {
 @test "G8c INSUFFICIENT_DATA row present for plan-cache-rollout-gate emitter" {
   # The verdict NAME already exists for eval-model-effectiveness (line ~101);
   # we add a SECOND row for plan-cache-rollout-gate per the shared-emitter
-  # pattern documented in rules/verdict-catalog.md § Notes.
+  # pattern documented in protocols/verdict-catalog.md § Notes.
   grep -E "\| \`INSUFFICIENT_DATA\` \| info \| \`plan-cache-rollout-gate\` \| utility \|" "$CATALOG"
 }

@@ -87,7 +87,7 @@ What the consuming phase needs to know.
 
 ## Verdict
 
-The exact set of verdicts this skill emits. MUST match `rules/verdict-catalog.md`. Use uppercase snake-case identifiers.
+The exact set of verdicts this skill emits. MUST match `protocols/verdict-catalog.md`. Use uppercase snake-case identifiers.
 
 | Verdict | Meaning | Downstream |
 |---------|---------|------------|
@@ -107,7 +107,7 @@ What NOT to do in this skill. Pulled from real incidents — keep this list shor
 
 Skill-level tests live in `skills/<your-skill>/tests/`. At minimum:
 
-- One test that asserts the frontmatter parses, the verdict is in `rules/verdict-catalog.md`, and every section heading from this template exists.
+- One test that asserts the frontmatter parses, the verdict is in `protocols/verdict-catalog.md`, and every section heading from this template exists.
 - One test per documented verdict that exercises the skill's output contract (golden file or schema check).
 
 See `skills/_template/tests/` for placeholder fixtures.

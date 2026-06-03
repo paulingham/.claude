@@ -40,7 +40,7 @@ Agent({
 
     6. Analyze maestro/ E2E flows:
        - Map user journeys to existing Maestro flows
-       - Verify flows exist for changed behavior (see rules/e2e-protocol.md trigger matrix)
+       - Verify flows exist for changed behavior (see protocols/e2e-protocol.md trigger matrix)
        - If new domains or auth paths were added, verify corresponding flows exist
        - If existing flows no longer reflect current behavior, flag as GAP
        - Write new Maestro flows if gaps are found (follow patterns in ~/.claude/skills/react-native-patterns/SKILL.md)
@@ -73,7 +73,7 @@ If the matrix is incomplete, return GAPS_FOUND and dispatch fix-engineer (per `p
 - [ ] Coverage numbers reflect real behavior verification, not padding
 - [ ] **PBT run produced ≥ 1 property per public function on changed lines, OR a documented justification why a property is impossible** (`agents/qa-engineer.md` mirrors this item)
 - [ ] Frozen counterexamples from PBT runs are captured as deterministic unit tests (`@example` / seeded `fc.assert`)
-- [ ] Maestro E2E flows exist for changed behavior that touches trigger files (see `rules/e2e-protocol.md`)
+- [ ] Maestro E2E flows exist for changed behavior that touches trigger files (see `protocols/e2e-protocol.md`)
 - [ ] New domains, auth providers, or URL patterns have corresponding E2E flows
 - [ ] Existing Maestro flows still reflect current app behavior (no stale selectors or outdated URLs)
 

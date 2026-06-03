@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Slice C AC-C6 — same-commit-staging gate.
 #
-# If skills/cache-audit/SKILL.md is staged, rules/verdict-catalog.md AND
+# If skills/cache-audit/SKILL.md is staged, protocols/verdict-catalog.md AND
 # protocols/skill-directory.md MUST also be staged in the same commit.
 # Prevents the bidirectional-invariant break window where a verdict-emitting
 # skill ships without its catalog entry.
@@ -29,12 +29,12 @@ git config user.name "test"
 mkdir -p skills/cache-audit rules protocols
 
 # CASE 1 — all three staged together: PASS.
-touch skills/cache-audit/SKILL.md rules/verdict-catalog.md protocols/skill-directory.md
-git add skills/cache-audit/SKILL.md rules/verdict-catalog.md protocols/skill-directory.md
+touch skills/cache-audit/SKILL.md protocols/verdict-catalog.md protocols/skill-directory.md
+git add skills/cache-audit/SKILL.md protocols/verdict-catalog.md protocols/skill-directory.md
 
 staged=$(git diff --cached --name-only)
 if echo "$staged" | grep -q 'skills/cache-audit/SKILL.md'; then
-  if echo "$staged" | grep -q 'rules/verdict-catalog.md' \
+  if echo "$staged" | grep -q 'protocols/verdict-catalog.md' \
      && echo "$staged" | grep -q 'protocols/skill-directory.md'; then
     echo "  ok: CASE1 atomic-three-staged passes"; PASS=$((PASS + 1))
   else
@@ -47,7 +47,7 @@ git reset -q
 git add skills/cache-audit/SKILL.md
 staged=$(git diff --cached --name-only)
 if echo "$staged" | grep -q 'skills/cache-audit/SKILL.md'; then
-  if echo "$staged" | grep -q 'rules/verdict-catalog.md' \
+  if echo "$staged" | grep -q 'protocols/verdict-catalog.md' \
      && echo "$staged" | grep -q 'protocols/skill-directory.md'; then
     echo "  FAIL: CASE2 should have failed atomic guard"; FAIL=$((FAIL + 1))
   else
@@ -57,7 +57,7 @@ fi
 
 # CASE 3 — neither staged: no-op (guard only fires when SKILL.md staged).
 git reset -q
-git add rules/verdict-catalog.md
+git add protocols/verdict-catalog.md
 staged=$(git diff --cached --name-only)
 if echo "$staged" | grep -q 'skills/cache-audit/SKILL.md'; then
   echo "  FAIL: CASE3 SKILL.md leaked into staged set"; FAIL=$((FAIL + 1))
@@ -68,14 +68,15 @@ fi
 # CASE 4 — assert THIS commit's actual staged set (or last commit on the
 # build branch) reflects the invariant. Look at the most recent commit
 # touching skills/cache-audit/SKILL.md in REPO_ROOT — that commit MUST
-# also contain rules/verdict-catalog.md and protocols/skill-directory.md.
+# also contain verdict-catalog.md (at any path, basename match tolerates
+# both old rules/ and new protocols/ locations) and protocols/skill-directory.md.
 cd "$REPO_ROOT"
 LAST_COMMIT=$(git log -n 1 --format=%H -- skills/cache-audit/SKILL.md 2>/dev/null || echo "")
 if [ -z "$LAST_COMMIT" ]; then
   echo "  ok: CASE4 no commit yet touches skills/cache-audit/SKILL.md (build pre-commit)"; PASS=$((PASS + 1))
 else
   COMMITTED_PATHS=$(git diff-tree --no-commit-id --name-only -r "$LAST_COMMIT")
-  if echo "$COMMITTED_PATHS" | grep -q 'rules/verdict-catalog.md' \
+  if echo "$COMMITTED_PATHS" | grep -q 'verdict-catalog.md' \
      && echo "$COMMITTED_PATHS" | grep -q 'protocols/skill-directory.md'; then
     echo "  ok: CASE4 commit $LAST_COMMIT contains all three companions"; PASS=$((PASS + 1))
   else

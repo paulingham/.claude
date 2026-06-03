@@ -18,7 +18,7 @@ if [ "$tool_name" = "AskUserQuestion" ]; then
   cat >&2 <<'MSG'
 BLOCKED: AskUserQuestion is disabled in autonomous mode.
 Self-resolve instead:
-  1. Re-read the task and any relevant ~/.claude/rules/ or memory/feedback_*.md.
+  1. Re-read the task and any relevant ~/.claude/rules/core.md, ~/.claude/protocols/, or memory/feedback_*.md.
   2. Check for a project default or the most conservative autonomous action.
   3. Decide and proceed. If work is genuinely blocked on a destructive or
      irreversible action, state the decision point in your final turn response

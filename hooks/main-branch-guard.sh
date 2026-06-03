@@ -76,7 +76,7 @@ _mbg_print_block() {
   printf 'BLOCKED: REPO_ROOT HEAD must stay on `main`. The command:\n  %s\n' "$(_mbg_redact "$COMMAND")" >&2
   printf 'contains a HEAD-mutating clause without a delegation prefix.\n' >&2
   printf 'Use a delegation prefix: `cd "$WT" && ...`, `git -C "$WT" ...`, or `git --git-dir="$WT/.git" ...`\n' >&2
-  printf 'See rules/agent-protocol.md > Main-Branch Invariant.\n' >&2
+  printf 'See protocols/agent-protocol.md > Main-Branch Invariant.\n' >&2
 }
 
 _mbg_log_violation

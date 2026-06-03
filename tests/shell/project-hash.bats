@@ -163,8 +163,8 @@ EOF
 
 # ---------- AC1.4 docs: rewrite openssl md5 -r references ----------
 
-@test "AC1.4f rules/autonomous-intelligence.md no openssl md5 -r" {
-  run grep -c "openssl md5 -r" "$REPO_ROOT/rules/autonomous-intelligence.md"
+@test "AC1.4f protocols/autonomous-intelligence.md no openssl md5 -r" {
+  run grep -c "openssl md5 -r" "$REPO_ROOT/protocols/autonomous-intelligence.md"
   [ "$output" = "0" ]
 }
 

@@ -16,7 +16,7 @@
 #   6. Line count ≤ 50 (SKILL.md is a contract, not a tutorial).
 #   7. The ## Procedure body is exactly one non-blank line AND that line
 #      references `orchestrator/parallel-dispatch-details.md` (delegation).
-#   8. All three BoN_* verdicts registered in rules/verdict-catalog.md
+#   8. All three BoN_* verdicts registered in protocols/verdict-catalog.md
 #      (backticked form, e.g. `BoN_WINNER_SELECTED`).
 #
 # Exit 0 + STRUCTURE_OK on success; exit 1 + FAIL: <reason> on any failure.
@@ -27,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SKILL="$REPO_ROOT/skills/best-of-n/SKILL.md"
 TESTS_DIR="$REPO_ROOT/skills/best-of-n/tests"
-CATALOG="$REPO_ROOT/rules/verdict-catalog.md"
+CATALOG="$REPO_ROOT/protocols/verdict-catalog.md"
 
 fail() {
   echo "FAIL: $1" >&2
@@ -131,10 +131,10 @@ fi
 pass "## Procedure body is single delegation line referencing orchestrator/parallel-dispatch-details.md"
 
 # --- Check 8: verdicts registered in catalog --------------------------------
-[[ -f "$CATALOG" ]] || fail "rules/verdict-catalog.md not found at $CATALOG"
+[[ -f "$CATALOG" ]] || fail "protocols/verdict-catalog.md not found at $CATALOG"
 for verdict in BoN_WINNER_SELECTED BoN_FALLBACK_TO_SINGLE BoN_INSUFFICIENT_RESOURCES; do
   if ! grep -Fq "\`${verdict}\`" "$CATALOG"; then
-    fail "verdict '$verdict' not registered in rules/verdict-catalog.md (expected backticked form)"
+    fail "verdict '$verdict' not registered in protocols/verdict-catalog.md (expected backticked form)"
   fi
 done
 pass "all three BoN_* verdicts registered in verdict-catalog.md"

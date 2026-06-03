@@ -19,9 +19,9 @@ setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   CALLABLE="$REPO_ROOT/hooks/_lib/verdict-consistency-check.sh"
   TMP_FIXTURE="$(mktemp -d -t verdict-consistency-check-XXXXXX)"
-  mkdir -p "$TMP_FIXTURE/rules" "$TMP_FIXTURE/skills/plan-self-validation" "$TMP_FIXTURE/agents"
+  mkdir -p "$TMP_FIXTURE/protocols" "$TMP_FIXTURE/skills/plan-self-validation" "$TMP_FIXTURE/agents"
 
-  cat > "$TMP_FIXTURE/rules/verdict-catalog.md" <<'EOF'
+  cat > "$TMP_FIXTURE/protocols/verdict-catalog.md" <<'EOF'
 # Verdict Catalog
 
 ## Catalog
@@ -71,7 +71,7 @@ teardown() {
 }
 
 @test "exits non-zero with missing-in-catalog when catalog drops the row" {
-  cat > "$TMP_FIXTURE/rules/verdict-catalog.md" <<'EOF'
+  cat > "$TMP_FIXTURE/protocols/verdict-catalog.md" <<'EOF'
 # Verdict Catalog
 
 ## Catalog
