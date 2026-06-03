@@ -271,3 +271,50 @@ _run_guard_capture() {
   echo "$last" | jq -e '.timestamp' > /dev/null
   echo "$last" | jq -e '.session_id' > /dev/null
 }
+
+# ---------------------------------------------------------------------------
+# H2 — command-substitution bypass (AC2.37-AC2.39)
+# ---------------------------------------------------------------------------
+
+@test "AC2.37 cd \$(pwd) && git checkout -b evil blocked (command-sub in cd target)" {
+  run _run_guard Bash 'cd $(pwd) && git checkout -b evil'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.38 git -C \$(pwd) checkout -b evil blocked (command-sub in git -C target)" {
+  run _run_guard Bash 'git -C $(pwd) checkout -b evil'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.39 git -C \"\$WORKTREE\" checkout foo allowed (plain var passthrough after H2 fix)" {
+  run _run_guard Bash 'git -C "$WORKTREE" checkout foo'
+  [ "$status" -eq 0 ]
+}
+
+# ---------------------------------------------------------------------------
+# M1 — multiple -C flags (AC2.40-AC2.41)
+# ---------------------------------------------------------------------------
+
+@test "AC2.40 git -C /nonexistent1 -C /nonexistent2 checkout foo blocked (multi -C)" {
+  run _run_guard Bash 'git -C /nonexistent1 -C /nonexistent2 checkout foo'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.41 git -C \"\$WORKTREE\" -C ../../.. checkout -b evil blocked (multi -C escape)" {
+  run _run_guard Bash 'git -C "$WORKTREE" -C ../../.. checkout -b evil'
+  [ "$status" -eq 2 ]
+}
+
+# ---------------------------------------------------------------------------
+# M2 — single-quoted path dequote (AC2.42-AC2.43)
+# ---------------------------------------------------------------------------
+
+@test "AC2.42 git -C '<registered-wt>' checkout foo allowed (single-quoted registered path)" {
+  run _run_guard Bash "git -C '$TMP_WT' checkout foo"
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.43 git -C '<REPO_ROOT>' checkout -b x blocked (single-quoted REPO_ROOT)" {
+  run _run_guard Bash "git -C '$TMP_REPO_MBG' checkout -b x"
+  [ "$status" -eq 2 ]
+}

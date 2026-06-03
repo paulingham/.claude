@@ -123,8 +123,11 @@ Every git mutation that would move HEAD runs against a *worktree path*, expresse
 **Delegation-target constraints** — the `<worktree-path>` in each delegated form MUST:
 - Resolve to a registered worktree (present in `git worktree list --porcelain`).
 - NOT resolve to `REPO_ROOT`. A literal `.`, `""`, or the repo-root path is denied fail-closed.
-- `$WORKTREE` / `$WT` variable references are allowed at parse time (the guard cannot resolve shell variables; ensure the variable is set by the orchestrator before use).
+- `$WORKTREE` / `$WT` plain variable references are allowed at parse time (the guard cannot resolve shell variables; ensure the variable is set by the orchestrator before use).
 - An unset variable that expands to empty (e.g., `git -C "" checkout foo`) is blocked because the empty string resolves to the current cwd (typically REPO_ROOT).
+- **Command substitution is DENIED**: `$(...)` and backtick forms in the path (e.g., `git -C $(pwd) checkout foo`, `cd $(pwd) && git checkout foo`) are blocked regardless of what they expand to — they are structurally unsafe at parse time.
+- **Multiple `-C` flags are DENIED**: `git -C <path1> -C <path2> <cmd>` is always blocked. Git applies `-C` cumulatively (last wins), so the first validated path can be bypassed by a second. Use a single `-C` with the explicit worktree path.
+- If `python3` is unavailable for canonical path resolution, delegation is denied fail-closed (not allowed by default).
 
 `;`-separator does NOT count as delegation. `cd /tmp/x; git checkout foo` is **forbidden** — the `;` separator does not compose semantically with `cd` to guarantee the second clause runs in the new cwd. Only `&&` does. (Mechanically: `split_clauses` splits on `;` too, so a standalone `git checkout foo` clause is evaluated on its own and rejected as a bare form.) Use `&&` or the `git -C` / `git --git-dir=` flags.
 

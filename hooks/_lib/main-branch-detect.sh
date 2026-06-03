@@ -119,14 +119,23 @@ _mbd_strip_git_c_prefix() {
 # and that python3 is in PATH.
 _mbd_target_is_valid_worktree() {
   local raw="$1"
-  # Dequote surrounding double-quotes.
-  local target; target=$(printf '%s' "${raw:-}" | sed -E 's#^"(.*)"$#\1#')
+  # Dequote surrounding double-quotes then single-quotes (BSD sed safe; $ protected).
+  local target
+  target=$(printf '%s' "${raw:-}" | sed -E 's#^"(.*)"$#\1#')
+  target=$(printf '%s' "${target:-}" | sed -E "s/^'(.*)'$/\\1/")
   # Empty after dequote → deny.
   [[ -z "${target:-}" ]] && return 1
-  # Variable reference (starts with $) → allow at parse time.
-  [[ "${target:0:1}" = '$' ]] && return 0
-  # Require python3 for canonical path resolution; fall through if absent.
-  command -v python3 > /dev/null 2>&1 || return 0
+  # Variable reference (starts with $) → allow plain $VAR / ${VAR} at parse time.
+  # Deny command-substitution $(...) and backtick forms — they expand to real paths.
+  if [[ "${target:0:1}" = '$' ]]; then
+    [[ "${target:0:2}" = '$(' ]] && return 1  # command substitution → deny
+    return 0
+  fi
+  # Backtick command substitution anywhere in target → deny.
+  [[ "$target" == *'`'* ]] && return 1
+  # Require python3 for canonical path resolution; fail-CLOSED if absent
+  # (returning 0 = allow would re-enable REPO_ROOT delegation bypass).
+  command -v python3 > /dev/null 2>&1 || return 1
   local resolved; resolved=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "$target" 2>/dev/null)
   [[ -z "${resolved:-}" ]] && return 1
   # Get REPO_ROOT: CLAUDE_WORKTREE_PATH leg first for fast-path, then bare git.
@@ -161,9 +170,15 @@ is_forbidden_clause() {
   local clause="$1" norm git_c_target=""
   [[ "$clause" =~ $(_mbd_wrapper_re) ]] && return 0
   # Detect git -C <path> prefix; extract target and strip before normalization.
-  if [[ "$clause" =~ $(_mbd_git_c_prefix_re) ]]; then
+  # Cheap glob guard: only call the subshell regex when ' -C ' is present.
+  if [[ "$clause" == *" -C "* ]] && [[ "$clause" =~ $(_mbd_git_c_prefix_re) ]]; then
     git_c_target=$(_mbd_extract_git_c_target "$clause")
     clause=$(_mbd_strip_git_c_prefix "$clause")
+    # Multiple -C flags: if stripping one -C still leaves another, deny outright.
+    # (git applies -C cumulatively; last wins — agents never legitimately need 2+.)
+    if [[ "$clause" == *" -C "* ]] && [[ "$clause" =~ $(_mbd_git_c_prefix_re) ]]; then
+      return 0
+    fi
   fi
   norm=$(_mbd_normalize "$clause")
   [[ "$norm" =~ $(_mbd_forbidden_re) ]] || return 1

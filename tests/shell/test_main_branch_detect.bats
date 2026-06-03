@@ -378,3 +378,90 @@ _assert_allowed() {
 @test "T100 forbidden: git -C '\"\"' checkout -b x (double-empty-dequote edge)" {
   _assert_forbidden "git -C '\"\"' checkout -b x"
 }
+
+# ---------------------------------------------------------------------------
+# H1 — fail-CLOSED when python3 is absent (T101)
+# ---------------------------------------------------------------------------
+
+@test "T101 fail-closed contract: _mbd_target_is_valid_worktree returns non-zero for literal REPO_ROOT" {
+  # Verifies H1 fix: _mbd_target_is_valid_worktree must DENY a REPO_ROOT path.
+  # (When python3 is absent, the old `|| return 0` would allow it; the fix uses
+  # `|| return 1` so any inability to resolve canonical path = deny.)
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  # Direct unit test: REPO_ROOT path must return non-zero (denied).
+  run _mbd_target_is_valid_worktree "$TMP_REPO"
+  [ "$status" -ne 0 ]
+}
+
+@test "T101b fail-closed contract: git -C <REPO_ROOT> checkout -b x blocked even with valid python3" {
+  # Integration complement: REPO_ROOT-targeted git -C must be forbidden.
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  CLAUDE_WORKTREE_PATH="" _assert_forbidden "git -C $TMP_REPO checkout -b x"
+}
+
+# ---------------------------------------------------------------------------
+# H2 — command-substitution bypass (T102-T105)
+# ---------------------------------------------------------------------------
+
+@test "T102 forbidden: cd \$(pwd) && git checkout -b evil (command-sub in cd target)" {
+  _assert_forbidden 'cd $(pwd) && git checkout -b evil'
+}
+
+@test "T103 forbidden: git -C \$(pwd) checkout -b evil (command-sub in git -C target)" {
+  _assert_forbidden 'git -C $(pwd) checkout -b evil'
+}
+
+@test "T104 forbidden: cd \`pwd\` && git checkout -b evil (backtick in cd target)" {
+  _assert_forbidden 'cd `pwd` && git checkout -b evil'
+}
+
+@test "T105 allowed: git -C \"\$WORKTREE\" checkout foo (plain var still allowed after H2 fix)" {
+  _assert_allowed 'git -C "$WORKTREE" checkout foo'
+}
+
+# ---------------------------------------------------------------------------
+# M1 — multiple -C flags (T106-T108)
+# ---------------------------------------------------------------------------
+
+@test "T106 forbidden: git -C /nonexistent1 -C /nonexistent2 checkout foo (multi -C)" {
+  _assert_forbidden 'git -C /nonexistent1 -C /nonexistent2 checkout foo'
+}
+
+@test "T107 forbidden: git -C \"\$WORKTREE\" -C ../../.. checkout -b evil (multi -C escape)" {
+  _assert_forbidden 'git -C "$WORKTREE" -C ../../.. checkout -b evil'
+}
+
+@test "T108 allowed: git -C <registered-wt> checkout foo (single -C still allowed)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  local WT; WT="$(mktemp -d)/wt"
+  ( cd "$TMP_REPO" && git worktree add -q -b feat/m1 "$WT" )
+  CLAUDE_WORKTREE_PATH="$WT" _assert_allowed "git -C $WT checkout foo"
+  rm -rf "$(dirname "$WT")"
+}
+
+# ---------------------------------------------------------------------------
+# M2 — single-quoted path dequote (T109-T110)
+# ---------------------------------------------------------------------------
+
+@test "T109 allowed: git -C '<registered-wt>' checkout foo (single-quoted registered path)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  local WT; WT="$(mktemp -d)/wt"
+  ( cd "$TMP_REPO" && git worktree add -q -b feat/m2 "$WT" )
+  CLAUDE_WORKTREE_PATH="$WT" _assert_allowed "git -C '$WT' checkout foo"
+  rm -rf "$(dirname "$WT")"
+}
+
+@test "T110 forbidden: git -C '<REPO_ROOT>' checkout -b x (single-quoted REPO_ROOT blocked)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  CLAUDE_WORKTREE_PATH="" _assert_forbidden "git -C '$TMP_REPO' checkout -b x"
+}
