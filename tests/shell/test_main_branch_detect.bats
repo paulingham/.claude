@@ -237,9 +237,25 @@ _assert_allowed() {
   ( cd "$TMP_REPO" && unset CLAUDE_WORKTREE_PATH && _assert_forbidden 'git branch -d main' )
 }
 
+@test "T83c forbidden: git branch -D main from feature-branch worktree (protected-by-name)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( cd "$TMP_REPO" && git checkout -q -b feature/x )
+  ( CLAUDE_WORKTREE_PATH="$TMP_REPO" _assert_forbidden 'git branch -D main' )
+}
+
+@test "T83d forbidden: git branch -d main feature (multi-name, main is protected)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( cd "$TMP_REPO" && git branch feature )
+  ( cd "$TMP_REPO" && unset CLAUDE_WORKTREE_PATH && _assert_forbidden 'git branch -d main feature' )
+}
+
 @test "T84 allowed: git merge --ff-only origin/main"                     { _assert_allowed 'git merge --ff-only origin/main'; }
 @test "T85 allowed: git merge --ff-only main"                            { _assert_allowed 'git merge --ff-only main'; }
 @test "T86 allowed: git merge --ff-only upstream/main"                   { _assert_allowed 'git merge --ff-only upstream/main'; }
-@test "T87 allowed: git merge --ff-only (bare, no target)"               { _assert_allowed 'git merge --ff-only'; }
+@test "T87 forbidden: git merge --ff-only (bare, no target — merges FETCH_HEAD)" { _assert_forbidden 'git merge --ff-only'; }
 @test "T88 forbidden: git merge --ff-only feature/x (non-main target)"   { _assert_forbidden 'git merge --ff-only feature/x'; }
 @test "T89 allowed: git merge --ff-only origin"                          { _assert_allowed 'git merge --ff-only origin'; }

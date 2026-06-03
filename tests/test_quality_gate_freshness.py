@@ -12,9 +12,13 @@ _qg_* style (one-liner delegations to runtime CLIs).
 Slice-1 additions: _qg_check_freshness receives $COMMAND (cd-prefix worktree
 extraction), falls back to cwd HEAD when no cd-prefix, finds evidence by glob.
 """
+import json
 import os
+import re
+import shlex
 import subprocess
 import tempfile
+import time
 import unittest
 import uuid
 from pathlib import Path
@@ -33,7 +37,6 @@ def _run_qg_freshness(cwd, command=None, env=None):
     proc_env = {**os.environ, **(env or {})}
     if command is not None:
         # Shell-quote the command string so it's passed as a single argument.
-        import shlex
         quoted_command = shlex.quote(command)
         cmd = f"source '{CHECKS_SH}' && _qg_check_freshness {quoted_command}"
     else:
@@ -63,7 +66,6 @@ def _make_repo_with_commit(tmp_path):
 
 
 def _write_evidence(repo, task, *, git_head, verdict="VERIFIED"):
-    import json
     d = repo / "pipeline-state" / task
     d.mkdir(parents=True)
     (d / "verification-evidence.json").write_text(json.dumps({
@@ -137,7 +139,6 @@ class QgFreshnessCheck(unittest.TestCase):
         for-loop. freshness must NOT appear in `for check in ...` any longer."""
         text = GATE_SH.read_text()
         # freshness must NOT be in the for-loop anymore.
-        import re
         self.assertNotRegex(
             text, r"for check in[^;]*\bfreshness\b",
             "freshness must be removed from the for-loop")
@@ -257,7 +258,6 @@ class QgFreshnessCheck(unittest.TestCase):
         """Mutation guard (d): when CLAUDE_PIPELINE_TASK_ID is set and the task-specific
         evidence file exists, it must be preferred over the most-recently-modified file
         found by glob (which may belong to a different task and have a stale HEAD)."""
-        import time
         with tempfile.TemporaryDirectory() as tmpdir:
             worktree, head = _make_repo_with_commit(Path(tmpdir))
             # Write evidence for the correct task (matching HEAD).
@@ -286,6 +286,48 @@ class QgFreshnessCheck(unittest.TestCase):
                           "AC9: stderr must include verdict=PARTIAL")
             self.assertIn("re-verify", r.stderr,
                           "AC9: stderr must include re-verify")
+
+    def test_freshness_env_hatch_disables_check_new_signature(self):
+        """CR-8: CLAUDE_DISABLE_FRESHNESS_QG=1 short-circuits to rc=0 even with
+        no state file, using the cd-prefix COMMAND form (new signature)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            worktree, _ = _make_repo_with_commit(Path(tmpdir))
+            command = f'cd "{worktree}" && gh pr create --title "test"'
+            env = {"CLAUDE_PIPELINE_TASK_ID": "test-task",
+                   "CLAUDE_DISABLE_FRESHNESS_QG": "1"}
+            r = _run_qg_freshness(Path(tmpdir), command=command, env=env)
+            self.assertEqual(r.returncode, 0,
+                             f"CR-8: env hatch must bypass freshness gate with COMMAND arg; stderr={r.stderr}")
+
+    def test_freshness_fails_on_mismatched_task_id_in_evidence(self):
+        """SEC-4: when CLAUDE_PIPELINE_TASK_ID is set AND evidence task_id is set
+        AND they differ, freshness check must FAIL with a task_id mismatch message."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            worktree, head = _make_repo_with_commit(Path(tmpdir))
+            # Evidence belongs to 'other-task', but we're running as 'my-task'.
+            _write_evidence(worktree, "other-task", git_head=head)
+            command = f'cd "{worktree}" && gh pr create --title "test"'
+            env = {"CLAUDE_PIPELINE_TASK_ID": "my-task"}
+            r = _run_qg_freshness(Path(tmpdir), command=command, env=env)
+            self.assertEqual(r.returncode, 1,
+                             f"SEC-4: expected FAIL for mismatched task_id; stderr={r.stderr}")
+            self.assertIn("other-task", r.stderr,
+                          "SEC-4: stderr must name the evidence task_id")
+            self.assertIn("my-task", r.stderr,
+                          "SEC-4: stderr must name the expected task_id")
+
+    def test_freshness_passes_when_task_id_unset_despite_evidence_having_task_id(self):
+        """SEC-4 compatibility: when CLAUDE_PIPELINE_TASK_ID is unset, the task_id
+        mismatch check must NOT fire (glob path must keep working)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            worktree, head = _make_repo_with_commit(Path(tmpdir))
+            _write_evidence(worktree, "some-task", git_head=head)
+            command = f'cd "{worktree}" && gh pr create --title "test"'
+            env = {k: v for k, v in os.environ.items()
+                   if k != "CLAUDE_PIPELINE_TASK_ID"}
+            r = _run_qg_freshness(Path(tmpdir), command=command, env=env)
+            self.assertEqual(r.returncode, 0,
+                             f"SEC-4 compat: unset task-id must not trigger mismatch; stderr={r.stderr}")
 
 
 if __name__ == "__main__":

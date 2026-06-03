@@ -96,12 +96,21 @@ _qg_check_freshness() {
   fi
   [[ -f "$path" ]] || { echo "[freshness] no verification-evidence; run /verify" >&2; return 1; }
   head=$(jq -r '.git_head' "$path" 2>/dev/null); verdict=$(jq -r '.verdict' "$path" 2>/dev/null)
+  # SEC-4: when both expected task and evidence task_id are present and differ, fail.
+  local eid; eid=$(jq -r '.task_id // empty' "$path" 2>/dev/null)
+  if [[ -n "$task" && -n "$eid" && "$task" != "$eid" ]]; then
+    echo "[freshness] evidence task_id=$eid != expected=$task; re-verify" >&2; return 1
+  fi
   # Resolve worktree HEAD: git -C <wt> if we have a worktree, else cwd.
   local wt_head
   if [[ -n "$wt" ]]; then
     wt_head=$(git -C "$wt" rev-parse HEAD 2>/dev/null)
   else
     wt_head=$(git rev-parse HEAD 2>/dev/null)
+  fi
+  # CR-4: emit meaningful message when worktree HEAD cannot be resolved.
+  if [[ -z "$wt_head" ]]; then
+    echo "[freshness] could not resolve worktree HEAD at ${wt:-.}" >&2; return 1
   fi
   [[ "$head" != "$wt_head" ]] && { echo "[freshness] state=$head worktree=$wt_head; HEAD moved since /verify" >&2; return 1; }
   [[ "$verdict" =~ ^VERIFIED ]] || { echo "[freshness] verdict=$verdict; re-verify" >&2; return 1; }
