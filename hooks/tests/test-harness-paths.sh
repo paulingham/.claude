@@ -932,6 +932,7 @@ pattern = re.compile(r'Path\.home\(\)\s*/\s*[' + chr(34) + chr(39) + r']\.claude
 #   test_bootstrap_settings_disk_invariant.py — intentional live read
 #   test_harness_paths_py.py — overlay-equivalence assertion (AC-A1a verifies fallback)
 #   test_skills_paths_portability.py — overlay-equivalence assertion (AC-A3e)
+#   test_harness_paths_sibling_drift.py — overlay-equivalence assertion in drift guard (QA-added)
 #   test_spec_blind_freshness.py — not a CA8 target; uses Path.home() in helper fallback
 #   test_quality_gate_taskid_required.py — not a CA8 target; log path helper fallback
 EXCLUDED_FILES = {
@@ -940,6 +941,7 @@ EXCLUDED_FILES = {
     "test_bootstrap_settings_disk_invariant.py",
     "test_harness_paths_py.py",
     "test_skills_paths_portability.py",
+    "test_harness_paths_sibling_drift.py",
     "test_spec_blind_freshness.py",
     "test_quality_gate_taskid_required.py",
 }

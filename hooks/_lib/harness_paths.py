@@ -10,7 +10,7 @@ Skills processes must use the sibling resolver module (independent sys.path).
 import os
 from pathlib import Path
 
-_SHELL_METACHARS = frozenset('"$`; \t\n|&<>()')
+_SHELL_METACHARS = frozenset('"$`;\n|&<>()')
 
 
 def _validate_base(p: Path) -> Path:

@@ -194,6 +194,97 @@ class TestValidateBase:
                 harness_paths.harness_data()
 
 
+class TestHarnessDataPrecedence:
+    """MUT4/MUT5: verify PLUGIN_DATA > CONFIG_DIR and PLUGIN_ROOT > CONFIG_DIR."""
+
+    def test_harness_data_plugin_data_wins_over_config_dir(self, tmp_path):
+        """MUT4: CLAUDE_PLUGIN_DATA wins over CLAUDE_CONFIG_DIR."""
+        plugin_data = str(tmp_path / "plugin-data")
+        config_dir = str(tmp_path / "config-dir")
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("CLAUDE_PLUGIN_DATA", "CLAUDE_CONFIG_DIR")}
+        env["CLAUDE_PLUGIN_DATA"] = plugin_data
+        env["CLAUDE_CONFIG_DIR"] = config_dir
+        with patch.dict(os.environ, env, clear=True):
+            import harness_paths
+            importlib.reload(harness_paths)
+            result = harness_paths.harness_data()
+        assert result == Path(plugin_data), (
+            f"CLAUDE_PLUGIN_DATA must win over CLAUDE_CONFIG_DIR; got {result}"
+        )
+
+    def test_harness_root_plugin_root_wins_over_config_dir(self, tmp_path):
+        """MUT5: CLAUDE_PLUGIN_ROOT wins over CLAUDE_CONFIG_DIR."""
+        plugin_root = str(tmp_path / "plugin-root")
+        config_dir = str(tmp_path / "config-dir")
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("CLAUDE_PLUGIN_ROOT", "CLAUDE_CONFIG_DIR")}
+        env["CLAUDE_PLUGIN_ROOT"] = plugin_root
+        env["CLAUDE_CONFIG_DIR"] = config_dir
+        with patch.dict(os.environ, env, clear=True):
+            import harness_paths
+            importlib.reload(harness_paths)
+            result = harness_paths.harness_root()
+        assert result == Path(plugin_root), (
+            f"CLAUDE_PLUGIN_ROOT must win over CLAUDE_CONFIG_DIR; got {result}"
+        )
+
+
+class TestValidateBasePerMetachar:
+    """MUT3: one rejection test per metachar in _SHELL_METACHARS (any→all kill)."""
+
+    @pytest.mark.parametrize("char,label", [
+        ('"',  "double-quote"),
+        ('$',  "dollar"),
+        ('`',  "backtick"),
+        (';',  "semicolon"),
+        ('\n', "newline"),
+        ('|',  "pipe"),
+        ('&',  "ampersand"),
+        ('<',  "less-than"),
+        ('>',  "greater-than"),
+        ('(',  "open-paren"),
+        (')',  "close-paren"),
+    ])
+    def test_single_metachar_rejected(self, char, label):
+        """Each metachar in isolation must trigger ValueError."""
+        import harness_paths
+        importlib.reload(harness_paths)
+        bad = Path(f"/tmp/test{char}bad")
+        with pytest.raises(ValueError, match="metachar"):
+            harness_paths._validate_base(bad)
+
+    def test_path_with_space_passes(self):
+        """Space is NOT a shell metachar for Path objects — must pass validation."""
+        import harness_paths
+        importlib.reload(harness_paths)
+        p = Path("/tmp/path with space")
+        result = harness_paths._validate_base(p)
+        assert result == p
+
+    def test_pipe_in_env_raises(self):
+        """T3.5-M5: CLAUDE_PLUGIN_DATA containing pipe must raise (MUT3 pipe kill)."""
+        with patch.dict(os.environ, {"CLAUDE_PLUGIN_DATA": "/tmp/test|bad"}, clear=False):
+            import harness_paths
+            importlib.reload(harness_paths)
+            with pytest.raises(ValueError, match="metachar"):
+                harness_paths.harness_data()
+
+    def test_home_with_space_cold_start(self, tmp_path):
+        """HOME containing a space: cold-start fallback must not raise."""
+        spaced = tmp_path / "home with space"
+        spaced.mkdir()
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("CLAUDE_PLUGIN_DATA", "CLAUDE_CONFIG_DIR", "HOME")}
+        env["HOME"] = str(spaced)
+        with patch.dict(os.environ, env, clear=True):
+            import harness_paths
+            importlib.reload(harness_paths)
+            # Path.home() reads HOME; cold-start returns HOME/.claude which contains space
+            result = harness_paths.harness_data()
+            assert result == spaced / ".claude"
+
+
 class TestInjectionScanFailClosed:
     """SEC-H2: injection-scan.sh exits 1 when HARNESS_DATA is empty.
 

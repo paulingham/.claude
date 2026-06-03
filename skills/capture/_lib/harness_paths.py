@@ -11,7 +11,7 @@ Three-tier resolution (matches hooks/_lib/harness-paths.sh:13-14):
 import os
 from pathlib import Path
 
-_SHELL_METACHARS = frozenset('"$`; \t\n|&<>()')
+_SHELL_METACHARS = frozenset('"$`;\n|&<>()')
 
 
 def _validate_base(p: Path) -> Path:
