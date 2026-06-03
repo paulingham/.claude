@@ -23,6 +23,11 @@ source "$_SETUP_DIR/scripts/_lib/dippy-gate.sh" || {
   exit 1
 }
 # shellcheck disable=SC1091
+source "$_SETUP_DIR/scripts/_lib/rtk-gate.sh" || {
+  printf 'FATAL: cannot source %s/scripts/_lib/rtk-gate.sh\n' "$_SETUP_DIR" >&2
+  exit 1
+}
+# shellcheck disable=SC1091
 source "$_SETUP_DIR/scripts/_lib/install-rust.sh" || {
   printf 'FATAL: cannot source %s/scripts/_lib/install-rust.sh\n' "$_SETUP_DIR" >&2
   exit 1
@@ -225,6 +230,25 @@ else
       record_failed "hcom (tried official installer and npm)"
     fi
   fi
+fi
+
+# -- rtk (route tracking and safety analysis CLI) --
+# CLAUDE_REQUIRE_RTK=1 forces install; =0 forces skip; unset: install if brew available.
+echo ""
+echo "  rtk (route tracking CLI)..."
+if should_install_rtk; then
+  if command_exists rtk; then
+    record_skipped "rtk"
+  else
+    if brew install rtk 2>/dev/null; then
+      record_installed "rtk"
+    else
+      record_failed "rtk (brew install rtk)"
+    fi
+  fi
+else
+  print_warning "rtk: skipped — $(rtk_skip_reason)"
+  SKIPPED+=("rtk (gated)")
 fi
 
 # -------------------------------------------------------------------
