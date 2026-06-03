@@ -26,17 +26,21 @@ source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/qu
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/quality-gate-pairing.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/jsonl-emit.sh"
 
-# Log-only advisory: empty CLAUDE_PIPELINE_TASK_ID corrupts cross-pipeline
-# state via the pipeline-state/unknown/ fallback at line 37 below. Emit a
-# would-block event + actionable stderr; promote to exit 2 after 14d soak
+# Log-only advisory: empty CLAUDE_PIPELINE_TASK_ID causes quality-gate EVENT
+# and SNAPSHOT writes to land in pipeline-state/unknown/ (see TASK_ID fallback
+# below), which corrupts cross-pipeline state when concurrent pipelines share
+# the same HARNESS_DATA. (Freshness reads are unaffected: _qg_check_freshness
+# uses a worktree glob and does not require this var.) Emit a would-block event
+# + actionable stderr; promote to exit 2 after 14d soak
 # (see plan: fix-freshness-gate-fallback-corruption slice A).
 if [[ -z "${CLAUDE_PIPELINE_TASK_ID:-}" ]]; then
   ADV_EVENTS=$(_qg_events_path)
   mkdir -p "$(dirname "$ADV_EVENTS")"
   _jsonl_emit "$ADV_EVENTS" source would-block-task-id task_id ""
   cat >&2 <<'ADVISORY'
-ADVISORY: quality-gate freshness check requires CLAUDE_PIPELINE_TASK_ID to be set.
-Empty value triggers cross-pipeline state corruption via pipeline-state/unknown/.
+ADVISORY: CLAUDE_PIPELINE_TASK_ID is unset. Quality-gate event and snapshot
+writes will land in pipeline-state/unknown/, which can corrupt cross-pipeline
+state when concurrent pipelines share the same HARNESS_DATA directory.
 
 Fix options:
   1. Set CLAUDE_PIPELINE_TASK_ID=<task-id> in your shell, OR
@@ -50,11 +54,14 @@ fi
 
 RT=$(_qg_detect_runtime)
 ANY_FAILED=0
-for check in tests lint audit shape contract freshness; do
+for check in tests lint audit shape contract; do
   _qg_check_${check} "$RT"
   rc=$?
   [[ $rc -ne 0 ]] && ANY_FAILED=1
 done
+_qg_check_freshness "$COMMAND"
+rc=$?
+[[ $rc -ne 0 ]] && ANY_FAILED=1
 
 TASK_ID="${CLAUDE_PIPELINE_TASK_ID:-unknown}"
 EVENTS=$(_qg_events_path)

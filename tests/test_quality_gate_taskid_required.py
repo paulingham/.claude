@@ -47,7 +47,9 @@ def _cleanup(session):
 
 def _run_hook(command, env_overrides=None):
     payload = {"tool_name": "Bash", "tool_input": {"command": command}}
-    env = {**os.environ, **(env_overrides or {})}
+    # Ensure CLAUDE_PLUGIN_ROOT points at the repo root so the hook can source
+    # _lib/log.sh and hook-profile.sh regardless of installed-plugin state.
+    env = {**os.environ, "CLAUDE_PLUGIN_ROOT": str(REPO_ROOT), **(env_overrides or {})}
     return subprocess.run(
         ["bash", str(HOOK)],
         input=json.dumps(payload),
@@ -89,14 +91,15 @@ class EmptyTaskIdEmitsAdvisory(unittest.TestCase):
     def test_empty_task_id_pr_create_emits_advisory(self):
         session = f"test-a1-{uuid.uuid4().hex[:8]}"
         try:
-            # Force the freshness check and other checks to short-circuit by
-            # running from /tmp where there is no project context. The advisory
-            # branch fires BEFORE the check loop, so this is fine.
+            # The advisory fires BEFORE the check loop; disable the freshness
+            # check to prevent the gate from exiting 2 on missing evidence
+            # (that failure is unrelated to the advisory-emission AC).
             r = _run_hook(
                 "gh pr create --title x --body y",
                 env_overrides={
                     "CLAUDE_PIPELINE_TASK_ID": "",
                     "CLAUDE_SESSION_ID": session,
+                    "CLAUDE_DISABLE_FRESHNESS_QG": "1",
                 },
             )
             # Log-only initial — must not block.
@@ -139,6 +142,7 @@ class AdvisoryMessageIsActionable(unittest.TestCase):
                 env_overrides={
                     "CLAUDE_PIPELINE_TASK_ID": "",
                     "CLAUDE_SESSION_ID": session,
+                    "CLAUDE_DISABLE_FRESHNESS_QG": "1",
                 },
             )
             for literal in self.REQUIRED_LITERALS:

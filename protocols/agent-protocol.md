@@ -104,9 +104,9 @@ Every git mutation that would move HEAD runs against a *worktree path*, expresse
 
 - `git checkout <branch>` / `git checkout -b <branch>`
 - `git switch <branch>` / `git switch -c <branch>`
-- `git branch -d <name>` / `git branch -D <name>`
+- `git branch -d <name>` / `git branch -D <name>` where `<name>` is a protected branch (`main`/`master`), the currently checked-out branch, or run from outside a git repo (fail-closed)
 - `git reset --hard ...`
-- `git merge <ref>`
+- `git merge <ref>` (including bare `git merge --ff-only` with no explicit target)
 - `git rebase <upstream>`
 - `git pull <remote> <non-main-branch>` (explicit non-main branch)
 - `git fetch <remote> <src>:<local-dst>` (refspec writing a local ref, e.g. `main:main`, `pull/123/head:pr-123`)
@@ -124,7 +124,7 @@ Every git mutation that would move HEAD runs against a *worktree path*, expresse
 
 ### Always allowed (any cwd, any form)
 
-Read-only ops (`git status|log|diff|show|rev-parse|describe|blame`), `git fetch <remote>` without refspec, `git fetch --all`, refspecs that write only `refs/remotes/...`, `git worktree {add,list,remove,prune}`, `git push <remote> <branch>` to non-main destinations, `git add|commit|tag|notes`, `git pull`, `git pull origin`, `git pull origin main`, `git pull [flags] origin main` (updating main is safe — fast-forward only, never moves HEAD to a different branch).
+Read-only ops (`git status|log|diff|show|rev-parse|describe|blame`), `git fetch <remote>` without refspec, `git fetch --all`, refspecs that write only `refs/remotes/...`, `git worktree {add,list,remove,prune}`, `git push <remote> <branch>` to non-main destinations, `git add|commit|tag|notes`, `git pull`, `git pull origin`, `git pull origin main`, `git pull [flags] origin main` (updating main is safe — fast-forward only, never moves HEAD to a different branch), `git branch -d|-D <non-current-non-protected-branch>` (deleting a branch that is not currently checked out and is not `main`/`master` does not move HEAD; fails-closed outside a git repo), `git merge --ff-only <main-equivalent>` where the explicit target is one of `origin/main`, `main`, `upstream/main`, `origin`, or `upstream` (bare `git merge --ff-only` with no target is forbidden — it merges FETCH_HEAD, which could be any previously-fetched ref).
 
 ### How agents must operate
 

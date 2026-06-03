@@ -61,8 +61,18 @@ _assert_allowed() {
 @test "T5  forbidden: git checkout -b foo"                           { _assert_forbidden 'git checkout -b foo'; }
 @test "T6  forbidden: git switch foo"                                { _assert_forbidden 'git switch foo'; }
 @test "T7  forbidden: git switch -c foo"                             { _assert_forbidden 'git switch -c foo'; }
-@test "T8  forbidden: git branch -d foo"                             { _assert_forbidden 'git branch -d foo'; }
-@test "T9  forbidden: git branch -D foo"                             { _assert_forbidden 'git branch -D foo'; }
+@test "T8  forbidden: git branch -d main (deleting checked-out branch)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( cd "$TMP_REPO" && _assert_forbidden 'git branch -d main' )
+}
+@test "T9  forbidden: git branch -D main (force-deleting checked-out branch)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( cd "$TMP_REPO" && _assert_forbidden 'git branch -D main' )
+}
 @test "T10 forbidden: git reset --hard HEAD"                         { _assert_forbidden 'git reset --hard HEAD'; }
 @test "T11 forbidden: git merge feature/x"                           { _assert_forbidden 'git merge feature/x'; }
 @test "T12 forbidden: git rebase main"                               { _assert_forbidden 'git rebase main'; }
@@ -176,3 +186,76 @@ _assert_allowed() {
 @test "T77 allowed: git pull --rebase origin main"                       { _assert_allowed 'git pull --rebase origin main'; }
 @test "T78 allowed: git pull origin"                                     { _assert_allowed 'git pull origin'; }
 @test "T79 forbidden: git pull origin feature-branch"                    { _assert_forbidden 'git pull origin feature-branch'; }
+
+# ---------------------------------------------------------------------------
+# Slice 3 — branch-delete and merge --ff-only carve-outs (T80–T89)
+# ---------------------------------------------------------------------------
+
+@test "T80 allowed: git branch -d old-feature from repo-root on main (bare-cwd leg, no CLAUDE_WORKTREE_PATH)" {
+  # Production scenario: orchestrator cleanup runs git branch -D merged-branch from repo root.
+  # CLAUDE_WORKTREE_PATH is NOT set; bare git rev-parse resolves from cwd.
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( cd "$TMP_REPO" && git branch old-feature )
+  ( cd "$TMP_REPO" && unset CLAUDE_WORKTREE_PATH && _assert_allowed 'git branch -d old-feature' )
+}
+
+@test "T81 allowed: git branch -D old-feature force-delete from repo-root on main (bare-cwd leg)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( cd "$TMP_REPO" && git branch old-feature )
+  ( cd "$TMP_REPO" && unset CLAUDE_WORKTREE_PATH && _assert_allowed 'git branch -D old-feature' )
+}
+
+@test "T81b allowed: git branch -d old-feature via CLAUDE_WORKTREE_PATH (agent-dispatch leg)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( cd "$TMP_REPO" && git branch old-feature )
+  ( CLAUDE_WORKTREE_PATH="$TMP_REPO" _assert_allowed 'git branch -d old-feature' )
+}
+
+@test "T82 forbidden: git branch -d from non-git dir (fail-closed — bare git rev-parse yields empty)" {
+  local NON_GIT_DIR; NON_GIT_DIR="$(mktemp -d)"
+  ( cd "$NON_GIT_DIR" && unset CLAUDE_WORKTREE_PATH && _assert_forbidden 'git branch -d old-feature' )
+  rm -rf "$NON_GIT_DIR"
+}
+
+@test "T83 forbidden: git branch -d main when current branch is main (via CLAUDE_WORKTREE_PATH)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( CLAUDE_WORKTREE_PATH="$TMP_REPO" _assert_forbidden 'git branch -d main' )
+}
+
+@test "T83b forbidden: git branch -d main from repo-root on main (bare-cwd leg)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( cd "$TMP_REPO" && unset CLAUDE_WORKTREE_PATH && _assert_forbidden 'git branch -d main' )
+}
+
+@test "T83c forbidden: git branch -D main from feature-branch worktree (protected-by-name)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( cd "$TMP_REPO" && git checkout -q -b feature/x )
+  ( CLAUDE_WORKTREE_PATH="$TMP_REPO" _assert_forbidden 'git branch -D main' )
+}
+
+@test "T83d forbidden: git branch -d main feature (multi-name, main is protected)" {
+  ( cd "$TMP_REPO" && git init -q -b main )
+  ( cd "$TMP_REPO" && git config user.email t@t && git config user.name t )
+  ( cd "$TMP_REPO" && git commit -q --allow-empty -m init )
+  ( cd "$TMP_REPO" && git branch feature )
+  ( cd "$TMP_REPO" && unset CLAUDE_WORKTREE_PATH && _assert_forbidden 'git branch -d main feature' )
+}
+
+@test "T84 allowed: git merge --ff-only origin/main"                     { _assert_allowed 'git merge --ff-only origin/main'; }
+@test "T85 allowed: git merge --ff-only main"                            { _assert_allowed 'git merge --ff-only main'; }
+@test "T86 allowed: git merge --ff-only upstream/main"                   { _assert_allowed 'git merge --ff-only upstream/main'; }
+@test "T87 forbidden: git merge --ff-only (bare, no target — merges FETCH_HEAD)" { _assert_forbidden 'git merge --ff-only'; }
+@test "T88 forbidden: git merge --ff-only feature/x (non-main target)"   { _assert_forbidden 'git merge --ff-only feature/x'; }
+@test "T89 allowed: git merge --ff-only origin"                          { _assert_allowed 'git merge --ff-only origin'; }
