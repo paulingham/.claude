@@ -256,6 +256,9 @@ Invoked only when a forcing function from `protocols/module-boundaries-protocol.
 | `subagent-validation.sh` | Reminds orchestrator to validate worktree changes on agent stop | Advisory |
 | `depth-guard.sh` | Resource Bounds: refuses subagent spawn beyond max recursion depth (3) | Hard block |
 | `runtime-guard.sh` | Resource Bounds: shutdown directive when subagent (1800s) / teammate (3600s) wall-clock exceeded | Hard block |
+| `rtk` | External Homebrew binary on Bash PreToolUse (settings.json:812); intercepts tool calls for safety analysis. If absent, Claude Code proceeds without rtk interception — no hard failure | External |
+| `reflect-gate-acknowledgment.sh` | Orchestrator-invoked Reflect gate (protocols/reflection-protocol.md:137); enforces Iron Law 6 acknowledgment before pipeline close | Orchestrator-invoked |
+| `reflect-token-emit.sh` | Orchestrator-invoked deviation token writer (protocols/reflection-protocol.md:139); emits structured deviation record at Reflect phase | Orchestrator-invoked |
 
 See `protocols/agent-protocol.md > Resource Bounds` for caps, env overrides,
 violation log schemas, and the Path-B disclosure on shutdown semantics.
