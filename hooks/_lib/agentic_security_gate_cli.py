@@ -7,23 +7,58 @@ import json
 import os
 import subprocess
 import sys
+import time
+from pathlib import Path
 
 from agentic_security_gate import gate_decision
 
 
 def _changed_files():
-    files = set()
-    for cmd in (
-        ["git", "diff", "--name-only", "main...HEAD"],
-        ["git", "diff", "--name-only", "HEAD"],
-    ):
+    """Return files changed vs main...HEAD; fall back to HEAD if no main ref."""
+    primary = ["git", "diff", "--name-only", "main...HEAD"]
+    fallback = ["git", "diff", "--name-only", "HEAD"]
+    for cmd in (primary, fallback):
         try:
             out = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
         except Exception:
             continue
         if out.returncode == 0:
-            files.update(line for line in out.stdout.splitlines() if line.strip())
-    return sorted(files)
+            return sorted(line for line in out.stdout.splitlines() if line.strip())
+    return []
+
+
+def _metrics_dir() -> Path:
+    base = os.environ.get("CLAUDE_METRICS_DIR")
+    if base:
+        return Path(base)
+    config = (
+        os.environ.get("HARNESS_DATA")
+        or os.environ.get("CLAUDE_CONFIG_DIR")
+        or str(Path.home() / ".claude")
+    )
+    return Path(config) / "metrics"
+
+
+def _session_id() -> str:
+    return os.environ.get("CLAUDE_SESSION_ID", "unknown-session")
+
+
+def _write_bypass_ledger(surfaces: list) -> None:
+    """Write one JSONL record to agentic-gate-bypass.jsonl; never raises."""
+    out = _metrics_dir() / _session_id() / "agentic-gate-bypass.jsonl"
+    record = {
+        "ts": int(time.time()),
+        "session_id": _session_id(),
+        "action": "bypass",
+        "env_var": "CLAUDE_DISABLE_AGENTIC_GATE",
+        "surfaces": surfaces,
+    }
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with out.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record) + "\n")
+    except OSError as exc:
+        sys.stderr.write(f"agentic-security-gate: bypass ledger write failed: {exc}\n")
 
 
 def main():
@@ -38,6 +73,8 @@ def main():
     decision = gate_decision(
         _changed_files(), prompt, subagent_type=subagent_type, disabled=disabled
     )
+    if decision["action"] == "bypass":
+        _write_bypass_ledger(decision["surfaces"])
     print(decision["action"])
     print(decision["reason"])
 

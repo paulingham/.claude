@@ -9,20 +9,28 @@ trigger unit-testable without a subprocess.
 """
 from __future__ import annotations
 
+import posixpath
+
 # The three agentic-control surfaces. A diff touching any of these requires the
 # Agentic OWASP Top 10 checklist during security review.
 AGENTIC_SURFACE_PREFIXES = ("learning/", "agent-memory/", "hooks/")
 
 # Substring the spawn prompt must carry to prove the reviewer was directed to
 # apply the agentic checklist. Matched case-insensitively.
-_AGENTIC_PROMPT_MARKER = "agentic"
+_AGENTIC_PROMPT_MARKER = "agentic owasp"
 
 # Only this agent role is governed by the gate.
 _GATED_AGENT = "security-engineer"
 
 
 def _normalize(path):
-    return path.strip().lstrip("./") if path else ""
+    if not path:
+        return ""
+    stripped = path.strip()
+    if not stripped:
+        return ""
+    normed = posixpath.normpath(stripped)
+    return "" if normed == "." else normed
 
 
 def touches_agentic_surface(changed_files):
@@ -68,7 +76,7 @@ def gate_decision(changed_files, prompt, *, subagent_type=_GATED_AGENT, disabled
         "action": "block",
         "surfaces": surfaces,
         "reason": (
-            "changeset touches agentic surface(s) [%s] but the spawn prompt lacks "
-            "the Agentic OWASP Top 10 directive" % ", ".join(surfaces)
+            f"changeset touches agentic surface(s) [{', '.join(surfaces)}] but the spawn prompt lacks "
+            "the Agentic OWASP Top 10 directive"
         ),
     }

@@ -78,8 +78,8 @@ def test_surface_prefixes_constant_is_the_three_documented_roots():
     "prompt",
     [
         "Apply the Agentic OWASP Top 10 checklist.",
-        "Review for AGENTIC threats including memory poisoning.",
-        "...check for goal hijacking and tool misuse (agentic surface)...",
+        "Run the AGENTIC OWASP review including memory poisoning.",
+        "Goal hijacking + tool misuse — see Agentic OWASP § agent control plane.",
     ],
 )
 def test_prompt_with_agentic_directive_satisfies(prompt):
@@ -92,6 +92,8 @@ def test_prompt_with_agentic_directive_satisfies(prompt):
         "Standard OWASP Top 10 review of the diff.",
         "",
         "Look for SQL injection and XSS.",
+        # Key regression: mentions the filename but NOT the phrase "agentic owasp"
+        "Review hooks/agentic-security-gate.sh for issues.",
     ],
 )
 def test_prompt_without_agentic_directive_fails(prompt):
@@ -123,6 +125,15 @@ def test_decision_allows_when_surface_touched_and_prompt_has_directive():
     assert d["surfaces"] == ["hooks"]
 
 
+def test_decision_blocks_when_prompt_has_filename_but_not_phrase():
+    d = gate_decision(
+        ["hooks/x.sh"],
+        "Review hooks/agentic-security-gate.sh for issues.",
+        subagent_type="security-engineer",
+    )
+    assert d["action"] == "block"
+
+
 def test_decision_ignores_non_security_engineer_agents():
     d = gate_decision(
         ["hooks/x.sh"], "Standard review", subagent_type="software-engineer"
@@ -139,3 +150,16 @@ def test_decision_bypass_flag_forces_allow_even_when_would_block():
     )
     assert d["action"] == "bypass"
     assert d["surfaces"] == ["hooks"]
+
+
+# Finding 7 — _normalize path traversal tests
+def test_normalize_collapses_dotdot_traversal():
+    assert touches_agentic_surface(["src/../hooks/x.sh"]) == ["hooks"]
+
+
+def test_normalize_external_dotdot_does_not_trigger():
+    assert touches_agentic_surface(["../hooks/x.sh"]) == []
+
+
+def test_normalize_leading_dot_slash_still_works():
+    assert touches_agentic_surface(["./hooks/x.sh"]) == ["hooks"]

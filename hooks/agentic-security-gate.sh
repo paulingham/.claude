@@ -14,16 +14,24 @@ HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${HOOK_DIR}/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Agent"
-trap 'log_hook_event $?' EXIT
+SUBAGENT_TYPE=""
+trap 'log_hook_event $? "$SUBAGENT_TYPE"' EXIT
 
 # shellcheck source=/dev/null
-source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "standard" || exit 0
+source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "minimal" || exit 0
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
 [[ "$TOOL_NAME" == "Agent" ]] || exit 0
 
-DECISION=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/agentic_security_gate_cli.py" 2>/dev/null) || exit 0
+SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // empty' 2>/dev/null)
+[[ "$SUBAGENT_TYPE" == "security-engineer" ]] || exit 0
+
+DECISION=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/agentic_security_gate_cli.py")
+if [[ $? -ne 0 ]]; then
+  echo "agentic-security-gate decision engine failed; failing closed. Set CLAUDE_DISABLE_AGENTIC_GATE=1 to override." >&2
+  exit 2
+fi
 ACTION=$(printf '%s\n' "$DECISION" | sed -n '1p')
 REASON=$(printf '%s\n' "$DECISION" | sed -n '2p')
 
