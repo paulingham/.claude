@@ -19,6 +19,16 @@ setup() {
   unset CLAUDE_REQUIRE_RTK
 }
 
+# Create a minimal brew stub in $TMP_DIR/bin — reused by tests that need
+# brew-present simulation.  brew lives in neither /usr/bin nor /bin on macOS
+# (Homebrew default: /opt/homebrew/bin or /usr/local/bin) or Linuxbrew
+# (/home/linuxbrew/.linuxbrew/bin), so /usr/bin:/bin is a safe isolation floor.
+_make_brew_stub() {
+  mkdir -p "$TMP_DIR/bin"
+  printf '#!/bin/sh\necho "Homebrew 4.0"\n' > "$TMP_DIR/bin/brew"
+  chmod +x "$TMP_DIR/bin/brew"
+}
+
 teardown() {
   rm -rf "$TMP_DIR"
   # Restore prior env exactly.
@@ -32,41 +42,35 @@ teardown() {
 # ---------- should_install_rtk (brew-presence gate) ----------
 
 @test "should_install_rtk: brew present + env unset -> install (rc 0)" {
-  mkdir -p "$TMP_DIR/bin"
-  printf '#!/bin/sh\necho "Homebrew 4.0"\n' > "$TMP_DIR/bin/brew"
-  chmod +x "$TMP_DIR/bin/brew"
-  run bash -c "unset CLAUDE_REQUIRE_RTK; export PATH='$TMP_DIR/bin'; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
+  _make_brew_stub
+  run bash -c "unset CLAUDE_REQUIRE_RTK; export PATH='$TMP_DIR/bin:/usr/bin:/bin'; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
   [ "$status" -eq 0 ]
 }
 
 @test "should_install_rtk: brew absent + env unset -> skip (rc 1)" {
-  run bash -c "unset CLAUDE_REQUIRE_RTK; export PATH=/nowhere; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
+  run bash -c "unset CLAUDE_REQUIRE_RTK; export PATH=/nowhere:/usr/bin:/bin; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
   [ "$status" -eq 1 ]
 }
 
 @test "should_install_rtk: CLAUDE_REQUIRE_RTK=1 + brew absent -> install (rc 0)" {
-  run bash -c "export CLAUDE_REQUIRE_RTK=1; export PATH=/nowhere; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
+  run bash -c "export CLAUDE_REQUIRE_RTK=1; export PATH=/nowhere:/usr/bin:/bin; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
   [ "$status" -eq 0 ]
 }
 
 @test "should_install_rtk: CLAUDE_REQUIRE_RTK=0 + brew present -> skip (rc 1)" {
-  mkdir -p "$TMP_DIR/bin"
-  printf '#!/bin/sh\necho "Homebrew 4.0"\n' > "$TMP_DIR/bin/brew"
-  chmod +x "$TMP_DIR/bin/brew"
-  run bash -c "export CLAUDE_REQUIRE_RTK=0; export PATH='$TMP_DIR/bin'; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
+  _make_brew_stub
+  run bash -c "export CLAUDE_REQUIRE_RTK=0; export PATH='$TMP_DIR/bin:/usr/bin:/bin'; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
   [ "$status" -eq 1 ]
 }
 
 @test "should_install_rtk: CLAUDE_REQUIRE_RTK=0 + brew absent -> skip (rc 1)" {
-  run bash -c "export CLAUDE_REQUIRE_RTK=0; export PATH=/nowhere; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
+  run bash -c "export CLAUDE_REQUIRE_RTK=0; export PATH=/nowhere:/usr/bin:/bin; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
   [ "$status" -eq 1 ]
 }
 
 @test "should_install_rtk: CLAUDE_REQUIRE_RTK=1 + brew present -> install (rc 0)" {
-  mkdir -p "$TMP_DIR/bin"
-  printf '#!/bin/sh\necho "Homebrew 4.0"\n' > "$TMP_DIR/bin/brew"
-  chmod +x "$TMP_DIR/bin/brew"
-  run bash -c "export CLAUDE_REQUIRE_RTK=1; export PATH='$TMP_DIR/bin'; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
+  _make_brew_stub
+  run bash -c "export CLAUDE_REQUIRE_RTK=1; export PATH='$TMP_DIR/bin:/usr/bin:/bin'; source '$LIB_DIR/rtk-gate.sh'; should_install_rtk"
   [ "$status" -eq 0 ]
 }
 
@@ -79,7 +83,7 @@ teardown() {
 }
 
 @test "rtk_skip_reason: brew absent + env unset cites brew" {
-  run bash -c "unset CLAUDE_REQUIRE_RTK; export PATH=/nowhere; source '$LIB_DIR/rtk-gate.sh'; rtk_skip_reason"
+  run bash -c "unset CLAUDE_REQUIRE_RTK; export PATH=/nowhere:/usr/bin:/bin; source '$LIB_DIR/rtk-gate.sh'; rtk_skip_reason"
   [ "$status" -eq 0 ]
   [[ "$output" == *"brew"* ]]
 }
@@ -89,9 +93,13 @@ teardown() {
 _run_rtk_gate_branch() {
   # Simulate the setup.sh gate branch without calling real brew install.
   # $1 = bin directory to prepend to PATH (for brew presence simulation).
+  # /usr/bin:/bin retained so standard utilities remain available; brew lives
+  # in neither path on macOS (/opt/homebrew or /usr/local) or Linuxbrew
+  # (/home/linuxbrew/.linuxbrew/bin) — verified: ls /usr/bin/brew /bin/brew
+  # both return "No such file".
   local brew_bin="${1:-/nowhere}"
   bash -c "
-    export PATH='${brew_bin}'
+    export PATH='${brew_bin}:/usr/bin:/bin'
     source '$LIB_DIR/rtk-gate.sh'
     if should_install_rtk; then
       echo 'INSTALL: rtk'
@@ -102,10 +110,7 @@ _run_rtk_gate_branch() {
 }
 
 @test "gate branch: brew present + env unset -> INSTALL emit" {
-  mkdir -p "$TMP_DIR/bin"
-  printf '#!/bin/sh\necho "Homebrew 4.0"\n' > "$TMP_DIR/bin/brew"
-  chmod +x "$TMP_DIR/bin/brew"
-  unset CLAUDE_REQUIRE_RTK
+  _make_brew_stub
   run _run_rtk_gate_branch "$TMP_DIR/bin"
   [ "$status" -eq 0 ]
   [[ "$output" == *"INSTALL: rtk"* ]]
@@ -119,11 +124,21 @@ _run_rtk_gate_branch() {
 }
 
 @test "gate branch: CLAUDE_REQUIRE_RTK=1 + brew absent -> INSTALL emit" {
-  export CLAUDE_REQUIRE_RTK=1
-  run _run_rtk_gate_branch /nowhere
+  # Keep CLAUDE_REQUIRE_RTK scoped inside the subshell command string,
+  # matching the pattern used by every other test in this file.
+  LIB_DIR_CAPTURE="$LIB_DIR"
+  run bash -c "
+    export CLAUDE_REQUIRE_RTK=1
+    export PATH='/nowhere:/usr/bin:/bin'
+    source '${LIB_DIR_CAPTURE}/rtk-gate.sh'
+    if should_install_rtk; then
+      echo 'INSTALL: rtk'
+    else
+      echo \"INFO: skipping rtk (\$(rtk_skip_reason))\"
+    fi
+  "
   [ "$status" -eq 0 ]
   [[ "$output" == *"INSTALL: rtk"* ]]
-  unset CLAUDE_REQUIRE_RTK
 }
 
 # ---------- setup.sh fail-fast integration (AC4) ----------
@@ -146,10 +161,12 @@ _run_rtk_gate_branch() {
 
 # ---------- README row (AC3) ----------
 
-@test "README rtk row references setup.sh on base branch (grep)" {
-  # The rtk row exists on refactor/ws-e-dead-hooks-audit (this branch's base).
-  # Verify the row is present in the working tree's README.
+@test "README rtk row references setup.sh and CLAUDE_REQUIRE_RTK (grep)" {
+  # The rtk row in this branch's README must reference BOTH setup.sh (install
+  # mechanism) and CLAUDE_REQUIRE_RTK (opt-out env var) — not merely "rtk"
+  # which was already present on the base branch before this feature landed.
   run grep -i "rtk" "$REPO_ROOT/README.md"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"rtk"* ]]
+  [[ "$output" == *"setup.sh"* ]]
+  [[ "$output" == *"CLAUDE_REQUIRE_RTK"* ]]
 }

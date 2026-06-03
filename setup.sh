@@ -234,6 +234,7 @@ fi
 
 # -- rtk (route tracking and safety analysis CLI) --
 # CLAUDE_REQUIRE_RTK=1 forces install; =0 forces skip; unset: install if brew available.
+# CLAUDE_REQUIRE_RTK=0 to skip — rtk intercepts every Bash call (PreToolUse); opt out to audit the binary before install.
 echo ""
 echo "  rtk (route tracking CLI)..."
 if should_install_rtk; then
