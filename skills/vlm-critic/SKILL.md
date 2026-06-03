@@ -149,6 +149,16 @@ JSONL violation logs at `metrics/$SESSION/vlm-critic-violations.jsonl` provide f
 
 See `protocols/verdict-catalog.md` for the agent-emitted footnote.
 
+## No-Diff Control Invariant
+
+An identical baseline/current PNG pair produces `pixel_diff_ratio == 0.0`. The vlm-critic **MUST** assess such a pair as `vlm_verdict PASS`, contributing to the aggregate `VISUAL_DIFF_PASS` verdict.
+
+**Failure semantics:** If vlm-critic emits `VISUAL_DIFF_FAIL` on a no-diff control pair (pixel_diff_ratio == 0.0), this is a **hallucinated regression** and is a **vlm-critic defect**, not a product defect. The product has not changed; the agent has incorrectly assessed an identical pair as different.
+
+**Opt-in live guard:** Set `CLAUDE_VLM_LIVE_CONTROL=1` to run `tests/integration/test_vlm_critic_live_control.py`, which dispatches the vlm-critic procedure via `claude -p` headless against a staged identical PNG pair and asserts `VISUAL_DIFF_PASS` in stdout. This test is skipped by default in CI (billable model call).
+
+**Tier 1 doc-contract test:** `tests/test_vlm_critic.py::NoDiffControlInvariant` pins this invariant by asserting the presence of the key terms in this SKILL.md section.
+
 ## Phase Output
 
 ```

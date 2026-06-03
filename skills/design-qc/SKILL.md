@@ -416,6 +416,12 @@ section is normal for projects that haven't tuned thresholds yet. Malformed YAML
 in the section is treated as failure-mode-6: scratchpad warning with literal
 token `claude-md-vr-yaml-error` and fallback to default 0.02 globally.
 
+## vlm-critic Integration — No-Diff Control
+
+The vlm-critic teammate (see `skills/vlm-critic/SKILL.md § No-Diff Control Invariant`) enforces a hallucination guard: an identical baseline/current pair MUST produce `vlm_verdict PASS` for every route. A `VISUAL_DIFF_FAIL` on a no-diff pair is a vlm-critic defect, not a product defect.
+
+The Tier 1 doc-contract test `tests/test_vlm_critic.py::NoDiffControlInvariant` pins this invariant.
+
 ## Failure Modes
 
 | Step | Failure | Verdict | Message |
