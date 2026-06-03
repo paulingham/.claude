@@ -68,6 +68,7 @@ fi
 live_refs=$(grep -r "probe-modified-tool-input" "$REPO_ROOT" \
     --exclude-dir=".git" \
     --include="*.sh" --include="*.py" --include="*.md" --include="*.json" \
+    --include="*.yml" --include="*.yaml" --include="*.txt" \
     2>/dev/null \
     | grep -v "protocols/_proposals/" \
     | grep -v "learning/instincts/" \
@@ -85,7 +86,7 @@ fi
 echo "-- AC2: hook registration invariant --"
 
 # stub: hook count is positive before invariant runs
-hook_count=$(ls "$REPO_ROOT/hooks/"*.sh 2>/dev/null | wc -l | tr -d ' ')
+hook_count=$(find "$REPO_ROOT/hooks" -maxdepth 1 -name "*.sh" | wc -l | tr -d ' ')
 if [[ "$hook_count" -gt 0 ]]; then
     pass "hook count is positive before invariant runs ($hook_count hooks)"
 else
@@ -100,7 +101,7 @@ check_hooks_invariant() {
     local hooks_json="$REPO_ROOT/hooks/hooks.json"
 
     local registered_scripts
-    registered_scripts=$(python3 -c "
+    registered_scripts=$(python3 - "$settings_json" "$hooks_json" <<'PYEOF'
 import json, re, sys
 
 def extract_basenames(path):
@@ -108,7 +109,8 @@ def extract_basenames(path):
         with open(path) as f:
             content = f.read()
         d = json.loads(content)
-    except Exception as e:
+    except Exception:
+        print(f"WARN: cannot parse {path}", file=sys.stderr)
         return set()
     basenames = set()
     def walk(obj):
@@ -125,11 +127,18 @@ def extract_basenames(path):
     walk(d)
     return basenames
 
-s1 = extract_basenames('$settings_json')
-s2 = extract_basenames('$hooks_json')
+s1 = extract_basenames(sys.argv[1])
+s2 = extract_basenames(sys.argv[2])
 all_names = s1 | s2
 print('\n'.join(sorted(all_names)))
-" 2>/dev/null)
+PYEOF
+)
+
+    # Guard: if both sources yielded zero basenames, the read is broken
+    if [[ -z "$registered_scripts" ]]; then
+        echo "ERROR: extract_basenames returned empty set for both $settings_json and $hooks_json — broken read" >&2
+        return 1
+    fi
 
     local unregistered=()
     while IFS= read -r hook_path; do
@@ -148,12 +157,12 @@ print('\n'.join(sorted(all_names)))
 
         # Tier 1: skip SOURCED_LIBS
         local is_sourced=0
-        for lib in $SOURCED_LIBS_LIST; do
+        while IFS= read -r lib; do
             if [[ "$base" == "$lib" ]]; then
                 is_sourced=1
                 break
             fi
-        done
+        done < <(printf '%s\n' $SOURCED_LIBS_LIST)
         if [[ "$is_sourced" -eq 1 ]]; then
             continue
         fi
@@ -216,18 +225,22 @@ if [[ "$citation_ok" -eq 1 ]]; then
 fi
 
 # stub: canary unregistered hook triggers failure
-canary_dir=$(mktemp -d 2>/dev/null || mktemp -d -t "canary")
-trap 'rm -rf "$canary_dir"' EXIT
-cp "$REPO_ROOT/hooks/session-start-bootstrap.sh" "$canary_dir/canary-unregistered-hook.sh" 2>/dev/null || \
-    printf '#!/usr/bin/env bash\necho canary\n' > "$canary_dir/canary-unregistered-hook.sh"
-chmod +x "$canary_dir/canary-unregistered-hook.sh"
-
-canary_output=$(check_hooks_invariant "$canary_dir" 2>&1)
-canary_exit=$?
-if [[ "$canary_exit" -ne 0 ]] && echo "$canary_output" | grep -q "canary-unregistered-hook.sh"; then
-    pass "canary unregistered hook triggers failure"
+canary_dir=$(mktemp -d 2>/dev/null || mktemp -d -t "canary" 2>/dev/null)
+if [[ -z "$canary_dir" ]]; then
+    fail "canary unregistered hook triggers failure (mktemp failed)"
 else
-    fail "canary unregistered hook triggers failure (exit=$canary_exit output=$canary_output)"
+    trap 'rm -rf "$canary_dir"' EXIT
+    cp "$REPO_ROOT/hooks/session-start-bootstrap.sh" "$canary_dir/canary-unregistered-hook.sh" 2>/dev/null || \
+        printf '#!/usr/bin/env bash\necho canary\n' > "$canary_dir/canary-unregistered-hook.sh"
+    chmod +x "$canary_dir/canary-unregistered-hook.sh"
+
+    canary_output=$(check_hooks_invariant "$canary_dir" 2>&1)
+    canary_exit=$?
+    if [[ "$canary_exit" -ne 0 ]] && echo "$canary_output" | grep -q "canary-unregistered-hook.sh"; then
+        pass "canary unregistered hook triggers failure"
+    else
+        fail "canary unregistered hook triggers failure (exit=$canary_exit output=$canary_output)"
+    fi
 fi
 
 # ---------------------------------------------------------------------------
