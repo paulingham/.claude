@@ -73,13 +73,37 @@ _qg_extract_intake_tier() {
 
 _qg_check_freshness() {
   [[ "${CLAUDE_DISABLE_FRESHNESS_QG:-0}" == "1" ]] && return 0
-  local task="${CLAUDE_PIPELINE_TASK_ID:-unknown}" path head worktree verdict intake tier
-  intake=$(_qg_resolve_intake_path "$task"); tier=$(_qg_extract_intake_tier "$intake")
+  local command="${1:-}" wt="" head verdict path intake tier task
+  task="${CLAUDE_PIPELINE_TASK_ID:-}"
+  # Extract worktree path from COMMAND cd-prefix (two-pass: quoted then unquoted).
+  if [[ -n "$command" ]]; then
+    wt=$(printf '%s' "$command" | sed -E 's/^\(?[[:space:]]*cd[[:space:]]+"([^"]+)"[[:space:]]*&&.*/\1/')
+    if [[ -z "$wt" || ! -d "$wt" ]]; then
+      wt=$(printf '%s' "$command" | sed -E 's/^\(?[[:space:]]*cd[[:space:]]+([^[:space:]"]+)[[:space:]]*&&.*/\1/')
+    fi
+    [[ -d "$wt" ]] || wt=""
+  fi
+  # Tier short-circuit (T0/T1 docs-only).
+  intake=$(_qg_resolve_intake_path "${task:-unknown}"); tier=$(_qg_extract_intake_tier "$intake")
   [[ "$tier" == "T0" || "$tier" == "T1" ]] && { echo "[freshness] PASS (tier=$tier; docs-only, /verify not applicable)" >&2; return 0; }
-  path="pipeline-state/$task/verification-evidence.json"
+  # Locate evidence: task-id hint if set + present, else glob newest.
+  local base="${wt:-.}"
+  path=""
+  if [[ -n "$task" && -f "${base}/pipeline-state/${task}/verification-evidence.json" ]]; then
+    path="${base}/pipeline-state/${task}/verification-evidence.json"
+  else
+    path=$(ls -t "${base}"/pipeline-state/*/verification-evidence.json 2>/dev/null | head -1)
+  fi
   [[ -f "$path" ]] || { echo "[freshness] no verification-evidence; run /verify" >&2; return 1; }
-  head=$(jq -r '.git_head' "$path" 2>/dev/null); verdict=$(jq -r '.verdict' "$path" 2>/dev/null); worktree=$(git rev-parse HEAD 2>/dev/null)
-  [[ "$head" != "$worktree" ]] && { echo "[freshness] state=$head worktree=$worktree; HEAD moved since /verify" >&2; return 1; }
+  head=$(jq -r '.git_head' "$path" 2>/dev/null); verdict=$(jq -r '.verdict' "$path" 2>/dev/null)
+  # Resolve worktree HEAD: git -C <wt> if we have a worktree, else cwd.
+  local wt_head
+  if [[ -n "$wt" ]]; then
+    wt_head=$(git -C "$wt" rev-parse HEAD 2>/dev/null)
+  else
+    wt_head=$(git rev-parse HEAD 2>/dev/null)
+  fi
+  [[ "$head" != "$wt_head" ]] && { echo "[freshness] state=$head worktree=$wt_head; HEAD moved since /verify" >&2; return 1; }
   [[ "$verdict" =~ ^VERIFIED ]] || { echo "[freshness] verdict=$verdict; re-verify" >&2; return 1; }
   echo "[freshness] PASS" >&2; return 0
 }

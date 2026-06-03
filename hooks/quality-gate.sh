@@ -50,11 +50,14 @@ fi
 
 RT=$(_qg_detect_runtime)
 ANY_FAILED=0
-for check in tests lint audit shape contract freshness; do
+for check in tests lint audit shape contract; do
   _qg_check_${check} "$RT"
   rc=$?
   [[ $rc -ne 0 ]] && ANY_FAILED=1
 done
+_qg_check_freshness "$COMMAND"
+rc=$?
+[[ $rc -ne 0 ]] && ANY_FAILED=1
 
 TASK_ID="${CLAUDE_PIPELINE_TASK_ID:-unknown}"
 EVENTS=$(_qg_events_path)
