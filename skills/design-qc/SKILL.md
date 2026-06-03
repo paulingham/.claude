@@ -290,6 +290,44 @@ A11y capture unavailable: mcp-unavailable.
 
 **Iron law for this step**: capture failure does NOT change the design-qc verdict. SCREENSHOTS_CAPTURED still emits. The verdict surface for design-qc is unchanged from Slice 1; capture state is communicated via the index file alone.
 
+### Step 6.26: In-Process axe Scan (Additive `a11y_axe` Key)
+
+While the dev server is still running and the Playwright page is in-process (immediately after Step 6.25), run axe-core against each captured route. This step adds an `a11y_axe` key to each route entry in `index.json`. It is purely additive — design-qc's verdict surface is unchanged (SCREENSHOTS_CAPTURED still emits regardless of axe results).
+
+**Why in-process**: the dev server is already guaranteed up for design-qc's screenshot capture. Reusing the same Playwright session avoids a second server lifecycle and gives the pipeline an axe result without extra setup cost.
+
+**Per-route `a11y_axe` key** added alongside existing `a11y` and `visual_regression` in `index.json`:
+
+```json
+{
+  "a11y_axe": {
+    "captured": true,
+    "violations": 2,
+    "gating_violations": 2,
+    "incomplete": 1,
+    "scan_url": "http://localhost:3000/dashboard"
+  }
+}
+```
+
+When scan fails: `{"captured": false, "reason": "browser-launch-failed"}`.
+
+**Invocation**: call `run_main(['--url', routeUrl], { axeRunFn })` from `hooks/_lib/axe_runner.js`, passing the Playwright page's `axe.run` as `axeRunFn`. Parse the return value for gating_violations count.
+
+**Iron law for this step**: axe scan failure does NOT change the design-qc verdict. SCREENSHOTS_CAPTURED still emits. The `a11y_axe` key records the failure state; the pipeline accessibility gate is the responsibility of the separate `/harness:accessibility-check` skill at Final Gate.
+
+**SKIP warning** (when axe scan unavailable) — written to scratchpad:
+
+```
+---
+category: warning
+---
+
+axe-scan-failed: browser-launch-failed. Route(s) not scanned by axe.
+```
+
+The literal token `axe-scan-failed` is used for scratchpad consumers (patch-critic). Only `category: warning` is used here — no new verdict categories are introduced.
+
 ### Step 6.5: Automated Design Evaluation
 
 While the browser is still open, evaluate each captured page programmatically:

@@ -35,7 +35,7 @@ _qg_check_audit_node() { [[ -f package-lock.json ]] || return 0; npm audit --aud
 _qg_check_audit_python() { [[ -f requirements.txt ]] || return 0; command -v pip-audit &>/dev/null || return 0; pip-audit &>/dev/null && { echo "[qg] audit: PASS" >&2; return 0; }; echo "[qg] audit: FAIL" >&2; return 1; }
 
 _qg_check_shape() {
-  local changed; changed=$(git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -E '\.(ts|tsx|js|jsx)$' | grep -vE '\.(test|spec)\.' | grep -vE '\.(config|babel|jest|eslint|prettier|tailwind)\.' || true)
+  local changed; changed=$(git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -E '\.(ts|tsx|js|jsx)$' | grep -vE '\.(test|spec)\.' | grep -vE '\.(config|babel|jest|eslint|prettier|tailwind)\.' | grep -vE '^tests/' || true)
   [[ -z "$changed" ]] && { echo "[qg] shape: PASS (no JS/TS files)" >&2; return 0; }
   local fail=0
   while IFS= read -r f; do [[ -f "$f" ]] || continue; [[ $(wc -l < "$f") -le 50 ]] || { echo "[qg] shape: FAIL ($f too long)" >&2; fail=1; }; done <<< "$changed"
