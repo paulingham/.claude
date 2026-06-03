@@ -48,6 +48,33 @@ _mbd_is_safe_pull() {
   done
   [[ -z "$b" || "$b" = "origin" || "$b" = "upstream" || "$b" = "main" ]]
 }
+# Safe when --ff-only and last non-flag target matches main/origin/upstream equivalents or is empty.
+_mbd_is_safe_merge() {
+  [[ "$1" =~ git[[:space:]]+merge[[:space:]]+--ff-only([[:space:]]|$) ]] || return 1
+  local seen=0 b="" t
+  for t in $1; do
+    [[ "$t" = "--ff-only" ]] && seen=1 && continue
+    [[ "$seen" = 1 && ! "$t" =~ ^- ]] && b="$t"
+  done
+  [[ -z "$b" ]] && return 0
+  [[ "$b" =~ ^(origin/main|main|upstream/main|origin|upstream)$ ]]
+}
+# Safe when deleting a branch that is not the currently checked-out branch.
+# Requires CLAUDE_WORKTREE_PATH; fail-closed otherwise (no bare fallback).
+_mbd_is_safe_branch_delete() {
+  [[ "$1" =~ git[[:space:]]+branch[[:space:]]+-[dD]([[:space:]]|$) ]] || return 1
+  local seen=0 b="" t
+  for t in $1; do
+    if [[ "$seen" = 1 && ! "$t" =~ ^- ]]; then b="$t"; fi
+    [[ "$t" =~ ^-[dD]$ ]] && seen=1
+  done
+  [[ -z "$b" ]] && return 1
+  [[ -z "$CLAUDE_WORKTREE_PATH" ]] && return 1
+  local current
+  current=$(git -C "$CLAUDE_WORKTREE_PATH" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  [[ -z "$current" ]] && return 1
+  [[ "$b" != "$current" ]]
+}
 is_forbidden_clause() {
   local clause="$1" norm
   [[ "$clause" =~ $(_mbd_wrapper_re) ]] && return 0
@@ -55,6 +82,8 @@ is_forbidden_clause() {
   [[ "$norm" =~ $(_mbd_forbidden_re) ]] || return 1
   _mbd_is_safe_fetch "$norm" && return 1
   _mbd_is_safe_pull "$norm" && return 1
+  _mbd_is_safe_merge "$norm" && return 1
+  _mbd_is_safe_branch_delete "$norm" && return 1
   return 0
 }
 _mbd_any_clause_forbidden() {
