@@ -1,0 +1,61 @@
+# repo-file-sync.yml
+#
+# Purpose: Sync canonical harness files from Adviser-Group/.claude (the source of truth)
+#          to every repo in the Adviser-Group org. When the source repo is updated, this
+#          workflow pushes the files to all enrolled target repos automatically.
+#
+# Destination (when promoted): Adviser-Group/org-defaults
+# Source: Adviser-Group/.claude (harness repo)
+#
+# Required secrets:
+#   ORG_SYNC_TOKEN - GitHub PAT with repo write access to target repos
+#                    (create via https://github.com/settings/tokens/new)
+#
+# Usage: Add repos to the 'repos' list below and commit. On push to main,
+#        the files listed under 'files' will be synced to each target repo.
+
+name: Repository File Sync
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/sync.yml"
+      - "managed-settings.json"
+      - "settings.json"
+      - ".github/workflows/repo-file-sync.yml"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run — show changes without applying"
+        required: false
+        default: "false"
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync files to org repos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Sync canonical files to target repos
+        # Replace with your preferred file-sync action, e.g. BetaHuhn/repo-file-sync-action
+        # or a custom script that iterates over repos and creates PRs / direct commits.
+        run: |
+          echo "Sync step: configure your preferred sync mechanism here."
+          echo "Example: use BetaHuhn/repo-file-sync-action@v1 with a sync.yml config."
+          echo "Dry run: ${{ github.event.inputs.dry_run || 'false' }}"
+          # Typical pattern:
+          #   - Read .github/sync.yml for file → repo mapping
+          #   - For each repo, open a PR (or commit directly) with the updated files
+          #   - Use ORG_SYNC_TOKEN for authentication
+        env:
+          GH_TOKEN: ${{ secrets.ORG_SYNC_TOKEN }}

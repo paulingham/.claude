@@ -99,6 +99,11 @@ db/*.sqlite-shm
 !.claude-plugin/
 !.claude-plugin/**
 
+# Org-defaults distribution scaffold — tracks canonical templates for promotion to
+# Adviser-Group/org-defaults. See templates/org-defaults/README.md.
+!templates/
+!templates/**
+
 # Worktree-scoped scratch tools — see skills/tool-synthesis/. Per-worktree only;
 # never merged. The skill also adds this entry to target repos' .gitignore.
 .claude-scratch-tools/

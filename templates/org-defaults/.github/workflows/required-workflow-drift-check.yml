@@ -1,0 +1,103 @@
+# required-workflow-drift-check.yml
+#
+# Purpose: Detect drift between the canonical org-default workflows committed in each repo
+#          and the current versions in Adviser-Group/org-defaults (the source of truth).
+#
+# Trigger: Daily schedule + manual dispatch
+#
+# Destination (when promoted): Adviser-Group/org-defaults — run as a required org workflow
+#          via GitHub org ruleset so every repo in the org runs this drift check.
+#
+# When promoted, this workflow should be listed in the org's required-workflows ruleset.
+# See: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets
+#
+# Required secrets (org-level):
+#   ORG_SYNC_TOKEN - GitHub PAT with repo read access across the org
+
+name: Required-workflow drift check
+
+on:
+  schedule:
+    # Daily at 06:00 UTC
+    - cron: "0 6 * * *"
+
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/required-workflow-drift-check.yml"
+      - ".github/workflows/repo-file-sync.yml"
+
+  workflow_dispatch:
+    inputs:
+      report_only:
+        description: "Report-only mode (do not open issues)"
+        required: false
+        default: "true"
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift-check:
+    name: Check workflow drift against org-defaults
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout calling repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout org-defaults source of truth
+        uses: actions/checkout@v4
+        with:
+          repository: Adviser-Group/org-defaults
+          path: org-defaults-source
+          token: ${{ secrets.ORG_SYNC_TOKEN }}
+          fetch-depth: 1
+
+      - name: Compare workflows against org-defaults
+        id: drift
+        run: |
+          DRIFTED=0
+          REPORT=""
+          for wf in repo-file-sync.yml required-workflow-drift-check.yml; do
+            LOCAL=".github/workflows/${wf}"
+            CANONICAL="org-defaults-source/.github/workflows/${wf}"
+            if [[ ! -f "$CANONICAL" ]]; then
+              echo "WARNING: ${wf} not found in org-defaults source — skipping."
+              continue
+            fi
+            if ! diff -q "$LOCAL" "$CANONICAL" >/dev/null 2>&1; then
+              DRIFTED=1
+              REPORT="${REPORT}\n- \`${wf}\` differs from org-defaults canonical version"
+            fi
+          done
+          echo "drifted=${DRIFTED}" >> "$GITHUB_OUTPUT"
+          echo -e "drift_report=${REPORT}" >> "$GITHUB_OUTPUT"
+
+      - name: Open drift issue if drift detected
+        if: steps.drift.outputs.drifted == '1' && github.event.inputs.report_only != 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.ORG_SYNC_TOKEN }}
+          script: |
+            const report = `${{ steps.drift.outputs.drift_report }}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Org-workflow drift detected',
+              body: `## Org-defaults workflow drift\n\nThe following workflows have drifted from the org-defaults source of truth:\n${report}\n\nRun the repo-file-sync workflow or manually update from [Adviser-Group/org-defaults](https://github.com/Adviser-Group/org-defaults).`,
+              labels: ['infra', 'drift']
+            });
+
+      - name: Report drift result
+        run: |
+          if [[ "${{ steps.drift.outputs.drifted }}" == "1" ]]; then
+            echo "DRIFT DETECTED — see drift_report output or opened issue."
+            exit 1
+          else
+            echo "No drift detected — all workflows match org-defaults."
+          fi

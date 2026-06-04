@@ -1,0 +1,84 @@
+# repository-created.yml
+#
+# Purpose: Auto-commit canonical harness files (settings.json, managed-settings.json,
+#          required workflow stubs) to newly created repos in the Adviser-Group org.
+#
+# Trigger: repository.created org event (via GitHub org webhook → Actions runner)
+#
+# Destination (when promoted): Adviser-Group/org-defaults
+#
+# This handler fires on the organisation-level `repository.created` webhook event.
+# It clones the new repo, commits the canonical org-defaults files, and opens a PR
+# (or commits directly to main, depending on your branch-protection rules).
+#
+# Required secrets:
+#   ORG_SYNC_TOKEN - GitHub PAT with repo write + pull-request:write access
+#
+# Configuration:
+#   - Adjust FILES_TO_COMMIT to select which canonical files to include.
+#   - Adjust COMMIT_MESSAGE and PR_TITLE to match your org conventions.
+
+name: Repository Created — Auto-commit org defaults
+
+on:
+  repository_dispatch:
+    types:
+      - repository_created
+
+  # Allow manual trigger for testing against a specific repo
+  workflow_dispatch:
+    inputs:
+      target_repo:
+        description: "Target repo (owner/name) to seed with org defaults"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  seed-new-repo:
+    name: Seed org defaults into new repo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout org-defaults source
+        uses: actions/checkout@v4
+        with:
+          path: org-defaults
+          fetch-depth: 1
+
+      - name: Determine target repo
+        id: target
+        run: |
+          if [[ -n "${{ github.event.inputs.target_repo }}" ]]; then
+            echo "repo=${{ github.event.inputs.target_repo }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "repo=${{ github.event.client_payload.repository.full_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Clone target repo and commit org defaults
+        env:
+          GH_TOKEN: ${{ secrets.ORG_SYNC_TOKEN }}
+          TARGET_REPO: ${{ steps.target.outputs.repo }}
+        run: |
+          git config --global user.name "Adviser Harness Bot"
+          git config --global user.email "bot@adviser-group"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git" target
+          cd target
+
+          # Copy canonical files from org-defaults source
+          # Adjust this list to match your org policy
+          cp ../org-defaults/.claude/settings.json .claude/settings.json 2>/dev/null || true
+          mkdir -p .github/workflows
+          cp ../org-defaults/.github/workflows/repo-file-sync.yml .github/workflows/ 2>/dev/null || true
+          cp ../org-defaults/.github/workflows/required-workflow-drift-check.yml .github/workflows/ 2>/dev/null || true
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit — repo already has org defaults."
+          else
+            git commit -m "chore: seed org defaults from Adviser-Group/org-defaults"
+            git push origin HEAD
+            echo "Committed org defaults to ${TARGET_REPO}"
+          fi
