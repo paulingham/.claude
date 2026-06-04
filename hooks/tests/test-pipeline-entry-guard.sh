@@ -57,7 +57,7 @@ PEG_TMP=$(mktemp -d)
 PEG_SESSION="peg-test-$$"
 
 run_peg() {
-  # $1 = role (subagent_type), $2 = additional env vars (NAME=VAL NAME2=VAL2)
+  # $1 = role (subagent_type)
   local role="$1"
   (
     # Hermetic: no active pipeline, no task ID

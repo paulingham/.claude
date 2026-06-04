@@ -103,10 +103,10 @@ fi
 
 # ---------------------------------------------------------------------------
 # Gap 3: WORKTREE_PATH-unset heuristic
-# When CLAUDE_WORKTREE_PATH is not set, the early-exit at line ~52 has already
-# fired for the normal path. If we reach here, WORKTREE_PATH is set.
-# This heuristic handles the inverse: if WORKTREE_PATH IS unset but there are
-# active linked worktrees, emit a reduced-confidence advisory.
+# When CLAUDE_WORKTREE_PATH is not set, the early-exit at line ~101 has not
+# fired (that exit is gated on WORKTREE_PATH being set). If we reach here with
+# WORKTREE_PATH unset, this heuristic handles that case: if active linked
+# worktrees exist, emit a reduced-confidence advisory.
 # The standard path (WORKTREE_PATH set) uses _mtg_is_root_cwd; the heuristic
 # path (WORKTREE_PATH unset + active worktrees) is a secondary signal.
 # ---------------------------------------------------------------------------
