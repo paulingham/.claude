@@ -117,6 +117,40 @@ echo "-- Bash: mkdir pipeline-state inside worktree --"
 run_rsg_bash "mkdir -p pipeline-state/my-task" "$RSG_WT"
 run_test "mkdir pipeline-state inside worktree -> allow (exit 0)" 0 $?
 
+# -- SECURITY: CLAUDE_WORKTREE_PATH set but CWD = repo root -> MUST block -----
+# Finding 1: _rsg_is_worktree() must NOT allow based on env var alone.
+# A worktree-session agent running mkdir pipeline-state/... AT ROOT bypasses
+# the guard when CLAUDE_WORKTREE_PATH merely *matches* the worktree pattern.
+echo "-- SECURITY: CLAUDE_WORKTREE_PATH set but CWD = repo root -> must block --"
+
+(
+  cd "$RSG_MAIN" || exit 1
+  export CLAUDE_WORKTREE_PATH="$RSG_WT"
+  jq -nc --arg c "mkdir -p pipeline-state/incident-task" \
+    '{tool_name:"Bash",tool_input:{command:$c},hook_event_name:"PreToolUse"}' \
+    | bash "$HOOKS_DIR/runtime-state-guard.sh" > /dev/null 2>&1
+)
+run_test "SECURITY: CLAUDE_WORKTREE_PATH=worktree but CWD=root -> MUST block (exit 2)" 2 $?
+
+(
+  cd "$RSG_MAIN" || exit 1
+  export CLAUDE_WORKTREE_PATH="$RSG_WT"
+  jq -nc --arg p "${RSG_MAIN}/pipeline-state/x.json" \
+    '{tool_name:"Write",tool_input:{file_path:$p,content:"x"},hook_event_name:"PreToolUse"}' \
+    | bash "$HOOKS_DIR/runtime-state-guard.sh" > /dev/null 2>&1
+)
+run_test "SECURITY: Write with CLAUDE_WORKTREE_PATH set but CWD=root -> MUST block (exit 2)" 2 $?
+
+# CWD genuinely inside the worktree -> allowed (positive case)
+(
+  cd "$RSG_WT" || exit 1
+  export CLAUDE_WORKTREE_PATH="$RSG_WT"
+  jq -nc --arg c "mkdir -p pipeline-state/incident-task" \
+    '{tool_name:"Bash",tool_input:{command:$c},hook_event_name:"PreToolUse"}' \
+    | bash "$HOOKS_DIR/runtime-state-guard.sh" > /dev/null 2>&1
+)
+run_test "SECURITY: CWD genuinely inside worktree + CLAUDE_WORKTREE_PATH set -> allow (exit 0)" 0 $?
+
 # -- Write tool: file under pipeline-state at root -> block -------------------
 echo "-- Write: file under pipeline-state at root --"
 

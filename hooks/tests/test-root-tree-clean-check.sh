@@ -159,20 +159,15 @@ else
   fail "drift check: warning names the drifted file" "tracked.py present" "missing"
 fi
 
-# Forensics diff must be preserved under ~/.claude/forensics (uses real HOME or HARNESS_DATA)
-# The hook should write to $HARNESS_DATA/forensics/ (or $HOME/.claude/forensics/)
+# Forensics diff must be preserved under HARNESS_DATA/forensics/.
+# CLAUDE_PLUGIN_DATA is set to the sandbox RCC_DATA for all hook invocations in
+# this test, so HARNESS_DATA resolves to RCC_DATA — no real ~/.claude writes occur.
 FORENSICS_DIR="$RCC_DATA/forensics"
 FORENSICS_FILE_COUNT=$(find "$FORENSICS_DIR" -name "root-drift-*.diff" 2>/dev/null | wc -l | tr -d ' ')
 if [[ "$FORENSICS_FILE_COUNT" -gt 0 ]]; then
   pass "drift check: forensics diff preserved under HARNESS_DATA/forensics/"
 else
-  # Also check real ~/.claude/forensics in case hook uses HOME resolution
-  FORENSICS_FILE_COUNT2=$(find "$HOME/.claude/forensics" -name "root-drift-*.diff" 2>/dev/null | wc -l | tr -d ' ')
-  if [[ "$FORENSICS_FILE_COUNT2" -gt 0 ]]; then
-    pass "drift check: forensics diff preserved under ~/.claude/forensics/"
-  else
-    fail "drift check: forensics diff preserved" "root-drift-*.diff exists" "not found in $FORENSICS_DIR or ~/.claude/forensics/"
-  fi
+  fail "drift check: forensics diff preserved" "root-drift-*.diff in $FORENSICS_DIR" "not found"
 fi
 
 # Must NOT auto-revert (dirty file must still be dirty)
@@ -187,11 +182,9 @@ fi
 git -C "$RCC_REPO" checkout -- tracked.py 2>/dev/null
 
 # ---------------------------------------------------------------------------
-# Cleanup
+# Cleanup — all test artifacts are under RCC_TMP; no real ~/.claude writes.
 # ---------------------------------------------------------------------------
 rm -rf "$RCC_TMP"
-# Remove forensics test artifacts from real ~/.claude/forensics if created there
-find "$HOME/.claude/forensics" -name "root-drift-*" -newer /tmp -delete 2>/dev/null || true
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="

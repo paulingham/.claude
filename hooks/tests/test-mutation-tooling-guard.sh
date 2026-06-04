@@ -132,6 +132,99 @@ run_test "mutmut inside worktree -> allow (exit 0)" 0 $?
 run_mtg "sed -i 's/foo/bar/' src.py" "$MTG_WT" "$MTG_WT"
 run_test "sed -i inside worktree -> allow (exit 0)" 0 $?
 
+# -- Finding 2: CLAUDE_WORKTREE_PATH vs $PWD comparison causes /var symlink mismatch --
+# Line 65 used to compare "${CLAUDE_WORKTREE_PATH:-}" == "$PWD".
+# On macOS TMPDIR = /var/folders/... but $PWD shows /private/var/folders/...
+# So when CWD == worktree (both resolve the same) but one uses /var and the other
+# /private/var, the comparison fails and the guard incorrectly fires advisory.
+# Fix: canonicalize CLAUDE_WORKTREE_PATH before comparing against $canon_pwd.
+echo "-- Finding 2: CLAUDE_WORKTREE_PATH must be canonicalized before comparing to canon_pwd --"
+
+# Simulate the /var vs /private/var mismatch:
+# Set CLAUDE_WORKTREE_PATH to the symlink path; CWD to the canonical path.
+# The guard should recognize they are the same location -> exit 0 (not root CWD).
+# Before the fix line 65 compares raw CLAUDE_WORKTREE_PATH vs $PWD which may disagree.
+MTG_SYM="$MTG_TMP/sym-wt"
+ln -s "$MTG_WT" "$MTG_SYM" 2>/dev/null || true
+if [[ -L "$MTG_SYM" ]]; then
+  # CWD = real worktree path, CLAUDE_WORKTREE_PATH = symlink to same dir
+  F2_OUT=$(
+    cd "$MTG_WT" || exit 0
+    export CLAUDE_WORKTREE_PATH="$MTG_SYM"
+    jq -nc --arg c "mutmut run" \
+      '{tool_name:"Bash",tool_input:{command:$c},hook_event_name:"PreToolUse"}' \
+      | bash "$HOOKS_DIR/mutation-tooling-guard.sh" 2>&1
+  )
+  if echo "$F2_OUT" | grep -qi "advisory"; then
+    fail "Finding 2: CWD=real-worktree, CLAUDE_WORKTREE_PATH=symlink-to-same -> no advisory" "no advisory" "advisory fired"
+  else
+    pass "Finding 2: CWD=real-worktree, CLAUDE_WORKTREE_PATH=symlink-to-same -> no advisory"
+  fi
+
+  # Also: CWD = symlink path, CLAUDE_WORKTREE_PATH = real path -> no advisory
+  F2B_OUT=$(
+    cd "$MTG_SYM" || exit 0
+    export CLAUDE_WORKTREE_PATH="$MTG_WT"
+    jq -nc --arg c "mutmut run" \
+      '{tool_name:"Bash",tool_input:{command:$c},hook_event_name:"PreToolUse"}' \
+      | bash "$HOOKS_DIR/mutation-tooling-guard.sh" 2>&1
+  )
+  if echo "$F2B_OUT" | grep -qi "advisory"; then
+    fail "Finding 2: CWD=symlink-to-worktree, CLAUDE_WORKTREE_PATH=real -> no advisory" "no advisory" "advisory fired"
+  else
+    pass "Finding 2: CWD=symlink-to-worktree, CLAUDE_WORKTREE_PATH=real -> no advisory"
+  fi
+else
+  pass "Finding 2: symlink test skipped (ln -s not available)"
+  pass "Finding 2: symlink test skipped (ln -s not available)"
+fi
+
+# -- Finding 3: safe path exclusion for macOS TMPDIR (/var/folders/...) -------
+# sed -i on a file under /var/folders/ must NOT trigger advisory message.
+# (Advisory mode always exits 0; check ABSENCE of warning message.)
+echo "-- Finding 3: macOS TMPDIR /var/folders safe-path exclusion (no advisory) --"
+
+# Helper: run and capture stderr+stdout; check advisory message absent
+run_mtg_warn() {
+  local cmd="$1"
+  local cwd="$2"
+  local wt_path="${3:-}"
+  (
+    cd "$cwd" || return 1
+    if [[ -n "$wt_path" ]]; then
+      export CLAUDE_WORKTREE_PATH="$wt_path"
+    else
+      unset CLAUDE_WORKTREE_PATH 2>/dev/null || true
+    fi
+    jq -nc --arg c "$cmd" \
+      '{tool_name:"Bash",tool_input:{command:$c},hook_event_name:"PreToolUse"}' \
+      | bash "$HOOKS_DIR/mutation-tooling-guard.sh" 2>&1
+  )
+}
+
+F3_OUT=$(run_mtg_warn "sed -i 's/x/y/' /var/folders/abc/T/tmp123/scratch.py" "$MTG_MAIN" "$MTG_WT")
+if echo "$F3_OUT" | grep -qi "advisory"; then
+  fail "Finding 3: sed -i on /var/folders path -> NO advisory" "no advisory" "advisory fired"
+else
+  pass "Finding 3: sed -i on /var/folders path -> no advisory emitted"
+fi
+
+F3_PRIV_OUT=$(run_mtg_warn "sed -i 's/x/y/' /private/var/folders/xyz/T/tmp456/fix.py" "$MTG_MAIN" "$MTG_WT")
+if echo "$F3_PRIV_OUT" | grep -qi "advisory"; then
+  fail "Finding 3: sed -i on /private/var/folders path -> NO advisory" "no advisory" "advisory fired"
+else
+  pass "Finding 3: sed -i on /private/var/folders path -> no advisory emitted"
+fi
+
+# $TMPDIR-prefixed path (real macOS TMPDIR expansion)
+REAL_TMPDIR="${TMPDIR:-/tmp}"
+F3_TD_OUT=$(run_mtg_warn "sed -i 's/x/y/' ${REAL_TMPDIR}scratch.py" "$MTG_MAIN" "$MTG_WT")
+if echo "$F3_TD_OUT" | grep -qi "advisory"; then
+  fail "Finding 3: sed -i on \$TMPDIR-prefixed path -> NO advisory" "no advisory" "advisory fired"
+else
+  pass "Finding 3: sed -i on \$TMPDIR-prefixed path -> no advisory emitted"
+fi
+
 # -- Advisory: warning message mentions worktree path -------------------------
 echo "-- advisory: warn message mentions worktree path --"
 WARN_OUT=$(

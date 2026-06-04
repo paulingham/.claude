@@ -1095,6 +1095,48 @@ rm -f /tmp/bwg-test-out-$$.log
 
 echo ""
 
+# -- runtime-state-guard (delegated harness) ---------------------------------
+echo "-- runtime-state-guard.sh (via test-runtime-state-guard.sh) --"
+if bash "$HOOKS_DIR/tests/test-runtime-state-guard.sh" > /tmp/rsg-test-out-$$.log 2>&1; then
+  RSG_PASSES=$(grep -c "^  PASS: " /tmp/rsg-test-out-$$.log)
+  pass "runtime-state-guard: delegated harness ($RSG_PASSES sub-tests passed)"
+else
+  RSG_FAILS=$(grep -c "^  FAIL: " /tmp/rsg-test-out-$$.log)
+  fail "runtime-state-guard: delegated harness" "0 failures" "$RSG_FAILS failure(s) — see /tmp/rsg-test-out-$$.log"
+  cat /tmp/rsg-test-out-$$.log
+fi
+rm -f /tmp/rsg-test-out-$$.log
+
+echo ""
+
+# -- mutation-tooling-guard (delegated harness) ------------------------------
+echo "-- mutation-tooling-guard.sh (via test-mutation-tooling-guard.sh) --"
+if bash "$HOOKS_DIR/tests/test-mutation-tooling-guard.sh" > /tmp/mtg-test-out-$$.log 2>&1; then
+  MTG_PASSES=$(grep -c "^  PASS: " /tmp/mtg-test-out-$$.log)
+  pass "mutation-tooling-guard: delegated harness ($MTG_PASSES sub-tests passed)"
+else
+  MTG_FAILS=$(grep -c "^  FAIL: " /tmp/mtg-test-out-$$.log)
+  fail "mutation-tooling-guard: delegated harness" "0 failures" "$MTG_FAILS failure(s) — see /tmp/mtg-test-out-$$.log"
+  cat /tmp/mtg-test-out-$$.log
+fi
+rm -f /tmp/mtg-test-out-$$.log
+
+echo ""
+
+# -- root-tree-clean-check + root-snapshot-capture (delegated harness) -------
+echo "-- root-tree-clean-check.sh + root-snapshot-capture.sh (via test-root-tree-clean-check.sh) --"
+if bash "$HOOKS_DIR/tests/test-root-tree-clean-check.sh" > /tmp/rcc-test-out-$$.log 2>&1; then
+  RCC_PASSES=$(grep -c "^  PASS: " /tmp/rcc-test-out-$$.log)
+  pass "root-tree-clean-check: delegated harness ($RCC_PASSES sub-tests passed)"
+else
+  RCC_FAILS=$(grep -c "^  FAIL: " /tmp/rcc-test-out-$$.log)
+  fail "root-tree-clean-check: delegated harness" "0 failures" "$RCC_FAILS failure(s) — see /tmp/rcc-test-out-$$.log"
+  cat /tmp/rcc-test-out-$$.log
+fi
+rm -f /tmp/rcc-test-out-$$.log
+
+echo ""
+
 # -- Summary -----------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
 echo ""

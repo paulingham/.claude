@@ -62,7 +62,13 @@ _mtg_is_root_cwd() {
     [[ "$canon_top" == "$canon_pwd" ]] || return 1
     # Allow if CWD is itself a worktree
     [[ "$canon_pwd" == *"/.claude/worktrees/agent-"* ]] && return 1
-    [[ "${CLAUDE_WORKTREE_PATH:-}" == "$PWD" ]] && return 1
+    # Allow if the canonicalized CWD matches the canonicalized CLAUDE_WORKTREE_PATH.
+    # Comparing raw env var vs $PWD caused /var vs /private/var mismatches on macOS.
+    if [[ -n "${CLAUDE_WORKTREE_PATH:-}" ]]; then
+        local canon_wt
+        canon_wt=$(cd "${CLAUDE_WORKTREE_PATH}" 2>/dev/null && pwd -P) || true
+        [[ -n "$canon_wt" && "$canon_pwd" == "$canon_wt" ]] && return 1
+    fi
     return 0
 }
 
@@ -78,7 +84,7 @@ _mtg_is_mutmut() {
 }
 
 # sed -i / sed --in-place targeting source-extension files.
-# Safe paths (/tmp/, /var/, ~/.*, $TMPDIR) are excluded.
+# Safe paths (/tmp/, /var/folders/, /private/var/folders/, $TMPDIR-prefixed) are excluded.
 # Protected source extensions: .py .ts .js .sh .rb .go .rs .java .c .cpp .h .tsx .jsx .vue .svelte
 _mtg_is_sed_inplace_source() {
     local cmd="$1"
@@ -86,19 +92,24 @@ _mtg_is_sed_inplace_source() {
     [[ "$cmd" =~ sed[[:space:]]+(-i|--in-place) ]] || return 1
     # Must target a source-extension file
     [[ "$cmd" =~ \.(py|ts|js|sh|rb|go|rs|java|c|cpp|h|tsx|jsx|vue|svelte)([^a-zA-Z0-9]|$) ]] || return 1
-    # Exclude safe/non-repo paths
-    # If ALL occurrences of that pattern appear under /tmp or /var or ~/ we allow it.
-    # Simple heuristic: if the command contains /tmp/, /var/, or starts with ~ before
-    # the source file reference, allow it. Full exclusion: if no word chars match the
-    # extension pattern WITHOUT a safe-prefix, block.
-    # Practical: if the file argument contains an absolute safe prefix, allow.
-    if [[ "$cmd" =~ /tmp/[^[:space:]]*(\.py|\.ts|\.js|\.sh|\.rb|\.go|\.rs|\.java|\.c|\.cpp|\.h|\.tsx|\.jsx|\.vue|\.svelte) ]]; then
-        # Check if there is ALSO a non-safe target — if the command only has /tmp/ targets, allow
-        # Conservative: if any non-tmp target exists with source extension, flag
-        local stripped
-        stripped=$(printf '%s' "$cmd" | sed 's|/tmp/[^[:space:]]*||g')
-        [[ "$stripped" =~ \.(py|ts|js|sh|rb|go|rs|java|c|cpp|h|tsx|jsx|vue|svelte)([^a-zA-Z0-9]|$) ]] || return 1
+    # Exclude safe/non-repo paths.
+    # Patterns covered: /tmp/ (Linux), /var/folders/ and /private/var/folders/ (macOS
+    # TMPDIR = /var/folders/...; canonical form = /private/var/folders/...), and any
+    # path prefixed by $TMPDIR (handles both forms without hardcoding the expansion).
+    local src_ext='\.(py|ts|js|sh|rb|go|rs|java|c|cpp|h|tsx|jsx|vue|svelte)'
+    # Build list of safe prefixes to strip before checking for remaining source targets.
+    local stripped="$cmd"
+    stripped=$(printf '%s' "$stripped" | sed 's|/tmp/[^[:space:]]*||g')
+    stripped=$(printf '%s' "$stripped" | sed 's|/var/folders/[^[:space:]]*||g')
+    stripped=$(printf '%s' "$stripped" | sed 's|/private/var/folders/[^[:space:]]*||g')
+    # Strip $TMPDIR-prefixed paths if TMPDIR is set (handles runtime expansion).
+    if [[ -n "${TMPDIR:-}" ]]; then
+        local tmpdir_esc
+        tmpdir_esc=$(printf '%s' "${TMPDIR}" | sed 's|[]\[^$.*/\\+?{}()|]|\\&|g')
+        stripped=$(printf '%s' "$stripped" | sed "s|${tmpdir_esc}[^[:space:]]*||g")
     fi
+    # If no source-extension target remains after stripping safe paths, allow.
+    [[ "$stripped" =~ $src_ext([^a-zA-Z0-9]|$) ]] || return 1
     return 0
 }
 
@@ -154,9 +165,8 @@ cat >&2 <<EOF
 [mutation-tooling-guard] ADVISORY: mutation tooling detected at REPO_ROOT while a worktree session is active.
   Matched pattern : $_mtg_matched
   Command         : $COMMAND
-  Worktree path   : ${CLAUDE_WORKTREE_PATH:-}
+  Worktree path   : ${CLAUDE_WORKTREE_PATH:-<see CLAUDE_WORKTREE_PATH>}
   Action required : Run verification commands inside your worktree, not at REPO_ROOT.
-  Worktree        : ${CLAUDE_WORKTREE_PATH:-<see CLAUDE_WORKTREE_PATH>}
   (advisory mode — command NOT blocked; promote to enforcing once 10 sessions confirm zero false positives)
 EOF
 

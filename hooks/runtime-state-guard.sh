@@ -61,19 +61,39 @@ REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 REPO_ROOT=$(cd "$REPO_ROOT" 2>/dev/null && pwd -P) || exit 0
 
 # ---------------------------------------------------------------------------
-# Worktree check: if caller is inside a worktree, allow everything.
+# Worktree check: if the actual CWD is inside a worktree, allow everything.
 # Mirrors is_caller_in_worktree from bash-write-guard.sh.
+#
+# SECURITY: early-allow requires the *canonicalized CWD* to be inside the
+# worktree path — never on the env var value alone. A worktree-session agent
+# running at REPO_ROOT always has CLAUDE_WORKTREE_PATH set to a valid worktree
+# path, so an env-var-only check would bypass this enforcing guard entirely
+# (the exact 2026-06-03 incident pattern).
 # ---------------------------------------------------------------------------
 
 _rsg_is_worktree() {
-    [[ -n "${CLAUDE_WORKTREE_PATH:-}" && \
-       "$CLAUDE_WORKTREE_PATH" == *"/.claude/worktrees/agent-"* ]] && return 0
-    # REPO_ROOT is already canonicalized (via cd + pwd -P above)
-    [[ "$REPO_ROOT" == *"/.claude/worktrees/agent-"* ]] && return 0
-    # Also check PWD (canonicalized)
+    # Canonicalize the actual CWD first (resolve macOS /var -> /private/var).
     local canon_pwd
     canon_pwd=$(pwd -P 2>/dev/null) || return 1
+
+    # Fast path: CWD is already inside a worktree directory tree.
     [[ "$canon_pwd" == *"/.claude/worktrees/agent-"* ]] && return 0
+
+    # If REPO_ROOT itself is a worktree path the entire session is worktree-scoped.
+    # REPO_ROOT is already canonicalized (via cd + pwd -P above).
+    [[ "$REPO_ROOT" == *"/.claude/worktrees/agent-"* ]] && return 0
+
+    # If CLAUDE_WORKTREE_PATH is set, verify that the canon CWD is actually
+    # inside the canonicalized worktree path — not just that the env var looks
+    # like a worktree path. This prevents bypass when the var is set but the
+    # agent is operating at REPO_ROOT.
+    if [[ -n "${CLAUDE_WORKTREE_PATH:-}" && \
+          "${CLAUDE_WORKTREE_PATH}" == *"/.claude/worktrees/agent-"* ]]; then
+        local canon_wt
+        canon_wt=$(cd "${CLAUDE_WORKTREE_PATH}" 2>/dev/null && pwd -P) || return 1
+        [[ "$canon_pwd" == "$canon_wt" || "$canon_pwd" == "$canon_wt/"* ]] && return 0
+    fi
+
     return 1
 }
 
@@ -140,14 +160,18 @@ _rsg_mkdir_targets_pipeline_state() {
         return 0
     fi
     # Absolute path containing /pipeline-state/ — extract and verify under REPO_ROOT
-    # Scan words in the command that look like absolute paths with pipeline-state
+    # Scan words in the command that look like absolute paths with pipeline-state.
+    # set -f/+f disables glob expansion so $cmd words are not expanded by the shell.
     local word
-    # Use a simple split by spaces to find candidates
+    set -f
     for word in $cmd; do
         if [[ "$word" == *"/pipeline-state"* && "$word" == /* ]]; then
+            set +f
             _rsg_is_repo_pipeline_state_path "$word" && return 0
+            set -f
         fi
     done
+    set +f
     return 1
 }
 
