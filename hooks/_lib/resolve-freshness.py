@@ -114,10 +114,13 @@ def main():
     evidence, err = _load_evidence(path)
     if err == "missing":
         # Fallback: evidence may be at the main checkout root (Story B pattern).
-        common = subprocess.run(
-            ["git", "-C", worktree, "rev-parse", "--git-common-dir"],
-            capture_output=True, text=True, timeout=2)
-        if common.returncode == 0:
+        try:
+            common = subprocess.run(
+                ["git", "-C", worktree, "rev-parse", "--git-common-dir"],
+                capture_output=True, text=True, timeout=2)
+        except (subprocess.TimeoutExpired, OSError):
+            common = None
+        if common is not None and common.returncode == 0:
             root_dir = os.path.dirname(
                 os.path.abspath(os.path.join(worktree, common.stdout.strip())))
             if root_dir != worktree:

@@ -41,8 +41,7 @@ echo ""
 # We use git init + an empty commit so git rev-parse HEAD works correctly.
 # ---------------------------------------------------------------------------
 WT_DIR=$(mktemp -d)
-EVT_DIR=$(mktemp -d)
-trap 'rm -rf "$WT_DIR" "$EVT_DIR"' EXIT
+trap 'rm -rf "$WT_DIR"' EXIT
 
 # Real git repo so git -C "$WT_DIR" rev-parse HEAD returns a valid SHA
 git -C "$WT_DIR" init --quiet
@@ -162,7 +161,7 @@ echo ""
 FIXTURE_TMP=$(mktemp -d)
 ROOT_DIR="$FIXTURE_TMP/main-repo"
 WT_DIR2="$ROOT_DIR/.claude/worktrees/agent-testid"
-trap 'rm -rf "$WT_DIR" "$EVT_DIR" "$FIXTURE_TMP"' EXIT
+trap 'rm -rf "$WT_DIR" "$FIXTURE_TMP"' EXIT
 
 git init -q "$ROOT_DIR"
 git -C "$ROOT_DIR" -c user.email="t@t" -c user.name="T" commit --allow-empty -m "init" -q
@@ -256,6 +255,54 @@ if echo "$UNKNOWN_STDERR" | grep -q "matches no registered worktree HEAD"; then
   pass "unknown-sha-rejection: stderr contains 'matches no registered worktree HEAD'"
 else
   fail "unknown-sha-rejection: stderr message" "matches no registered worktree HEAD" "$UNKNOWN_STDERR"
+fi
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# AC-1c-iii: Worktree enumeration failure.
+# Simulate `git worktree list` failure by pointing GIT_DIR at a nonexistent
+# directory inside the sub-shell that runs _qg_check_freshness. The awk
+# pipeline produces no output, so matched_wt is empty and wt_list_output is
+# also empty — this triggers the new "could not enumerate worktrees" branch.
+# Evidence git_head=WT_HEAD2 (would match wt_head, but can't enumerate).
+# Expected: exit 1 + stderr contains "could not enumerate worktrees".
+# ---------------------------------------------------------------------------
+echo "-- (AC-1c-iii) worktree enumeration failure --"
+
+# Restore evidence with WT_HEAD2 so git_head != wt_head triggers the mismatch
+# path inside _qg_check_freshness (needed to reach the worktree-list branch).
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  "$ROOT_HEAD" > "$ROOT_DIR/pipeline-state/test-task/verification-evidence.json"
+
+ENUM_FAIL_STDERR=$(
+  (
+    export CLAUDE_DISABLE_FRESHNESS_QG=0
+    export CLAUDE_PIPELINE_TASK_ID="test-task"
+    # Override git to always fail for worktree list by wrapping via PATH
+    FAKE_GIT_DIR=$(mktemp -d)
+    cat > "$FAKE_GIT_DIR/git" <<'GITEOF'
+#!/usr/bin/env bash
+# Intercept "worktree list --porcelain" only; delegate everything else.
+if [[ "$*" == *"worktree list"* ]]; then
+  exit 1
+fi
+exec /usr/bin/git "$@"
+GITEOF
+    chmod +x "$FAKE_GIT_DIR/git"
+    source "$CHECKS_LIB"
+    PATH="$FAKE_GIT_DIR:$PATH" _qg_check_freshness "cd ${WT_DIR2} && some cmd" 2>&1 >/dev/null
+    RET=$?
+    rm -rf "$FAKE_GIT_DIR"
+    exit $RET
+  )
+)
+ENUM_FAIL_EXIT=$?
+run_exit_test "enumeration-failure: git worktree list fails → FAIL (exit 1)" 1 "$ENUM_FAIL_EXIT"
+if echo "$ENUM_FAIL_STDERR" | grep -q "could not enumerate worktrees"; then
+  pass "enumeration-failure: stderr contains 'could not enumerate worktrees'"
+else
+  fail "enumeration-failure: stderr message" "could not enumerate worktrees" "$ENUM_FAIL_STDERR"
 fi
 
 echo ""

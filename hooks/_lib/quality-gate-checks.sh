@@ -83,6 +83,7 @@ _qg_worktree_root() {
 
 # Find evidence path using 4-priority search (worktree-local first, root fallback).
 # Prints the path if found; returns 1 if nothing found.
+# Waiver: ≤8-line limit exceeded by 4 lines; plan-authorized for the 4-priority search.
 _qg_find_evidence_path() {
   local wt="$1" task="$2" root_dir p
   # Priority 1: exact task-id, worktree-local
@@ -155,11 +156,16 @@ _qg_check_freshness() {
   # Fail-closed: git worktree list failure → "matches no registered worktree HEAD" path.
   # If this fires incorrectly, check concurrent worktrees at same SHA; set CLAUDE_DISABLE_FRESHNESS_QG=1 to unblock
   if [[ "$head" != "$wt_head" ]]; then
-    local repo_root matched_wt
+    local repo_root wt_list_output matched_wt
     repo_root=$(_qg_worktree_root "$wt")
     repo_root="${repo_root:-$(git -C "$wt" rev-parse --show-toplevel 2>/dev/null)}"
-    matched_wt=$(git -C "${repo_root:-.}" worktree list --porcelain 2>/dev/null \
-      | awk -v sha="$head" '/^worktree /{wt=$2} /^HEAD /{if ($2==sha) print wt}' \
+    wt_list_output=$(git -C "${repo_root:-.}" worktree list --porcelain 2>/dev/null)
+    if [[ -z "$wt_list_output" ]]; then
+      echo "[freshness] state=$head worktree=$wt_head; could not enumerate worktrees; treating HEAD mismatch as stale — re-verify" >&2
+      return 1
+    fi
+    matched_wt=$(printf '%s\n' "$wt_list_output" \
+      | awk -v sha="$head" '/^worktree /{wt=substr($0,10)} /^HEAD /{if ($2==sha) print wt}' \
       | head -1)
     if [[ -n "$matched_wt" ]]; then
       echo "[freshness] state=$head worktree=$wt_head; evidence git_head=$head matches worktree $matched_wt HEAD (not $wt); possible evidence substitution — re-verify from correct worktree" >&2
