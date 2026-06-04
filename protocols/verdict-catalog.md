@@ -24,8 +24,8 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `RECON_COMPLETE` | info | `architect-context-recon` (agent) | plan | Architect reads concatenated `architect-context.md` before drafting |
 | `RECON_NULL` | info | `architect-context-recon` (agent) | plan | Architect proceeds with greenfield assumption; output file still written (anti-findings only) |
 | `PLAN_CACHE_MISS` | info | `plan-cache-lookup` | plan | Continue to Stage 1 recon dispatch — reason ∈ {`no-template`, `disabled`, `shadow-mode`} in Slice B; Slice C adds `adapter-rejected`, `adapter-pending-stale`, `template-corrupt`; Slice F adds `hash-drift`, `key-mismatch` |
-| `PLAN_CACHE_HIT` | info | `plan-cache-lookup` | plan | HIT path: Haiku adapter rewrote cached template; structural validator passed; skip Stage 1 (recon) and Stage 2 (architect) — Architect plan ready at `pipeline-state/{task-id}/plan.md` with `cache_hit: true` marker (Plan Validation challengers skip citation-alignment per `parallel-dispatch-details.md:134`) |
-| `GROUNDED` | success | `spec-grounding` | plan | All ACs grounded against codebase evidence; `pipeline-state/{task-id}/spec-grounding.md` written with inline citations; architect reads it at Pre-Drafting Recon |
+| `PLAN_CACHE_HIT` | info | `plan-cache-lookup` | plan | HIT path: Haiku adapter rewrote cached template; structural validator passed; skip Stage 1 (recon) and Stage 2 (architect) — Architect plan ready at `$state_dir/{task-id}/plan.md` with `cache_hit: true` marker (Plan Validation challengers skip citation-alignment per `parallel-dispatch-details.md:134`) |
+| `GROUNDED` | success | `spec-grounding` | plan | All ACs grounded against codebase evidence; `$state_dir/{task-id}/spec-grounding.md` written with inline citations; architect reads it at Pre-Drafting Recon |
 | `GROUNDING_GAPS` | info | `spec-grounding` | plan | One or more ACs have no codebase match or recall hit; gap ACs listed in `spec-grounding.md` § Gaps with `[grounded: gap]` markers; architect must supply evidence for gap ACs; pipeline continues (non-blocking) |
 | `SPIKE_COMPLETE` | info | `tech-spike` | utility | Findings feed back into planning |
 | `PLAN_APPROVED` | success | `plan-self-validation` | plan-validation | `/harness:build-implementation` |
@@ -152,7 +152,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `SERVICE_EXTRACTED` | success | `service-extraction` | utility | Module promoted to service |
 | `CROSS_SERVICE_VERIFIED` | success | `cross-service-pipeline` | utility | Multi-repo contract + deploy verified |
 | `CROSS_SERVICE_BLOCKED` | failure | `cross-service-pipeline` | utility | Halt; contract or coordination issue |
-| `WORKSTREAM_CREATED` | info | `workstream` | utility | New workstream isolated under `pipeline-state/workstreams/` |
+| `WORKSTREAM_CREATED` | info | `workstream` | utility | New workstream isolated under `$state_dir/workstreams/` |
 | `WORKSTREAM_LISTED` | info | `workstream` | utility | Active workstreams reported |
 | `WORKSTREAM_ARCHIVED` | info | `workstream` | utility | Workstream removed |
 | `REINDEXED` | info | `reindex-memory` | utility | FTS5 index rebuilt |

@@ -111,13 +111,13 @@ The helper `hooks/_lib/baseline_capture.sh` performs:
    never bare `git checkout`).
 2. Run the project's build command inside the baseline worktree.
 3. Capture screenshots through the same Playwright pump as Step 6, routed to
-   `pipeline-state/{task-id}/visual-baselines/{slug}-{viewport}.png`.
+   `$state_dir/{task-id}/visual-baselines/{slug}-{viewport}.png`.
 4. Tear down the baseline worktree (`git worktree remove --force`).
 
 **Failure-mode-1 (baseline build fails on main HEAD)**: ALL routes are treated as
 auto-bless (new-route path); scratchpad warning `category: warning` with literal
 token `baseline-build-failed` is appended to
-`pipeline-state/{task-id}/scratchpad/design-qc-build.md`; index.json
+`$state_dir/{task-id}/scratchpad/design-qc-build.md`; index.json
 `visual_regression.captured` is set to `false`. design-qc still emits
 `SCREENSHOTS_CAPTURED` — capture failure does NOT change the design-qc verdict.
 
@@ -214,7 +214,7 @@ errors. Sanity-check via Tier 2 integration test.
 After Step 6 screenshots, while the dev server is still running and Playwright is still in-process, capture an accessibility-tree snapshot per (route, viewport). The output is owned by `patch-critic` (machine-checkable rubric § 5). Product-reviewer continues to consume only the screenshots — see `agents/product-reviewer.md`.
 
 **Index file** (canonical artifact for downstream consumers):
-- Path: `pipeline-state/{task-id}/design-qc/index.json`
+- Path: `$state_dir/{task-id}/design-qc/index.json`
 - Schema: `schema_version: 2` (bumped 1 → 2 in this pipeline to add the
   `visual_regression` block; one-shot bump, no DUAL_PATH soak — index.json is
   pipeline-scoped state deleted at Reflect step 6d).
@@ -223,7 +223,7 @@ After Step 6 screenshots, while the dev server is still running and Playwright i
 - Per-route entry: `{route, screenshots: [...], a11y: {captured, capture_path?,
   reason?, snapshots: [{viewport, path}]}, visual_regression: {pixel_diff_ratio,
   baseline_path, current_path}}`
-- Per-snapshot file: `pipeline-state/{task-id}/design-qc/a11y/{route-slug}-{viewport}.json` with `schema_version: 1` and a normalised tree shape
+- Per-snapshot file: `$state_dir/{task-id}/design-qc/a11y/{route-slug}-{viewport}.json` with `schema_version: 1` and a normalised tree shape
 
 **Visual regression block** (NEW in schema_version 2):
 
@@ -231,7 +231,7 @@ After Step 6 screenshots, while the dev server is still running and Playwright i
 {
   "visual_regression": {
     "captured": true,
-    "baselines_dir": "pipeline-state/{task-id}/visual-baselines",
+    "baselines_dir": "$state_dir/{task-id}/visual-baselines",
     "default_max_diff_pixel_ratio": 0.02
   },
   "routes": [
@@ -239,7 +239,7 @@ After Step 6 screenshots, while the dev server is still running and Playwright i
       "route": "/dashboard",
       "visual_regression": {
         "pixel_diff_ratio": 0.0123,
-        "baseline_path": "pipeline-state/{task-id}/visual-baselines/dashboard-desktop.png",
+        "baseline_path": "$state_dir/{task-id}/visual-baselines/dashboard-desktop.png",
         "current_path": ".claude/screenshots/dashboard-desktop.png"
       }
     }
@@ -261,7 +261,7 @@ Probe Playwright MCP (one inert call, 2s timeout):
   timeout   -> fall back to library API
 For each captured (route, viewport):
   Normalise the result via hooks/_lib/a11y_normalize.js
-  Write to pipeline-state/{task-id}/design-qc/a11y/{slug}-{viewport}.json
+  Write to $state_dir/{task-id}/design-qc/a11y/{slug}-{viewport}.json
 ```
 
 **Failure handling:**
@@ -278,7 +278,7 @@ For each captured (route, viewport):
 **Adapter byte-equivalence**:
 - `normalize_mcp_yaml(yamlStr, viewport, route, captured_at)` and `normalize_library_json(node, viewport, route, captured_at)` produce byte-equal JSON (sorted keys, identical null-fields) for the same DOM. This is a contract test (AC15) — adapter drift fails CI.
 
-**SKIP warning (when capture unavailable)** — written to `pipeline-state/{task-id}/scratchpad/design-qc-build.md`:
+**SKIP warning (when capture unavailable)** — written to `$state_dir/{task-id}/scratchpad/design-qc-build.md`:
 
 ```
 ---

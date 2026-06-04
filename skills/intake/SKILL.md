@@ -12,6 +12,8 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 
 ## Process
 
+> **Resolve**: `state_dir="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/pipeline-state"`
+
 ### Step 1: Classify the Work
 
 | Signal | Classification | Entry Point |
@@ -42,7 +44,7 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 2. **Project already multi-repo?**
    - Project CLAUDE.md has a `## Service Context` section → route to service.
    - No → continue.
-3. **Default**: route to `/harness:module-extraction`. Log the decision to `pipeline-state/{task-id}/intake.md` with rationale: "No FF detected; no existing Service Context. Defaulting to module extraction."
+3. **Default**: route to `/harness:module-extraction`. Log the decision to `$state_dir/{task-id}/intake.md` with rationale: "No FF detected; no existing Service Context. Defaulting to module extraction."
 
 **No user prompt.** Plan Validation challengers receive the routing rationale and can flip it if wrong.
 
@@ -97,7 +99,9 @@ Always emit one of:
 
 Reason enum: `rules` | `fallthrough` (Phase 3 `haiku` reserved for follow-up). Phase enum: `1` | `2`. Confidence enum: `high` | `medium` | `low`.
 
-#### Persistence to `pipeline-state/{task-id}/intake.md` frontmatter
+#### Persistence to `$state_dir/{task-id}/intake.md` frontmatter
+
+Canonical bare path (relative to HARNESS_DATA): `pipeline-state/{task-id}/intake.md`. Exploration discussion (when gate fires): `pipeline-state/{task-id}/discussion.md`.
 
 Persist the following 12 forensic-schema fields (read by `hooks/intake-fingerprint-audit.sh`):
 
@@ -161,7 +165,7 @@ Skip this gate only when Ambiguity = 1 (fully specified ACs with no interpretati
 
 #### Discussion Persistence (MANDATORY when this gate fires)
 
-Create `pipeline-state/{task-id}/discussion.md` to persist the exploration discussion:
+Create `$state_dir/{task-id}/discussion.md` to persist the exploration discussion:
 
 ```markdown
 ---
@@ -233,11 +237,11 @@ Always print one of:
 [Intake] Criticality: standard
 ```
 
-Persist the flag to `pipeline-state/{task-id}/intake.md` frontmatter as `critical: true|false`. `/harness:pipeline` reads this flag to decide whether the Build phase routes to `/harness:best-of-n` or the standard `/harness:build-implementation`.
+Persist the flag to `$state_dir/{task-id}/intake.md` frontmatter as `critical: true|false`. `/harness:pipeline` reads this flag to decide whether the Build phase routes to `/harness:best-of-n` or the standard `/harness:build-implementation`.
 
 ### Step 2d-bis: Best-of-N + PDR-RTV Tags (MANDATORY)
 
-Derive two Build-phase dispatch flags. Both are persisted to `pipeline-state/{task-id}/intake.md` frontmatter and read by `/harness:pipeline` Step 3 at Build dispatch time. Routing precedence is `pdr_rtv > bestofn > standard` per `protocols/pipeline-protocol.md` § Build Phase Dispatch Variants.
+Derive two Build-phase dispatch flags. Both are persisted to `$state_dir/{task-id}/intake.md` frontmatter and read by `/harness:pipeline` Step 3 at Build dispatch time. Routing precedence is `pdr_rtv > bestofn > standard` per `protocols/pipeline-protocol.md` § Build Phase Dispatch Variants.
 
 **Tier gate (post-fingerprint)**: both `bestofn` and `pdr_rtv` only fire at **T6**. At T4/T5, force both flags to `false` regardless of derivation — heavy Build variants exist for critical/cross-cutting work, not for standard features or bug fixes. Spec `protocols/work-class-routing.md:193` is the source of truth.
 
@@ -281,7 +285,7 @@ or:
 [Intake] PDR-RTV: disabled
 ```
 
-Persist all three to `pipeline-state/{task-id}/intake.md` frontmatter:
+Persist all three to `$state_dir/{task-id}/intake.md` frontmatter:
 - `task_class: {the classification from Step 1}`
 - `bestofn: true|false`
 - `pdr_rtv: true|false`
@@ -301,7 +305,7 @@ Scan the request text and any existing CLAUDE.md / project layout for changes to
 | **DB schemas** | New tables, columns, indexes, constraints, foreign keys, RLS policies |
 | **Invariants** | "X is always non-empty", "Y is monotonic in time", "Z and W are mutually exclusive" |
 
-Persist the findings to `pipeline-state/{task-id}/intake.md` as a `## Contracts Touched` section AND mirror the list in the frontmatter as `contracts_touched:` (YAML list). The architect at Plan phase reads this section to derive Tier 0 contract assertions; the build engineer writes those assertions RED first.
+Persist the findings to `$state_dir/{task-id}/intake.md` as a `## Contracts Touched` section AND mirror the list in the frontmatter as `contracts_touched:` (YAML list). The architect at Plan phase reads this section to derive Tier 0 contract assertions; the build engineer writes those assertions RED first.
 
 ```markdown
 ## Contracts Touched

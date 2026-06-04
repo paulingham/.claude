@@ -38,9 +38,9 @@ It **preserves**: State tracking, scratchpad, session memory, observations, revi
 
 Before spawning any agents:
 
-1. **Create pipeline state file** (canonical per-task subdir layout — `pipeline-state/{batch-id}/pipeline.md`):
+1. **Create pipeline state file** (canonical per-task subdir layout — `$state_dir/{batch-id}/pipeline.md`):
    ```
-   Write pipeline-state/{batch-id}/pipeline.md with:
+   Write $state_dir/{batch-id}/pipeline.md with:
    ---
    task_id: {batch-id}
    phase: build
@@ -60,7 +60,7 @@ Before spawning any agents:
 
 2. **Create scratchpad directory**:
    ```bash
-   mkdir -p pipeline-state/{batch-id}/scratchpad/
+   mkdir -p $state_dir/{batch-id}/scratchpad/
    ```
 
 3. **Initialise session memory** (if not exists):
@@ -150,7 +150,7 @@ After all tasks shipped:
        // any batched task. Schema documented in
        // protocols/autonomous-intelligence.md § Field reference. Mirror
        // skills/pipeline/SKILL.md Step 7b-bis — write IFF data present, never
-       // synthesise. Producer reads pipeline-state/{batch-id}/{task}/build.md
+       // synthesise. Producer reads $state_dir/{batch-id}/{task}/build.md
        // for each batched task; aggregation strategy (per-task vs roll-up)
        // is operator-defined for batch-pipeline.
      },
@@ -169,7 +169,7 @@ After all tasks shipped:
 3. **Update session memory** — spawn background agent to capture engineering knowledge.
 
 4. **Clean up** (dual-form during 90-day DUAL_PATH soak):
-   - Empty `pipeline-state/{batch-id}/` via `find -delete` — `rm -rf` on directories is sandbox-denied even on orchestrator-writable paths (see `skills/pipeline/SKILL.md` Step 7d for the canonical `find -type f -delete && find -depth -type d -empty -delete` snippet)
+   - Empty `$state_dir/{batch-id}/` via `find -delete` — `rm -rf` on directories is sandbox-denied even on orchestrator-writable paths (see `skills/pipeline/SKILL.md` Step 7d for the canonical `find -type f -delete && find -depth -type d -empty -delete` snippet)
    - Remove any legacy phase files via `_psp_phase_list` (see `skills/pipeline/SKILL.md` Step 7d for the canonical cleanup snippet — never bare globs)
    - Checkpoint-ref deletion is included via the canonical `skills/pipeline/SKILL.md` Step 7d snippet — no batch-pipeline-specific code (delegation, not duplication, per the canonical pre-step that runs `git for-each-ref refs/checkpoints/{batch-id}/` + `update-ref -d` against REPO_ROOT before file deletion).
    - Remove worktree branches

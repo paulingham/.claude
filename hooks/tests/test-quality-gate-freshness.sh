@@ -37,11 +37,19 @@ echo "=== quality-gate freshness extraction Test Harness ==="
 echo ""
 
 # ---------------------------------------------------------------------------
+# Hermetic fixture (M3): per HIGH-A contract all subshells inject HARNESS_DATA.
+# FIXTURE_TMP created once per test run; HARNESS_DATA points at a subdirectory
+# so evidence can be seeded under ${FIXTURE_TMP}/data/pipeline-state/test-task/.
+# Cleaned via trap so no live ~/.claude inheritance possible.
+# ---------------------------------------------------------------------------
+FIXTURE_TMP=$(mktemp -d)
+
+# ---------------------------------------------------------------------------
 # Fixture: a real git worktree we can point at.
 # We use git init + an empty commit so git rev-parse HEAD works correctly.
 # ---------------------------------------------------------------------------
 WT_DIR=$(mktemp -d)
-trap 'rm -rf "$WT_DIR"' EXIT
+trap 'rm -rf "$WT_DIR" "$FIXTURE_TMP"' EXIT
 
 # Real git repo so git -C "$WT_DIR" rev-parse HEAD returns a valid SHA
 git -C "$WT_DIR" init --quiet
@@ -69,6 +77,7 @@ run_freshness() {
   (
     export CLAUDE_DISABLE_FRESHNESS_QG=0
     export CLAUDE_PIPELINE_TASK_ID="test-task"
+    export HARNESS_DATA="${FIXTURE_TMP}/data"
     # Point intake to a nonexistent file so tier check is skipped (returns "")
     # shellcheck source=../_lib/quality-gate-checks.sh
     source "$CHECKS_LIB"
@@ -82,6 +91,7 @@ run_freshness_stderr() {
   (
     export CLAUDE_DISABLE_FRESHNESS_QG=0
     export CLAUDE_PIPELINE_TASK_ID="test-task"
+    export HARNESS_DATA="${FIXTURE_TMP}/data"
     source "$CHECKS_LIB"
     _qg_check_freshness "$cmd" 2>&1 >/dev/null
   )
@@ -158,10 +168,10 @@ echo ""
 # After a distinguishing commit on WT_DIR2: ROOT_HEAD != WT_HEAD2.
 # ROOT_HEAD IS a registered worktree HEAD (main checkout).
 # ---------------------------------------------------------------------------
-FIXTURE_TMP=$(mktemp -d)
-ROOT_DIR="$FIXTURE_TMP/main-repo"
+FIXTURE_TMP2=$(mktemp -d)
+ROOT_DIR="$FIXTURE_TMP2/main-repo"
 WT_DIR2="$ROOT_DIR/.claude/worktrees/agent-testid"
-trap 'rm -rf "$WT_DIR" "$FIXTURE_TMP"' EXIT
+trap 'rm -rf "$WT_DIR" "$FIXTURE_TMP" "$FIXTURE_TMP2"' EXIT
 
 git init -q "$ROOT_DIR"
 git -C "$ROOT_DIR" -c user.email="t@t" -c user.name="T" commit --allow-empty -m "init" -q
@@ -408,6 +418,252 @@ printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestam
   )
 TASK_UNSET_EXIT=$?
 run_exit_test "task-id-unset: P4 root glob finds evidence when task unset → PASS" 0 "$TASK_UNSET_EXIT"
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# AC-B1: P5 finds evidence at HARNESS_DATA when not in worktree-local or root
+# Use a FRESH worktree (WT_P5) with no pipeline-state dir so P1/P2 find nothing.
+# P3/P4 also find nothing (fresh git init: root_dir == wt, guard exits).
+# Evidence seeded ONLY under FIXTURE_TMP/data/pipeline-state/test-task/.
+# P5 must find it.
+# ---------------------------------------------------------------------------
+echo "-- AC-B1: P5 evidence at HARNESS_DATA found when not in worktree-local or root --"
+
+WT_P5=$(mktemp -d)
+git -C "$WT_P5" init --quiet
+git -C "$WT_P5" -c user.email="t@t" -c user.name="T" \
+  commit --allow-empty -m "p5-fixture" --quiet
+WT_P5_SHA=$(git -C "$WT_P5" rev-parse HEAD)
+
+HARNESS_EVIDENCE_DIR="${FIXTURE_TMP}/data/pipeline-state/test-task"
+mkdir -p "$HARNESS_EVIDENCE_DIR"
+# Use WT_P5_SHA so HEAD-binding check passes when git -C WT_P5 rev-parse HEAD is called
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  "$WT_P5_SHA" > "${HARNESS_EVIDENCE_DIR}/verification-evidence.json"
+
+# WT_P5 has no pipeline-state dir (P1/P2 find nothing)
+# P3/P4: git-common-dir is .git so root_dir == WT_P5, guard returns 1 (skip P3/P4)
+# P5: HARNESS_DATA set → should find evidence
+(
+  export CLAUDE_DISABLE_FRESHNESS_QG=0
+  export CLAUDE_PIPELINE_TASK_ID="test-task"
+  export HARNESS_DATA="${FIXTURE_TMP}/data"
+  source "$CHECKS_LIB"
+  _qg_check_freshness "cd ${WT_P5} && some-command" 2>/dev/null
+)
+P5_EXIT=$?
+rm -rf "$WT_P5"
+run_exit_test "AC-B1: P5 evidence at HARNESS_DATA found (exit 0)" 0 "$P5_EXIT"
+
+# Clean up harness evidence for next tests
+rm -rf "${FIXTURE_TMP}/data/pipeline-state"
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# AC-B2: P5/P6 guard — unset HARNESS_DATA silently skips HARNESS_DATA priorities
+# When HARNESS_DATA is unset and no evidence in worktree-local or root, must
+# exit 1 (no evidence found). Must not construct empty-string path like /pipeline-state/.
+# ---------------------------------------------------------------------------
+echo "-- AC-B2: P5/P6 guard: unset HARNESS_DATA silently skips HARNESS_DATA priorities --"
+
+(
+  export CLAUDE_DISABLE_FRESHNESS_QG=0
+  export CLAUDE_PIPELINE_TASK_ID="test-task"
+  unset HARNESS_DATA
+  # WT_DIR has real evidence from earlier — remove it for this test
+  # by using a fresh empty dir as the worktree stand-in
+  WT_EMPTY=$(mktemp -d)
+  git -C "$WT_EMPTY" init --quiet
+  git -C "$WT_EMPTY" -c user.email="t@t" -c user.name="T" \
+    commit --allow-empty -m "empty" --quiet
+  source "$CHECKS_LIB"
+  _qg_check_freshness "cd ${WT_EMPTY} && some-command" 2>/dev/null
+  RC=$?
+  rm -rf "$WT_EMPTY"
+  exit $RC
+)
+B2_EXIT=$?
+run_exit_test "AC-B2: unset HARNESS_DATA → exit 1 (no evidence, no empty-path glob)" 1 "$B2_EXIT"
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# AC-B3: P5 — stale SHA in HARNESS_DATA evidence → FAIL
+# Use a fresh worktree (WT_B3) with no local evidence so P1-P4 find nothing.
+# Seed evidence at HARNESS_DATA with a wrong git_head SHA.
+# _qg_check_freshness must reject it (exit 1 HEAD mismatch).
+# ---------------------------------------------------------------------------
+echo "-- AC-B3: P5 stale SHA in HARNESS_DATA evidence → FAIL --"
+
+WT_B3=$(mktemp -d)
+git -C "$WT_B3" init --quiet
+git -C "$WT_B3" -c user.email="t@t" -c user.name="T" \
+  commit --allow-empty -m "b3-fixture" --quiet
+
+STALE_EVIDENCE_DIR="${FIXTURE_TMP}/data/pipeline-state/test-task"
+mkdir -p "$STALE_EVIDENCE_DIR"
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"deadbeefdeadbeefdeadbeefdeadbeef12345678","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  > "${STALE_EVIDENCE_DIR}/verification-evidence.json"
+
+(
+  export CLAUDE_DISABLE_FRESHNESS_QG=0
+  export CLAUDE_PIPELINE_TASK_ID="test-task"
+  export HARNESS_DATA="${FIXTURE_TMP}/data"
+  source "$CHECKS_LIB"
+  _qg_check_freshness "cd ${WT_B3} && some-command" 2>/dev/null
+)
+B3_EXIT=$?
+rm -rf "$WT_B3"
+run_exit_test "AC-B3: P5 stale SHA in HARNESS_DATA → exit 1 (HEAD mismatch)" 1 "$B3_EXIT"
+
+rm -rf "${FIXTURE_TMP}/data/pipeline-state"
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# AC-B4: inline-fallback (no-wt path) finds HARNESS_DATA evidence
+# When no cd-prefix in command, the inline fallback block executes.
+# Seed evidence at HARNESS_DATA; command has no cd prefix.
+# ---------------------------------------------------------------------------
+echo "-- AC-B4: inline-fallback no-wt path finds HARNESS_DATA evidence --"
+
+INLINE_EVIDENCE_DIR="${FIXTURE_TMP}/data/pipeline-state/test-task"
+mkdir -p "$INLINE_EVIDENCE_DIR"
+# Use current HEAD of the repo so HEAD binding passes
+CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null || echo "0000000000000000000000000000000000000000")
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  "$CURRENT_HEAD" > "${INLINE_EVIDENCE_DIR}/verification-evidence.json"
+
+(
+  export CLAUDE_DISABLE_FRESHNESS_QG=0
+  export CLAUDE_PIPELINE_TASK_ID="test-task"
+  export HARNESS_DATA="${FIXTURE_TMP}/data"
+  source "$CHECKS_LIB"
+  # No cd prefix — triggers the inline fallback block
+  _qg_check_freshness "some command with no cd prefix" 2>/dev/null
+)
+B4_EXIT=$?
+run_exit_test "AC-B4: inline-fallback finds HARNESS_DATA evidence (exit 0)" 0 "$B4_EXIT"
+
+rm -rf "${FIXTURE_TMP}/data/pipeline-state"
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# AC-B6: hermetic — verify no live ~/.claude inheritance possible
+# All subshells use HARNESS_DATA="${FIXTURE_TMP}/data" (an mktemp dir).
+# Teardown: confirm no writes landed in live ~/.claude/pipeline-state.
+# ---------------------------------------------------------------------------
+echo "-- AC-B6: hermetic: all subshells inject HARNESS_DATA=fixture_tmp --"
+
+LIVE_CLAUDE="${HOME}/.claude/pipeline-state/test-task/verification-evidence.json"
+LIVE_BEFORE=0
+[[ -f "$LIVE_CLAUDE" ]] && LIVE_BEFORE=1
+
+# Run the standard run_freshness helper (which injects FIXTURE_TMP/data as HARNESS_DATA)
+run_freshness "some command with no cd prefix" >/dev/null 2>&1 || true
+
+LIVE_AFTER=0
+[[ -f "$LIVE_CLAUDE" ]] && LIVE_AFTER=1
+
+if [[ "$LIVE_BEFORE" -eq "$LIVE_AFTER" ]]; then
+  pass "AC-B6: no writes to live ~/.claude/pipeline-state (hermetic confirmed)"
+else
+  fail "AC-B6: hermetic check" "no new writes to ~/.claude" "found new file"
+fi
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# AC-C1: _qg_resolve_intake_path HARNESS_DATA probe (finding 6, fix-cycle round 1)
+# Seed intake.md ONLY under HARNESS_DATA/pipeline-state/{task-id}/ (no bare path).
+# _qg_resolve_intake_path must return the HARNESS_DATA path so _qg_extract_intake_tier
+# can read the tier. Bare-path fallback must NOT shadow it.
+# RED: before fix, function returned bare path "pipeline-state/test-task/intake.md"
+#      which doesn't exist → tier extraction returns empty → broken.
+# GREEN: after fix, function probes HARNESS_DATA first → tier extracted correctly.
+# ---------------------------------------------------------------------------
+echo "-- AC-C1: _qg_resolve_intake_path finds intake.md at HARNESS_DATA only --"
+
+_AC_C1_HD="${TMPDIR:-/tmp}/ac-c1-harness-$$"
+_AC_C1_INTAKE_DIR="${_AC_C1_HD}/pipeline-state/intake-test-task"
+mkdir -p "$_AC_C1_INTAKE_DIR"
+printf -- '---\ntask_id: intake-test-task\ntier_emitted: T5\n---\n' \
+  > "${_AC_C1_INTAKE_DIR}/intake.md"
+
+AC_C1_PATH=$(
+  export HARNESS_DATA="$_AC_C1_HD"
+  unset CLAUDE_WORKSTREAM 2>/dev/null || true
+  source "$CHECKS_LIB"
+  _qg_resolve_intake_path "intake-test-task"
+)
+if [[ "$AC_C1_PATH" == "${_AC_C1_HD}/pipeline-state/intake-test-task/intake.md" ]]; then
+  pass "AC-C1: _qg_resolve_intake_path returns HARNESS_DATA path when intake.md at HARNESS_DATA only"
+else
+  fail "AC-C1: _qg_resolve_intake_path returns HARNESS_DATA path" \
+    "${_AC_C1_HD}/pipeline-state/intake-test-task/intake.md" "$AC_C1_PATH"
+fi
+
+AC_C1_TIER=$(
+  export HARNESS_DATA="$_AC_C1_HD"
+  unset CLAUDE_WORKSTREAM 2>/dev/null || true
+  source "$CHECKS_LIB"
+  intake=$(_qg_resolve_intake_path "intake-test-task")
+  _qg_extract_intake_tier "$intake"
+)
+if [[ "$AC_C1_TIER" == "T5" ]]; then
+  pass "AC-C1 tier: tier T5 extracted from HARNESS_DATA intake.md"
+else
+  fail "AC-C1 tier: tier extracted from HARNESS_DATA intake.md" "T5" "$AC_C1_TIER"
+fi
+
+rm -rf "$_AC_C1_HD"
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# GAP-3: AC-C1 workstream variant
+# _qg_resolve_intake_path with CLAUDE_WORKSTREAM set must probe the workstream
+# subpath ($HARNESS_DATA/pipeline-state/workstreams/$ws/$task/intake.md) first.
+# Verifies the [[ -n "$ws" ]] branch in _qg_resolve_intake_path is exercised.
+# ---------------------------------------------------------------------------
+echo "-- GAP-3: AC-C1 workstream variant: CLAUDE_WORKSTREAM=my-ws + intake at workstream subpath --"
+
+_GAP3_HD="${TMPDIR:-/tmp}/gap3-harness-$$"
+_GAP3_WS_DIR="${_GAP3_HD}/pipeline-state/workstreams/my-ws/ws-test-task"
+mkdir -p "$_GAP3_WS_DIR"
+printf -- '---\ntask_id: ws-test-task\ntier_emitted: T4\n---\n' \
+  > "${_GAP3_WS_DIR}/intake.md"
+
+GAP3_PATH=$(
+  export HARNESS_DATA="$_GAP3_HD"
+  export CLAUDE_WORKSTREAM="my-ws"
+  source "$CHECKS_LIB"
+  _qg_resolve_intake_path "ws-test-task"
+)
+EXPECTED_GAP3="${_GAP3_HD}/pipeline-state/workstreams/my-ws/ws-test-task/intake.md"
+if [[ "$GAP3_PATH" == "$EXPECTED_GAP3" ]]; then
+  pass "GAP-3: _qg_resolve_intake_path returns workstream HARNESS_DATA path when CLAUDE_WORKSTREAM=my-ws"
+else
+  fail "GAP-3: _qg_resolve_intake_path workstream path" "$EXPECTED_GAP3" "$GAP3_PATH"
+fi
+
+GAP3_TIER=$(
+  export HARNESS_DATA="$_GAP3_HD"
+  export CLAUDE_WORKSTREAM="my-ws"
+  source "$CHECKS_LIB"
+  intake=$(_qg_resolve_intake_path "ws-test-task")
+  _qg_extract_intake_tier "$intake"
+)
+if [[ "$GAP3_TIER" == "T4" ]]; then
+  pass "GAP-3 tier: tier T4 extracted from workstream HARNESS_DATA intake.md"
+else
+  fail "GAP-3 tier: tier extracted from workstream intake.md" "T4" "$GAP3_TIER"
+fi
+
+rm -rf "$_GAP3_HD"
 
 echo ""
 

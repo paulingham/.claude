@@ -1,10 +1,24 @@
 # Pipeline State
 
-Structured phase results for in-progress pipelines. See `rules/pipeline-protocol.md` § Structured Pipeline State for the full convention.
+> **Canonical location (post-migration)**: Pipeline state is stored at
+> `${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/pipeline-state/` (HARNESS_DATA).
+> The `pipeline-state/` directory in this repo is **legacy read-tolerated** for 90 days
+> from the merge of the relocate-pipeline-state-writes PR
+> (run `git log --format=%aI -1 <merge-commit>` for exact date).
+> After that date this directory contains no active state — use `detect-stale-pipeline-state.sh`
+> to confirm before removal.
+>
+> **Concurrent sessions**: relocating pipeline-state to `$HOME/.claude/pipeline-state` moves
+> cross-session contention from the git-tracked repo root to a shared home-dir location. The
+> risk is lower (no git operations touch it), but concurrent sessions sharing the same `$HOME`
+> share the directory. For fully isolated concurrent setups, set a per-session
+> `CLAUDE_PLUGIN_DATA` pointing to a session-scoped directory.
+
+Structured phase results for in-progress pipelines. See `protocols/pipeline-protocol.md` § Structured Pipeline State for the full convention.
 
 ## Quick Reference
 
-- **Naming**: `{task-id}-{phase}.md`
+- **Naming**: `{task-id}-{phase}.md` _(legacy flat form — read-tolerated during soak, never written by new pipelines)_
 - **Lifecycle**: created by phase, read by next phase, deleted after pipeline completes
 - **Purpose**: survives context compaction, enables inter-phase communication
 - **Cleanup**: orchestrator deletes all files for a task after completion
@@ -38,10 +52,12 @@ Set `CLAUDE_PIPELINE_TASK_ID` in your environment or at pipeline start to activa
 
 ### Cleanup
 
-After a pipeline completes, delete both the state file and the trajectory file:
+After a pipeline completes, delete both the state file and the trajectory file
+(see `skills/pipeline/SKILL.md` Step 7d for the canonical snippet using `state_dir`):
 ```bash
-rm ~/.claude/pipeline-state/{task-id}-pipeline.md
-rm ~/.claude/pipeline-state/{task-id}-trajectory.jsonl
+state_dir="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/pipeline-state"
+rm "$state_dir/{task-id}-pipeline.md"
+rm "$state_dir/{task-id}-trajectory.jsonl"
 ```
 
 Run `/harness-audit` to find stale files (>7 days old).

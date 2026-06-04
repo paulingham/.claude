@@ -88,7 +88,7 @@ stderr line; you do not need to do anything.
 The audit function `hooks/_lib/sast_triage.py::audit_agent_output` is provided
 for downstream wiring; the SubagentStop hook that runs it against your output
 and fails Build's review gate ships in a follow-up slice (see
-`pipeline-state/wave2a-b3-sast-triage/followups.md`). For now the constraints
+`$state_dir/wave2a-b3-sast-triage/followups.md`). For now the constraints
 above are agent-self-enforced — adhere to them as you would any other rubric
 item; reviewers may invoke the audit manually against your output.
 

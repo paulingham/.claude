@@ -22,7 +22,7 @@ Best-of-N Build dispatch fires when `/harness:intake` tags the task with `bestof
 
 ## Build Phase Dispatch Variants
 
-The Build phase has three dispatch variants. Routing precedence is `pdr_rtv > bestofn > standard` — when multiple flags fire on the same slice, the strictly stronger variant wins. Both `pdr_rtv` and `bestofn` are computed by `/harness:intake` Step 2d / 2d-bis and persisted to `pipeline-state/{task-id}/intake.md` frontmatter; `/harness:pipeline` Step 3 reads them at Build dispatch time.
+The Build phase has three dispatch variants. Routing precedence is `pdr_rtv > bestofn > standard` — when multiple flags fire on the same slice, the strictly stronger variant wins. Both `pdr_rtv` and `bestofn` are computed by `/harness:intake` Step 2d / 2d-bis and persisted to `$state_dir/{task-id}/intake.md` frontmatter; `/harness:pipeline` Step 3 reads them at Build dispatch time.
 
 | Flag combination | Dispatch | Why |
 |---|---|---|
@@ -37,25 +37,25 @@ The full PDR-RTV procedure lives in `~/.claude/orchestrator/parallel-dispatch-de
 
 ## Structured Pipeline State
 
-Phase results are persisted as files in `~/.claude/pipeline-state/` to survive context compaction and enable inter-phase communication.
+Phase results are persisted as files under `state_dir="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/pipeline-state"` (HARNESS_DATA) to survive context compaction and enable inter-phase communication.
 
 ### File Convention (Canonical — per-task subdirectory)
 
-The canonical layout is **per-task subdirectory**: every artifact for a given pipeline lives under `pipeline-state/{task-id}/`.
+The canonical layout is **per-task subdirectory**: every artifact for a given pipeline lives under `$state_dir/{task-id}/`.
 
-- **Naming**: `pipeline-state/{task-id}/{phase}.md` (e.g. `pipeline-state/auth-feature/build.md`, `pipeline-state/PROJ-123/review.md`)
-- **Workstream variant**: `pipeline-state/workstreams/{ws}/{task-id}/{phase}.md` (workstream-scoped pipelines nest under `workstreams/{ws}/`)
-- **Scratchpad**: `pipeline-state/{task-id}/scratchpad/{role}-{phase}.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/scratchpad/{role}-{phase}.md`)
-- **Approval token**: `pipeline-state/{task-id}/approval.token`
-- **Trajectory**: `pipeline-state/{task-id}/trajectory.jsonl`
-- **Health reports** (project-wide, NOT task-keyed): `pipeline-state/health-reports/{date}.md`
+- **Naming**: `$state_dir/{task-id}/{phase}.md` (e.g. `$state_dir/auth-feature/build.md`, `$state_dir/PROJ-123/review.md`)
+- **Workstream variant**: `$state_dir/workstreams/{ws}/{task-id}/{phase}.md` (workstream-scoped pipelines nest under `workstreams/{ws}/`)
+- **Scratchpad**: `$state_dir/{task-id}/scratchpad/{role}-{phase}.md` (workstream variant: `$state_dir/workstreams/{ws}/{task-id}/scratchpad/{role}-{phase}.md`)
+- **Approval token**: `$state_dir/{task-id}/approval.token`
+- **Trajectory**: `$state_dir/{task-id}/trajectory.jsonl`
+- **Health reports** (project-wide, NOT task-keyed): `$state_dir/health-reports/{date}.md`
 - **Lifecycle**: created by phase agent/skill, read by next phase, emptied via `find {task-id} -type f -delete && find {task-id} -depth -type d -empty -delete` after pipeline completes (`rm -rf` on directories is sandbox-denied even on orchestrator-writable paths — see `skills/pipeline/SKILL.md` Step 7d for the canonical snippet) AND any `refs/checkpoints/{task-id}/*` refs in the shared ref database (created by `hooks/shadow-git-checkpoint.sh`) deleted via the canonical Step 7d pre-step
 - **Why files, not memory**: files survive context compaction intact; orchestrator memory does not
 - **Why subdirectory**: cleanup is bounded to one task-prefix (no prefix-collision risk — `tool` cleanup cannot match `tool-timing-capture-*`); concurrent pipelines are filesystem-isolated
 
 ### DUAL_PATH soak (90-day window)
 
-The harness is migrating from a flat layout (`pipeline-state/{task-id}-{phase}.md`) to the canonical subdirectory layout above. **DUAL_PATH** is the migration strategy: readers tolerate both layouts, writers go to NEW layout only. The soak runs for **90 days** from the migration PR's merge timestamp (aligned with `CLAUDE_LEARNING_RETENTION_DAYS` precedent), after which a follow-up pipeline removes the legacy-read code paths.
+The harness is migrating from a flat layout (`$state_dir/{task-id}-{phase}.md`) to the canonical subdirectory layout above. **DUAL_PATH** is the migration strategy: readers tolerate both layouts, writers go to NEW layout only. The soak runs for **90 days** from the migration PR's merge timestamp (aligned with `CLAUDE_LEARNING_RETENTION_DAYS` precedent), after which a follow-up pipeline removes the legacy-read code paths.
 
 During the soak:
 
@@ -64,13 +64,13 @@ During the soak:
 - **Discovery globs (canonical)**:
   ```
   pipeline-state/<task>/pipeline.md                            # new, root
-  pipeline-state/workstreams/<ws>/<task>/pipeline.md           # new, workstream
+  $state_dir/workstreams/<ws>/<task>/pipeline.md           # new, workstream
   pipeline-state/<task>-pipeline.md                             # legacy, root
-  pipeline-state/workstreams/<ws>/<task>-pipeline.md            # legacy, workstream
-  pipeline-state/health-reports/                                # EXCLUDED from active-pipeline scans
+  $state_dir/workstreams/<ws>/<task>-pipeline.md            # legacy, workstream
+  $state_dir/health-reports/                                # EXCLUDED from active-pipeline scans
   ```
 - **Read-precedence (locked by tests)**: workstream layout beats root layout when `task_id` collides. Within a single layout-class, fresher mtime wins. Ties favour the new layout. The approval-token reader returns whichever path exists; if both exist, fresher mtime wins.
-- **Reflect cleanup is dual-form**: `find pipeline-state/{task-id} -type f -delete && find pipeline-state/{task-id} -depth -type d -empty -delete` for the new layout (NOT `rm -rf` — sandbox-denied on directories) AND iterate the canonical phase list (`_psp_phase_list`) to remove any legacy `pipeline-state/{task-id}-{phase}.md` files. Bare globs are forbidden (they would catch prefix neighbours). Reflect cleanup ALSO deletes shadow checkpoint refs via `git for-each-ref refs/checkpoints/{task-id}/` + per-ref `update-ref -d`, run BEFORE Form-1 file deletion per `skills/pipeline/SKILL.md` Step 7d.
+- **Reflect cleanup is dual-form**: `find $state_dir/{task-id} -type f -delete && find $state_dir/{task-id} -depth -type d -empty -delete` for the new layout (NOT `rm -rf` — sandbox-denied on directories) AND iterate the canonical phase list (`_psp_phase_list`) to remove any legacy `$state_dir/{task-id}-{phase}.md` files. Bare globs are forbidden (they would catch prefix neighbours). Reflect cleanup ALSO deletes shadow checkpoint refs via `git for-each-ref refs/checkpoints/{task-id}/` + per-ref `update-ref -d`, run BEFORE Form-1 file deletion per `skills/pipeline/SKILL.md` Step 7d.
 - **Soak end**: a cleanup pipeline removes legacy-read code paths from helpers, hooks, and skills, gated on `find pipeline-state -maxdepth 1 -name "*-pipeline.md" -type f` returning zero.
 
 ### Format
@@ -104,9 +104,9 @@ timestamp: {ISO 8601}
 - `pipeline-state/` is the single source of truth — do NOT dual-write to `memory/`
 - Pass the previous phase's state file path to the next phase agent
 - Delete all state files for a task after pipeline completion or abandonment
-- At Reflect step 6d, empty `pipeline-state/{task-id}/` via `find -delete` (new layout — `rm -rf` is sandbox-denied) AND iterate `_psp_phase_list` to remove legacy `pipeline-state/{task-id}-{phase}.md` + `pipeline-state/{task-id}-approval.token` files. Stale APPROVED tokens from crashed pipelines would silently pre-authorize future pipelines that reuse the same task-id.
+- At Reflect step 6d, empty `$state_dir/{task-id}/` via `find -delete` (new layout — `rm -rf` is sandbox-denied) AND iterate `_psp_phase_list` to remove legacy `$state_dir/{task-id}-{phase}.md` + `$state_dir/{task-id}-approval.token` files. Stale APPROVED tokens from crashed pipelines would silently pre-authorize future pipelines that reuse the same task-id.
 - Never leave stale state files — they confuse future pipeline runs
-- Never use bare globs (`pipeline-state/{task-id}*`) for cleanup — prefix neighbours collide. Always enumerate phases via `_psp_phase_list`.
+- Never use bare globs (`$state_dir/{task-id}*`) for cleanup — prefix neighbours collide. Always enumerate phases via `_psp_phase_list`.
 
 ## Phase Checklist (Summary)
 
@@ -127,7 +127,7 @@ Before advancing to any phase, verify the previous gate passed AND invoke the re
   - `/harness:qa-test-strategy` -- all ACs covered, no gaps
   - `/harness:product-acceptance` -- APPROVED required
   - `/harness:patch-critique` -- PATCH_APPROVED required (rubric: tests cover change, diff minimal vs spec, no obvious regressions, no incidental refactor). PATCH_REJECTED returns to fix-engineer (no user escalation per § In-Cycle Fix Rule).
-- **Ship**: `/harness:pr-creation` -- PR with narrative, quality gate passes. Requires `pipeline-state/{task-id}-approval.token` with verdict `APPROVED` or `APPROVED_WITH_CONDITIONS` (written by `/harness:product-acceptance`). Gate checked at `/harness:pr-creation` Step 0 via `hooks/_lib/approval-token.sh`. Missing or REJECTED token → `PR_BLOCKED`.
+- **Ship**: `/harness:pr-creation` -- PR with narrative, quality gate passes. Requires `$state_dir/{task-id}-approval.token` with verdict `APPROVED` or `APPROVED_WITH_CONDITIONS` (written by `/harness:product-acceptance`). Gate checked at `/harness:pr-creation` Step 0 via `hooks/_lib/approval-token.sh`. Missing or REJECTED token → `PR_BLOCKED`.
 
 #### `gh pr create` Bypass (Residual Risk, Out of Scope)
 
@@ -188,7 +188,7 @@ The build agent self-reviews before completion. Hooks enforce shape compliance. 
 When a built feature passes unit tests but fails in a real environment (device, staging, browser, external system), the pipeline enters a debugging loop:
 
 ### Persistent State
-When entering the debugging loop, invoke `/harness:debug` to create persistent state in `pipeline-state/{task-id}-debug.md`. This ensures hypotheses, elimination results, and fix attempts survive context compaction and session boundaries.
+When entering the debugging loop, invoke `/harness:debug` to create persistent state in `$state_dir/{task-id}-debug.md`. This ensures hypotheses, elimination results, and fix attempts survive context compaction and session boundaries.
 
 ### Entry criteria
 - Feature was built and tests pass

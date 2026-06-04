@@ -100,7 +100,7 @@ iteration fast and the role advisory.
 
 ## Hook Behavior (Path B — current, log-only at v2.1.140)
 
-The probe in `pipeline-state/opus47-thinking-defaults-scratchpad/build-probe.md`
+The probe in `$state_dir/opus47-thinking-defaults-scratchpad/build-probe.md`
 selected Path B (validation/block). Empirical reality at **v2.1.140**: the
 per-spawn `tool_input.thinking.effort` field is **not yet exposed** in the
 Agent tool input schema, so a hard block would refuse every orchestrator
@@ -159,7 +159,7 @@ once the per-spawn field lands in a future Claude Code release; the
 resolver, tests, and precedence rules are unchanged by that flip.
 
 A pre-merge empirical probe of `modified_tool_input` round-trip on the
-Agent matcher (`pipeline-state/promote-advisory-hooks-enforcement/probe-result.md`)
+Agent matcher (`$state_dir/promote-advisory-hooks-enforcement/probe-result.md`)
 returned **RED** on 2026-05-14: the probe could not be executed safely from
 inside the build subagent (registering it in `settings.json` would mutate
 the running harness's hook table), and documentary evidence at
@@ -215,7 +215,7 @@ xhigh is still **rationed** for the rest of the role table. Review/critic/databa
 
 The earlier "xhigh is **not** the default for Opus work" position is superseded for the four build/design roles. It still holds for the rest. `security-engineer` retains its dual treatment — `high` by default, xhigh only under the existing `critical=true AND budget>=7` gate — because security review is checklist-driven on routine work and benefits from depth only at high stakes. Best-of-N candidates retain their `budget>=7` gate for the same reason.
 
-See **`pipeline-state/opus47-xhigh-default/plan.md`** for the slice that landed this policy and the Apr 23 / May 2026 evidence trail.
+See **`$state_dir/opus47-xhigh-default/plan.md`** for the slice that landed this policy and the Apr 23 / May 2026 evidence trail.
 
 ## xhigh Allocation Boundary
 

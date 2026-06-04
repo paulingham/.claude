@@ -18,7 +18,7 @@ The autonomous conductor for the delivery pipeline. Takes a task, determines whi
 
 ### Step 1.0: Tier Guard (MANDATORY first step)
 
-Before any pipeline work, read `tier_emitted` from `pipeline-state/{task-id}/intake.md` frontmatter (set by `/harness:intake` Step 1.5 Fingerprint per `protocols/work-class-routing.md`). The tier determines whether `/harness:pipeline` continues or exits with a re-route.
+Before any pipeline work, read `tier_emitted` from `$state_dir/{task-id}/intake.md` frontmatter (set by `/harness:intake` Step 1.5 Fingerprint per `protocols/work-class-routing.md`). The tier determines whether `/harness:pipeline` continues or exits with a re-route.
 
 | Tier | Route | Status |
 |---|---|---|
@@ -42,7 +42,7 @@ Status line — always emit one of:
 [Pipeline] Tier guard: T6 → /harness:pipeline (heavy)
 ```
 
-For T0-T3, **Pipeline halts (NO state file created)** — the dispatch target (direct answer / `/harness:harness-config` / `/harness:batch-pipeline` / direct `.md` edit) is invoked instead. Pipeline state file (`pipeline-state/{task-id}/pipeline.md`) is created only at Step 2c (which runs for T4-T6 only). This Step 1.0 is the cost-discipline lever — T1 doc edits no longer burn ~12-15 subagent spawns through a full pipeline shape.
+For T0-T3, **Pipeline halts (NO state file created)** — the dispatch target (direct answer / `/harness:harness-config` / `/harness:batch-pipeline` / direct `.md` edit) is invoked instead. Pipeline state file (`$state_dir/{task-id}/pipeline.md`) is created only at Step 2c (which runs for T4-T6 only). This Step 1.0 is the cost-discipline lever — T1 doc edits no longer burn ~12-15 subagent spawns through a full pipeline shape.
 
 If `tier_emitted` is missing from intake.md (legacy intake or fingerprint error), default to T4+ behaviour (safety-bias — never under-dispatch). Log the missing-tier condition to the pipeline state file once it is created.
 
@@ -84,7 +84,7 @@ Check whether the working directory has no recognizable project file (`package.j
 
 **MANDATORY**: Create a structured pipeline state file at pipeline start. This is the single source of truth for pipeline state — it survives context compaction.
 
-The canonical write path is the per-task subdir layout: `pipeline-state/{task-id}/pipeline.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/pipeline.md`). The legacy flat form `pipeline-state/{task-id}-pipeline.md` is read-tolerated during the 90-day DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State) but MUST NOT be written by new pipelines.
+The canonical destination is the per-task subdir layout: `$state_dir/{task-id}/pipeline.md` (workstream variant: `$state_dir/workstreams/{ws}/{task-id}/pipeline.md`). When `state_dir` resolves to its default (`$HARNESS_DATA/pipeline-state`), this becomes `$HARNESS_DATA/pipeline-state/{task-id}/pipeline.md`. The legacy flat form `$state_dir/{task-id}-pipeline.md` is read-tolerated during the 90-day DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State) but MUST NOT be used for new pipelines.
 
 ```
 pipeline-state/[feature-name]/pipeline.md
@@ -117,16 +117,16 @@ Classification: [feature/refactor/bug]
 
 Update this file as each phase completes with verdict, artifacts, and agent summaries.
 
-**Mirror the `critical`, `task_class`, and `bestofn` flags from intake.** Read all three from `pipeline-state/{task-id}/intake.md` (set by intake Steps 2d and 2d-bis) and write them into the pipeline state frontmatter on creation. This ensures `/harness:pipeline-resume` preserves the dispatch decision across context compaction so the Build phase still routes correctly.
+**Mirror the `critical`, `task_class`, and `bestofn` flags from intake.** Read all three from `$state_dir/{task-id}/intake.md` (set by intake Steps 2d and 2d-bis) and write them into the pipeline state frontmatter on creation. This ensures `/harness:pipeline-resume` preserves the dispatch decision across context compaction so the Build phase still routes correctly.
 
 **Do NOT dual-write to memory/.** The `pipeline-state/` file is the sole authority. Use `/harness:pipeline-resume` to recover state across sessions.
 
-**Discussion context:** If a discussion file exists (`pipeline-state/{task-id}/discussion.md` from intake Step 2b), reference it in the pipeline state under `## Intake Discussion` and pass its decisions to the architect during the Plan phase.
+**Discussion context:** If a discussion file exists (`$state_dir/{task-id}/discussion.md` from intake Step 2b), reference it in the pipeline state under `## Intake Discussion` and pass its decisions to the architect during the Plan phase.
 
 ### Workstream Support
 
-If a workstream is active (check `pipeline-state/workstreams/*/workstream.md` for `status: active` entries, or check if the user specified a workstream):
-- Create pipeline state in `pipeline-state/workstreams/{workstream}/` instead of `pipeline-state/`
+If a workstream is active (check `$state_dir/workstreams/*/workstream.md` for `status: active` entries, or check if the user specified a workstream):
+- Create pipeline state in `$state_dir/workstreams/{workstream}/` instead of the default root
 - Use branch convention: `{workstream-branch-prefix}{task-branch}` (e.g., `feat/auth/login-page`)
 - Set `CLAUDE_PIPELINE_TASK_ID` to include workstream prefix for trajectory recording
 
@@ -172,7 +172,7 @@ Scaffolding is NOT a gate — it produces files and structure that the Build pha
 **Greenfield detection (check FIRST, before all other scaffolding):**
 If the working directory has no recognizable project file (`package.json`, `Gemfile`, `go.mod`, `pyproject.toml`, `Cargo.toml`, `pom.xml`) AND no `src/` or `app/` or `lib/` directory: this is a greenfield project. Invoke `/harness:greenfield-scaffold` which handles ALL bootstrapping (framework, DevX, design system, infrastructure, seed data). After `/harness:greenfield-scaffold` completes, re-run the scaffold detection table — existing skills will detect any remaining gaps.
 
-- Frontend feature detected (changed files include `.tsx/.jsx/.vue/.svelte`) AND no `pipeline-state/{task-id}/design-brief.md` exists AND no established distinctive branding (tokens.css has only default values or doesn't exist)? → `/harness:creative-direction` FIRST
+- Frontend feature detected (changed files include `.tsx/.jsx/.vue/.svelte`) AND no `$state_dir/{task-id}/design-brief.md` exists AND no established distinctive branding (tokens.css has only default values or doesn't exist)? → `/harness:creative-direction` FIRST
 - No `Dockerfile`? → `/harness:infra-scaffold`
 - No `styles/tokens.css` and no `theme.extend.colors` in Tailwind config? → `/harness:design-system-init`
 - No logging config and task touches backend? → `/harness:observability-setup`
@@ -194,7 +194,7 @@ If the project CLAUDE.md contains a `## Service Context` section with upstream/d
 
 BEFORE dispatching architect or recon, invoke `skills/plan-cache-lookup/SKILL.md`. The skill resolves `CLAUDE_PLAN_CACHE_MODE`, computes the `(task_class, repo_hash, tier, critical)` cache key, and emits exactly one of:
 
-- `PLAN_CACHE_HIT` — the Haiku adapter has written `pipeline-state/{task-id}/plan.md` with `cache_hit: true` and the resume-safety stub `pipeline-state/{task-id}/architect-context.md`. Skip Stage 1 (recon) and Stage 2 (architect); advance directly to Step 2d (Plan Validation). Plan Validation challengers MUST skip the citation-alignment grader on `cache_hit: true` plans (Domain D7).
+- `PLAN_CACHE_HIT` — the Haiku adapter has written `$state_dir/{task-id}/plan.md` with `cache_hit: true` and the resume-safety stub `$state_dir/{task-id}/architect-context.md`. Skip Stage 1 (recon) and Stage 2 (architect); advance directly to Step 2d (Plan Validation). Plan Validation challengers MUST skip the citation-alignment grader on `cache_hit: true` plans (Domain D7).
 - `PLAN_CACHE_MISS` — `reason ∈ {no-template, disabled, shadow-mode, adapter-rejected, ...}`. Fall through to the normal Plan Phase Dispatch (Stage 1 recon + Stage 2 architect) IN THIS SAME PIPELINE. Iron Law 6: `adapter-rejected` is never deferred to a follow-up pipeline.
 
 Until Slice F flips `CLAUDE_PLAN_CACHE_MODE` to `shadow`, the resolver hard-defaults to `off` and the skill short-circuits to `MISS reason=disabled` — partial-merge-safe by construction (LOW-eng-3).
@@ -205,9 +205,9 @@ Full wiring: `orchestrator/parallel-dispatch-details.md` § Plan Phase Dispatch 
 
 After `PLAN_CACHE_MISS` from Step 2c-bis and BEFORE dispatching Stage 1 recon or Stage 2 architect, invoke `skills/spec-grounding/SKILL.md`. The skill spawns a spec-grounding subagent that:
 
-1. Reads raw ACs from `pipeline-state/{task-id}/intake.md`.
+1. Reads raw ACs from `$state_dir/{task-id}/intake.md`.
 2. Calls the Python helper (`skills/spec_grounding/_lib/grounding.ground_acs()`) — pure-Python pathlib/re traversal of the codebase (bounded: max 5000 files, max 1MB per file; skips `.git/`, `.claude/worktrees/`, binary files, OSError/UnicodeDecodeError files silently) plus guarded `recall.search()` (degrades to `[]` if DB absent).
-3. Writes `pipeline-state/{task-id}/spec-grounding.md` with EARS-tagged ACs and per-AC citations.
+3. Writes `$state_dir/{task-id}/spec-grounding.md` with EARS-tagged ACs and per-AC citations.
 4. Emits exactly one of:
    - `GROUNDED` — all ACs resolved against codebase or recall evidence.
    - `GROUNDING_GAPS` — one or more ACs have `[grounded: gap]`. **Non-blocking.** The pipeline falls through to Stage 1 recon + Stage 2 architect regardless. Gap ACs are listed in `spec-grounding.md` § Gaps; the architect reads this section and supplies citations for gap ACs in Artifact 2.
@@ -241,7 +241,7 @@ After the architect produces a plan, validate it before proceeding to Build.
 
 #### Autonomous Mode
 
-1. Write architect's plan to `pipeline-state/{task-id}/plan-validation.md`
+1. Write architect's plan to `$state_dir/{task-id}/plan-validation.md`
 2. Spawn challengers as team (parallel):
 
    ```
@@ -301,19 +301,19 @@ For each phase:
 
 #### Build Phase Dispatch — Variant Routing (precedence: `pdr_rtv > bestofn > standard`)
 
-Read `pdr_rtv` and `bestofn` from the pipeline state frontmatter (mirrored from `pipeline-state/{task-id}/intake.md` at pipeline creation; computed by intake Step 2d / 2d-bis). The **PDR-RTV check runs first** because it is the strictly stronger variant when both flags fire.
+Read `pdr_rtv` and `bestofn` from the pipeline state frontmatter (mirrored from `$state_dir/{task-id}/intake.md` at pipeline creation; computed by intake Step 2d / 2d-bis). The **PDR-RTV check runs first** because it is the strictly stronger variant when both flags fire.
 
 ##### PDR-RTV Check (runs first)
 
 - If `pdr_rtv == true` (computed by intake Step 2d-bis as `budget >= ${CLAUDE_PDR_RTV_BUDGET_FLOOR:-10} AND critical == true`): dispatch via the **PDR-RTV Build Team** variant (see `orchestrator/parallel-dispatch-details.md` § PDR-RTV Build Team Dispatch). PDR-RTV runs T=2 iterations of N parallel rollouts (peak concurrent worktrees = N = 4 due to strict iteration serialisation), summary-based refinement, and pairwise tournament selection. The winner still proceeds through the normal Review → Final Gate → Ship gates.
-- If `pdr_rtv == true AND bestofn == true`: PDR-RTV wins (strictly stronger). Log re-route to `pipeline-state/{task-id}/pipeline.md` § Re-routes.
+- If `pdr_rtv == true AND bestofn == true`: PDR-RTV wins (strictly stronger). Log re-route to `$state_dir/{task-id}/pipeline.md` § Re-routes.
 - Otherwise: fall through to the Best-of-N Check below.
 
 **PDR-RTV Fallback**: on `PDR_NO_CONSENSUS` (insufficient green builds, all finalists rejected, or worktree-cap exceeded), silently re-route to Best-of-N → standard Build. Log the fallback in pipeline state under `## Re-routes` with `fallback_reason` enum (`worktree-cap-exceeded` | `insufficient-green-builds` | `all-finalists-rejected`). The pipeline never halts on a PDR-RTV failure and never asks the user.
 
 ##### Best-of-N Check
 
-Read `bestofn` from the pipeline state frontmatter (mirrored from `pipeline-state/{task-id}/intake.md` at pipeline creation; computed by intake Step 2d-bis as `critical OR user_override`, where `user_override` fires on the literal `[best-of-n]` token in the request text).
+Read `bestofn` from the pipeline state frontmatter (mirrored from `$state_dir/{task-id}/intake.md` at pipeline creation; computed by intake Step 2d-bis as `critical OR user_override`, where `user_override` fires on the literal `[best-of-n]` token in the request text).
 
 - If `pdr_rtv == false AND bestofn == true`: dispatch via the **Best-of-N Build Team** variant (see `orchestrator/parallel-dispatch-details.md` § Best-of-N Build Team Dispatch). This is not a separate skill — it is a dispatch mode of the Build Team that runs N candidate models in parallel and selects the winner. The winner still proceeds through the normal Review → Final Gate → Ship gates.
 - If absent (older pipelines pre-flag): treated as `False` — use standard Build dispatch.
@@ -447,7 +447,7 @@ When a skill returns `WRONG_SKILL: {guidance}`, the orchestrator automatically r
 
 - **Maximum one re-route per pipeline** — a second `WRONG_SKILL` escalates to user.
 - The target skill is parsed from the guidance text (e.g., `WRONG_SKILL: use /harness:module-extraction` → target is `/harness:module-extraction`).
-- Routing is recorded in `pipeline-state/{task-id}/pipeline.md` under a `## Re-routes` section.
+- Routing is recorded in `$state_dir/{task-id}/pipeline.md` under a `## Re-routes` section.
 
 ### Step 4b: Extraction Assessment (Automatic, Post-Accept)
 
@@ -501,7 +501,7 @@ Schema source of truth: `protocols/autonomous-intelligence.md` § Field referenc
       "persona_rejections": []
     }
     // OPTIONAL: append `phases.sandbox_verify` when the Build phase's
-    // Step 5b /harness:sandbox-verify gate ran and pipeline-state/{task-id}/build.md
+    // Step 5b /harness:sandbox-verify gate ran and $state_dir/{task-id}/build.md
     // carries a `## Sandbox Verify` section. Schema documented in
     // protocols/autonomous-intelligence.md § Field reference.
     // Example: "sandbox_verify": {"verdict": "SANDBOX_VERIFIED",
@@ -536,7 +536,7 @@ record = {
 }
 
 # OPTIONAL: append `phases.sandbox_verify` when Step 5b ran. Detect by
-# reading `pipeline-state/{task-id}/build.md` and looking for the
+# reading `$state_dir/{task-id}/build.md` and looking for the
 # `## Sandbox Verify` section. Mirror the patch_critic absence rule:
 # write the block IFF the section exists; never synthesise a default.
 # Example fill:
@@ -678,10 +678,10 @@ This sub-step has moved to Step 4d-ii (Reflect-write, pre-Ship) and is now invok
 
 After analytics, reflection, and learning are complete, remove the pipeline state files. Cleanup is dual-form during the 90-day DUAL_PATH soak (per `protocols/pipeline-protocol.md` § Structured Pipeline State):
 
-0. **Pre-step — shadow-checkpoint refs**: delete every `refs/checkpoints/{task-id}/*` ref in the shared ref database (created by `hooks/shadow-git-checkpoint.sh`). Refs live in REPO_ROOT's ref db (per `git-worktree(1)` semantics — only `refs/heads/*` is per-worktree), so cleanup runs against `REPO_ROOT`, NOT against any individual worktree. Idempotent: zero refs → loop no-ops. Workstream variant: refs are NOT workstream-prefixed (task-id alone is unique), so the same loop covers both. Per-worktree counter file `pipeline-state/{task-id}/checkpoint-counter-{slug}.txt` is removed by Form 1's `find -delete` below — no separate step.
-1. **Form 1 — new-layout subdir cleanup**: empty the per-task subdir with `find -delete` (sandbox-safe — `rm -rf` on directories is denied by the sandbox even on orchestrator-writable paths). Workstream variant: same pattern under `pipeline-state/workstreams/{ws}/{task-id}/`.
-2. **Form 2 — legacy phase enumeration**: iterate the canonical phase list via `_psp_phase_list` (sourced from `hooks/_lib/pipeline-state-paths.sh`) and remove each `pipeline-state/{task-id}-{phase}.md` file. **NEVER use a bare wildcard glob over the task prefix** — that matches prefix neighbours (e.g. cleanup of `tool` would delete `tool-timing-capture-*` files). R12 mitigation.
-3. Approval token + trajectory have well-known names; remove them by exact path: `pipeline-state/{task-id}-approval.token` and `pipeline-state/{task-id}-trajectory.jsonl`.
+0. **Pre-step — shadow-checkpoint refs**: delete every `refs/checkpoints/{task-id}/*` ref in the shared ref database (created by `hooks/shadow-git-checkpoint.sh`). Refs live in REPO_ROOT's ref db (per `git-worktree(1)` semantics — only `refs/heads/*` is per-worktree), so cleanup runs against `REPO_ROOT`, NOT against any individual worktree. Idempotent: zero refs → loop no-ops. Workstream variant: refs are NOT workstream-prefixed (task-id alone is unique), so the same loop covers both. Per-worktree counter file `$state_dir/{task-id}/checkpoint-counter-{slug}.txt` is removed by Form 1's `find -delete` below — no separate step.
+1. **Form 1 — new-layout subdir cleanup**: empty the per-task subdir with `find -delete` (sandbox-safe — `rm -rf` on directories is denied by the sandbox even on orchestrator-writable paths). Workstream variant: same pattern under `$state_dir/workstreams/{ws}/{task-id}/`.
+2. **Form 2 — legacy phase enumeration**: iterate the canonical phase list via `_psp_phase_list` (sourced from `hooks/_lib/pipeline-state-paths.sh`) and remove each `$state_dir/{task-id}-{phase}.md` file. **NEVER use a bare wildcard glob over the task prefix** — that matches prefix neighbours (e.g. cleanup of `tool` would delete `tool-timing-capture-*` files). R12 mitigation.
+3. Approval token + trajectory have well-known names; remove them by exact path: `$state_dir/{task-id}-approval.token` and `$state_dir/{task-id}-trajectory.jsonl`.
 
 > **WARNING — scope guard (2026-06-04 wipe incident)**: Form 1 cleanup MUST target
 > `$task_dir` only (the per-task subdir). MUST NOT pass `$state_dir` or the whole

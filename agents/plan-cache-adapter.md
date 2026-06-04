@@ -1,6 +1,6 @@
 ---
 name: plan-cache-adapter
-description: Plan-cache HIT-path adapter. Rewrites a cached plan template against the current pipeline's acceptance criteria, preserves required structural sections, and writes the adapted plan to pipeline-state/{task-id}/plan.md with a cache_hit marker. Single-shot; the spawning skill applies the structural validator and falls through in-cycle on rejection — no retry inside this agent.
+description: Plan-cache HIT-path adapter. Rewrites a cached plan template against the current pipeline's acceptance criteria, preserves required structural sections, and emits the adapted plan to `$state_dir/{task-id}/plan.md` with a cache_hit marker. Single-shot; the spawning skill applies the structural validator and falls through in-cycle on rejection — no retry inside this agent.
 tools:
   - Read
   - Write

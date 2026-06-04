@@ -33,8 +33,8 @@ The orchestrator MUST provide all three in the spawn prompt:
 | Candidate diff | `git diff main...HEAD` (full unified diff) |
 | Test output | Most recent fresh test-suite run (PASS/FAIL counts, failed test names) |
 | Intake spec | Task description from `/harness:intake` — what the patch is supposed to do |
-| Verification evidence | `pipeline-state/{task-id}/verification-evidence.json` written by `/harness:verify` Step 6. Freshness validated by `hooks/verification-freshness-guard.sh` (Path-B advisory at v2.1.141); orchestrator MUST re-run `/harness:verify` BEFORE re-dispatch if the hook logs `would_block` with `reason: git_head_mismatch`. Absent → `PATCH_REJECTED` with `reason: missing input: verification-evidence.json`. |
-| A11y index (optional) | `pipeline-state/{task-id}/design-qc/index.json` produced by `/harness:design-qc` § 6.25. Drives rubric § 5. Absent → § 5 omitted from output (silent SKIP). |
+| Verification evidence | `$state_dir/{task-id}/verification-evidence.json` written by `/harness:verify` Step 6. Freshness validated by `hooks/verification-freshness-guard.sh` (Path-B advisory at v2.1.141); orchestrator MUST re-run `/harness:verify` BEFORE re-dispatch if the hook logs `would_block` with `reason: git_head_mismatch`. Absent → `PATCH_REJECTED` with `reason: missing input: verification-evidence.json`. |
+| A11y index (optional) | `$state_dir/{task-id}/design-qc/index.json` produced by `/harness:design-qc` § 6.25. Drives rubric § 5. Absent → § 5 omitted from output (silent SKIP). |
 
 If any of the three required inputs is missing, the critic returns PATCH_REJECTED with reason `missing input: {name}`. Do NOT guess at missing inputs. The a11y index is optional; absence triggers § 5 SKIP semantics, not PATCH_REJECTED.
 
@@ -96,8 +96,8 @@ Agent({
            - Candidate diff: [git diff main...HEAD output]
            - Test output: [latest fresh test run summary]
            - Intake spec: [intake task description]
-           - Verification evidence: pipeline-state/{task-id}/verification-evidence.json
-           - A11y index (optional): pipeline-state/{task-id}/design-qc/index.json
+           - Verification evidence: $state_dir/{task-id}/verification-evidence.json
+           - A11y index (optional): $state_dir/{task-id}/design-qc/index.json
 
            Score the five-dimension rubric. Emit:
              Verdict: PATCH_APPROVED or PATCH_REJECTED with file:line citations
@@ -162,7 +162,7 @@ Operator override: `CLAUDE_PATCH_CRITIC_AGGREGATION=or` reverts to OR-aggregatio
 
 ## Output Format
 
-Each persona spawn emits the structured output below. The orchestrator-aggregated artifact at `pipeline-state/{task-id}/patch-critic.md` concatenates one such block per persona that ran (1 when `mode=persona-1`, 3 when `mode=escalated`).
+Each persona spawn emits the structured output below. The orchestrator-aggregated artifact at `$state_dir/{task-id}/patch-critic.md` concatenates one such block per persona that ran (1 when `mode=persona-1`, 3 when `mode=escalated`).
 
 ```markdown
 ## Patch Critique: [task-id] [Persona: correctness | regression-risk | scope-creep]

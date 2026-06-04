@@ -13,7 +13,7 @@ This is a step-by-step protocol, not a philosophy. Follow it literally. Two test
 
 ### Cycle (per slice, NOT per behavior)
 
-1. **READ AC TEST STUBS**: Open `pipeline-state/{task-id}-plan.md` and pull the "Failing Test Stubs (per AC)" list the architect produced. Each stub names a test file, a test name, and an assertion intent. If any AC has no stub, halt and surface to the architect — implementation cannot begin.
+1. **READ AC TEST STUBS**: Open `$state_dir/{task-id}-plan.md` and pull the "Failing Test Stubs (per AC)" list the architect produced. Each stub names a test file, a test name, and an assertion intent. If any AC has no stub, halt and surface to the architect — implementation cannot begin.
 2. **BATCHED RED**: Write every AC test as one batch (the architect's stubs are the contract). Run the suite ONCE. Capture the RED output (this is the audit artifact). Verify every batched test fails for the RIGHT reason — not syntax errors, not missing imports — the named behavior is absent.
 3. **IMPLEMENT CLEANLY**: Write production code that is correct AND well-shaped on the first pass. Cohesion rules (one-thing-per-function, CC ≤ 5, nesting ≤ 2, DRY on 2nd occurrence — see `protocols/engineering-invariants.md` § Code Shape) apply *as you write*, not in a separate cleanup pass. Choose intent-revealing names from the start; extract duplication on the 2nd occurrence as it appears. Run the suite ONCE when done. Capture the GREEN output.
 4. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% kill rate is required. If <70%, the slice is NOT complete — go back to step 3 with targeted tests against the surviving mutations until >= 70%.

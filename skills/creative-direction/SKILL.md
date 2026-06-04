@@ -48,7 +48,7 @@ If no argument provided, infer from:
 
 If ALL of these are true: (a) no project CLAUDE.md exists, (b) no existing UI code exists, (c) no pipeline state design brief exists — this is a greenfield project.
 
-1. **Product brief**: Check `pipeline-state/{task-id}/product-brief.md` (from `/harness:greenfield-scaffold` Step 1). If found, extract product type, target audience, and personality clues.
+1. **Product brief**: Check `$state_dir/{task-id}/product-brief.md` (from `/harness:greenfield-scaffold` Step 1). If found, extract product type, target audience, and personality clues.
 
 2. **Competitive differentiation**: From the product brief's product type, identify 2-3 visual patterns common in that space. The design brief should DIFFERENTIATE from these, not reproduce them.
 
@@ -59,7 +59,7 @@ If ALL of these are true: (a) no project CLAUDE.md exists, (b) no existing UI co
    - Healthcare workers → trustworthy, calm, accessible
    - Creative professionals → bold, expressive, editorial
 
-4. **UI Architecture alignment**: Check `pipeline-state/{task-id}/ui-architecture.md`. If found, use the screen inventory to influence layout archetype:
+4. **UI Architecture alignment**: Check `$state_dir/{task-id}/ui-architecture.md`. If found, use the screen inventory to influence layout archetype:
    - Dashboard-heavy → Dashboard density or Asymmetric bento grid
    - Content-heavy → Magazine editorial or Generous white space
    - List/table-heavy → Dashboard density
@@ -164,7 +164,7 @@ Assess which next-gen interaction patterns apply to this product:
 
 ### Step 8: Produce Design Brief
 
-Write to `pipeline-state/{task-id}/design-brief.md`:
+Write to `$state_dir/{task-id}/design-brief.md`:
 
 ```markdown
 ---

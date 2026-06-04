@@ -62,7 +62,7 @@ Scratch tools MUST NOT:
 Write a one-line justification in the pipeline scratchpad before registering:
 
 ```
-pipeline-state/{task-id}/scratchpad/tool-synthesis.md
+$state_dir/{task-id}/scratchpad/tool-synthesis.md
 ---
 category: decision
 ---

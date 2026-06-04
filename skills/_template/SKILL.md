@@ -32,7 +32,7 @@ When this skill should fire. Be specific — if a sibling skill already covers p
 
 What this skill expects to be available before it starts. Include file paths the skill will read, environment vars it reads, prior phase verdicts it depends on.
 
-- **Pipeline state**: e.g. `pipeline-state/{task-id}/build.md` with verdict `BUILD_COMPLETE`
+- **Pipeline state**: e.g. `$state_dir/{task-id}/build.md` with verdict `BUILD_COMPLETE`
 - **External**: e.g. project `CLAUDE.md` Commands section, `.env` for secrets
 - **User**: e.g. acceptance criteria, error description, target branch
 
@@ -61,9 +61,9 @@ If this step has a gate, name the gate and the verdict it produces.
 
 What this skill produces. Be specific about file paths, frontmatter, and downstream consumers.
 
-- **State file**: `pipeline-state/{task-id}/<phase>.md` with the verdict in frontmatter
+- **State file**: `$state_dir/{task-id}/<phase>.md` with the verdict in frontmatter
 - **Artifacts**: e.g. test outputs, mutation reports, PR URL, scratchpad findings
-- **Scratchpad**: `pipeline-state/{task-id}/scratchpad/<role>-<phase>.md` for findings the next phase needs
+- **Scratchpad**: `$state_dir/{task-id}/scratchpad/<role>-<phase>.md` for findings the next phase needs
 
 ### Output File Format
 

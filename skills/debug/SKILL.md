@@ -1,6 +1,6 @@
 ---
 name: "debug"
-description: "Persistent debug state management for complex, multi-session bugs. Creates and maintains structured debug state files in pipeline-state/ that survive context compaction. Use when a bug requires multiple fix-test cycles, environment-dependent debugging, or spans sessions."
+description: "Persistent debug state management for complex, multi-session bugs. Creates and maintains structured debug state files under HARNESS_DATA (see harness-paths.sh) that survive context compaction. Use when a bug requires multiple fix-test cycles, environment-dependent debugging, or spans sessions."
 argument-hint: "Task ID or bug description"
 ---
 
@@ -45,7 +45,7 @@ ls ~/.claude/pipeline-state/*-debug.md 2>/dev/null
 
 If a debug state file exists for this task, load it and continue from the current state.
 
-If no state exists, create `pipeline-state/{task-id}/debug.md`:
+If no state exists, create `$state_dir/{task-id}/debug.md`:
 
 ```markdown
 ---
@@ -140,7 +140,7 @@ Verdict: DEBUG_ACTIVE / DEBUG_RESOLVED / DEBUG_ESCALATED
 Next: If RESOLVED → resume pipeline from Review phase
       If ESCALATED → user decides next steps
       If ACTIVE → continue debugging loop
-State: pipeline-state/{task-id}/debug.md
+State: $state_dir/{task-id}/debug.md
 Reproducer artifact: <{path, red_evidence, green_evidence} | env-only> (REQUIRED on DEBUG_RESOLVED — Step 0 AssertFlip output; env-only valid only for DEBUG_RESOLVED, never BUG_FIXED)
 ```
 $ARGUMENTS

@@ -133,7 +133,7 @@ This is automatic — the user does not need to invoke `/harness:design-system-i
 
 ### 3d. Post-Greenfield Mode
 
-If this skill is invoked after `/harness:greenfield-scaffold` (detect by checking for `pipeline-state/{task-id}/tech-stack.md` and `pipeline-state/{task-id}/product-brief.md`):
+If this skill is invoked after `/harness:greenfield-scaffold` (detect by checking for `$state_dir/{task-id}/tech-stack.md` and `$state_dir/{task-id}/product-brief.md`):
 
 1. **Read the greenfield artifacts** instead of scanning from scratch:
    - Product brief → use for CLAUDE.md project description

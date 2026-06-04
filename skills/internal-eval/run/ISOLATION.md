@@ -22,9 +22,9 @@ Canonical reference for the environment-variable contract that lets an **inner**
 
 Without this contract, inner and outer pipelines collide on:
 
-1. **pipeline-state** — both write to `~/.claude/pipeline-state/{task-id}/pipeline.md` (canonical) or `~/.claude/pipeline-state/*-pipeline.md` (legacy, read-tolerated during 90-day DUAL_PATH soak). `CLAUDE_PIPELINE_BYPASS=1` lets the inner proceed without a state file of its own in the outer's directory; `HOME` isolation gives it its own directory entirely.
-2. **scratchpad** — `pipeline-state/{task-id}/scratchpad/` (canonical; legacy: `pipeline-state/{task-id}-scratchpad/`). Same mitigation as (1).
-3. **trajectory** — `pipeline-state/{task-id}/trajectory.jsonl` (canonical; legacy: `pipeline-state/{task-id}-trajectory.jsonl`). `CLAUDE_PIPELINE_TASK_ID` forces the namespace.
+1. **pipeline-state** — both pipelines use `$state_dir/{task-id}/pipeline.md` (canonical) or the legacy flat form `$state_dir/{task-id}-pipeline.md` (read-tolerated during 90-day DUAL_PATH soak). `CLAUDE_PIPELINE_BYPASS=1` lets the inner proceed without a state file of its own in the outer's directory; `HOME` isolation gives it its own directory entirely.
+2. **scratchpad** — `$state_dir/{task-id}/scratchpad/` (canonical; legacy: `$state_dir/{task-id}-scratchpad/`). Same mitigation as (1).
+3. **trajectory** — `$state_dir/{task-id}/trajectory.jsonl` (canonical; legacy: `$state_dir/{task-id}-trajectory.jsonl`). `CLAUDE_PIPELINE_TASK_ID` forces the namespace.
 4. **observations** — `learning/{project-hash}/observations.jsonl`. `CLAUDE_PROJECT_HASH` redirects.
 5. **learning/instincts** — `learning/{project-hash}/instincts/`. Same as (4).
 6. **session-memory** — `session-memory/{project-hash}/{sub-file}.md` (5 sub-files: `codebase-map`, `build-test`, `patterns`, `fragility`, `active-work`). Respects `HOME` + `CLAUDE_PROJECT_HASH`. Legacy single-file form still readable via `session_memory_read_split` during the 30-day DUAL_PATH soak.
@@ -34,7 +34,7 @@ Without this contract, inner and outer pipelines collide on:
 
 ## Kill-Mid-Run Guarantee
 
-If an inner pipeline is killed part-way through, the outer pipeline-state directory must contain **zero** inner residue (no `eval-{run-id}-*` files). This is enforced by construction: when the inner pipeline uses `HOME` isolation, it writes to its own `pipeline-state/` directory entirely; the outer's is never touched. When the inner only uses `CLAUDE_PIPELINE_BYPASS=1` without a shadow `HOME`, it must not create any `pipeline-state/` files of its own — the bypass is exactly the promise that it won't.
+If an inner pipeline is killed part-way through, the outer pipeline-state directory must contain **zero** inner residue (no `eval-{run-id}-*` files). This is enforced by construction: when the inner pipeline uses `HOME` isolation, it uses its own `$state_dir/` directory entirely; the outer's is never touched. When the inner only uses `CLAUDE_PIPELINE_BYPASS=1` without a shadow `HOME`, it must not create any state files of its own — the bypass is exactly the promise that it won't.
 
 ## Consumer-Side Implementation Notes
 
