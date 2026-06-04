@@ -1015,6 +1015,407 @@ if [[ "$BM2_COUNT" -eq 0 ]]; then pass "B-M2: zero expanduser/Path.home() home-j
 else fail "B-M2: zero expanduser/Path.home() home-join patterns in skills/ .py (excl harness_paths.py)" 0 "$BM2_COUNT"; fi
 
 # ---------------------------------------------------------------------------
+# B10 (slice-a-scanner): write-verb-anchored scan for bare pipeline-state/
+# write instructions in skills/, protocols/, agents/, orchestrator/ .md files.
+# Verb set: Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch|
+#           outputPath:|> pipeline-state|>> pipeline-state
+#
+# Exclusions:
+#   - eval/cases/ (M7 fixtures)
+#   - PORTING-NOTES.md, ROLLOUT.md (M7 doc-prose)
+#   - protocols/pipeline-protocol.md lines ~44-54,66-74 (canonical-layout defs)
+#     have no write verbs — the regex does not fire there, so NO exclusion
+#     mechanism is needed (verified per plan MED-1).
+#
+# RED proof: plant a scratch .md with a bare pipeline-state/ write instruction
+# in each verb form and confirm count >=1 per branch.
+# GREEN (EXPECTED-FAIL): registered as known-new-RED until slice-d merges and
+# all doc-sweep slices are complete.
+# ---------------------------------------------------------------------------
+echo "-- B10 (slice-a-scanner): write-verb-anchored scan for bare pipeline-state/ write instructions --"
+
+# Helper: scan a directory tree for write-verb-anchored pipeline-state violations
+# Usage: _b10_scan_dir <dir> [<exclude-patterns>...]
+# Prints count of violations. Each violation is a line in a .md file that:
+#   - contains a write verb (Write|Writes|Create|Creates|persist|Persist|
+#     append|Append|mkdir|touch|outputPath:|> pipeline-state|>> pipeline-state)
+#   - AND contains pipeline-state/ NOT preceded by HARNESS_DATA, CLAUDE_PLUGIN_DATA,
+#     CLAUDE_CONFIG_DIR, state_dir, $HARNESS_DATA, or the harness-paths.sh resolution form
+B10_VERB_REGEX='(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch|outputPath:|> pipeline-state|>> pipeline-state)'
+B10_PATH_REGEX='pipeline-state/'
+# Match: line has write verb AND bare pipeline-state/ not prefixed by an HARNESS_DATA resolution
+# Implementation: use Python for multi-pattern matching with per-line context
+
+# Per-branch RED proof — each alternation branch tested independently
+# Branch group 1: Write/Writes
+echo "-- B10 RED proof branch: Write/Writes --"
+B10_SCRATCH_DIR="${TMPDIR:-/tmp}/b10-red-proof-$$"
+mkdir -p "$B10_SCRATCH_DIR"
+
+# Plant violations for each verb form
+printf 'Write `pipeline-state/{task-id}/foo.md` with the result.\n' \
+  > "$B10_SCRATCH_DIR/verb_write.md"
+printf 'Creates `pipeline-state/{task-id}/bar.md`\n' \
+  > "$B10_SCRATCH_DIR/verb_create.md"
+printf 'Persist to `pipeline-state/{task-id}/state.md`\n' \
+  > "$B10_SCRATCH_DIR/verb_persist.md"
+printf 'Append to `pipeline-state/{task-id}/log.md`\n' \
+  > "$B10_SCRATCH_DIR/verb_append.md"
+printf '`mkdir -p pipeline-state/{task-id}/scratchpad/`\n' \
+  > "$B10_SCRATCH_DIR/verb_mkdir.md"
+printf '`touch pipeline-state/{task-id}/.dev-server.pid`\n' \
+  > "$B10_SCRATCH_DIR/verb_touch.md"
+printf '    - outputPath: pipeline-state/{task-id}/plan.md\n' \
+  > "$B10_SCRATCH_DIR/verb_outputpath.md"
+printf '`> pipeline-state/{task-id}/out.md`\n' \
+  > "$B10_SCRATCH_DIR/verb_redirect.md"
+printf '`>> pipeline-state/{task-id}/log.md`\n' \
+  > "$B10_SCRATCH_DIR/verb_append2.md"
+
+B10_RED_SCAN=$(python3 - "$B10_SCRATCH_DIR" <<'B10REDHEREDOC'
+import os, re, sys
+
+VERB_PAT = re.compile(
+    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
+    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+)
+# A bare pipeline-state/ path: pipeline-state/ not preceded by known-good prefixes
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+
+EXCLUDED_FILES = {'PORTING-NOTES.md', 'ROLLOUT.md'}
+
+root = sys.argv[1]
+counts = {}
+for d, dirs, files in os.walk(root):
+    dirs[:] = [x for x in dirs if x not in ('.git', 'eval')]
+    for f in files:
+        if not f.endswith('.md'):
+            continue
+        if f in EXCLUDED_FILES:
+            continue
+        path = os.path.join(d, f)
+        with open(path, errors='replace') as fp:
+            for line in fp:
+                if VERB_PAT.search(line) and BARE_PATH_PAT.search(line):
+                    # Track per verb form
+                    m = VERB_PAT.search(line)
+                    verb = m.group(1) if m else 'unknown'
+                    counts[verb] = counts.get(verb, 0) + 1
+
+total = sum(counts.values())
+print(total)
+B10REDHEREDOC
+)
+
+B10_RED_SCAN="${B10_RED_SCAN// /}"
+if [[ "$B10_RED_SCAN" -ge 1 ]]; then pass "B10-RED: scanner fires on 9-verb planted violation set (got $B10_RED_SCAN)"
+else fail "B10-RED: scanner fires on planted violations" ">=1" "$B10_RED_SCAN"; fi
+
+# Per-branch independent tests (AC-A1, AC-A5)
+echo "-- B10 RED proof: per-branch independent tests (Write/Create/mkdir/outputPath/redirect/append/touch/persist) --"
+for VERB_FILE in "$B10_SCRATCH_DIR"/verb_*.md; do
+  VERB_NAME=$(basename "$VERB_FILE" .md)
+  BRANCH_COUNT=$(python3 - "$VERB_FILE" <<'B10BRANCHHEREDOC'
+import re, sys
+
+VERB_PAT = re.compile(
+    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
+    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+)
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+
+path = sys.argv[1]
+count = 0
+with open(path, errors='replace') as fp:
+    for line in fp:
+        if VERB_PAT.search(line) and BARE_PATH_PAT.search(line):
+            count += 1
+print(count)
+B10BRANCHHEREDOC
+  )
+  BRANCH_COUNT="${BRANCH_COUNT// /}"
+  if [[ "$BRANCH_COUNT" -ge 1 ]]; then pass "B10 branch-independence ($VERB_NAME): scanner fires (got $BRANCH_COUNT)"
+  else fail "B10 branch-independence ($VERB_NAME): scanner fires" ">=1" "$BRANCH_COUNT"; fi
+done
+
+rm -rf "$B10_SCRATCH_DIR"
+
+# B10 GREEN (EXPECTED-FAIL): registered as known-new-RED until slice-d merges
+# This assertion is the gate that flips GREEN after all doc-sweep slices are applied.
+echo "-- B10 GREEN (EXPECTED-FAIL until slice-d): zero bare write-paths in doc surface --"
+B10_DIRS=("$REPO_ROOT/skills" "$REPO_ROOT/protocols" "$REPO_ROOT/agents" "$REPO_ROOT/orchestrator")
+B10_TOTAL=$(python3 - "$REPO_ROOT" <<'B10GREENPYEOF'
+import os, re, sys
+
+VERB_PAT = re.compile(
+    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
+    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+)
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+
+EXCLUDED_FILES = {'PORTING-NOTES.md', 'ROLLOUT.md'}
+SCAN_DIRS = ['skills', 'protocols', 'agents', 'orchestrator']
+
+root = sys.argv[1]
+count = 0
+for scan_dir in SCAN_DIRS:
+    dir_path = os.path.join(root, scan_dir)
+    if not os.path.isdir(dir_path):
+        continue
+    for d, dirs, files in os.walk(dir_path):
+        dirs[:] = [x for x in dirs if x not in ('.git',)]
+        for f in files:
+            if not f.endswith('.md'):
+                continue
+            if f in EXCLUDED_FILES:
+                continue
+            path = os.path.join(d, f)
+            with open(path, errors='replace') as fp:
+                for line in fp:
+                    if VERB_PAT.search(line) and BARE_PATH_PAT.search(line):
+                        count += 1
+print(count)
+B10GREENPYEOF
+)
+B10_TOTAL="${B10_TOTAL// /}"
+# EXPECTED-FAIL: currently RED (violations exist), becomes required-GREEN after slice-d
+# Partial greens: skills/ and protocols/ checked separately after slice-c
+if [[ "$B10_TOTAL" -eq 0 ]]; then pass "B10 GREEN (final): zero bare write-paths in full doc surface"
+else fail "B10 GREEN (EXPECTED-FAIL): zero bare write-paths in full doc surface [known-RED until slice-d]" 0 "$B10_TOTAL"; fi
+
+# B10 partial: skills/ only (GREEN after slice-c)
+echo "-- B10 GREEN (partial, skills/): zero bare write-paths in skills/ .md files --"
+B10_SKILLS=$(python3 - "$REPO_ROOT" <<'B10SKILLSPYEOF'
+import os, re, sys
+
+VERB_PAT = re.compile(
+    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
+    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+)
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root + '/skills'):
+    dirs[:] = [x for x in dirs if x not in ('.git',)]
+    for f in files:
+        if not f.endswith('.md'):
+            continue
+        path = os.path.join(d, f)
+        with open(path, errors='replace') as fp:
+            for line in fp:
+                if VERB_PAT.search(line) and BARE_PATH_PAT.search(line):
+                    count += 1
+print(count)
+B10SKILLSPYEOF
+)
+B10_SKILLS="${B10_SKILLS// /}"
+if [[ "$B10_SKILLS" -eq 0 ]]; then pass "B10 GREEN (partial): zero bare write-paths in skills/ .md files"
+else fail "B10 GREEN (partial): zero bare write-paths in skills/ .md files [EXPECTED-FAIL until slice-c]" 0 "$B10_SKILLS"; fi
+
+# B10 partial: protocols/ only (GREEN after slice-c)
+echo "-- B10 GREEN (partial, protocols/): zero bare write-paths in protocols/ .md files --"
+B10_PROTOCOLS=$(python3 - "$REPO_ROOT" <<'B10PROTOCOLSPYEOF'
+import os, re, sys
+
+VERB_PAT = re.compile(
+    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
+    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+)
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root + '/protocols'):
+    dirs[:] = [x for x in dirs if x not in ('.git',)]
+    for f in files:
+        if not f.endswith('.md'):
+            continue
+        path = os.path.join(d, f)
+        with open(path, errors='replace') as fp:
+            for line in fp:
+                if VERB_PAT.search(line) and BARE_PATH_PAT.search(line):
+                    count += 1
+print(count)
+B10PROTOCOLSPYEOF
+)
+B10_PROTOCOLS="${B10_PROTOCOLS// /}"
+if [[ "$B10_PROTOCOLS" -eq 0 ]]; then pass "B10 GREEN (partial): zero bare write-paths in protocols/ .md files"
+else fail "B10 GREEN (partial): zero bare write-paths in protocols/ .md files [EXPECTED-FAIL until slice-c]" 0 "$B10_PROTOCOLS"; fi
+
+# B10 partial: agents/ only (GREEN after slice-d)
+echo "-- B10 GREEN (partial, agents/): zero bare write-paths in agents/ .md files --"
+B10_AGENTS=$(python3 - "$REPO_ROOT" <<'B10AGENTSPYEOF'
+import os, re, sys
+
+VERB_PAT = re.compile(
+    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
+    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+)
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root + '/agents'):
+    dirs[:] = [x for x in dirs if x not in ('.git',)]
+    for f in files:
+        if not f.endswith('.md'):
+            continue
+        path = os.path.join(d, f)
+        with open(path, errors='replace') as fp:
+            for line in fp:
+                if VERB_PAT.search(line) and BARE_PATH_PAT.search(line):
+                    count += 1
+print(count)
+B10AGENTSPYEOF
+)
+B10_AGENTS="${B10_AGENTS// /}"
+if [[ "$B10_AGENTS" -eq 0 ]]; then pass "B10 GREEN (partial): zero bare write-paths in agents/ .md files"
+else fail "B10 GREEN (partial): zero bare write-paths in agents/ .md files [EXPECTED-FAIL until slice-d]" 0 "$B10_AGENTS"; fi
+
+# B10 partial: orchestrator/ only (GREEN after slice-d)
+echo "-- B10 GREEN (partial, orchestrator/): zero bare write-paths in orchestrator/ .md files --"
+B10_ORCH=$(python3 - "$REPO_ROOT" <<'B10ORCHPYEOF'
+import os, re, sys
+
+VERB_PAT = re.compile(
+    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
+    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+)
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root + '/orchestrator'):
+    dirs[:] = [x for x in dirs if x not in ('.git',)]
+    for f in files:
+        if not f.endswith('.md'):
+            continue
+        path = os.path.join(d, f)
+        with open(path, errors='replace') as fp:
+            for line in fp:
+                if VERB_PAT.search(line) and BARE_PATH_PAT.search(line):
+                    count += 1
+print(count)
+B10ORCHPYEOF
+)
+B10_ORCH="${B10_ORCH// /}"
+if [[ "$B10_ORCH" -eq 0 ]]; then pass "B10 GREEN (partial): zero bare write-paths in orchestrator/ .md files"
+else fail "B10 GREEN (partial): zero bare write-paths in orchestrator/ .md files [EXPECTED-FAIL until slice-d]" 0 "$B10_ORCH"; fi
+
+# ---------------------------------------------------------------------------
+# B10b (slice-a-scanner): zero bare CWD-relative pipeline-state/$1 paths in
+# hooks/_lib/*.sh files. Target: plan-cache-lookup.sh:160 (the one violation).
+# RED proof: plant a scratch .sh with the bare path form, confirm >=1.
+# GREEN: fires immediately after slice-b fixes plan-cache-lookup.sh:160.
+# ---------------------------------------------------------------------------
+echo "-- B10b (slice-a-scanner): zero bare pipeline-state/\$1 CWD-relative paths in hooks/_lib/*.sh --"
+echo "-- B10b RED proof: scanner fires on planted .sh violation --"
+B10B_SCRATCH_DIR="${TMPDIR:-/tmp}/b10b-red-proof-$$"
+mkdir -p "$B10B_SCRATCH_DIR"
+printf 'local dir="pipeline-state/$1"\n' > "$B10B_SCRATCH_DIR/planted_violation.sh"
+
+B10B_RED_COUNT=$(python3 - "$B10B_SCRATCH_DIR" <<'B10BREDHEREDOC'
+import os, re, sys
+
+# Match: local dir="pipeline-state/$N" (bare CWD-relative pipeline-state assignment)
+# Exclude lines that already have HARNESS_DATA or ${CLAUDE_PLUGIN_DATA prefix
+PAT = re.compile(r'local\s+dir\s*=\s*["\x27]pipeline-state/')
+
+root = sys.argv[1]
+count = 0
+for d, dirs, files in os.walk(root):
+    dirs[:] = [x for x in dirs if x != '.git']
+    for f in files:
+        if not f.endswith('.sh'):
+            continue
+        path = os.path.join(d, f)
+        with open(path, errors='replace') as fp:
+            for line in fp:
+                if PAT.search(line):
+                    count += 1
+print(count)
+B10BREDHEREDOC
+)
+
+B10B_RED_COUNT="${B10B_RED_COUNT// /}"
+rm -rf "$B10B_SCRATCH_DIR"
+if [[ "$B10B_RED_COUNT" -ge 1 ]]; then pass "B10b-RED: scanner fires on planted local dir=pipeline-state/\$1 violation (got $B10B_RED_COUNT)"
+else fail "B10b-RED: scanner fires on planted violation" ">=1" "$B10B_RED_COUNT"; fi
+
+echo "-- B10b GREEN: zero bare pipeline-state paths in hooks/_lib .sh (fires GREEN after slice-b) --"
+B10B_COUNT=$(python3 - "$REPO_ROOT" <<'B10BGREENPYEOF'
+import os, re, sys
+
+PAT = re.compile(r'local\s+dir\s*=\s*["\x27]pipeline-state/')
+
+root = sys.argv[1]
+count = 0
+lib_dir = os.path.join(root, 'hooks', '_lib')
+for d, dirs, files in os.walk(lib_dir):
+    dirs[:] = [x for x in dirs if x != '.git']
+    for f in files:
+        if not f.endswith('.sh'):
+            continue
+        path = os.path.join(d, f)
+        with open(path, errors='replace') as fp:
+            for line in fp:
+                if PAT.search(line):
+                    count += 1
+print(count)
+B10BGREENPYEOF
+)
+B10B_COUNT="${B10B_COUNT// /}"
+if [[ "$B10B_COUNT" -eq 0 ]]; then pass "B10b GREEN: zero bare pipeline-state paths in hooks/_lib .sh"
+else fail "B10b GREEN: zero bare pipeline-state paths in hooks/_lib .sh [EXPECTED-FAIL until slice-b]" 0 "$B10B_COUNT"; fi
+
+# M6: pipeline/SKILL.md Step 7d uses HARNESS_DATA base (no change needed — confirms)
+echo "-- M6: pipeline/SKILL.md Step 7d uses HARNESS_DATA base (CLAUDE_PLUGIN_DATA) --"
+if grep -q 'CLAUDE_PLUGIN_DATA' "$REPO_ROOT/skills/pipeline/SKILL.md" 2>/dev/null; then
+  pass "M6: pipeline/SKILL.md Step 7d uses HARNESS_DATA base (CLAUDE_PLUGIN_DATA present)"
+else
+  fail "M6: pipeline/SKILL.md Step 7d uses HARNESS_DATA base" "CLAUDE_PLUGIN_DATA present" "absent"
+fi
+
+# AC-C5: pipeline-resume SKILL.md zero ~/.claude/pipeline-state refs (GREEN after slice-c)
+echo "-- AC-C5: pipeline-resume SKILL.md zero ~/.claude/pipeline-state refs (GREEN after slice-c) --"
+AC_C5_COUNT=$(grep -c '\.claude/pipeline-state' "$REPO_ROOT/skills/pipeline-resume/SKILL.md" 2>/dev/null || echo 0)
+AC_C5_COUNT="${AC_C5_COUNT// /}"
+if [[ "$AC_C5_COUNT" -eq 0 ]]; then pass "AC-C5: pipeline-resume SKILL.md has zero ~/.claude/pipeline-state refs"
+else fail "AC-C5: pipeline-resume SKILL.md has zero ~/.claude/pipeline-state refs [EXPECTED-FAIL until slice-c]" 0 "$AC_C5_COUNT"; fi
+
+# AC-D3: pipeline-state/README.md names HARNESS_DATA canonical location (GREEN after slice-d)
+echo "-- AC-D3: pipeline-state/README.md names HARNESS_DATA and soak note (GREEN after slice-d) --"
+if grep -qE 'HARNESS_DATA|CLAUDE_PLUGIN_DATA' "$REPO_ROOT/pipeline-state/README.md" 2>/dev/null \
+   && grep -q '90 days' "$REPO_ROOT/pipeline-state/README.md" 2>/dev/null; then
+  pass "AC-D3: pipeline-state/README.md names HARNESS_DATA and soak note present"
+else
+  fail "AC-D3: pipeline-state/README.md names HARNESS_DATA and soak note [EXPECTED-FAIL until slice-d]" "HARNESS_DATA+90-days" "absent"
+fi
+
+# AC-D4: detect-stale-pipeline-state.sh scans HARNESS_DATA (GREEN after slice-d)
+echo "-- AC-D4: detect-stale-pipeline-state.sh scans HARNESS_DATA (GREEN after slice-d) --"
+if grep -qE 'HARNESS_DATA|CLAUDE_PLUGIN_DATA' "$REPO_ROOT/scripts/detect-stale-pipeline-state.sh" 2>/dev/null; then
+  pass "AC-D4: detect-stale-pipeline-state.sh scans HARNESS_DATA location"
+else
+  fail "AC-D4: detect-stale-pipeline-state.sh scans HARNESS_DATA [EXPECTED-FAIL until slice-d]" "HARNESS_DATA present" "absent"
+fi
+
+# AC-D5: probe-schema-flips.sh OUT_DIR uses HARNESS_DATA (GREEN after slice-d)
+echo "-- AC-D5: probe-schema-flips.sh OUT_DIR uses HARNESS_DATA (GREEN after slice-d) --"
+if grep -qE 'HARNESS_DATA|CLAUDE_PLUGIN_DATA' "$REPO_ROOT/scripts/probe-schema-flips.sh" 2>/dev/null; then
+  pass "AC-D5: probe-schema-flips.sh OUT_DIR uses HARNESS_DATA"
+else
+  fail "AC-D5: probe-schema-flips.sh OUT_DIR uses HARNESS_DATA [EXPECTED-FAIL until slice-d]" "HARNESS_DATA present" "absent"
+fi
+
+# AC-D7: F1 invariant (pipeline-state/ has no git-tracked files except README)
+echo "-- AC-D7: F1 invariant: pipeline-state/ has no git-tracked files except README --"
+AC_D7_FILES=$(git -C "$REPO_ROOT" ls-files pipeline-state/ 2>/dev/null | grep -v 'README' || true)
+if [[ -z "$AC_D7_FILES" ]]; then pass "AC-D7: F1 invariant holds: pipeline-state/ has no git-tracked files except README"
+else fail "AC-D7: F1 invariant holds: pipeline-state/ has no git-tracked files except README" "empty" "$AC_D7_FILES"; fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""
