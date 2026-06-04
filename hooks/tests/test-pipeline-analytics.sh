@@ -77,6 +77,52 @@ rm -rf "$PA_STATE_DIR"
 )
 run_test "ordering: analytics exits 1 when state already cleaned (strict invariant preserved)" 1 $?
 
+# -- AC-4.1 / workstream: workstream-form task-id (workstreams/{ws}/{task}) ----
+# The script parses workstreams/{ws}/{task-id} before sanitization (lines 24-31).
+# This path is used by CLAUDE_WORKSTREAM-scoped pipelines and must resolve
+# TASK_STATE_DIR as pipeline-state/workstreams/{ws}/{task}/pipeline.md.
+# A broken parse collapses the path and causes exit 1 even when state exists.
+echo "-- workstream-form task-id --"
+
+PA_WS_TMP=$(mktemp -d)
+PA_WS="my-workstream"
+PA_WS_TASK="analytics-ws-task-$$"
+PA_WS_STATE_DIR="$PA_WS_TMP/pipeline-state/workstreams/$PA_WS/$PA_WS_TASK"
+mkdir -p "$PA_WS_STATE_DIR"
+
+cat > "$PA_WS_STATE_DIR/pipeline.md" <<'WSPIPELINEMD'
+---
+task_id: analytics-ws-task
+phase: ship
+plan: completed
+build: completed
+review: completed
+test: completed
+ship: completed
+---
+
+# Pipeline: analytics-ws-task
+
+## Status
+All phases complete.
+WSPIPELINEMD
+
+(
+  export CLAUDE_PLUGIN_DATA="$PA_WS_TMP"
+  bash "$HOOKS_DIR/pipeline-analytics.sh" "workstreams/$PA_WS/$PA_WS_TASK" > /dev/null 2>&1
+)
+run_test "workstream-form: analytics exits 0 when workstream state present" 0 $?
+
+# Confirm strict exit 1 when workstream state is cleaned
+rm -rf "$PA_WS_STATE_DIR"
+(
+  export CLAUDE_PLUGIN_DATA="$PA_WS_TMP"
+  bash "$HOOKS_DIR/pipeline-analytics.sh" "workstreams/$PA_WS/$PA_WS_TASK" > /dev/null 2>&1
+)
+run_test "workstream-form: analytics exits 1 when workstream state already cleaned" 1 $?
+
+rm -rf "$PA_WS_TMP"
+
 # -- Cleanup ------------------------------------------------------------------
 rm -rf "$PA_TMP"
 
