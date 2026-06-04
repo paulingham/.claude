@@ -357,7 +357,16 @@ Spawn all Final Gate agents into the same team:
 - `Agent({ name: "product-reviewer", team_name: "pipeline-{task-id}", ... })` — `/harness:product-acceptance`
 - `Agent({ name: "design-qc", team_name: "pipeline-{task-id}", ... })` — `/harness:design-qc` (if frontend)
 
-All four assess the same final state independently. Shut down after all verdicts collected.
+#### Accessibility Check (MANDATORY when frontend files changed, parallel with Design QC)
+
+If changed files include `.tsx`, `.jsx`, `.vue`, `.svelte`, or CSS files:
+- Spawn `/harness:accessibility-check` into the Final Gate team (parallel with `/harness:design-qc`)
+- Passes collected changed-route URLs per SKILL.md Step 1 route-detection procedure
+- A11Y_CHECK_FAILED → pipeline BLOCKS (same gate weight as CAPTURE_FAILED)
+- A11Y_CHECK_SKIPPED → pipeline continues; scratchpad warning emitted
+- No silent skip — if frontend files changed, accessibility gate is required
+
+All agents assess the same final state independently. Shut down after all verdicts collected.
 
 #### Parallel Phases (Dispatch Reference)
 

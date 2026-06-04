@@ -182,6 +182,7 @@ Before starting implementation, read these pattern files for domain-specific gui
 - @axe-core/react for runtime violation detection
 - Keyboard-only navigation testing
 - Lighthouse accessibility audit >= 90 in CI
+- After Build phase completes, the pipeline orchestrator invokes `/harness:accessibility-check` against changed routes at Final Gate (parallel with design-qc). This step is orchestrator-owned — frontend-engineer does not self-invoke it.
 
 ## Performance
 
