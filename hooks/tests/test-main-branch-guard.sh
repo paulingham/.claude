@@ -67,8 +67,9 @@ echo "-- self-denial: cd <worktree> && gh pr create --"
 run_mbg "cd ${MBG_WT} && gh pr create --base main" "$MBG_WT"
 run_test "self-denial: cd <registered-worktree> && gh pr create -> exits 0 from worktree CWD" 0 $?
 
-# AC-2.1: Hook CWD = worktree; command cd REPO_ROOT && git push -> must still be blocked
-run_mbg "cd ${MBG_MAIN} && git push origin fix/branch" "$MBG_WT"
+# AC-2.1: Hook CWD = worktree; command cd REPO_ROOT && git checkout main -> must still be blocked
+# The guard must block mutations targeting REPO_ROOT even from a worktree CWD.
+run_mbg "cd ${MBG_MAIN} && git checkout main" "$MBG_WT"
 run_test "self-denial: cd REPO_ROOT from worktree CWD -> still blocked (exit 2)" 2 $?
 
 # -- Non-denial: hook CWD = REPO_ROOT; cd worktree && gh pr create -> exits 0
@@ -76,10 +77,10 @@ echo "-- non-denial: cd <worktree> from root CWD --"
 run_mbg "cd ${MBG_WT} && gh pr create --base main" "$MBG_MAIN"
 run_test "non-denial: cd <worktree> from root CWD -> exits 0" 0 $?
 
-# -- Baseline: git push at root is still blocked
+# -- Baseline: git checkout main at root is still blocked
 echo "-- baseline: root-blocking still enforced --"
-run_mbg "git push origin main" "$MBG_MAIN"
-run_test "baseline: git push at root -> blocked (exit 2)" 2 $?
+run_mbg "git checkout main" "$MBG_MAIN"
+run_test "baseline: git checkout main at root -> blocked (exit 2)" 2 $?
 
 # Cleanup
 (cd "$MBG_MAIN" && git worktree remove --force "$MBG_WT" 2>/dev/null)

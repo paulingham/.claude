@@ -38,8 +38,17 @@ trap 'log_hook_event $?' EXIT
 
 set -uo pipefail
 
-# Escape hatch (per-session)
-[[ "${CLAUDE_DISABLE_RUNTIME_STATE_GUARD:-0}" == "1" ]] && exit 0
+# Escape hatch (per-session) — writes audit record before exiting so forensics
+# can identify sessions that bypassed this enforcing guard (Gap 5).
+if [[ "${CLAUDE_DISABLE_RUNTIME_STATE_GUARD:-0}" == "1" ]]; then
+    _sid="${CLAUDE_SESSION_ID:-local-$$}"; _sid="${_sid//[^a-zA-Z0-9_.-]/}"
+    _dir="${HARNESS_DATA:-${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}}/metrics/${_sid}"
+    mkdir -p "$_dir" 2>/dev/null && \
+        printf '{"timestamp":"%s","session_id":"%s","guard":"runtime-state-guard","action":"escaped"}\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$_sid" \
+            >> "$_dir/guard-escapes.jsonl" 2>/dev/null || true
+    exit 0
+fi
 
 INPUT=$(cat)
 TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
@@ -71,13 +80,43 @@ REPO_ROOT=$(cd "$REPO_ROOT" 2>/dev/null && pwd -P) || exit 0
 # (the exact 2026-06-03 incident pattern).
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# _rsg_is_registered_worktree: check whether a canonicalized path is a
+# git-registered linked worktree for the current REPO_ROOT. Mirrors the
+# registry-check pattern in _mbd_target_is_valid_worktree (main-branch-detect.sh).
+#
+# IMPORTANT: Uses < <(...) process substitution so the while loop runs in the
+# current shell — return 0 exits the function, not a subshell.
+# Do NOT wrap in $(...) — that spawns a subshell and return 0 exits the subshell
+# instead of the function, causing all worktrees to appear unregistered.
+#
+# Algorithm: tail -n +2 skips the first entry (= main worktree = REPO_ROOT);
+# only linked worktrees are checked here.
+# ---------------------------------------------------------------------------
+_rsg_is_registered_worktree() {
+    local path="$1"
+    local wt canon_wt
+    while IFS= read -r wt; do
+        [[ -z "$wt" ]] && continue
+        canon_wt=$(cd "$wt" 2>/dev/null && pwd -P) || continue
+        [[ "$path" == "$canon_wt" || "$path" == "$canon_wt/"* ]] && return 0
+    done < <(git worktree list --porcelain 2>/dev/null \
+        | awk '/^worktree /{print $2}' | tail -n +2)
+    return 1
+}
+
 _rsg_is_worktree() {
     # Canonicalize the actual CWD first (resolve macOS /var -> /private/var).
     local canon_pwd
     canon_pwd=$(pwd -P 2>/dev/null) || return 1
 
-    # Fast path: CWD is already inside a worktree directory tree.
-    [[ "$canon_pwd" == *"/.claude/worktrees/agent-"* ]] && return 0
+    # Registry check: verify CWD matches a git-registered linked worktree.
+    # Replaces the pattern-only fast-path which admitted the fake-glob-dir bypass
+    # (Gap 1: mkdir -p .claude/worktrees/agent-evil && cd into it bypassed the guard).
+    if [[ "$canon_pwd" == *"/.claude/worktrees/agent-"* ]]; then
+        _rsg_is_registered_worktree "$canon_pwd" && return 0
+        return 1
+    fi
 
     # If REPO_ROOT itself is a worktree path the entire session is worktree-scoped.
     # REPO_ROOT is already canonicalized (via cd + pwd -P above).
@@ -148,12 +187,13 @@ _rsg_is_repo_pipeline_state_path() {
 }
 
 # ---------------------------------------------------------------------------
-# Bash tool: detect mkdir targeting pipeline-state under REPO_ROOT.
+# Bash tool: detect mkdir/cp/mv/rsync targeting pipeline-state under REPO_ROOT.
 # Also handles absolute paths by checking if any argument resolves under
 # REPO_ROOT/pipeline-state via _rsg_is_repo_pipeline_state_path.
+# Gap 4: extends coverage from mkdir-only to cp/mv/rsync write verbs.
 # ---------------------------------------------------------------------------
 
-_rsg_mkdir_targets_pipeline_state() {
+_rsg_bash_targets_pipeline_state() {
     local cmd="$1"
     # Relative / ./-prefixed pipeline-state paths
     if [[ "$cmd" =~ (^|[[:space:]])(\.?/?)pipeline-state(/[^[:space:]]*)?([[:space:]]|$) ]]; then
@@ -174,6 +214,10 @@ _rsg_mkdir_targets_pipeline_state() {
     set +f
     return 1
 }
+
+# Backward-compat alias (callers inside this file were updated; alias prevents breakage
+# if anyone sources this file externally).
+_rsg_mkdir_targets_pipeline_state() { _rsg_bash_targets_pipeline_state "$@"; }
 
 # ---------------------------------------------------------------------------
 # Logging and block
@@ -223,9 +267,10 @@ if [[ "$TOOL_NAME" == "Bash" ]]; then
     COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
     [[ -z "$COMMAND" ]] && exit 0
 
-    # Must be a mkdir invocation
-    if [[ "$COMMAND" =~ (^|[[:space:]])mkdir([[:space:]]|$) ]]; then
-        if _rsg_mkdir_targets_pipeline_state "$COMMAND"; then
+    # Detect write verbs that can create/populate pipeline-state under REPO_ROOT.
+    # Covered: mkdir (original), cp, mv, rsync (Gap 4 additions).
+    if [[ "$COMMAND" =~ (^|[[:space:]])(mkdir|cp|mv|rsync)([[:space:]]|$) ]]; then
+        if _rsg_bash_targets_pipeline_state "$COMMAND"; then
             # Safe path exceptions: /tmp or /var (not repo-rooted)
             if [[ "$COMMAND" =~ /tmp/pipeline-state ]] || \
                [[ "$COMMAND" =~ /var/pipeline-state ]]; then

@@ -362,7 +362,7 @@ MTG_ESC_TMP=$(mktemp -d)
   cd "$MTG_MAIN" && \
   export CLAUDE_WORKTREE_PATH="$MTG_WT" && \
   export CLAUDE_DISABLE_MUTATION_TOOLING_GUARD=1 && \
-  export HARNESS_DATA="$MTG_ESC_TMP" && \
+  export CLAUDE_PLUGIN_DATA="$MTG_ESC_TMP" && \
   export CLAUDE_SESSION_ID="mtg-escape-test-$$" && \
   jq -nc --arg c "mutmut run" \
     '{tool_name:"Bash",tool_input:{command:$c},hook_event_name:"PreToolUse"}' \

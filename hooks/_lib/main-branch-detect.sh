@@ -170,8 +170,16 @@ _mbd_target_is_valid_worktree() {
       return 0
     fi
   fi
-  # Resolve REPO_ROOT for denial check.
-  local repo_root; repo_root=$(git rev-parse --show-toplevel 2>/dev/null)
+  # Resolve REPO_ROOT CWD-independently: first entry of porcelain worktree list = main worktree.
+  # Replaces `git rev-parse --show-toplevel` which is CWD-dependent — when hook CWD is a
+  # registered worktree, rev-parse returns the worktree root, making it appear equal to
+  # REPO_ROOT and causing self-denial of legitimate `cd <worktree> && gh pr create` commands.
+  # Amendment 2: `head -1` is correct here (first entry = main worktree unconditionally).
+  local repo_root
+  repo_root=$(CLAUDE_MBG_RESOLVING=1 git worktree list --porcelain 2>/dev/null \
+    | awk '/^worktree /{print $2}' | head -1)
+  # Fallback: CLAUDE_PROJECT_DIR if set and porcelain list empty
+  [[ -z "${repo_root:-}" && -n "${CLAUDE_PROJECT_DIR:-}" ]] && repo_root="${CLAUDE_PROJECT_DIR}"
   [[ -z "${repo_root:-}" ]] && return 1
   repo_real=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "${repo_root}" 2>/dev/null)
   [[ -z "${repo_real:-}" ]] && return 1

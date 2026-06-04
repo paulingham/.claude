@@ -215,11 +215,15 @@ echo "-- escape hatch --"
 run_test "escape var set -> bypass (exit 0)" 0 $?
 
 # -- Gap 1: Registry check (_rsg_is_registered_worktree) ----------------------
+# The exploit: create a dir that matches */.claude/worktrees/agent-* inside the
+# repo, cd into it, then run a command targeting REPO_ROOT/pipeline-state.
+# Without the registry check, the old fast-path matched the pattern and returned 0.
+# With the registry check, the guard iterates git worktree list and finds no match.
 echo "-- gap1: registry check --"
 
-# AC-1.1: CWD matches pattern but is NOT in git worktree registry -> blocked
-RSG_FAKE_DIR=$(mktemp -d)
-RSG_FAKE_WT="$RSG_FAKE_DIR/.claude/worktrees/agent-evil"
+# AC-1.1: CWD matches pattern but is NOT in git worktree registry -> blocked.
+# Create a fake-glob dir inside the REPO to ensure git resolves correctly from that CWD.
+RSG_FAKE_WT="$RSG_MAIN/.claude/worktrees/agent-evil"
 mkdir -p "$RSG_FAKE_WT"
 (
   cd "$RSG_FAKE_WT" || exit 1
@@ -228,7 +232,7 @@ mkdir -p "$RSG_FAKE_WT"
     | bash "$HOOKS_DIR/runtime-state-guard.sh" > /dev/null 2>&1
 )
 run_test "gap1: fake-glob dir not in registry -> blocked (exit 2)" 2 $?
-rm -rf "$RSG_FAKE_DIR"
+rm -rf "$RSG_FAKE_WT"
 
 # AC-1.1: CWD = git-registered worktree -> mkdir pipeline-state allowed
 (
@@ -239,18 +243,17 @@ rm -rf "$RSG_FAKE_DIR"
 )
 run_test "gap1: registered worktree CWD -> mkdir allowed (exit 0)" 0 $?
 
-# AC-1.1: unregistered glob-match dir (not registered with this REPO_ROOT) -> blocked
-RSG_UNREGD_DIR=$(mktemp -d)
-RSG_UNREGD_WT="$RSG_UNREGD_DIR/.claude/worktrees/agent-unregistered"
-mkdir -p "$RSG_UNREGD_WT"
+# AC-1.1: second fake-glob dir inside the repo (also not registered) -> blocked
+RSG_FAKE_WT2="$RSG_MAIN/.claude/worktrees/agent-unregistered"
+mkdir -p "$RSG_FAKE_WT2"
 (
-  cd "$RSG_UNREGD_WT" || exit 1
+  cd "$RSG_FAKE_WT2" || exit 1
   jq -nc --arg c "mkdir -p ${RSG_MAIN}/pipeline-state/task" \
     '{tool_name:"Bash",tool_input:{command:$c},hook_event_name:"PreToolUse"}' \
     | bash "$HOOKS_DIR/runtime-state-guard.sh" > /dev/null 2>&1
 )
 run_test "gap1: unregistered glob-match dir -> blocked (exit 2)" 2 $?
-rm -rf "$RSG_UNREGD_DIR"
+rm -rf "$RSG_FAKE_WT2"
 
 # -- Gap 4: cp/mv/rsync targeting pipeline-state -> blocked -------------------
 echo "-- gap4: cp/mv/rsync coverage --"
@@ -265,11 +268,10 @@ run_test "gap4: mv targeting pipeline-state -> blocked (exit 2)" 2 $?
 echo "-- gap5: escape-audit --"
 
 RSG_ESC_TMP=$(mktemp -d)
-RSG_ESC_JSONL="$RSG_ESC_TMP/guard-escapes.jsonl"
 (
   cd "$RSG_MAIN" && \
   export CLAUDE_DISABLE_RUNTIME_STATE_GUARD=1 && \
-  export HARNESS_DATA="$RSG_ESC_TMP" && \
+  export CLAUDE_PLUGIN_DATA="$RSG_ESC_TMP" && \
   export CLAUDE_SESSION_ID="rsg-escape-test-$$" && \
   jq -nc --arg c "mkdir -p pipeline-state/test" \
     '{tool_name:"Bash",tool_input:{command:$c},hook_event_name:"PreToolUse"}' \
