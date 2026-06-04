@@ -340,5 +340,9 @@ EOF
 #   false-positive blocks. Check:
 #     jq -r '.session_id' "$HARNESS_DATA"/metrics/*/mutation-tooling-advisory.jsonl \
 #       2>/dev/null | sort -u | wc -l
+# Flip deferred: FP review 2026-06-04 — see guard-hardening-telemetry-fixes plan.md
+# Reason: /var/folders sed records (confirmed FP pre-fix) present in advisory log;
+#   Gap 3 reduced-confidence pattern records unsoaked (added this pipeline).
+#   Re-run FP review after 10+ sessions with updated guard (post slice-1b) pass.
 # TODO(mutation-tooling-guard-promote): one-line flip — change to exit 2
 exit 0   # <-- SINGLE PROMOTION LINE
