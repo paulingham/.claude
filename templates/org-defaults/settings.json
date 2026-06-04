@@ -1,0 +1,145 @@
+{
+  "enabledPlugins": [
+    "harness@adviser-group"
+  ],
+  "env": {
+    "CLAUDE_HOOK_PROFILE": "standard",
+    "ENABLE_TOOL_SEARCH": "true",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
+    "CLAUDE_PIPELINE_MODE": "autonomous",
+    "CLAUDE_ENABLE_TRACE": "0",
+    "CLAUDE_SUBAGENT_MAX_DEPTH": "3",
+    "CLAUDE_SUBAGENT_MAX_RUNTIME": "1800",
+    "CLAUDE_TEAMMATE_MAX_RUNTIME": "3600",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-c",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/cloud-bootstrap.sh\""
+            ],
+            "timeout": 30000
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/session-start-bootstrap.sh\""
+            ],
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/main-branch-guard.sh\""
+            ],
+            "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/injection-scan.sh\""
+            ],
+            "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/pre-agent-allowlist.sh\""
+            ],
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/observation-capture.sh\""
+            ],
+            "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/tool-timing-capture.sh\""
+            ],
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/quality-gate.sh\""
+            ],
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Bash(rm -rf /Users*)",
+      "Bash(rm -rf $HOME*)",
+      "Bash(rm -rf /tmp*)",
+      "Bash(dd if=*)",
+      "Bash(mkfs*)",
+      "Bash(> /dev/sda*)",
+      "Bash(chmod -R 777 /*)",
+      "Bash(git push --force origin main)",
+      "Bash(git push --force origin master)",
+      "Bash(git push -f origin main)",
+      "Bash(git push -f origin master)",
+      "Bash(git reset --hard*)",
+      "Bash(git branch -D main)",
+      "Bash(git branch -D master)"
+    ]
+  }
+}
