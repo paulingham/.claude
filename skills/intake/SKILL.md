@@ -12,6 +12,8 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 
 ## Process
 
+> **Resolve**: `state_dir="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/pipeline-state"`
+
 ### Step 1: Classify the Work
 
 | Signal | Classification | Entry Point |
@@ -48,7 +50,7 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 
 ### Step 1.5: Fingerprint (MANDATORY — runs before Complexity Budget)
 
-Fingerprint the work into one of seven tiers (T0..T6) per `protocols/work-class-routing.md`. Tier determines dispatch shape; Complexity Budget (Step 2) shapes intra-tier dispatch. Detector cascade ships **Phase 1 + Phase 2 + fallthrough** in this pipeline. **Phase 3 deferred** — see § Phase 3 Status in `$state_dir/integrate-work-class-routing/plan.md` for the rationale.
+Fingerprint the work into one of seven tiers (T0..T6) per `protocols/work-class-routing.md`. Tier determines dispatch shape; Complexity Budget (Step 2) shapes intra-tier dispatch. Detector cascade ships **Phase 1 + Phase 2 + fallthrough** in this pipeline. **Phase 3 deferred** — see § Phase 3 Status in `pipeline-state/integrate-work-class-routing/plan.md` for the rationale.
 
 #### Phase 1 — Rule-based pass (no model call, $0)
 

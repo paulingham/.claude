@@ -4,9 +4,9 @@ Extracted from `protocols/pipeline-protocol.md`. Agents do not need this content
 
 ## Pipeline State Tracking
 
-Pipeline state is tracked using `pipeline-state/[feature-name]/pipeline.md` files (workstream variant: `$state_dir/workstreams/{ws}/[feature-name]/pipeline.md`). Each pipeline run creates a state file with YAML frontmatter (task_id, phase, verdict, timestamp, scale, branch) plus phase status, verdicts, artifacts, and agent summaries. This is the single source of truth — do NOT dual-write to `memory/`.
+Pipeline state is tracked using `$state_dir/[feature-name]/pipeline.md` files (workstream variant: `$state_dir/workstreams/{ws}/[feature-name]/pipeline.md`). Each pipeline run creates a state file with YAML frontmatter (task_id, phase, verdict, timestamp, scale, branch) plus phase status, verdicts, artifacts, and agent summaries. This is the single source of truth — do NOT dual-write to `memory/`.
 
-During the DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State), the legacy flat form `pipeline-state/[feature-name]-pipeline.md` is still tolerated by readers but never written by new code. Path resolution always goes through `hooks/_lib/pipeline_state_paths.py` (or `pipeline-state-paths.sh` from bash).
+During the DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State), the legacy flat form `$state_dir/[feature-name]-pipeline.md` is still tolerated by readers but never used for new code. Path resolution always goes through `hooks/_lib/pipeline_state_paths.py` (or `pipeline-state-paths.sh` from bash).
 
 ### State File Structure
 
@@ -103,11 +103,11 @@ After each phase completes, update the memory file with:
 ## Conversation Continuity
 
 ### During Conversation
-Pipeline state lives in `pipeline-state/[feature-name]/pipeline.md`. Each phase update writes verdicts, artifacts, and agent summaries to this file. Legacy `pipeline-state/[feature-name]-pipeline.md` files from before the DUAL_PATH migration remain readable during the soak window.
+Pipeline state lives in `$state_dir/[feature-name]/pipeline.md`. Each phase update records verdicts, artifacts, and agent summaries to this file. Legacy `$state_dir/[feature-name]-pipeline.md` files from before the DUAL_PATH migration remain readable during the soak window.
 
 ### Before Context Compression
 When context is approaching limits:
-1. Verify pipeline state is saved in `pipeline-state/[feature-name]/pipeline.md`
+1. Verify pipeline state is saved in `$state_dir/[feature-name]/pipeline.md`
 2. Ensure it includes: current phase, all verdicts so far, outstanding findings, key file paths
 3. The pipeline-state file IS the state — use `/harness:pipeline-resume` to recover on new session
 

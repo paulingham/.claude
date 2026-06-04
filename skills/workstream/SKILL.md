@@ -18,6 +18,8 @@ Manages isolated workstreams for parallel feature development. Each workstream g
 
 ## Commands
 
+> **Resolve**: `state_dir="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/pipeline-state"`
+
 ### create {name}
 
 Creates a new workstream:
@@ -58,7 +60,8 @@ Switches active workstream context:
 Lists all workstreams and their status:
 
 ```bash
-ls ~/.claude/$state_dir/workstreams/*/workstream.md 2>/dev/null
+# Resolve: state_dir="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/pipeline-state"
+ls "${state_dir}/workstreams/*/workstream.md" 2>/dev/null
 ```
 
 Output format:

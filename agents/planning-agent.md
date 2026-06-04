@@ -72,5 +72,5 @@ Rationale:
 ## Output Format
 
 Verdict on shutdown:
-- **PLAN_REFINED**: one or more plan updates written to `pipeline-state/{task-id}-plan.md`
+- **PLAN_REFINED**: one or more plan updates saved to `$state_dir/{task-id}-plan.md`
 - **PLAN_UNCHANGED**: no contradictions found; plan untouched

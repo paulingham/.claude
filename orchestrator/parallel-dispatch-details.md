@@ -71,6 +71,8 @@ CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
   subagent_type: "architect-context-recon",
   prompt: "You are operating in **code-archaeology** mode. Read ~/.claude/agents/architect-context-recon.md § 'Mode 1: code-archaeology' for your full procedure.
 
+    Resolve: state_dir=\"\${CLAUDE_PLUGIN_DATA:-\${CLAUDE_CONFIG_DIR:-\$HOME/.claude}}/pipeline-state\"
+
     ## Spawn inputs
     - Task ID: {task-id}
     - Acceptance criteria: see TaskList for details
@@ -82,6 +84,8 @@ CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
 CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
   subagent_type: "architect-context-recon",
   prompt: "You are operating in **memory-mining** mode. Read ~/.claude/agents/architect-context-recon.md § 'Mode 2: memory-mining' for your full procedure.
+
+    Resolve: state_dir=\"\${CLAUDE_PLUGIN_DATA:-\${CLAUDE_CONFIG_DIR:-\$HOME/.claude}}/pipeline-state\"
 
     ## Spawn inputs
     - Task ID: {task-id}
@@ -95,6 +99,8 @@ CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
 CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
   subagent_type: "architect-context-recon",
   prompt: "You are operating in **domain-analysis** mode. Read ~/.claude/agents/architect-context-recon.md § 'Mode 3: domain-analysis' for your full procedure.
+
+    Resolve: state_dir=\"\${CLAUDE_PLUGIN_DATA:-\${CLAUDE_CONFIG_DIR:-\$HOME/.claude}}/pipeline-state\"
 
     ## Spawn inputs
     - Task ID: {task-id}
@@ -659,7 +665,7 @@ The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastruct
 
 1. **Iteration 0 — fresh rollouts**: source `skills/pdr-rtv/lib/dispatch.sh` and call `dispatch_iteration 0`. The helper spawns N=4 parallel build engineers in a single message, each in its own worktree on branch `build/{task-id}-pdr-iter0-<slug>`. Each engineer's spawn prompt extends `software-engineer` with a `Self-Summarize` directive: at completion, write `$state_dir/{task-id}/pdr-rtv/rollouts/<slug>/summary.md` with three required H2 sections (`## Hypotheses Tried`, `## Progress Made`, `## Failure Modes`) AND a `$state_dir/{task-id}/pdr-rtv/rollouts/<slug>/meta` file with `sha:` and `diff_stat:` fields. Summaries persist OUTSIDE the worktree so iteration-0 worktrees can be reaped before iteration-1 spawns.
 
-2. **Reap iteration 0**: call `reap_iteration_0_worktrees` AFTER all iter-0 summaries are persisted to `pipeline-state/`. The helper enumerates iter-0 worktree paths and runs `git worktree remove <path>` on each, releasing inodes/disk before iter-1 spawns. Peak concurrent worktrees stays at N=4 throughout.
+2. **Reap iteration 0**: call `reap_iteration_0_worktrees` AFTER all iter-0 summaries are confirmed in `$state_dir/`. The helper enumerates iter-0 worktree paths and runs `git worktree remove <path>` on each, releasing inodes/disk before iter-1 spawns. Peak concurrent worktrees stays at N=4 throughout.
 
    **Slug-validation contract (security, F2)**: before invoking `git worktree remove --force <path>` on any candidate, the orchestrator MUST verify the path appears in `git worktree list --porcelain` output for THIS repository. Slugs that do not resolve to a known worktree path are skipped with a forensic JSONL line at `metrics/{session}/pdr-rtv-events.jsonl` (`source: "reap-skipped-unknown-worktree"`). The lib-level `reap_iteration_0_worktrees` defends one layer up by skipping any directory entry whose slug fails `_pdr_validate_slug` (rejects `..`, leading `.`, slashes, and any non-`[a-zA-Z0-9_.-]` characters). The two-layer defense ensures a malicious or malformed slug cannot target unrelated worktrees outside the iter-0 set.
 

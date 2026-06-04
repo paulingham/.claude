@@ -25,6 +25,7 @@ The DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline 
 ```bash
 # Resolve primary state root (HARNESS_DATA, new writes land here)
 HARNESS_DATA="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 # 1. New layout, root
 find "${HARNESS_DATA}/pipeline-state" -maxdepth 2 -mindepth 2 -name "pipeline.md" \
   -not -path "*/workstreams/*" -not -path "*/health-reports/*"
@@ -43,7 +44,7 @@ find "${REPO_ROOT}/pipeline-state" -maxdepth 1 -name "*-pipeline.md" 2>/dev/null
 
 Dedup the union by `task_id` with **workstream-wins precedence**; tie-break by mtime (fresher wins; ties favour the new layout). The shorthand glob `pipeline-state/*/pipeline.md` matches the new-layout root form — combine with the other three for full coverage.
 
-Always use the helper (`_psp_find_active_pipelines`) rather than open-coding the globs — the helper handles exclusion of `health-reports/` and `workstreams/` siblings.
+During the 90-day soak the open-coded dual-scan above REPLACES the helper call (`_psp_find_active_pipelines` scans HARNESS_DATA only); at soak-end remove the REPO_ROOT block and revert to calling the helper directly.
 
 Also scan for debug state and discussion files (DUAL_PATH — same dedup
 rules as above; same `health-reports/` exclusion):
