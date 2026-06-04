@@ -153,7 +153,7 @@ _qg_check_freshness() {
   fi
   # Defect 3 fix: on HEAD mismatch, check if git_head matches any registered worktree.
   # Fail-closed: git worktree list failure → "matches no registered worktree HEAD" path.
-  # if this fires incorrectly, check concurrent worktrees at same SHA; set CLAUDE_DISABLE_FRESHNESS_QG=1 to unblock
+  # If this fires incorrectly, check concurrent worktrees at same SHA; set CLAUDE_DISABLE_FRESHNESS_QG=1 to unblock
   if [[ "$head" != "$wt_head" ]]; then
     local repo_root matched_wt
     repo_root=$(_qg_worktree_root "$wt")
