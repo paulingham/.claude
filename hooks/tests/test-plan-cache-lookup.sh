@@ -4,8 +4,8 @@
 # Covers:
 #   AC-B5a: stub writes to $HARNESS_DATA/pipeline-state/{task}/architect-context.md
 #           when HARNESS_DATA is explicitly set
-#   AC-B5b: self-resolving fallback: when HARNESS_DATA is unset, resolves via
-#           ${CLAUDE_CONFIG_DIR:-$HOME/.claude} (CORRECTION from validation round 3)
+#   AC-B5b: self-resolving fallback: when HARNESS_DATA and CLAUDE_PLUGIN_DATA are
+#           unset, resolves via ${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}
 #
 # Run from any directory:
 #   bash hooks/tests/test-plan-cache-lookup.sh
