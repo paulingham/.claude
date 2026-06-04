@@ -107,7 +107,7 @@ if [[ "$PRUNE" -eq 1 && "${#STALE_PATHS[@]}" -gt 0 ]]; then
   echo; echo "# Suggested cleanup commands (review before running):"
   for f in "${STALE_PATHS[@]}"; do
     dir="$(dirname "$f")"
-    [[ "$dir" == "$STATE_DIR" ]] && echo "rm $f" || echo "rm -rf $dir"
+    if [[ "$dir" == "$STATE_DIR" || "$dir" == "$HARNESS_STATE_DIR" ]]; then echo "rm $f"; else echo "rm -rf $dir"; fi
   done
 fi
 

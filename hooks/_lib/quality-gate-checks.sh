@@ -54,6 +54,16 @@ _qg_check_contract() {
 
 _qg_resolve_intake_path() {
   local task="$1" ws="${CLAUDE_WORKSTREAM:-}" candidate
+  # HARNESS_DATA probes first (post-migration writes land here)
+  if [[ -n "${HARNESS_DATA:-}" ]]; then
+    if [[ -n "$ws" ]]; then
+      candidate="${HARNESS_DATA}/pipeline-state/workstreams/$ws/$task/intake.md"
+      [[ -f "$candidate" ]] && { printf '%s\n' "$candidate"; return; }
+    fi
+    candidate="${HARNESS_DATA}/pipeline-state/$task/intake.md"
+    [[ -f "$candidate" ]] && { printf '%s\n' "$candidate"; return; }
+  fi
+  # Bare-path fallback (soak: legacy worktree-relative location)
   if [[ -n "$ws" ]]; then
     candidate="pipeline-state/workstreams/$ws/$task/intake.md"
     [[ -f "$candidate" ]] && { printf '%s\n' "$candidate"; return; }

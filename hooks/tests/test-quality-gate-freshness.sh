@@ -168,10 +168,10 @@ echo ""
 # After a distinguishing commit on WT_DIR2: ROOT_HEAD != WT_HEAD2.
 # ROOT_HEAD IS a registered worktree HEAD (main checkout).
 # ---------------------------------------------------------------------------
-FIXTURE_TMP=$(mktemp -d)
-ROOT_DIR="$FIXTURE_TMP/main-repo"
+FIXTURE_TMP2=$(mktemp -d)
+ROOT_DIR="$FIXTURE_TMP2/main-repo"
 WT_DIR2="$ROOT_DIR/.claude/worktrees/agent-testid"
-trap 'rm -rf "$WT_DIR" "$FIXTURE_TMP"' EXIT
+trap 'rm -rf "$WT_DIR" "$FIXTURE_TMP" "$FIXTURE_TMP2"' EXIT
 
 git init -q "$ROOT_DIR"
 git -C "$ROOT_DIR" -c user.email="t@t" -c user.name="T" commit --allow-empty -m "init" -q
@@ -573,6 +573,53 @@ if [[ "$LIVE_BEFORE" -eq "$LIVE_AFTER" ]]; then
 else
   fail "AC-B6: hermetic check" "no new writes to ~/.claude" "found new file"
 fi
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# AC-C1: _qg_resolve_intake_path HARNESS_DATA probe (finding 6, fix-cycle round 1)
+# Seed intake.md ONLY under HARNESS_DATA/pipeline-state/{task-id}/ (no bare path).
+# _qg_resolve_intake_path must return the HARNESS_DATA path so _qg_extract_intake_tier
+# can read the tier. Bare-path fallback must NOT shadow it.
+# RED: before fix, function returned bare path "pipeline-state/test-task/intake.md"
+#      which doesn't exist → tier extraction returns empty → broken.
+# GREEN: after fix, function probes HARNESS_DATA first → tier extracted correctly.
+# ---------------------------------------------------------------------------
+echo "-- AC-C1: _qg_resolve_intake_path finds intake.md at HARNESS_DATA only --"
+
+_AC_C1_HD="${TMPDIR:-/tmp}/ac-c1-harness-$$"
+_AC_C1_INTAKE_DIR="${_AC_C1_HD}/pipeline-state/intake-test-task"
+mkdir -p "$_AC_C1_INTAKE_DIR"
+printf -- '---\ntask_id: intake-test-task\ntier_emitted: T5\n---\n' \
+  > "${_AC_C1_INTAKE_DIR}/intake.md"
+
+AC_C1_PATH=$(
+  export HARNESS_DATA="$_AC_C1_HD"
+  unset CLAUDE_WORKSTREAM 2>/dev/null || true
+  source "$CHECKS_LIB"
+  _qg_resolve_intake_path "intake-test-task"
+)
+if [[ "$AC_C1_PATH" == "${_AC_C1_HD}/pipeline-state/intake-test-task/intake.md" ]]; then
+  pass "AC-C1: _qg_resolve_intake_path returns HARNESS_DATA path when intake.md at HARNESS_DATA only"
+else
+  fail "AC-C1: _qg_resolve_intake_path returns HARNESS_DATA path" \
+    "${_AC_C1_HD}/pipeline-state/intake-test-task/intake.md" "$AC_C1_PATH"
+fi
+
+AC_C1_TIER=$(
+  export HARNESS_DATA="$_AC_C1_HD"
+  unset CLAUDE_WORKSTREAM 2>/dev/null || true
+  source "$CHECKS_LIB"
+  intake=$(_qg_resolve_intake_path "intake-test-task")
+  _qg_extract_intake_tier "$intake"
+)
+if [[ "$AC_C1_TIER" == "T5" ]]; then
+  pass "AC-C1 tier: tier T5 extracted from HARNESS_DATA intake.md"
+else
+  fail "AC-C1 tier: tier extracted from HARNESS_DATA intake.md" "T5" "$AC_C1_TIER"
+fi
+
+rm -rf "$_AC_C1_HD"
 
 echo ""
 

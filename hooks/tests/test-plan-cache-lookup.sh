@@ -83,6 +83,43 @@ rm -rf "$B5B_TMP"
 echo ""
 
 # ---------------------------------------------------------------------------
+# AC-B5c: hostile task-id rejected by _plan_cache_write_resume_stub
+# (security INFO-3, fix-cycle round 1)
+# A task-id containing path-traversal chars (/ or ..) must cause the function
+# to return 1 without creating any directory.
+# ---------------------------------------------------------------------------
+echo "-- AC-B5c: hostile task-id rejected (task-id sanitization) --"
+
+B5C_TMP=$(mktemp -d)
+trap 'rm -rf "$B5C_TMP"' EXIT
+
+# Hostile task-id: contains path-traversal segment
+HOSTILE_TASK_ID="../../../etc"
+(
+  export HARNESS_DATA="${B5C_TMP}/harness"
+  source "$PLAN_CACHE_LIB"
+  _plan_cache_write_resume_stub "$HOSTILE_TASK_ID"
+)
+HOSTILE_RC=$?
+
+if [[ "$HOSTILE_RC" -ne 0 ]]; then
+  pass "AC-B5c: hostile task-id '${HOSTILE_TASK_ID}' rejected (rc=$HOSTILE_RC)"
+else
+  fail "AC-B5c: hostile task-id rejected" "non-zero rc" "$HOSTILE_RC"
+fi
+
+# Verify no path was created at or above the harness dir
+if [[ ! -d "${B5C_TMP}/harness/pipeline-state" ]]; then
+  pass "AC-B5c: no directory created for hostile task-id"
+else
+  fail "AC-B5c: no directory created" "absent" "directory exists"
+fi
+
+rm -rf "$B5C_TMP"
+
+echo ""
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
