@@ -255,6 +255,170 @@ echo "-- env-var escape --"
 )
 run_test "escape var set -> bypass (exit 0)" 0 $?
 
+# -- Gap 2: normalizer (_mtg_normalize_command) --------------------------------
+echo "-- gap2: command normalizer --"
+
+# bash -c 'mutmut run' should be unwrapped and detected
+GAP2_OUT=$(run_mtg_warn "bash -c 'mutmut run'" "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2_OUT" | grep -qi "advisory\|ADVISORY"; then
+  pass "gap2: bash -c mutmut -> advisory emitted"
+else
+  fail "gap2: bash -c mutmut -> advisory emitted" "advisory" "none"
+fi
+
+# python -m mutmut run
+GAP2B_OUT=$(run_mtg_warn "python -m mutmut run" "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2B_OUT" | grep -qi "advisory\|ADVISORY"; then
+  pass "gap2: python -m mutmut -> advisory emitted"
+else
+  fail "gap2: python -m mutmut -> advisory emitted" "advisory" "none"
+fi
+
+# eval "sed -i 's/x/y/' src.py"
+GAP2C_OUT=$(run_mtg_warn "eval \"sed -i 's/x/y/' src.py\"" "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2C_OUT" | grep -qi "advisory\|ADVISORY"; then
+  pass "gap2: eval \"sed -i src.py\" -> advisory emitted"
+else
+  fail "gap2: eval \"sed -i src.py\" -> advisory emitted" "advisory" "none"
+fi
+
+# backslash-escaped s\ed -i
+GAP2D_OUT=$(run_mtg_warn 's\ed -i '"'"'s/x/y/'"'"' src.py' "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2D_OUT" | grep -qi "advisory\|ADVISORY"; then
+  pass "gap2: backslash-escaped s\\ed -i -> advisory emitted"
+else
+  fail "gap2: backslash-escaped s\\ed -i -> advisory emitted" "advisory" "none"
+fi
+
+# $(echo mutmut) run
+GAP2E_OUT=$(run_mtg_warn '$(echo mutmut) run' "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2E_OUT" | grep -qi "advisory\|ADVISORY"; then
+  pass 'gap2: $(echo mutmut) -> advisory emitted'
+else
+  fail 'gap2: $(echo mutmut) -> advisory emitted' "advisory" "none"
+fi
+
+# gap2: sh -c 'mutmut run' should be unwrapped and detected (sh is a bash alias case)
+# Finding: _re_sq/_re_dq were hardcoded bash[[:space:]]+-c; sh -c escaped normalizer detection.
+GAP2_SH_OUT=$(run_mtg_warn "sh -c 'mutmut run'" "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2_SH_OUT" | grep -qi "advisory\|ADVISORY"; then
+  pass "gap2: sh -c mutmut -> advisory emitted"
+else
+  fail "gap2: sh -c mutmut -> advisory emitted" "advisory" "none"
+fi
+
+# gap2: sh -c "sed -i ..." should also be detected
+GAP2_SH_SED_OUT=$(run_mtg_warn "sh -c \"sed -i 's/x/y/' src.py\"" "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2_SH_SED_OUT" | grep -qi "advisory\|ADVISORY"; then
+  pass "gap2: sh -c sed-i -> advisory emitted"
+else
+  fail "gap2: sh -c sed-i -> advisory emitted" "advisory" "none"
+fi
+
+# FP-guard: bash -c 'echo "sed -i is dangerous"' -> no advisory (inner is string literal)
+GAP2_FP1=$(run_mtg_warn "bash -c 'echo \"sed -i is dangerous\"'" "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2_FP1" | grep -qi "advisory\|ADVISORY"; then
+  fail "fp-guard: bash -c 'echo \"sed -i is dangerous\"' -> no advisory" "no advisory" "advisory fired"
+else
+  pass "fp-guard: bash -c 'echo \"sed -i is dangerous\"' -> no advisory"
+fi
+
+# FP-guard: bash -c '# sed -i comment' -> no advisory (leading token is #)
+GAP2_FP2=$(run_mtg_warn "bash -c '# sed -i comment'" "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2_FP2" | grep -qi "advisory\|ADVISORY"; then
+  fail "fp-guard: bash -c '# sed -i comment' -> no advisory" "no advisory" "advisory fired"
+else
+  pass "fp-guard: bash -c '# sed -i comment' -> no advisory"
+fi
+
+# gap2: depth-boundary — depth-2 unwrap (bash -c 'bash -c "mutmut run"') -> advisory
+# depth-3 (bash -c 'bash -c "bash -c \"mutmut\""') is out-of-contract (not unwrapped);
+# mutmut appears verbatim in raw command so raw-pass still catches it.
+GAP2_D2_OUT=$(run_mtg_warn "bash -c 'bash -c \"mutmut run\"'" "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2_D2_OUT" | grep -qi "advisory\|ADVISORY"; then
+  pass "gap2: depth-2 unwrap (bash -c 'bash -c mutmut') -> advisory emitted"
+else
+  fail "gap2: depth-2 unwrap (bash -c 'bash -c mutmut') -> advisory emitted" "advisory" "none"
+fi
+
+# gap2: depth-3 is out-of-contract for the normalizer (max depth=2) AND the raw-pass
+# cannot match mutmut when it is surrounded by escaped-quote chars (\"mutmut run\")
+# rather than whitespace. This form is a known accepted-risk residual documented in
+# the normalizer comment block above. No test asserted — out-of-contract behavior.
+
+# -- Gap 3: WORKTREE_PATH unset heuristic --------------------------------------
+echo "-- gap3: WORKTREE_PATH unset heuristic --"
+
+# WORKTREE_PATH unset + active worktrees (we have $MTG_WT) + mutmut -> reduced advisory
+GAP3_OUT=$(run_mtg_warn "mutmut run" "$MTG_MAIN" "")
+if echo "$GAP3_OUT" | grep -qi "advisory\|ADVISORY\|reduced\|unverified\|worktree"; then
+  pass "gap3: WORKTREE_PATH unset + active worktrees + mutmut -> reduced advisory"
+else
+  fail "gap3: WORKTREE_PATH unset + active worktrees + mutmut -> reduced advisory" "advisory" "none"
+fi
+
+# WORKTREE_PATH unset + no active worktrees + mutmut -> silent allow
+# Create a fresh repo with no worktrees for this test
+GAP3_TMP=$(mktemp -d)
+GAP3_MAIN="$GAP3_TMP/solo-repo"
+git init -q "$GAP3_MAIN" 2>/dev/null
+(cd "$GAP3_MAIN" && git commit -q --allow-empty -m init 2>/dev/null)
+GAP3_OUT2=$(
+  cd "$GAP3_MAIN" || exit 0
+  unset CLAUDE_WORKTREE_PATH 2>/dev/null || true
+  jq -nc --arg c "mutmut run" \
+    '{tool_name:"Bash",tool_input:{command:$c},hook_event_name:"PreToolUse"}' \
+    | bash "$HOOKS_DIR/mutation-tooling-guard.sh" 2>&1
+)
+if echo "$GAP3_OUT2" | grep -qi "advisory\|ADVISORY"; then
+  fail "gap3: WORKTREE_PATH unset + no active worktrees + mutmut -> silent allow" "no advisory" "advisory fired"
+else
+  pass "gap3: WORKTREE_PATH unset + no active worktrees + mutmut -> silent allow"
+fi
+rm -rf "$GAP3_TMP"
+
+# -- FP regression: sed on /var/folders path should not fire after fix ---------
+echo "-- fp-regression: sed -i /var/folders --"
+FP_REG_OUT=$(run_mtg_warn "sed -i 's/x/y/' /var/folders/abc/T/tmp123/scratch.py" "$MTG_MAIN" "$MTG_WT")
+if echo "$FP_REG_OUT" | grep -qi "advisory\|ADVISORY"; then
+  fail "fp-regression: sed -i /var/folders/abc/T/tmp123/scratch.py -> no advisory" "no advisory" "advisory fired"
+else
+  pass "fp-regression: sed -i /var/folders/abc/T/tmp123/scratch.py -> no advisory"
+fi
+
+# -- Gap 5: escape-audit write for MTG ----------------------------------------
+echo "-- gap5: escape-audit for mtg --"
+
+MTG_ESC_TMP=$(mktemp -d)
+(
+  cd "$MTG_MAIN" && \
+  export CLAUDE_WORKTREE_PATH="$MTG_WT" && \
+  export CLAUDE_DISABLE_MUTATION_TOOLING_GUARD=1 && \
+  export CLAUDE_PLUGIN_DATA="$MTG_ESC_TMP" && \
+  export CLAUDE_SESSION_ID="mtg-escape-test-$$" && \
+  jq -nc --arg c "mutmut run" \
+    '{tool_name:"Bash",tool_input:{command:$c},hook_event_name:"PreToolUse"}' \
+    | bash "$HOOKS_DIR/mutation-tooling-guard.sh" > /dev/null 2>&1
+)
+if find "$MTG_ESC_TMP" -name "guard-escapes.jsonl" -exec grep -l '"guard":"mutation-tooling-guard"' {} \; 2>/dev/null | grep -q .; then
+  pass "gap5: escape var set -> guard-escapes.jsonl contains mtg record"
+else
+  fail "gap5: escape var set -> guard-escapes.jsonl contains mtg record" "mtg record in jsonl" "not found"
+fi
+rm -rf "$MTG_ESC_TMP"
+
+# -- Slice 2 (Amendment 1): _mtg_is_root_cwd with porcelain REPO_ROOT fix -----
+echo "-- mtg: CWD-independent _mtg_is_root_cwd --"
+
+# When CWD is the registered worktree and WORKTREE_PATH is set,
+# _mtg_is_root_cwd must return false (worktree != root) -> no advisory
+MTG_WT_OUT=$(run_mtg_warn "mutmut run" "$MTG_WT" "$MTG_WT")
+if echo "$MTG_WT_OUT" | grep -qi "advisory\|ADVISORY"; then
+  fail "mtg CWD-independent: _mtg_is_root_cwd correct when hook CWD is worktree" "no advisory" "advisory fired"
+else
+  pass "mtg CWD-independent: _mtg_is_root_cwd correct when hook CWD is worktree"
+fi
+
 # Cleanup
 (cd "$MTG_MAIN" && git worktree remove --force "$MTG_WT" 2>/dev/null)
 rm -rf "$MTG_TMP"

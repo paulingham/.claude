@@ -1,5 +1,9 @@
 # runtime-state-guard + mutation-tooling-guard: Promote-Time Hardening Gaps
 
+> **Implementation note (2026-06-04)**: Gaps 1–5 implemented in branch fix/guard-hardening-telemetry
+> (pipeline guard-hardening-telemetry-fixes, 2026-06-04). Remaining: mutation-tooling-guard enforcing
+> flip pending FP review — see TODO(mutation-tooling-guard-promote) in hooks/mutation-tooling-guard.sh.
+
 **Created**: 2026-06-04
 **Context**: guards-new-hooks batch (harden-root-contamination pipeline)
 **Round**: security re-review round 2 — mandatory pre-merge condition
@@ -8,6 +12,8 @@
 ---
 
 ## Gap 1 — Worktree Fast-Path Lacks Registry Validation
+
+**Status (2026-06-04): RESOLVED — see `hooks/runtime-state-guard.sh:96` (`_rsg_is_registered_worktree`) called from `_rsg_is_worktree()` line 117**
 
 **Severity**: MEDIUM
 **Promotion-blocking**: YES (runtime-state-guard.sh is already enforcing; this gap admits a bypass)
@@ -70,6 +76,8 @@ worktree pattern. This is weaker than Option A.
 
 ## Gap 2 — mutation-tooling-guard Regex Obfuscation Bypasses
 
+**Status (2026-06-04): RESOLVED — see `hooks/mutation-tooling-guard.sh:137` (`_mtg_normalize_command`) unwraps bash -c/eval/backslash/$(echo X); `_mtg_is_mutmut()` line 220 adds python -m mutmut pattern**
+
 **Severity**: MEDIUM
 **Promotion-blocking**: YES (advisory → enforcing flip requires zero confirmed bypass paths)
 **Files**: `hooks/mutation-tooling-guard.sh:77` (`_mtg_is_mutmut`), `:83` (`_mtg_is_sed_inplace_source`)
@@ -101,6 +109,8 @@ normalizing `\` + identifier sequences before matching.
 ---
 
 ## Gap 3 — Env-Var Bypass: Guard Variables and Context Variables
+
+**Status (2026-06-04): RESOLVED — escape-hatch audit at `hooks/mutation-tooling-guard.sh:43-50` (Gap 3 Bypass A); WORKTREE_PATH-unset heuristic via `_mtg_has_active_worktrees()` at line 113 and Gap 3 path at line 308 (Gap 3 Bypass B)**
 
 **Severity**: MEDIUM
 **Promotion-blocking**: YES for mutation-tooling-guard; LOW for runtime-state-guard (enforcing; gap narrower)
@@ -159,6 +169,8 @@ any active worktrees) rather than relying solely on the env var.
 
 ## Gap 4 — runtime-state-guard Bash Coverage: cp/mv/rsync/tar
 
+**Status (2026-06-04): RESOLVED — see `hooks/runtime-state-guard.sh:196` (`_rsg_bash_targets_pipeline_state`, renamed from `_rsg_mkdir_targets_pipeline_state`); dispatch regex extended to cp/mv/rsync at line 272**
+
 **Severity**: LOW
 **Promotion-blocking**: NO (runtime-state-guard is already enforcing; this is a coverage gap, not a bypass of existing protection)
 **Files**: `hooks/runtime-state-guard.sh:136` (`_rsg_mkdir_targets_pipeline_state`), `:198` (main Bash dispatch)
@@ -200,6 +212,8 @@ both a write verb and a `pipeline-state` path token) reduces false-negative expo
 ---
 
 ## Gap 5 — Bypass Env-Vars Exit Silently (No Audit Record)
+
+**Status (2026-06-04): RESOLVED — escape-hatch audit record written before exit in both hooks: `hooks/runtime-state-guard.sh:43-50` and `hooks/mutation-tooling-guard.sh:43-50` (writes guard-escapes.jsonl)**
 
 **Severity**: LOW-MEDIUM
 **Promotion-blocking**: YES for advisory → enforcing promotion of mutation-tooling-guard (audit trail required)
@@ -254,16 +268,19 @@ intentionally separate from the violation log so the two can be queried independ
 
 ## Promotion Checklist for mutation-tooling-guard
 
-Before flipping `exit 0` → `exit 2` at `hooks/mutation-tooling-guard.sh:171`:
+Before flipping `exit 0` → `exit 2` at `hooks/mutation-tooling-guard.sh:362`:
 
-- [ ] Gap 2 resolved: obfuscation bypasses addressed
-- [ ] Gap 3 resolved: CLAUDE_WORKTREE_PATH-unset bypass addressed
-- [ ] Gap 5 resolved: escape-hatch audit logging in place
+- [x] Gap 2 resolved: obfuscation bypasses addressed (`_mtg_normalize_command` + python -m mutmut pattern)
+- [x] Gap 3 resolved: CLAUDE_WORKTREE_PATH-unset bypass addressed (heuristic + audit logging)
+- [x] Gap 5 resolved: escape-hatch audit logging in place (guard-escapes.jsonl before exit 0)
 - [ ] N=10 distinct sessions with advisory events, zero confirmed false-positive blocks
       (`jq -r '.session_id' "$HARNESS_DATA"/metrics/*/mutation-tooling-advisory.jsonl | sort -u | wc -l`)
+      **Deferred (2026-06-04 FP review)**: confirmed pre-fix /var/folders FP records present in advisory log
+      + Gap 3 reduced-confidence pattern records unsoaked (added this pipeline). Re-run FP review after
+      10+ sessions with updated guard (post slice-1b) pass.
 
 ## Promotion Checklist for runtime-state-guard (already enforcing — hardening only)
 
-- [ ] Gap 1 resolved: worktree fast-path registry check added
-- [ ] Gap 4 resolved (optional, recommended): cp/mv/rsync/tar coverage
-- [ ] Gap 5 resolved: escape-hatch audit logging in place
+- [x] Gap 1 resolved: worktree fast-path registry check added (`_rsg_is_registered_worktree` at line 96)
+- [x] Gap 4 resolved (optional, recommended): cp/mv/rsync/tar coverage (`_rsg_bash_targets_pipeline_state` at line 196; dispatch extended at line 272)
+- [x] Gap 5 resolved: escape-hatch audit logging in place (`hooks/runtime-state-guard.sh:43-50`)

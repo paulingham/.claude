@@ -642,7 +642,7 @@ When all phases are complete (including Deploy if applicable):
 1. Update pipeline-state file: mark all phases as `completed`, record PR URL and deploy URL
 2. Report PR URL (and deploy URL if deployed) to user
 3. Output final pipeline summary with all agent contributions
-4. Clean up pipeline-state file (see Step 7d for the canonical Reflect cleanup snippet — dual-form during the DUAL_PATH soak)
+4. DO NOT clean up state here — cleanup runs at Step 7d after analytics and reflection
 
 ### Step 7: Reflect
 
@@ -654,7 +654,7 @@ Capture quantitative pipeline metrics before state files are deleted:
 ```bash
 bash ~/.claude/hooks/pipeline-analytics.sh {task-id}
 ```
-This aggregates phase verdicts, agent counts, and review rounds into `metrics/pipelines.jsonl`. Must run before state file cleanup in Step 6.
+This aggregates phase verdicts, agent counts, and review rounds into `metrics/pipelines.jsonl`. Must run before state file cleanup — cleanup runs at Step 7d, NOT at Step 6.
 
 #### 7b. Qualitative Reflection
 
