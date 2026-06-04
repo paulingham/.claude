@@ -113,7 +113,21 @@ def main():
     path = os.path.join(worktree, _evidence_path(task_id))
     evidence, err = _load_evidence(path)
     if err == "missing":
-        _log("would_block", "state_file_missing", task_id=task_id)
+        # Fallback: evidence may be at the main checkout root (Story B pattern).
+        try:
+            common = subprocess.run(
+                ["git", "-C", worktree, "rev-parse", "--git-common-dir"],
+                capture_output=True, text=True, timeout=2)
+        except (subprocess.TimeoutExpired, OSError):
+            common = None
+        if common is not None and common.returncode == 0:
+            root_dir = os.path.dirname(
+                os.path.abspath(os.path.join(worktree, common.stdout.strip())))
+            if root_dir != worktree:
+                root_path = os.path.join(root_dir, _evidence_path(task_id))
+                evidence, err = _load_evidence(root_path)
+        if err == "missing":
+            _log("would_block", "state_file_missing", task_id=task_id)
     if err == "parse_error":
         _log("would_block", "state_file_parse_error", task_id=task_id)
 

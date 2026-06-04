@@ -683,6 +683,13 @@ After analytics, reflection, and learning are complete, remove the pipeline stat
 2. **Form 2 — legacy phase enumeration**: iterate the canonical phase list via `_psp_phase_list` (sourced from `hooks/_lib/pipeline-state-paths.sh`) and remove each `pipeline-state/{task-id}-{phase}.md` file. **NEVER use a bare wildcard glob over the task prefix** — that matches prefix neighbours (e.g. cleanup of `tool` would delete `tool-timing-capture-*` files). R12 mitigation.
 3. Approval token + trajectory have well-known names; remove them by exact path: `pipeline-state/{task-id}-approval.token` and `pipeline-state/{task-id}-trajectory.jsonl`.
 
+> **WARNING — scope guard (2026-06-04 wipe incident)**: Form 1 cleanup MUST target
+> `$task_dir` only (the per-task subdir). MUST NOT pass `$state_dir` or the whole
+> `pipeline-state/` tree to `find -delete` — that would wipe every active pipeline's
+> state in a concurrent-session environment. The 2026-06-04 wipe incident was caused by
+> a command outside this snippet that targeted the whole tree. This snippet is safe as
+> written; do not widen the scope.
+
 Canonical cleanup snippet (mirrors what the orchestrator runs):
 
 ```bash
