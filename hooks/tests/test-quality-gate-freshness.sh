@@ -308,6 +308,53 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
+# Probe-5 gap-fill: worktree path with spaces — awk substr($0,10) vs $2.
+# Create a genuine git worktree whose path contains a space; verify that
+# substitution-rejection still emits "possible evidence substitution" (not a
+# garbled or empty matched_wt path). This kills the surviving awk $2 mutant.
+# ---------------------------------------------------------------------------
+echo "-- (space-in-path) awk substr vs \$2: worktree path containing a space --"
+
+SPACE_FIXTURE_TMP=$(mktemp -d)
+SPACE_ROOT_DIR="$SPACE_FIXTURE_TMP/main repo"   # space in name
+SPACE_WT_DIR="$SPACE_ROOT_DIR/.claude/worktrees/agent with space"
+trap 'rm -rf "$WT_DIR" "$FIXTURE_TMP" "$SPACE_FIXTURE_TMP"' EXIT
+
+mkdir -p "$SPACE_ROOT_DIR"
+git init -q "$SPACE_ROOT_DIR"
+git -C "$SPACE_ROOT_DIR" -c user.email="t@t" -c user.name="T" commit --allow-empty -m "init" -q
+mkdir -p "$SPACE_ROOT_DIR/.claude/worktrees"
+git -C "$SPACE_ROOT_DIR" worktree add -q "$SPACE_WT_DIR" -b space-test-branch 2>/dev/null
+SPACE_ROOT_HEAD=$(git -C "$SPACE_ROOT_DIR" rev-parse HEAD)
+git -C "$SPACE_WT_DIR" -c user.email="t@t" -c user.name="T" commit --allow-empty -m "wt-commit" -q
+SPACE_WT_HEAD=$(git -C "$SPACE_WT_DIR" rev-parse HEAD)
+[[ "$SPACE_ROOT_HEAD" != "$SPACE_WT_HEAD" ]] || { echo "FIXTURE ERROR: space path SHAs not distinct"; FAIL=$((FAIL+1)); }
+
+# Place evidence at root with ROOT_HEAD (triggers substitution-rejection path)
+mkdir -p "$SPACE_ROOT_DIR/pipeline-state/test-task"
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  "$SPACE_ROOT_HEAD" > "$SPACE_ROOT_DIR/pipeline-state/test-task/verification-evidence.json"
+
+SPACE_SUBST_CMD="cd \"${SPACE_WT_DIR}\" && gh pr create --title \"Fix\""
+SPACE_SUBST_STDERR=$(
+  (
+    export CLAUDE_DISABLE_FRESHNESS_QG=0
+    export CLAUDE_PIPELINE_TASK_ID="test-task"
+    source "$CHECKS_LIB"
+    _qg_check_freshness "$SPACE_SUBST_CMD" 2>&1 >/dev/null
+  )
+)
+SPACE_SUBST_EXIT=$?
+run_exit_test "space-in-path: substitution-rejection → exit 1" 1 "$SPACE_SUBST_EXIT"
+if echo "$SPACE_SUBST_STDERR" | grep -q "possible evidence substitution"; then
+  pass "space-in-path: stderr contains 'possible evidence substitution' (awk substr preserves spaces)"
+else
+  fail "space-in-path: stderr message" "possible evidence substitution" "$SPACE_SUBST_STDERR"
+fi
+
+echo ""
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
