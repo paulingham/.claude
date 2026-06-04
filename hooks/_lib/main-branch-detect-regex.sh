@@ -23,3 +23,7 @@ _mbd_normalize() {
                    | sed -E 's#(^|[[:space:]])(/[^[:space:]]+)?/git([[:space:]])#\1git\3#' \
                    | sed -E 's#(^|[[:space:]])git([[:space:]]+-c[[:space:]]+[^[:space:]]+)+([[:space:]])#\1git\3#'
 }
+
+_mbd_git_c_prefix_re() {
+  printf '%s' '^[[:space:]]*(\(?[[:space:]]*)?git[[:space:]]+-C[[:space:]]+[^[:space:]]+'
+}

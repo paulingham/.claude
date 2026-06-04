@@ -20,7 +20,10 @@ Tests cover:
 """
 import json
 import os
+import shutil
 import subprocess
+import sys
+import tempfile
 import unittest
 import uuid
 from pathlib import Path
@@ -31,15 +34,35 @@ HOOK = REPO_ROOT / "hooks" / "verification-freshness-guard.sh"
 GATED = "patch-critic"
 
 
-def _run_hook(payload, env=None):
-    proc_env = {**os.environ, **(env or {})}
+_SITE_PP = ":".join(p for p in sys.path if "site-packages" in p)
+_REPO_ROOT = REPO_ROOT
+_GLOBAL_PLUGIN_DATA = Path(tempfile.mkdtemp(prefix="freshness-global-"))
+# Register cleanup so the tmpdir is removed on process exit (avoids leaking dirs).
+import atexit as _atexit
+import shutil as _shutil
+_atexit.register(_shutil.rmtree, str(_GLOBAL_PLUGIN_DATA), True)
+
+
+def _run_hook(payload, env=None, plugin_data=None):
+    existing_pp = os.environ.get("PYTHONPATH", "")
+    merged_pp = ":".join(filter(None, [_SITE_PP, existing_pp]))
+    proc_env = {**os.environ, "PYTHONPATH": merged_pp,
+                "CLAUDE_PLUGIN_ROOT": str(_REPO_ROOT)}
+    # Always inject CLAUDE_PLUGIN_DATA so writes go to a hermetic dir.
+    # Do NOT override HOME — freshness hook runs git commands which need
+    # a valid HOME for gitconfig.
+    effective_pd = plugin_data if plugin_data is not None else _GLOBAL_PLUGIN_DATA
+    proc_env["CLAUDE_PLUGIN_DATA"] = str(effective_pd)
+    if env:
+        proc_env.update(env)
     return subprocess.run(
         ["bash", str(HOOK)], input=json.dumps(payload),
         capture_output=True, text=True, timeout=15, env=proc_env)
 
 
-def _log_path(session, filename="freshness-guard.jsonl"):
-    return Path.home() / ".claude" / "metrics" / session / filename
+def _log_path(session, filename="freshness-guard.jsonl", base=None):
+    root = base if base is not None else _GLOBAL_PLUGIN_DATA
+    return root / "metrics" / session / filename
 
 
 def _cleanup(log_path):
@@ -178,13 +201,13 @@ class HookEnumReasons(unittest.TestCase):
     """One test per reason value in the 8-enum vocabulary."""
 
     def setUp(self):
-        # Create a fresh tmp repo per test so we can control HEAD.
-        import tempfile
         self.tmp = tempfile.TemporaryDirectory()
         self.tmp_path = Path(self.tmp.name)
+        self.plugin_data = Path(tempfile.mkdtemp(prefix="freshness-test-"))
 
     def tearDown(self):
         self.tmp.cleanup()
+        shutil.rmtree(self.plugin_data, ignore_errors=True)
 
     def _spawn(self, *, worktree, env_overrides=None):
         session = f"test-{uuid.uuid4()}"
@@ -196,8 +219,8 @@ class HookEnumReasons(unittest.TestCase):
         _run_hook(
             {"tool_name": "Agent",
              "tool_input": {"subagent_type": GATED}},
-            env=env)
-        return session, _log_path(session)
+            env=env, plugin_data=self.plugin_data)
+        return session, _log_path(session, base=self.plugin_data)
 
     def test_state_file_missing_yields_would_block(self):
         repo, _ = _make_repo_with_commit(self.tmp_path)
@@ -439,35 +462,31 @@ class HookHeadResolutionPrecedence(unittest.TestCase):
     """Adversarial: env beats cwd. Without this test, a swap of the rule order
     would survive — only the env path is set in most other tests."""
 
+    def setUp(self):
+        self.plugin_data = Path(tempfile.mkdtemp(prefix="freshness-prec-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.plugin_data, ignore_errors=True)
+
     def test_env_takes_precedence_over_cwd_when_both_resolve(self):
-        import tempfile
         with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
-            # Repo A is the env-pointed worktree; repo B is the cwd. Their
-            # HEADs differ. State file is in REPO A; HEAD in REPO A matches.
-            # If rule order is correctly env-first, action=fresh.
-            # If swapped to cwd-first, the hook would point at REPO B which
-            # has no evidence file under repo-B/pipeline-state/{task}/...
-            # → state_file_missing (different action).
             repo_a, head_a = _make_repo_with_commit(Path(a), "A")
             repo_b, _head_b = _make_repo_with_commit(Path(b), "B")
             evidence_dir = _make_evidence_dir(repo_a, "test-task")
             _write_evidence(evidence_dir, git_head=head_a)
             session = f"test-prec-{uuid.uuid4()}"
-            try:
-                _run_hook(
-                    {"tool_name": "Agent",
-                     "tool_input": {"subagent_type": GATED,
-                                    "cwd": str(repo_b)}},
-                    env={"CLAUDE_SESSION_ID": session,
-                         "CLAUDE_WORKTREE_PATH": str(repo_a),
-                         "CLAUDE_PIPELINE_TASK_ID": "test-task"})
-                log = _log_path(session)
-                entry = json.loads(log.read_text().strip().splitlines()[-1])
-                # Env-first → action=fresh on repo_a's matching HEAD.
-                self.assertEqual(entry["resolved"]["action"], "fresh")
-                self.assertEqual(entry["resolved"]["worktree_head"], head_a)
-            finally:
-                _cleanup(_log_path(session))
+            _run_hook(
+                {"tool_name": "Agent",
+                 "tool_input": {"subagent_type": GATED,
+                                "cwd": str(repo_b)}},
+                env={"CLAUDE_SESSION_ID": session,
+                     "CLAUDE_WORKTREE_PATH": str(repo_a),
+                     "CLAUDE_PIPELINE_TASK_ID": "test-task"},
+                plugin_data=self.plugin_data)
+            log = _log_path(session, base=self.plugin_data)
+            entry = json.loads(log.read_text().strip().splitlines()[-1])
+            self.assertEqual(entry["resolved"]["action"], "fresh")
+            self.assertEqual(entry["resolved"]["worktree_head"], head_a)
 
 
 class HookTtlBoundary(unittest.TestCase):
@@ -506,32 +525,34 @@ class HookInvalidTtlEnvSecurity(unittest.TestCase):
     silently loses the would_block signal — the resolver must fall back to the
     default TTL and emit a normal verdict."""
 
+    def setUp(self):
+        self.plugin_data = Path(tempfile.mkdtemp(prefix="freshness-ttl-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.plugin_data, ignore_errors=True)
+
     def test_invalid_ttl_env_falls_back_to_default(self):
-        import tempfile
         with tempfile.TemporaryDirectory() as tmpdir:
             repo, head = _make_repo_with_commit(Path(tmpdir))
             evidence_dir = _make_evidence_dir(repo, "test-task")
             _write_evidence(evidence_dir, git_head=head)
             session = f"test-bad-ttl-{uuid.uuid4()}"
-            try:
-                result = _run_hook(
-                    {"tool_name": "Agent",
-                     "tool_input": {"subagent_type": GATED}},
-                    env={"CLAUDE_SESSION_ID": session,
-                         "CLAUDE_WORKTREE_PATH": str(repo),
-                         "CLAUDE_PIPELINE_TASK_ID": "test-task",
-                         "CLAUDE_FRESHNESS_HARD_TTL_SEC": "abc-not-an-int"})
-                self.assertEqual(result.returncode, 0)
-                log = _log_path(session)
-                self.assertTrue(log.exists(),
-                                "resolver must still emit a JSONL line; "
-                                "crash on bad TTL silently loses signal")
-                entry = json.loads(log.read_text().strip().splitlines()[-1])
-                # Fresh state file + default TTL fallback → action=fresh.
-                self.assertEqual(entry["resolved"]["action"], "fresh")
-                self.assertEqual(entry["resolved"]["reason"], "fresh")
-            finally:
-                _cleanup(_log_path(session))
+            result = _run_hook(
+                {"tool_name": "Agent",
+                 "tool_input": {"subagent_type": GATED}},
+                env={"CLAUDE_SESSION_ID": session,
+                     "CLAUDE_WORKTREE_PATH": str(repo),
+                     "CLAUDE_PIPELINE_TASK_ID": "test-task",
+                     "CLAUDE_FRESHNESS_HARD_TTL_SEC": "abc-not-an-int"},
+                plugin_data=self.plugin_data)
+            self.assertEqual(result.returncode, 0)
+            log = _log_path(session, base=self.plugin_data)
+            self.assertTrue(log.exists(),
+                            "resolver must still emit a JSONL line; "
+                            "crash on bad TTL silently loses signal")
+            entry = json.loads(log.read_text().strip().splitlines()[-1])
+            self.assertEqual(entry["resolved"]["action"], "fresh")
+            self.assertEqual(entry["resolved"]["reason"], "fresh")
 
 
 class HookTaskIdTraversalHardening(unittest.TestCase):

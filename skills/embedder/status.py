@@ -6,10 +6,14 @@ partial JSON document.
 """
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
 
-DEFAULT = Path.home() / ".claude" / "state" / "embedder-status.json"
+sys.path.insert(0, str(Path(__file__).resolve().parent / "_lib"))
+from harness_paths import harness_data
+
+DEFAULT = harness_data() / "state" / "embedder-status.json"
 
 
 def path():

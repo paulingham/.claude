@@ -107,20 +107,12 @@ class CodebaseMapIntegration(unittest.TestCase):
 
     def setUp(self):
         # Constrain extraction to the Python stdlib-ast branch so the
-        # tests run without the optional `tree_sitter_languages` native
-        # dep. Snapshot the prior env value and restore in tearDown.
-        self._prior_languages_env = os.environ.get(
-            "CLAUDE_CODEBASE_MAP_LANGUAGES",
-        )
-        os.environ["CLAUDE_CODEBASE_MAP_LANGUAGES"] = "python"
-
-    def tearDown(self):
-        if self._prior_languages_env is None:
-            os.environ.pop("CLAUDE_CODEBASE_MAP_LANGUAGES", None)
-        else:
-            os.environ["CLAUDE_CODEBASE_MAP_LANGUAGES"] = (
-                self._prior_languages_env
-            )
+        # tests run without the optional `tree_sitter_languages` native dep.
+        from unittest.mock import patch
+        self._patcher = patch.dict(
+            os.environ, {"CLAUDE_CODEBASE_MAP_LANGUAGES": "python"})
+        self._patcher.start()
+        self.addCleanup(self._patcher.stop)
 
     def test_ac32_repo_walk_deterministic(self):
         """Two runs of build() with max_files=500 produce byte-equal output."""

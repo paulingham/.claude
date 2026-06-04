@@ -7,7 +7,9 @@ resolver itself is pure (no I/O) — see `hooks/_lib/advisor_resolver.py`.
 import inspect
 import json
 import os
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 import uuid
@@ -22,19 +24,35 @@ except ImportError:  # not yet implemented — RED phase
     resolve_model_conditional = None
     advisor_none_to_python_none = None
 
-RESOLVER_SCRIPT = Path(__file__).resolve().parents[1] / "hooks" / "_lib" / "resolve-advisor.py"
-HOOK = Path(__file__).resolve().parents[1] / "hooks" / "pre-agent-advisor.sh"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+RESOLVER_SCRIPT = REPO_ROOT / "hooks" / "_lib" / "resolve-advisor.py"
+HOOK = REPO_ROOT / "hooks" / "pre-agent-advisor.sh"
+
+_SITE_PP = ":".join(p for p in sys.path if "site-packages" in p)
+
+
+def _hermetic_env(extra=None, plugin_data=None):
+    existing_pp = os.environ.get("PYTHONPATH", "")
+    merged_pp = ":".join(filter(None, [_SITE_PP, existing_pp]))
+    env = {**os.environ, "PYTHONPATH": merged_pp,
+           "CLAUDE_PLUGIN_ROOT": str(REPO_ROOT)}
+    if plugin_data is not None:
+        env["CLAUDE_PLUGIN_DATA"] = str(plugin_data)
+        env["HOME"] = str(plugin_data)
+    if extra:
+        env.update(extra)
+    return env
 
 
 def _run_resolver(payload, env=None):
-    proc_env = {**os.environ, **(env or {})}
+    proc_env = _hermetic_env(extra=env)
     return subprocess.run(
         ["python3", str(RESOLVER_SCRIPT)], input=json.dumps(payload),
         capture_output=True, text=True, timeout=10, env=proc_env)
 
 
-def _run_hook(payload, env=None):
-    proc_env = {**os.environ, **(env or {})}
+def _run_hook(payload, env=None, plugin_data=None):
+    proc_env = _hermetic_env(extra=env, plugin_data=plugin_data)
     return subprocess.run(
         ["bash", str(HOOK)], input=json.dumps(payload),
         capture_output=True, text=True, timeout=10, env=proc_env)
@@ -232,27 +250,29 @@ class SecurityEngineerHasAdvisorPairing(unittest.TestCase):
 
 
 class HookLogsToJsonlOnReviewerSpawn(unittest.TestCase):
+    def setUp(self):
+        self.plugin_data = Path(tempfile.mkdtemp(prefix="advisor-test-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.plugin_data, ignore_errors=True)
+
     def test_hook_logs_to_jsonl_on_reviewer_spawn(self):
         session = f"test-{uuid.uuid4()}"
-        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
-        try:
-            result = _run_hook(
-                {"tool_name": "Agent", "tool_input": {"subagent_type": "code-reviewer"}},
-                env={"CLAUDE_SESSION_ID": session, "ANTHROPIC_API_KEY": "sk-test"})
-            self.assertEqual(result.returncode, 0)
-            self.assertTrue(log_path.exists(), f"expected log at {log_path}")
-            line = log_path.read_text().strip().splitlines()[-1]
-            entry = json.loads(line)
-            self.assertEqual(entry["agent_role"], "code-reviewer")
-            self.assertIn("source", entry)
-        finally:
-            if log_path.exists():
-                log_path.unlink()
-            if log_path.parent.exists():
-                log_path.parent.rmdir()
+        log_path = self.plugin_data / "metrics" / session / "advisor-dispatch.jsonl"
+        result = _run_hook(
+            {"tool_name": "Agent", "tool_input": {"subagent_type": "code-reviewer"}},
+            env={"CLAUDE_SESSION_ID": session, "ANTHROPIC_API_KEY": "sk-test"},
+            plugin_data=self.plugin_data)
+        self.assertEqual(result.returncode, 0)
+        self.assertTrue(log_path.exists(), f"expected log at {log_path}")
+        line = log_path.read_text().strip().splitlines()[-1]
+        entry = json.loads(line)
+        self.assertEqual(entry["agent_role"], "code-reviewer")
+        self.assertIn("source", entry)
 
     def test_hook_exits_zero_on_non_agent(self):
-        result = _run_hook({"tool_name": "Bash", "tool_input": {}})
+        result = _run_hook({"tool_name": "Bash", "tool_input": {}},
+                           plugin_data=self.plugin_data)
         self.assertEqual(result.returncode, 0)
 
     def test_hook_never_blocks_even_when_advisor_disabled(self):
@@ -326,26 +346,27 @@ class HookCapsAgentRoleLength(unittest.TestCase):
     """MEDIUM regression — security-engineer review round 1.
     A 1MB subagent_type must NOT produce an unbounded log line."""
 
+    def setUp(self):
+        self.plugin_data = Path(tempfile.mkdtemp(prefix="cap-test-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.plugin_data, ignore_errors=True)
+
     def test_million_char_subagent_type_produces_capped_log_line(self):
         session = f"test-cap-{uuid.uuid4()}"
-        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
-        try:
-            payload = {"tool_name": "Agent",
-                       "tool_input": {"subagent_type": "A" * 1_000_000}}
-            result = _run_hook(
-                payload,
-                env={"CLAUDE_SESSION_ID": session, "ANTHROPIC_API_KEY": "sk-test"})
-            self.assertEqual(result.returncode, 0)
-            self.assertTrue(log_path.exists())
-            line = log_path.read_text().strip().splitlines()[-1]
-            self.assertLessEqual(len(line), 1024,
-                                 f"log line not capped: {len(line)} bytes")
-            self.assertEqual(json.loads(line)["agent_role"], "A" * 64)
-        finally:
-            if log_path.exists():
-                log_path.unlink()
-            if log_path.parent.exists():
-                log_path.parent.rmdir()
+        log_path = self.plugin_data / "metrics" / session / "advisor-dispatch.jsonl"
+        payload = {"tool_name": "Agent",
+                   "tool_input": {"subagent_type": "A" * 1_000_000}}
+        result = _run_hook(
+            payload,
+            env={"CLAUDE_SESSION_ID": session, "ANTHROPIC_API_KEY": "sk-test"},
+            plugin_data=self.plugin_data)
+        self.assertEqual(result.returncode, 0)
+        self.assertTrue(log_path.exists())
+        line = log_path.read_text().strip().splitlines()[-1]
+        self.assertLessEqual(len(line), 1024,
+                             f"log line not capped: {len(line)} bytes")
+        self.assertEqual(json.loads(line)["agent_role"], "A" * 64)
 
 
 class HookSanitisesSessionIdAgainstTraversal(unittest.TestCase):

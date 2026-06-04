@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Accessibility Violations Fixture</title>
+  <style>
+    /* Low contrast text — violates WCAG 2.1 AA (wcag2aa: color-contrast) */
+    .low-contrast {
+      color: #aaaaaa;
+      background-color: #ffffff;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Fixture Page with Accessibility Violations</h1>
+
+  <!-- Missing alt attribute — violates WCAG 2.1 A (wcag2a: image-alt) -->
+  <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+
+  <!-- Low contrast text — violates WCAG 2.1 AA (wcag2aa: color-contrast) -->
+  <p class="low-contrast">This text has insufficient contrast ratio.</p>
+</body>
+</html>

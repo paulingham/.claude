@@ -103,6 +103,9 @@ db/*.sqlite-shm
 # never merged. The skill also adds this entry to target repos' .gitignore.
 .claude-scratch-tools/
 
+# Fixture deps dirs — runtime npm install; never tracked
+tests/fixtures/accessibility-check/.deps/
+
 # Never track secrets or credentials
 credentials.json
 .claude.json

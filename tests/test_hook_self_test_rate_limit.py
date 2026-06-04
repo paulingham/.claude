@@ -24,6 +24,9 @@ HOOK = REPO_ROOT / "hooks" / "hook-self-test.sh"
 def _run_hook(home: Path, env_overrides: dict, config_dir: Path) -> subprocess.CompletedProcess:
     env = os.environ.copy()
     env["HOME"] = str(home)
+    # CLAUDE_PLUGIN_DATA must match HOME/.claude so HARNESS_DATA resolves to
+    # the same dir as the sentinel path assertion (home/.claude).
+    env["CLAUDE_PLUGIN_DATA"] = str(home / ".claude")
     env["CLAUDE_CONFIG_DIR"] = str(config_dir)
     env["CLAUDE_SESSION_ID"] = f"hst-{os.getpid()}"
     env["CLAUDE_HOOK_LOG_DIR"] = str(home / ".claude" / "metrics")

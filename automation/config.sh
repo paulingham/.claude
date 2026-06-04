@@ -2,11 +2,16 @@
 # config.sh -- Central configuration for Jira automation
 # Sourced by other scripts. Does NOT use set -e (callers control error handling).
 
+# Resolve HARNESS_DATA/HARNESS_ROOT via the canonical three-tier resolver.
+_CONF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_CONF_DIR/../hooks/_lib/harness-paths.sh"
+unset _CONF_DIR
+
 # ---------------------------------------------------------------------------
 # Env file loading (per-repo config)
 # ---------------------------------------------------------------------------
 # Load order: global defaults -> repo-specific overrides -> env vars (highest priority)
-# Global:  ~/.claude/automation/default.env
+# Global:  $HARNESS_DATA/automation/default.env
 # Per-repo: $REPO_PATH/.claude/automation.env (or pass AUTOMATION_ENV=/path/to/file)
 _load_env_file() {
   local f="$1"
@@ -19,14 +24,14 @@ _load_env_file() {
   fi
 }
 
-_load_env_file "$HOME/.claude/automation/default.env"
+_load_env_file "$HARNESS_DATA/automation/default.env"
 [ -n "${AUTOMATION_ENV:-}" ] && _load_env_file "$AUTOMATION_ENV"
 [ -n "${REPO_PATH:-}" ] && _load_env_file "$REPO_PATH/.claude/automation.env"
 
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-AUTOMATION_DIR="${AUTOMATION_DIR:-$HOME/.claude/automation}"
+AUTOMATION_DIR="${AUTOMATION_DIR:-$HARNESS_DATA/automation}"
 REPO_PATH="${REPO_PATH:-}"
 POOL_DIR="${POOL_DIR:-$REPO_PATH/.tickets}"
 

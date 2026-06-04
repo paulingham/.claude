@@ -9,12 +9,13 @@ import os
 import sys
 from pathlib import Path
 
+from harness_paths import harness_data
 from pipeline_state_paths import discover_state_path, find_pipeline_files
 
 
 def _state_dir() -> Path:
     raw = os.environ.get("CLAUDE_PIPELINE_STATE_DIR") or os.environ.get("PSP_DIR")
-    return Path(raw) if raw else Path.home() / ".claude" / "pipeline-state"
+    return Path(raw) if raw else harness_data() / "pipeline-state"
 
 
 def _cmd_find():

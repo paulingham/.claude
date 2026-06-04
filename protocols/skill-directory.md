@@ -28,6 +28,7 @@ Verdict semantics for every entry below are defined in `protocols/verdict-catalo
 | `/harness:project-setup` | Scaffolding project-level CLAUDE.md | PROJECT_SETUP_COMPLETE |
 | `/harness:pipeline-resume` | Resume interrupted pipeline from state files | RESUMED |
 | `/harness:plan-self-validation` | Lightweight Plan Validation: architect re-reads its own plan against a structured holes-finding rubric. Used when `critical == false AND Budget < 7`; runs re-fingerprint sanity check on architect plan | PLAN_APPROVED / PLAN_HOLES / ROUTING_UPSHIFTED |
+| `/harness:spec-grounding` | Plan phase Stage 0 (Step 2c-ter) — dispatched by orchestrator after plan-cache lookup miss, before the architect runs. Grounds raw ACs against codebase evidence (pathlib/re traversal + `recall.search()` fallback). Writes `pipeline-state/{task-id}/spec-grounding.md` with EARS-tagged, citation-suffixed ACs. Non-blocking: GROUNDING_GAPS proceeds to architect with gaps flagged | GROUNDED / GROUNDING_GAPS |
 | `/harness:harness-config` | Modify hooks, settings.json, non-.md config | CONFIG_APPLIED |
 | `/harness:deploy` | CD phase: staging/production deploy with rollback | DEPLOYED / ROLLED_BACK |
 | `/harness:infra-scaffold` | Generate Dockerfile, docker-compose, CI/CD, health endpoints | INFRA_SCAFFOLDED |
@@ -56,6 +57,7 @@ Verdict semantics for every entry below are defined in `protocols/verdict-catalo
 | `/harness:tool-synthesis` | Build phase: author a one-shot scratch tool inside the worktree (codebase-specific search, AST query, custom lint) when standard tools are insufficient. Tool lives in `.claude-scratch-tools/`, never merged. Inspired by Live-SWE-agent (arXiv 2511.13646) | TOOL_SYNTHESISED / TOOL_UNNECESSARY |
 | `/harness:property-based-test` | Build phase: author Tier 1.5 PBTs for changed-line public functions with typed signatures (auto-invoked from /harness:build-implementation Step 1d). Time-box 60s/function. Frozen counterexamples freeze inline as Tier 1 regressions using harness-native syntax. Inspired by arXiv 2510.09907 | PBT_AUTHORED / PBT_SKIPPED / PBT_BLOCKED |
 | `/harness:spec-blind-validate` | Final Gate: 5th teammate that authors black-box behavioural tests from ACs only, no source — never reads `src/` internals. Three PreToolUse hooks (read-guard / write-guard / Bash content-leak guard) enforce the spec-blind property. Catches the SWE-Bench-Pro-vs-Verified failure mode where build-time tests codify the same misconceptions as production code. Inspired by SWE-Bench Pro | SPEC_BLIND_VALIDATED / SPEC_BLIND_FAILED / SPEC_BLIND_INSUFFICIENT_SURFACE / SPEC_BLIND_BLOCKED |
+| `/harness:accessibility-check` | Final Gate: run axe-core against changed routes and gate on WCAG 2.1 AA violations; invoked parallel with design-qc when frontend files changed (parallel with `/harness:design-qc`) | A11Y_CHECK_PASSED / A11Y_CHECK_FAILED / A11Y_CHECK_SKIPPED |
 
 ## Deferred (forcing-function required)
 

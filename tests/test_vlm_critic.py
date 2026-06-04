@@ -146,5 +146,62 @@ class VlmCriticDisabledViaEnvShortCircuitsToPass(unittest.TestCase):
         self.assertIn("VISUAL_DIFF_PASS", body)
 
 
+class NoDiffControlInvariant(unittest.TestCase):
+    """AC1-AC4 — No-Diff Control Invariant documented in vlm-critic SKILL.md.
+
+    An identical baseline/current PNG pair MUST produce pixel_diff_ratio == 0.0
+    which the vlm-critic MUST assess as vlm_verdict PASS.  A VISUAL_DIFF_FAIL
+    on a no-diff pair is a hallucinated regression and is a vlm-critic defect.
+    The opt-in live test env gate CLAUDE_VLM_LIVE_CONTROL=1 is the executable
+    guard for the invariant.
+    """
+
+    def test_skill_md_has_no_diff_control_section_heading(self):
+        """AC1 — SKILL.md contains a ## No-Diff Control section heading."""
+        body = _read(VLM_CRITIC_SKILL)
+        self.assertIn(
+            "## No-Diff Control",
+            body,
+            "AC1: SKILL.md must have a '## No-Diff Control' section heading",
+        )
+
+    def test_skill_md_documents_identical_pair_yields_pass(self):
+        """AC2 — SKILL.md names pixel_diff_ratio and 0.0 in the invariant section."""
+        body = _read(VLM_CRITIC_SKILL)
+        self.assertIn(
+            "pixel_diff_ratio",
+            body,
+            "AC2: SKILL.md must document pixel_diff_ratio in the no-diff invariant",
+        )
+        self.assertIn(
+            "0.0",
+            body,
+            "AC2: SKILL.md must document the 0.0 value for identical pairs",
+        )
+
+    def test_skill_md_documents_hallucinated_regression(self):
+        """AC3 — SKILL.md names 'hallucinated' and 'vlm-critic defect'."""
+        body = _read(VLM_CRITIC_SKILL)
+        self.assertIn(
+            "hallucinated",
+            body.lower(),
+            "AC3: SKILL.md must document the term 'hallucinated' for false failures",
+        )
+        self.assertIn(
+            "vlm-critic defect",
+            body.lower(),
+            "AC3: SKILL.md must document that a no-diff FAIL is a 'vlm-critic defect'",
+        )
+
+    def test_skill_md_documents_live_control_env_var(self):
+        """AC4 — SKILL.md names CLAUDE_VLM_LIVE_CONTROL."""
+        body = _read(VLM_CRITIC_SKILL)
+        self.assertIn(
+            "CLAUDE_VLM_LIVE_CONTROL",
+            body,
+            "AC4: SKILL.md must document the CLAUDE_VLM_LIVE_CONTROL env var",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

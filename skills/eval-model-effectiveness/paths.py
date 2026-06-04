@@ -2,18 +2,17 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_paths import harness_data
 
 from tiering import default_project_hash
 
 
 def _home() -> Path:
-    root = (
-        os.environ.get("CLAUDE_PLUGIN_DATA")
-        or os.environ.get("CLAUDE_CONFIG_DIR")
-        or os.path.join(os.path.expanduser("~"), ".claude")
-    )
-    return Path(root)
+    return harness_data()
 
 
 def obs_path(arg: str | None, phash: str) -> Path:

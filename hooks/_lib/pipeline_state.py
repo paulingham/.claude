@@ -2,13 +2,15 @@
 import os
 from pathlib import Path
 
+from harness_paths import harness_data
 from pipeline_frontmatter import coerce_state, parse_frontmatter
 from pipeline_state_paths import discover_state_path, find_pipeline_files
 
 
 def _state_dir(state_dir):
+    # CLAUDE_PIPELINE_STATE_DIR is tier 1 by design (M-d); harness_data() is cold-start fallback.
     return state_dir or os.environ.get("CLAUDE_PIPELINE_STATE_DIR") \
-        or str(Path.home() / ".claude" / "pipeline-state")
+        or str(harness_data() / "pipeline-state")
 
 
 def _find_pipeline_file(directory):

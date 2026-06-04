@@ -18,7 +18,9 @@ These tests pin the contract for hooks/tool-timing-capture.sh:
 import json
 import os
 import re
+import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -49,8 +51,17 @@ def _post_payload(tool="Bash", duration_ms=42, subagent_type=None,
     return payload
 
 
-def _run_hook(payload, env_extra=None, hook_path=HOOK):
-    env = {**os.environ}
+_SITE_PP = ":".join(p for p in sys.path if "site-packages" in p)
+
+
+def _run_hook(payload, env_extra=None, hook_path=HOOK, plugin_data=None):
+    existing_pp = os.environ.get("PYTHONPATH", "")
+    merged_pp = ":".join(filter(None, [_SITE_PP, existing_pp]))
+    env = {**os.environ, "PYTHONPATH": merged_pp,
+           "CLAUDE_PLUGIN_ROOT": str(REPO_ROOT)}
+    if plugin_data is not None:
+        env["CLAUDE_PLUGIN_DATA"] = str(plugin_data)
+        env["HOME"] = str(plugin_data)
     if env_extra:
         env.update(env_extra)
     return subprocess.run(
@@ -80,7 +91,11 @@ class TestToolTimingCapture(unittest.TestCase):
             "CLAUDE_SESSION_ID": self.session,
             "CLAUDE_HOOK_LOG_DIR": str(self.tmp),
             "HOME": str(self.tmp),
+            "CLAUDE_PLUGIN_DATA": str(self.tmp),
         }
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _run(self, payload, **extra):
         env = {**self.env, **extra}
@@ -225,23 +240,30 @@ class TestRuntimeGuardPreserved(unittest.TestCase):
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="rg-"))
+        self.plugin_data = Path(tempfile.mkdtemp(prefix="rg-pd-"))
         self.session = f"rg-{uuid.uuid4().hex[:8]}"
         self.state_dir = self.tmp / "pipeline-state"
         self.state_dir.mkdir()
         (self.state_dir / "demo-pipeline.md").write_text(
             "---\ntask_id: demo\nphase: build\nverdict: in_progress\n---\n"
         )
-        self.metrics = Path.home() / ".claude" / "metrics" / self.session
+        # seed pipeline-state in plugin_data for stop-hook discovery
+        pd_ps = self.plugin_data / "pipeline-state"
+        pd_ps.mkdir(parents=True)
+        (pd_ps / "demo-pipeline.md").write_text(
+            "---\ntask_id: demo\nphase: build\nverdict: in_progress\n---\n"
+        )
+        self.metrics = self.plugin_data / "metrics" / self.session
         self.env = {
             "CLAUDE_SESSION_ID": self.session,
             "CLAUDE_PIPELINE_STATE_DIR": str(self.state_dir),
+            "CLAUDE_PLUGIN_DATA": str(self.plugin_data),
+            "HOME": str(self.plugin_data),
         }
 
     def tearDown(self):
-        if self.metrics.exists():
-            for f in self.metrics.rglob("*"):
-                if f.is_file():
-                    f.unlink()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        shutil.rmtree(self.plugin_data, ignore_errors=True)
 
     def test_runtime_guard_start_files_still_written_for_in_flight_caps(self):
         """AC2: Mode A on Agent payload still creates <key>.start file."""

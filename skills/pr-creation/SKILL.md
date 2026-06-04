@@ -117,8 +117,9 @@ git -C "$WORKTREE" diff --stat
 # Check current branch
 git -C "$WORKTREE" status
 
-# If on main/master, create feature branch first (delegated form required)
-git -C "$WORKTREE" checkout -b feature/add-notification-system
+# Branch creation uses worktree add — the only sanctioned form
+git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" -b feature/add-notification-system
+# The orchestrator handles this via hooks/worktree-create.sh; agents reference $WORKTREE_PATH
 ```
 
 ### 2. Run Pre-Push Validation

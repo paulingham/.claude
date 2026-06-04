@@ -1,6 +1,6 @@
 # Proposal: EARS-Notation Acceptance Criteria to Sharpen Auto-Derived Test Oracles
 
-**Status:** PROPOSED (2026-05-24)
+**Status:** IMPLEMENTED (ws-g-spec-grounding) — item 4 (ac_forms on spec-blind output) deferred to follow-on pipeline
 **Owner:** orchestrator-derived recommendation from external research (GitHub Spec Kit, AWS Kiro, agent-test-oracle literature)
 **Implementation track:** requires `/harness:pipeline` run (touches `skills/story-writing`, light touch to `skills/spec-blind-validate` input contract)
 

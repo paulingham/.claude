@@ -41,4 +41,7 @@ if ! cloud_link_should_run; then
   exit 0
 fi
 
+# Intentional: overlay-specific symlink target. $HOME/.claude is the correct
+# destination for cloud-runner symlinks (plugin vars not yet set at this point).
+# Do NOT replace with $HARNESS_DATA here. See plan slice-a2 exclusions.
 cloud_link_harness "$CLAUDE_PROJECT_DIR" "$HOME/.claude" >&2
