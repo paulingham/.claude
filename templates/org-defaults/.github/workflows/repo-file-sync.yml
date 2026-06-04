@@ -52,10 +52,11 @@ jobs:
         run: |
           echo "Sync step: configure your preferred sync mechanism here."
           echo "Example: use BetaHuhn/repo-file-sync-action@v1 with a sync.yml config."
-          echo "Dry run: ${{ github.event.inputs.dry_run || 'false' }}"
+          echo "Dry run: ${INPUT_DRY_RUN}"
           # Typical pattern:
           #   - Read .github/sync.yml for file → repo mapping
           #   - For each repo, open a PR (or commit directly) with the updated files
           #   - Use ORG_SYNC_TOKEN for authentication
         env:
           GH_TOKEN: ${{ secrets.ORG_SYNC_TOKEN }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}

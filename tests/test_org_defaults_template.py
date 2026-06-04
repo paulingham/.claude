@@ -252,8 +252,7 @@ def test_managed_settings_bootstrap_set_url_redirect_is_adjacent():
     is specifically on the remote set-url invocation so a future refactor cannot
     accidentally drop the per-command silencing while leaving another unrelated redirect.
     """
-    data = re.loads(MANAGED_SETTINGS_FILE.read_text()) if False else \
-        __import__("json").loads(MANAGED_SETTINGS_FILE.read_text())
+    data = json.loads(MANAGED_SETTINGS_FILE.read_text())
     hooks = data.get("hooks", {})
     session_start = hooks.get("SessionStart", [])
     all_commands = []
