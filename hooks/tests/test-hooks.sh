@@ -1095,6 +1095,20 @@ rm -f /tmp/bwg-test-out-$$.log
 
 echo ""
 
+# -- quality-gate freshness extraction (delegated harness) -------------------
+echo "-- quality-gate-checks.sh: _qg_check_freshness (via test-quality-gate-freshness.sh) --"
+if bash "$HOOKS_DIR/tests/test-quality-gate-freshness.sh" > /tmp/qgf-test-out-$$.log 2>&1; then
+  QGF_PASSES=$(grep -c "^  PASS: " /tmp/qgf-test-out-$$.log)
+  pass "quality-gate freshness: delegated harness ($QGF_PASSES sub-tests passed)"
+else
+  QGF_FAILS=$(grep -c "^  FAIL: " /tmp/qgf-test-out-$$.log)
+  fail "quality-gate freshness: delegated harness" "0 failures" "$QGF_FAILS failure(s) — see /tmp/qgf-test-out-$$.log"
+  cat /tmp/qgf-test-out-$$.log
+fi
+rm -f /tmp/qgf-test-out-$$.log
+
+echo ""
+
 # -- Summary -----------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
 echo ""
