@@ -176,10 +176,15 @@ _mbd_target_is_valid_worktree() {
   # REPO_ROOT and causing self-denial of legitimate `cd <worktree> && gh pr create` commands.
   # Amendment 2: `head -1` is correct here (first entry = main worktree unconditionally).
   local repo_root
-  repo_root=$(CLAUDE_MBG_RESOLVING=1 git worktree list --porcelain 2>/dev/null \
+  repo_root=$(git worktree list --porcelain 2>/dev/null \
     | awk '/^worktree /{print $2}' | head -1)
-  # Fallback: CLAUDE_PROJECT_DIR if set and porcelain list empty
-  [[ -z "${repo_root:-}" && -n "${CLAUDE_PROJECT_DIR:-}" ]] && repo_root="${CLAUDE_PROJECT_DIR}"
+  # Fallback: CLAUDE_PROJECT_DIR if set and porcelain list empty.
+  # Canonicalize and require the dir to exist; fail-closed on garbage path.
+  if [[ -z "${repo_root:-}" && -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+    repo_root=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' \
+      "${CLAUDE_PROJECT_DIR}" 2>/dev/null)
+    [[ -d "${repo_root:-}" ]] || return 1
+  fi
   [[ -z "${repo_root:-}" ]] && return 1
   repo_real=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "${repo_root}" 2>/dev/null)
   [[ -z "${repo_real:-}" ]] && return 1
@@ -191,7 +196,7 @@ _mbd_target_is_valid_worktree() {
     [[ -z "${wt_path:-}" ]] && continue
     wt_real=$(python3 -c 'import os.path,sys; print(os.path.realpath(sys.argv[1]))' "${wt_path}" 2>/dev/null)
     [[ -n "${wt_real:-}" && "$wt_real" = "$resolved" ]] && return 0
-  done < <(CLAUDE_MBG_RESOLVING=1 git worktree list --porcelain 2>/dev/null \
+  done < <(git worktree list --porcelain 2>/dev/null \
     | awk '/^worktree /{print $2}' | tail -n +2)
   # Not found in registry → deny, fail-closed.
   return 1

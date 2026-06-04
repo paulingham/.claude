@@ -82,6 +82,23 @@ echo "-- baseline: root-blocking still enforced --"
 run_mbg "git checkout main" "$MBG_MAIN"
 run_test "baseline: git checkout main at root -> blocked (exit 2)" 2 $?
 
+# -- Finding 3: CLAUDE_PROJECT_DIR fallback — nonexistent dir must deny (fail-closed) --
+# When git worktree list returns empty AND CLAUDE_PROJECT_DIR is set to a nonexistent
+# path, _mbd_target_is_valid_worktree must return 1 (deny) rather than treating the
+# nonexistent path as a valid repo root. Tested by running from a non-git temp dir
+# so git worktree list --porcelain produces no output.
+echo "-- finding3: CLAUDE_PROJECT_DIR nonexistent -> fail-closed deny --"
+MBG_NONGIT=$(mktemp -d)
+(
+  cd "$MBG_NONGIT" || exit 1
+  export CLAUDE_PROJECT_DIR="/nonexistent/path/that/does/not/exist"
+  jq -nc --arg c "cd ${MBG_NONGIT} && gh pr create --base main" \
+    '{tool_name:"Bash",tool_input:{command:$c},hook_event_name:"PreToolUse"}' \
+    | bash "$HOOKS_DIR/main-branch-guard.sh" > /dev/null 2>&1
+)
+run_test "finding3: CLAUDE_PROJECT_DIR=nonexistent, no git repo -> deny (exit 2)" 2 $?
+rm -rf "$MBG_NONGIT"
+
 # Cleanup
 (cd "$MBG_MAIN" && git worktree remove --force "$MBG_WT" 2>/dev/null)
 rm -rf "$MBG_TMP"

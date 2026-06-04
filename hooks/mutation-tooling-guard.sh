@@ -127,6 +127,12 @@ _mtg_has_active_worktrees() {
 # Max unwrap depth: 2. Unwrap condition: leading token must match
 # ^[a-zA-Z0-9_/.-]+ and must not start with # (comment) or be inside a
 # string literal context (echo/printf "...").
+#
+# Accepted-risk out-of-contract residuals (not unwrapped; caught by raw-pass):
+#   - ANSI-C quoting: bash -c $'mutmut run'  ($'...' form not matched by _re_sq/_re_dq)
+#   - Backtick substitution: `bash -c 'mutmut run'`  (backtick not parsed)
+#   - Depth > 2: bash -c 'bash -c "bash -c \"mutmut\""'  (depth limit = 2; depth 3+ not unwrapped)
+# These forms remain detectable via the raw-pass that follows normalization.
 # ---------------------------------------------------------------------------
 _mtg_normalize_command() {
     local cmd="$1"
@@ -144,8 +150,8 @@ _mtg_normalize_command() {
         # Regex variables for single/double-quoted string patterns.
         # SQ = single-quote char (workaround for shell quoting in =~ expressions).
         local SQ="'"
-        local _re_sq="bash[[:space:]]+-c[[:space:]]+${SQ}([^${SQ}]*)${SQ}"
-        local _re_dq='bash[[:space:]]+-c[[:space:]]+"([^"]*)"'
+        local _re_sq="(bash|sh)[[:space:]]+-c[[:space:]]+${SQ}([^${SQ}]*)${SQ}"
+        local _re_dq='(bash|sh)[[:space:]]+-c[[:space:]]+"([^"]*)"'
         local _re_eval_dq='eval[[:space:]]+"([^"]*)"'
         local _re_eval_sq="eval[[:space:]]+${SQ}([^${SQ}]*)${SQ}"
 
@@ -154,9 +160,9 @@ _mtg_normalize_command() {
                 # bash -c '...' or bash -c "..." unwrap
                 local inner=""
                 if [[ "$cmd" =~ $_re_sq ]]; then
-                    inner="${BASH_REMATCH[1]}"
+                    inner="${BASH_REMATCH[2]}"
                 elif [[ "$cmd" =~ $_re_dq ]]; then
-                    inner="${BASH_REMATCH[1]}"
+                    inner="${BASH_REMATCH[2]}"
                 else
                     break
                 fi
@@ -272,8 +278,16 @@ elif _mtg_is_pytest_mutating "$_MTG_NORM_CMD"; then
     _mtg_matched="pytest with mutation flag"
 fi
 
-# Also check original command (normalizer is conservative; some patterns may
-# be detectable in the raw form that normalization does not simplify)
+# Also check original command against all detectors.
+# WHY BOTH NORMALIZED AND RAW: The normalizer is deliberately conservative — it only
+# unwraps forms it can safely parse (simple single/double-quoted -c args, eval with
+# quoted strings, backslash-escaped names, $(echo X) single-word forms). Any form it
+# cannot confidently unwrap (nested quoting, variables in the -c arg, process
+# substitutions) is left intact. Running detectors on the raw command as well catches
+# patterns that the normalizer declines to unwrap but that are still detectable
+# directly (e.g. "sh -c mutmut" where mutmut appears verbatim in the raw string).
+# Do NOT collapse this into a single pass — doing so would require the normalizer to be
+# exhaustive, which increases FP risk.
 if [[ -z "$_mtg_matched" ]]; then
     if _mtg_is_mutmut "$COMMAND"; then
         _mtg_matched="mutmut"

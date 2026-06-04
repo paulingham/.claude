@@ -222,7 +222,10 @@ run_test "escape var set -> bypass (exit 0)" 0 $?
 echo "-- gap1: registry check --"
 
 # AC-1.1: CWD matches pattern but is NOT in git worktree registry -> blocked.
-# Create a fake-glob dir inside the REPO to ensure git resolves correctly from that CWD.
+# The fake-glob dir is created INSIDE $RSG_MAIN (not /tmp) so that git commands
+# run from that CWD still resolve within a valid git repo. If the dir were created
+# under /tmp it would be outside the git tree, causing git worktree list to fail
+# or return results relative to the wrong repo, breaking the registry check.
 RSG_FAKE_WT="$RSG_MAIN/.claude/worktrees/agent-evil"
 mkdir -p "$RSG_FAKE_WT"
 (

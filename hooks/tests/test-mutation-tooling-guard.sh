@@ -298,6 +298,23 @@ else
   fail 'gap2: $(echo mutmut) -> advisory emitted' "advisory" "none"
 fi
 
+# gap2: sh -c 'mutmut run' should be unwrapped and detected (sh is a bash alias case)
+# Finding: _re_sq/_re_dq were hardcoded bash[[:space:]]+-c; sh -c escaped normalizer detection.
+GAP2_SH_OUT=$(run_mtg_warn "sh -c 'mutmut run'" "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2_SH_OUT" | grep -qi "advisory\|ADVISORY"; then
+  pass "gap2: sh -c mutmut -> advisory emitted"
+else
+  fail "gap2: sh -c mutmut -> advisory emitted" "advisory" "none"
+fi
+
+# gap2: sh -c "sed -i ..." should also be detected
+GAP2_SH_SED_OUT=$(run_mtg_warn "sh -c \"sed -i 's/x/y/' src.py\"" "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2_SH_SED_OUT" | grep -qi "advisory\|ADVISORY"; then
+  pass "gap2: sh -c sed-i -> advisory emitted"
+else
+  fail "gap2: sh -c sed-i -> advisory emitted" "advisory" "none"
+fi
+
 # FP-guard: bash -c 'echo "sed -i is dangerous"' -> no advisory (inner is string literal)
 GAP2_FP1=$(run_mtg_warn "bash -c 'echo \"sed -i is dangerous\"'" "$MTG_MAIN" "$MTG_WT")
 if echo "$GAP2_FP1" | grep -qi "advisory\|ADVISORY"; then
@@ -313,6 +330,21 @@ if echo "$GAP2_FP2" | grep -qi "advisory\|ADVISORY"; then
 else
   pass "fp-guard: bash -c '# sed -i comment' -> no advisory"
 fi
+
+# gap2: depth-boundary — depth-2 unwrap (bash -c 'bash -c "mutmut run"') -> advisory
+# depth-3 (bash -c 'bash -c "bash -c \"mutmut\""') is out-of-contract (not unwrapped);
+# mutmut appears verbatim in raw command so raw-pass still catches it.
+GAP2_D2_OUT=$(run_mtg_warn "bash -c 'bash -c \"mutmut run\"'" "$MTG_MAIN" "$MTG_WT")
+if echo "$GAP2_D2_OUT" | grep -qi "advisory\|ADVISORY"; then
+  pass "gap2: depth-2 unwrap (bash -c 'bash -c mutmut') -> advisory emitted"
+else
+  fail "gap2: depth-2 unwrap (bash -c 'bash -c mutmut') -> advisory emitted" "advisory" "none"
+fi
+
+# gap2: depth-3 is out-of-contract for the normalizer (max depth=2) AND the raw-pass
+# cannot match mutmut when it is surrounded by escaped-quote chars (\"mutmut run\")
+# rather than whitespace. This form is a known accepted-risk residual documented in
+# the normalizer comment block above. No test asserted — out-of-contract behavior.
 
 # -- Gap 3: WORKTREE_PATH unset heuristic --------------------------------------
 echo "-- gap3: WORKTREE_PATH unset heuristic --"
