@@ -76,10 +76,15 @@ _qg_check_freshness() {
   local command="${1:-}" wt="" head verdict path intake tier task
   task="${CLAUDE_PIPELINE_TASK_ID:-}"
   # Extract worktree path from COMMAND cd-prefix (two-pass: quoted then unquoted).
+  # grep -m1 finds the FIRST matching line regardless of position in a multiline
+  # command string, then sed extracts from that single line only. This fixes the
+  # prior sed-only approach where sed's ^ anchor matched line-starts but the full
+  # pipeline still emitted all non-matching lines, making wt a multiline value
+  # that failed the -d test (root cause of 2026-06-03 stub-at-root workaround).
   if [[ -n "$command" ]]; then
-    wt=$(printf '%s' "$command" | sed -E 's/^\(?[[:space:]]*cd[[:space:]]+"([^"]+)"[[:space:]]*&&.*/\1/')
+    wt=$(printf '%s' "$command" | grep -m1 -E '^\(?[[:space:]]*cd[[:space:]]+"' | sed -E 's/^\(?[[:space:]]*cd[[:space:]]+"([^"]+)".*/\1/')
     if [[ -z "$wt" || ! -d "$wt" ]]; then
-      wt=$(printf '%s' "$command" | sed -E 's/^\(?[[:space:]]*cd[[:space:]]+([^[:space:]"]+)[[:space:]]*&&.*/\1/')
+      wt=$(printf '%s' "$command" | grep -m1 -E '^\(?[[:space:]]*cd[[:space:]]+[^[:space:]"]' | sed -E 's/^\(?[[:space:]]*cd[[:space:]]+([^[:space:]"]+)[[:space:]]*&&.*/\1/')
     fi
     [[ -d "$wt" ]] || wt=""
   fi

@@ -59,6 +59,29 @@ _mbd_is_safe_merge() {
   [[ -z "$b" ]] && return 1
   [[ "$b" =~ ^(origin/main|main|upstream/main|origin|upstream)$ ]]
 }
+# Safe when git checkout uses the pathspec form (-- separator): restores files
+# without moving HEAD. Both bare and ref-prefixed forms are allowed:
+#   git checkout -- <pathspec>
+#   git checkout <ref> -- <pathspec>
+# Branch-switching and branch-creating forms are NOT safe and fall through:
+#   -b / -B / --branch create or move HEAD → blocked regardless of -- separator.
+#   --orphan creates a new orphan branch and moves HEAD → blocked.
+#   Trailing -- with NO pathspec (e.g. "git checkout main --") is ambiguous
+#   and some git versions treat it as a branch switch → blocked; only
+#   "-- <non-empty>" (space after -- followed by a non-space token) is safe.
+# Bash 3.2 SAFE: ERE only, no PCRE.
+_mbd_is_safe_checkout_pathspec() {
+  [[ "$1" =~ git[[:space:]]+(checkout)[[:space:]] ]] || return 1
+  # Block branch-create / orphan flags even when a -- separator is present;
+  # -b/-B create a branch and move HEAD, --orphan does too.
+  [[ "$1" =~ (^|[[:space:]])-[bB]([[:space:]]|$) ]] && return 1
+  [[ "$1" =~ --orphan([[:space:]]|$) ]] && return 1
+  # Require a ' -- <non-empty>' token: space-dash-dash-space followed by at
+  # least one non-space character. Trailing ' --' with no pathspec is NOT safe.
+  [[ "$1" =~ [[:space:]]--[[:space:]][^[:space:]] ]] || return 1
+  return 0
+}
+
 # Safe when deleting a branch that is not the currently checked-out branch and
 # is not a protected name (main/master). All non-flag tokens after -d/-D are
 # collected; if ANY is a protected name or the current branch → not safe.
@@ -188,6 +211,7 @@ is_forbidden_clause() {
   _mbd_is_safe_pull "$norm" && return 1
   _mbd_is_safe_merge "$norm" && return 1
   _mbd_is_safe_branch_delete "$norm" && return 1
+  _mbd_is_safe_checkout_pathspec "$norm" && return 1
   # If this clause had a git -C target, validate it; allow only registered worktrees.
   if [[ -n "${git_c_target:-}" ]]; then
     _mbd_target_is_valid_worktree "$git_c_target" && return 1
