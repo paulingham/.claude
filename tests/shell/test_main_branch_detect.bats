@@ -479,3 +479,60 @@ _assert_allowed() {
 @test "T112 forbidden: git -C \"\$WORKTREE\"<TAB>-C<TAB>../../.. checkout -b x (tab multi-C escape)" {
   _assert_forbidden $'git -C "$WORKTREE"\t-C\t../../.. checkout -b x'
 }
+
+# ---------------------------------------------------------------------------
+# Anomaly #6 fix — pathspec-form checkout and git-restore carve-outs (T113-T124)
+# git checkout -- <pathspec> and git checkout <ref> -- <pathspec> restore files
+# without moving HEAD; they must NOT be blocked.
+# git restore <pathspec> (and its --source/--staged/--worktree variants) also
+# do not move HEAD and must NOT be blocked.
+# Branch-switching forms (no -- separator) must still be BLOCKED.
+# ---------------------------------------------------------------------------
+
+@test "T113 allowed: git checkout -- foo.sh (pathspec restore, no HEAD move)" {
+  _assert_allowed 'git checkout -- foo.sh'
+}
+
+@test "T114 allowed: git checkout -- src/bar.py hooks/x.sh (multi-file pathspec)" {
+  _assert_allowed 'git checkout -- src/bar.py hooks/x.sh'
+}
+
+@test "T115 allowed: git checkout HEAD -- foo.sh (ref + pathspec)" {
+  _assert_allowed 'git checkout HEAD -- foo.sh'
+}
+
+@test "T116 allowed: git checkout origin/main -- hooks/main-branch-guard.sh (remote ref + pathspec)" {
+  _assert_allowed 'git checkout origin/main -- hooks/main-branch-guard.sh'
+}
+
+@test "T117 allowed: git checkout abc123 -- src/app.ts (SHA ref + pathspec)" {
+  _assert_allowed 'git checkout abc123 -- src/app.ts'
+}
+
+@test "T118 allowed: git restore foo.sh (basic restore)" {
+  _assert_allowed 'git restore foo.sh'
+}
+
+@test "T119 allowed: git restore --source HEAD hooks/main-branch-guard.sh (restore with --source)" {
+  _assert_allowed 'git restore --source HEAD hooks/main-branch-guard.sh'
+}
+
+@test "T120 allowed: git restore --staged foo.sh (restore from index)" {
+  _assert_allowed 'git restore --staged foo.sh'
+}
+
+@test "T121 allowed: git restore --worktree foo.sh (restore worktree)" {
+  _assert_allowed 'git restore --worktree foo.sh'
+}
+
+@test "T122 allowed: git restore --source HEAD --staged --worktree foo.sh (all flags)" {
+  _assert_allowed 'git restore --source HEAD --staged --worktree foo.sh'
+}
+
+@test "T123 forbidden: git checkout foo (branch switch, no -- separator, still blocked)" {
+  _assert_forbidden 'git checkout foo'
+}
+
+@test "T124 forbidden: git checkout -b newbranch (branch create, still blocked)" {
+  _assert_forbidden 'git checkout -b newbranch'
+}

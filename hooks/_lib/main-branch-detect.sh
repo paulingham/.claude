@@ -59,6 +59,20 @@ _mbd_is_safe_merge() {
   [[ -z "$b" ]] && return 1
   [[ "$b" =~ ^(origin/main|main|upstream/main|origin|upstream)$ ]]
 }
+# Safe when git checkout uses the pathspec form (-- separator): restores files
+# without moving HEAD. Both bare and ref-prefixed forms are allowed:
+#   git checkout -- <pathspec>
+#   git checkout <ref> -- <pathspec>
+# Branch-switching forms (no -- separator) are NOT safe and fall through.
+# Bash 3.2 SAFE: ERE only, no PCRE.
+_mbd_is_safe_checkout_pathspec() {
+  [[ "$1" =~ git[[:space:]]+(checkout)[[:space:]] ]] || return 1
+  # Require a ' -- ' token (space-dash-dash-space or trailing space-dash-dash).
+  # Match: <anything> -- <non-empty> OR <anything> --$ (trailing, means pathspec follows).
+  [[ "$1" =~ [[:space:]]--[[:space:]] || "$1" =~ [[:space:]]--$ ]] || return 1
+  return 0
+}
+
 # Safe when deleting a branch that is not the currently checked-out branch and
 # is not a protected name (main/master). All non-flag tokens after -d/-D are
 # collected; if ANY is a protected name or the current branch → not safe.
@@ -188,6 +202,7 @@ is_forbidden_clause() {
   _mbd_is_safe_pull "$norm" && return 1
   _mbd_is_safe_merge "$norm" && return 1
   _mbd_is_safe_branch_delete "$norm" && return 1
+  _mbd_is_safe_checkout_pathspec "$norm" && return 1
   # If this clause had a git -C target, validate it; allow only registered worktrees.
   if [[ -n "${git_c_target:-}" ]]; then
     _mbd_target_is_valid_worktree "$git_c_target" && return 1

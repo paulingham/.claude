@@ -332,3 +332,58 @@ _run_guard_capture() {
   run _run_guard Bash $'git -C "$WORKTREE"\t-C\t../../.. checkout -b x'
   [ "$status" -eq 2 ]
 }
+
+# ---------------------------------------------------------------------------
+# Anomaly #6 fix — pathspec checkout and git-restore carve-outs (AC2.46-AC2.55)
+# These restore files without moving HEAD; must not be blocked by the guard.
+# ---------------------------------------------------------------------------
+
+@test "AC2.46 git checkout -- foo.sh allowed (pathspec restore exits 0)" {
+  run _run_guard Bash 'git checkout -- foo.sh'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.47 git checkout HEAD -- foo.sh allowed (ref+pathspec exits 0)" {
+  run _run_guard Bash 'git checkout HEAD -- foo.sh'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.48 git checkout origin/main -- hooks/guard.sh allowed (remote ref+pathspec exits 0)" {
+  run _run_guard Bash 'git checkout origin/main -- hooks/main-branch-guard.sh'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.49 git checkout abc123 -- src/app.ts allowed (SHA+pathspec exits 0)" {
+  run _run_guard Bash 'git checkout abc123 -- src/app.ts'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.50 git restore foo.sh allowed (basic restore exits 0)" {
+  run _run_guard Bash 'git restore foo.sh'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.51 git restore --source HEAD hooks/guard.sh allowed (exits 0)" {
+  run _run_guard Bash 'git restore --source HEAD hooks/main-branch-guard.sh'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.52 git restore --staged foo.sh allowed (exits 0)" {
+  run _run_guard Bash 'git restore --staged foo.sh'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.53 git restore --worktree foo.sh allowed (exits 0)" {
+  run _run_guard Bash 'git restore --worktree foo.sh'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.54 git checkout foo still blocked (branch switch no -- separator)" {
+  run _run_guard Bash 'git checkout foo'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.55 git checkout -b newbranch still blocked (branch create)" {
+  run _run_guard Bash 'git checkout -b newbranch'
+  [ "$status" -eq 2 ]
+}
