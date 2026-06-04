@@ -81,9 +81,11 @@ _qg_worktree_root() {
   printf '%s' "$root_dir"
 }
 
-# Find evidence path using 4-priority search (worktree-local first, root fallback).
+# Find evidence path using 6-priority search (worktree-local first, root fallback, HARNESS_DATA).
 # Prints the path if found; returns 1 if nothing found.
-# Waiver: ≤8-line limit exceeded by 4 lines; plan-authorized for the 4-priority search.
+# Waiver: ≤8-line limit exceeded; plan-authorized for the 6-priority search (P5/P6 added slice-b).
+# HIGH-A: HARNESS_DATA guard uses [[ -n "${HARNESS_DATA:-}" ]] — silent skip when unset.
+# HEAD-binding invariant (M4) unchanged: caller applies same jq .git_head check for all priorities.
 _qg_find_evidence_path() {
   local wt="$1" task="$2" root_dir p
   # Priority 1: exact task-id, worktree-local
@@ -94,11 +96,20 @@ _qg_find_evidence_path() {
   [[ -f "$p" ]] && { printf '%s' "$p"; return 0; }
   # Priority 3+4: root fallback (only when wt is a named registered worktree)
   root_dir=$(_qg_worktree_root "$wt")
-  [[ -n "$root_dir" && "$root_dir" != "$wt" ]] || return 1
-  [[ -n "$task" && -f "${root_dir}/pipeline-state/${task}/verification-evidence.json" ]] \
-    && { printf '%s' "${root_dir}/pipeline-state/${task}/verification-evidence.json"; return 0; }
-  p=$(ls -t "${root_dir}"/pipeline-state/*/verification-evidence.json 2>/dev/null | head -1)
-  [[ -f "$p" ]] && { printf '%s' "$p"; return 0; }
+  if [[ -n "$root_dir" && "$root_dir" != "$wt" ]]; then
+    [[ -n "$task" && -f "${root_dir}/pipeline-state/${task}/verification-evidence.json" ]] \
+      && { printf '%s' "${root_dir}/pipeline-state/${task}/verification-evidence.json"; return 0; }
+    p=$(ls -t "${root_dir}"/pipeline-state/*/verification-evidence.json 2>/dev/null | head -1)
+    [[ -f "$p" ]] && { printf '%s' "$p"; return 0; }
+  fi
+  # Priority 5: exact task-id, HARNESS_DATA location (post-migration writes land here)
+  if [[ -n "${HARNESS_DATA:-}" && -n "$task" ]]; then
+    [[ -f "${HARNESS_DATA}/pipeline-state/${task}/verification-evidence.json" ]] \
+      && { printf '%s' "${HARNESS_DATA}/pipeline-state/${task}/verification-evidence.json"; return 0; }
+    # Priority 6: glob newest, HARNESS_DATA location
+    p=$(ls -t "${HARNESS_DATA}"/pipeline-state/*/verification-evidence.json 2>/dev/null | head -1)
+    [[ -f "$p" ]] && { printf '%s' "$p"; return 0; }
+  fi
   return 1
 }
 
@@ -132,6 +143,15 @@ _qg_check_freshness() {
       path="${base}/pipeline-state/${task}/verification-evidence.json"
     else
       path=$(ls -t "${base}"/pipeline-state/*/verification-evidence.json 2>/dev/null | head -1)
+    fi
+    # Inline HARNESS_DATA fallback (when no cd-prefix worktree extracted)
+    # HIGH-A: guard with [[ -n "${HARNESS_DATA:-}" ]] — silent skip when unset.
+    if [[ -z "$path" && -n "${HARNESS_DATA:-}" ]]; then
+      if [[ -n "$task" && -f "${HARNESS_DATA}/pipeline-state/${task}/verification-evidence.json" ]]; then
+        path="${HARNESS_DATA}/pipeline-state/${task}/verification-evidence.json"
+      else
+        path=$(ls -t "${HARNESS_DATA}"/pipeline-state/*/verification-evidence.json 2>/dev/null | head -1)
+      fi
     fi
   fi
   [[ -f "$path" ]] || { echo "[freshness] no verification-evidence; run /verify" >&2; return 1; }

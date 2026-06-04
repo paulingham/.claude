@@ -156,8 +156,12 @@ _plan_cache_flip_outcome() {
 
 # Resume-safety stub (AC C8): write architect-context.md BEFORE adapter spawn.
 # /pipeline-resume readers don't stall on missing recon output.
+# CORRECTION (validation round 3): self-resolving HARNESS_DATA fallback — no caller
+# in the skill invocation context sources harness-paths.sh, so HARNESS_DATA may be
+# unset. Resolve it inline without changing the lib's sourcing contract.
 _plan_cache_write_resume_stub() {
-  local dir="pipeline-state/$1"
+  [[ -n "${HARNESS_DATA:-}" ]] || HARNESS_DATA="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
+  local dir="${HARNESS_DATA}/pipeline-state/$1"
   mkdir -p "$dir"
   printf '<!-- cache_hit: true, recon-skipped -->\n' >"$dir/architect-context.md"
 }
