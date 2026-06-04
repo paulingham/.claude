@@ -68,6 +68,28 @@ Read the project's tech stack pattern file if one exists at `~/.claude/skills/[s
 - Verify side effects: database state changes, log entries, events emitted
 - For UI: capture screenshots of key states
 
+**Regression run — full-suite requirement (MANDATORY):**
+
+Run the full test suite without early-exit flags. The following flags are **FORBIDDEN** on the Tier-2 regression run:
+
+| Runner | Forbidden flag(s) |
+|--------|-------------------|
+| pytest | `-x`, `--exitfirst` |
+| jest | `--bail` (any value) |
+| rspec | `--fail-fast` |
+| mocha | `--bail` |
+| go test | *(no equivalent, but do not pipe through `head` or similar)* |
+
+**Why**: stopping at the first failure masks contamination elsewhere in the suite. On 2026-06-03, a verifier ran `pytest tests/ -x` at repo root; it halted at the first alphabetical test failure, so the "main is clean" claim covered ~5% of the suite and an uncommitted mutant went undetected for ~2 hours. A single failure does not tell you the suite is otherwise clean.
+
+**Required instead**: run the full suite, collect the complete set of failing test IDs, and compare that set against the baseline passing set. Report:
+- `failing_now` — set of test IDs that fail on the candidate
+- `failing_baseline` — set of test IDs that fail on `main` (or the pinned baseline commit)
+- `regressions` = `failing_now − failing_baseline` — these are the Tier-2 signal; any non-empty set → Tier 2 FAIL
+- `fixed` = `failing_baseline − failing_now` — informational only; never masks a regression
+
+Do NOT report only an exit code or only the first failure. The full diff of failing-ID sets is the authoritative signal.
+
 ### 4. Run Tier 3: Mutation Testing (HARD GATE — >= 70% kill rate)
 
 > **Tier 3 is a HARD GATE.** Kill rate >= 70% on changed lines is required for VERIFIED. Below threshold means UNVERIFIED — the slice returns to Build with the surviving-mutation list as targeted test gaps. Patch-critic also reads this report; a failing mutation gate is a deal-breaker for PATCH_APPROVED.
@@ -260,6 +282,7 @@ The verifier MUST write `pipeline-state/{task-id}/verification-evidence.json` at
 ### Tier 2: Smoke Tests
 - **Status**: PASS / FAIL
 - **Evidence**: [curl output, DB queries, screenshots]
+- **Regression run**: full suite (no `-x`/`--bail`/`--fail-fast`); report failing-ID set diff: `regressions` = `failing_now − failing_baseline`; empty set = PASS signal
 
 ### Tier 3: Mutation Testing
 - **Status**: PASS / FAIL / N/A
