@@ -213,3 +213,63 @@ def test_readme_documents_gh_auth_prerequisite():
     assert "gh auth login" in content, (
         "README.md must document the gh auth login prerequisite"
     )
+
+
+# ---------------------------------------------------------------------------
+# Mandatory gap-fill (Verify probe 5 survivor): byte-for-byte sync check
+# ---------------------------------------------------------------------------
+
+def test_template_managed_settings_matches_repo_root_managed_settings():
+    """templates/org-defaults/managed-settings.json must be byte-for-byte identical to
+    the repo-root managed-settings.json.
+
+    Both files are the canonical source of org-defaults; if they diverge the
+    deployed template silently ships a stale policy.  The byte comparison catches
+    any whitespace, comment, or content drift regardless of JSON semantic equivalence.
+    """
+    repo_root_file = REPO_ROOT / "managed-settings.json"
+    assert repo_root_file.exists(), "repo-root managed-settings.json must exist"
+    assert MANAGED_SETTINGS_FILE.exists(), (
+        "templates/org-defaults/managed-settings.json must exist"
+    )
+    assert MANAGED_SETTINGS_FILE.read_bytes() == repo_root_file.read_bytes(), (
+        "templates/org-defaults/managed-settings.json is out of sync with "
+        "managed-settings.json at repo root.  Keep them byte-for-byte identical: "
+        "edit one and copy to the other."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Candidate 1 gap-fill: tightened bootstrap log hygiene — redirect on set-url line
+# ---------------------------------------------------------------------------
+
+def test_managed_settings_bootstrap_set_url_redirect_is_adjacent():
+    """managed-settings.json: git remote set-url origin must have >/dev/null 2>&1 immediately
+    after the URL argument on the same logical command, not just somewhere in the blob.
+
+    The existing test_managed_settings_bootstrap_log_hygiene passes if any >/dev/null
+    exists anywhere in the command string.  This test uses a regex to assert the redirect
+    is specifically on the remote set-url invocation so a future refactor cannot
+    accidentally drop the per-command silencing while leaving another unrelated redirect.
+    """
+    data = re.loads(MANAGED_SETTINGS_FILE.read_text()) if False else \
+        __import__("json").loads(MANAGED_SETTINGS_FILE.read_text())
+    hooks = data.get("hooks", {})
+    session_start = hooks.get("SessionStart", [])
+    all_commands = []
+    for hook_group in session_start:
+        for hook in hook_group.get("hooks", []):
+            cmd = hook.get("command", "")
+            all_commands.append(cmd)
+    combined = " ".join(all_commands)
+
+    # Match: remote set-url origin "<any token>" >/dev/null 2>&1
+    # Allow for escaped quotes around the URL: \"$U\" or "$U" or $U
+    pattern = re.compile(
+        r'remote set-url origin\s+["\']?\S+["\']?\s+>/dev/null\s+2>&1'
+    )
+    assert pattern.search(combined), (
+        "git remote set-url origin must be immediately followed by '>/dev/null 2>&1' "
+        "on the same command (not just a >/dev/null somewhere else in the blob). "
+        "This prevents the tokenized URL from leaking into harness-bootstrap.log."
+    )

@@ -84,6 +84,10 @@ jobs:
         with:
           github-token: ${{ secrets.ORG_SYNC_TOKEN }}
           script: |
+            // drift_report is safe to interpolate here: it is sourced exclusively from
+            // hardcoded $CANONICAL filenames (repo-file-sync.yml,
+            // required-workflow-drift-check.yml) set in the prior run: step, never from
+            // user-controlled inputs.  No CWE-94 injection risk.
             const report = `${{ steps.drift.outputs.drift_report }}`;
             await github.rest.issues.create({
               owner: context.repo.owner,
