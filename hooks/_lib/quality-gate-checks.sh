@@ -71,6 +71,36 @@ _qg_extract_intake_tier() {
     "$intake" | head -n 1
 }
 
+# Resolve root checkout from a named worktree via --git-common-dir.
+# Returns absolute root path, or empty if resolution fails.
+_qg_worktree_root() {
+  local wt="$1" common_dir root_dir
+  common_dir=$(git -C "$wt" rev-parse --git-common-dir 2>/dev/null) || return 0
+  [[ -n "$common_dir" ]] || return 0
+  root_dir=$(cd "$wt" && cd "$common_dir" && dirname "$(pwd -P)" 2>/dev/null) || return 0
+  printf '%s' "$root_dir"
+}
+
+# Find evidence path using 4-priority search (worktree-local first, root fallback).
+# Prints the path if found; returns 1 if nothing found.
+_qg_find_evidence_path() {
+  local wt="$1" task="$2" root_dir p
+  # Priority 1: exact task-id, worktree-local
+  [[ -n "$task" && -f "${wt}/pipeline-state/${task}/verification-evidence.json" ]] \
+    && { printf '%s' "${wt}/pipeline-state/${task}/verification-evidence.json"; return 0; }
+  # Priority 2: glob newest, worktree-local
+  p=$(ls -t "${wt}"/pipeline-state/*/verification-evidence.json 2>/dev/null | head -1)
+  [[ -f "$p" ]] && { printf '%s' "$p"; return 0; }
+  # Priority 3+4: root fallback (only when wt is a named registered worktree)
+  root_dir=$(_qg_worktree_root "$wt")
+  [[ -n "$root_dir" && "$root_dir" != "$wt" ]] || return 1
+  [[ -n "$task" && -f "${root_dir}/pipeline-state/${task}/verification-evidence.json" ]] \
+    && { printf '%s' "${root_dir}/pipeline-state/${task}/verification-evidence.json"; return 0; }
+  p=$(ls -t "${root_dir}"/pipeline-state/*/verification-evidence.json 2>/dev/null | head -1)
+  [[ -f "$p" ]] && { printf '%s' "$p"; return 0; }
+  return 1
+}
+
 _qg_check_freshness() {
   [[ "${CLAUDE_DISABLE_FRESHNESS_QG:-0}" == "1" ]] && return 0
   local command="${1:-}" wt="" head verdict path intake tier task
@@ -91,13 +121,17 @@ _qg_check_freshness() {
   # Tier short-circuit (T0/T1 docs-only).
   intake=$(_qg_resolve_intake_path "${task:-unknown}"); tier=$(_qg_extract_intake_tier "$intake")
   [[ "$tier" == "T0" || "$tier" == "T1" ]] && { echo "[freshness] PASS (tier=$tier; docs-only, /verify not applicable)" >&2; return 0; }
-  # Locate evidence: task-id hint if set + present, else glob newest.
-  local base="${wt:-.}"
-  path=""
-  if [[ -n "$task" && -f "${base}/pipeline-state/${task}/verification-evidence.json" ]]; then
-    path="${base}/pipeline-state/${task}/verification-evidence.json"
+  # Locate evidence: worktree-local first, then root fallback (Defect 2 fix).
+  if [[ -n "$wt" ]]; then
+    path=$(_qg_find_evidence_path "$wt" "$task")
   else
-    path=$(ls -t "${base}"/pipeline-state/*/verification-evidence.json 2>/dev/null | head -1)
+    local base="."
+    path=""
+    if [[ -n "$task" && -f "${base}/pipeline-state/${task}/verification-evidence.json" ]]; then
+      path="${base}/pipeline-state/${task}/verification-evidence.json"
+    else
+      path=$(ls -t "${base}"/pipeline-state/*/verification-evidence.json 2>/dev/null | head -1)
+    fi
   fi
   [[ -f "$path" ]] || { echo "[freshness] no verification-evidence; run /verify" >&2; return 1; }
   head=$(jq -r '.git_head' "$path" 2>/dev/null); verdict=$(jq -r '.verdict' "$path" 2>/dev/null)
@@ -117,7 +151,23 @@ _qg_check_freshness() {
   if [[ -z "$wt_head" ]]; then
     echo "[freshness] could not resolve worktree HEAD at ${wt:-.}" >&2; return 1
   fi
-  [[ "$head" != "$wt_head" ]] && { echo "[freshness] state=$head worktree=$wt_head; HEAD moved since /verify" >&2; return 1; }
+  # Defect 3 fix: on HEAD mismatch, check if git_head matches any registered worktree.
+  # Fail-closed: git worktree list failure → "matches no registered worktree HEAD" path.
+  # if this fires incorrectly, check concurrent worktrees at same SHA; set CLAUDE_DISABLE_FRESHNESS_QG=1 to unblock
+  if [[ "$head" != "$wt_head" ]]; then
+    local repo_root matched_wt
+    repo_root=$(_qg_worktree_root "$wt")
+    repo_root="${repo_root:-$(git -C "$wt" rev-parse --show-toplevel 2>/dev/null)}"
+    matched_wt=$(git -C "${repo_root:-.}" worktree list --porcelain 2>/dev/null \
+      | awk -v sha="$head" '/^worktree /{wt=$2} /^HEAD /{if ($2==sha) print wt}' \
+      | head -1)
+    if [[ -n "$matched_wt" ]]; then
+      echo "[freshness] state=$head worktree=$wt_head; evidence git_head=$head matches worktree $matched_wt HEAD (not $wt); possible evidence substitution — re-verify from correct worktree" >&2
+    else
+      echo "[freshness] state=$head worktree=$wt_head; evidence git_head=$head matches no registered worktree HEAD; evidence may be stub-edited — re-verify" >&2
+    fi
+    return 1
+  fi
   [[ "$verdict" =~ ^VERIFIED ]] || { echo "[freshness] verdict=$verdict; re-verify" >&2; return 1; }
   echo "[freshness] PASS" >&2; return 0
 }

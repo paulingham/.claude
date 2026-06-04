@@ -8,6 +8,10 @@
 #   (b) multiline command with NO worktree path falls back gracefully
 #       (no false-positive crash; reports "no verification-evidence")
 #   (c) single-line command behaviour unchanged (regression guard)
+#   (new) AC-1a: repro Story A regression guard (cd on line 1, multiline body)
+#   (new) AC-1b: root-evidence fallback via --git-common-dir
+#   (new) AC-1c-i: substitution rejection (git_head = registered worktree HEAD)
+#   (new) AC-1c-ii: unknown SHA rejection (git_head matches no worktree)
 #
 # Run from any directory:
 #   bash hooks/tests/test-quality-gate-freshness.sh
@@ -73,6 +77,17 @@ run_freshness() {
   )
 }
 
+# run_freshness_stderr: captures stderr (for message assertions), suppresses stdout.
+run_freshness_stderr() {
+  local cmd="$1"
+  (
+    export CLAUDE_DISABLE_FRESHNESS_QG=0
+    export CLAUDE_PIPELINE_TASK_ID="test-task"
+    source "$CHECKS_LIB"
+    _qg_check_freshness "$cmd" 2>&1 >/dev/null
+  )
+}
+
 # ---------------------------------------------------------------------------
 # (c) Single-line — cd is on the FIRST and only line.
 # Expected: PASS (exit 0) — regression guard.
@@ -134,6 +149,114 @@ run_exit_test "multiline: no cd → exit 1 (no evidence, not crash)" 1 $?
 MULTI_BAD_WT="cd /nonexistent/path/abcde12345 && do work"
 run_freshness "$MULTI_BAD_WT"
 run_exit_test "single-line: cd non-existent path → exit 1 (fallback to cwd, no evidence)" 1 $?
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# Hermetic fixture for AC-1a, AC-1b, AC-1c-i, AC-1c-ii:
+# genuine git worktree relationship (git init + git worktree add).
+# ROOT_DIR = main checkout; WT_DIR2 = registered worktree.
+# After a distinguishing commit on WT_DIR2: ROOT_HEAD != WT_HEAD2.
+# ROOT_HEAD IS a registered worktree HEAD (main checkout).
+# ---------------------------------------------------------------------------
+FIXTURE_TMP=$(mktemp -d)
+ROOT_DIR="$FIXTURE_TMP/main-repo"
+WT_DIR2="$ROOT_DIR/.claude/worktrees/agent-testid"
+trap 'rm -rf "$WT_DIR" "$EVT_DIR" "$FIXTURE_TMP"' EXIT
+
+git init -q "$ROOT_DIR"
+git -C "$ROOT_DIR" -c user.email="t@t" -c user.name="T" commit --allow-empty -m "init" -q
+mkdir -p "$ROOT_DIR/.claude/worktrees"
+git -C "$ROOT_DIR" worktree add -q "$WT_DIR2" -b worktree-test-branch 2>/dev/null
+ROOT_HEAD=$(git -C "$ROOT_DIR" rev-parse HEAD)
+# Make a distinguishing commit on WT_DIR2 branch so ROOT_HEAD != WT_HEAD2
+git -C "$WT_DIR2" -c user.email="t@t" -c user.name="T" commit --allow-empty -m "wt-commit" -q
+WT_HEAD2=$(git -C "$WT_DIR2" rev-parse HEAD)
+# Sanity: they must differ
+[[ "$ROOT_HEAD" != "$WT_HEAD2" ]] || { echo "FIXTURE ERROR: ROOT_HEAD == WT_HEAD2 after distinguishing commit"; exit 2; }
+
+# ---------------------------------------------------------------------------
+# AC-1a: Story A regression guard.
+# cd <worktree> on line 1 with multiline body (gh pr create --body "line1\nline2").
+# Evidence at WT_DIR2/pipeline-state/test-task/ with git_head=WT_HEAD2.
+# Expected: PASS (exit 0).
+# ---------------------------------------------------------------------------
+echo "-- (AC-1a) repro Story A: cd on line 1 with multiline body --"
+
+mkdir -p "$WT_DIR2/pipeline-state/test-task"
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  "$WT_HEAD2" > "$WT_DIR2/pipeline-state/test-task/verification-evidence.json"
+
+REPRO_A_CMD="cd ${WT_DIR2} && gh pr create --title \"Fix\" --body \"line1
+line2
+line3\""
+run_freshness "$REPRO_A_CMD"
+run_exit_test "repro-story-a: cd on line 1 with multiline body → PASS" 0 $?
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# AC-1b: Root-evidence fallback.
+# Evidence ONLY at ROOT_DIR/pipeline-state/test-task/; none in WT_DIR2.
+# git_head=WT_HEAD2 (matches worktree HEAD).
+# Expected: PASS (exit 0).
+# ---------------------------------------------------------------------------
+echo "-- (AC-1b) root-evidence fallback: genuine worktree, evidence only at root --"
+
+# Remove evidence from WT_DIR2 (if any) and place it only at ROOT_DIR
+rm -rf "$WT_DIR2/pipeline-state"
+mkdir -p "$ROOT_DIR/pipeline-state/test-task"
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  "$WT_HEAD2" > "$ROOT_DIR/pipeline-state/test-task/verification-evidence.json"
+
+ROOT_FALLBACK_CMD="cd ${WT_DIR2} && gh pr create --title \"Fix\""
+run_freshness "$ROOT_FALLBACK_CMD"
+run_exit_test "root-evidence-fallback: genuine worktree, evidence only at root, git_head=wt_head → PASS" 0 $?
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# AC-1c-i: Substitution rejection.
+# Evidence at ROOT_DIR; git_head=ROOT_HEAD (ROOT checkout IS a registered worktree).
+# Expected: exit 1 + stderr contains "possible evidence substitution".
+# ---------------------------------------------------------------------------
+echo "-- (AC-1c-i) substitution rejection: git_head=root-checkout-HEAD --"
+
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  "$ROOT_HEAD" > "$ROOT_DIR/pipeline-state/test-task/verification-evidence.json"
+
+SUBST_CMD="cd ${WT_DIR2} && gh pr create --title \"Fix\""
+SUBST_STDERR=$(run_freshness_stderr "$SUBST_CMD")
+SUBST_EXIT=$?
+run_exit_test "substitution-rejection: git_head=root-checkout-HEAD (registered worktree) → FAIL" 1 "$SUBST_EXIT"
+if echo "$SUBST_STDERR" | grep -q "possible evidence substitution"; then
+  pass "substitution-rejection: stderr contains 'possible evidence substitution'"
+else
+  fail "substitution-rejection: stderr message" "possible evidence substitution" "$SUBST_STDERR"
+fi
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# AC-1c-ii: Unknown SHA rejection.
+# Evidence git_head=fabricated SHA matching no registered worktree.
+# Expected: exit 1 + stderr contains "matches no registered worktree HEAD".
+# ---------------------------------------------------------------------------
+echo "-- (AC-1c-ii) unknown-SHA rejection: git_head=fabricated-SHA --"
+
+FABRICATED_SHA="deadbeef0000000000000000000000000000000000"
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  "$FABRICATED_SHA" > "$ROOT_DIR/pipeline-state/test-task/verification-evidence.json"
+
+UNKNOWN_CMD="cd ${WT_DIR2} && gh pr create --title \"Fix\""
+UNKNOWN_STDERR=$(run_freshness_stderr "$UNKNOWN_CMD")
+UNKNOWN_EXIT=$?
+run_exit_test "unknown-sha-rejection: git_head=fabricated-SHA matching no worktree → FAIL" 1 "$UNKNOWN_EXIT"
+if echo "$UNKNOWN_STDERR" | grep -q "matches no registered worktree HEAD"; then
+  pass "unknown-sha-rejection: stderr contains 'matches no registered worktree HEAD'"
+else
+  fail "unknown-sha-rejection: stderr message" "matches no registered worktree HEAD" "$UNKNOWN_STDERR"
+fi
 
 echo ""
 
