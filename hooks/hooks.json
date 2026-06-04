@@ -292,6 +292,24 @@
             "command": "bash",
             "args": [
               "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/mutation-tooling-guard.sh\""
+            ],
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/runtime-state-guard.sh\""
+            ],
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
               "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/bash-write-guard.sh\""
             ],
             "timeout": 5000
@@ -424,6 +442,15 @@
             "args": [
               "-lc",
               "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/planning-agent-edit-scope.sh\""
+            ],
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/runtime-state-guard.sh\""
             ],
             "timeout": 5000
           }
@@ -683,6 +710,15 @@
               "echo 'Session ending. Active worktrees:' && git worktree list 2>/dev/null | grep -v 'bare' || echo 'None'"
             ],
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/root-tree-clean-check.sh\""
+            ],
+            "timeout": 10000
           }
         ]
       }
@@ -752,6 +788,15 @@
               "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/harness-audit-advisory.sh\""
             ],
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/root-snapshot-capture.sh\""
+            ],
+            "timeout": 5000
           }
         ]
       },
@@ -811,6 +856,15 @@
             "args": [
               "-lc",
               "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/codebase-map-poll.sh\""
+            ],
+            "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "exec \"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/root-tree-clean-check.sh\""
             ],
             "timeout": 10000
           }
