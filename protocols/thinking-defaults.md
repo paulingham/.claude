@@ -115,10 +115,25 @@ What v2.1.140 DOES expose, and what the resolver consumes today:
   (rule 2a, source token `"claude-effort-env"`). Operators can force effort
   on a session basis by exporting this variable.
 - `settings.autoMode.effortLevel` session key sets a global default.
+- **Model binding via `updatedInput`**: the ADVISOR hook (`pre-agent-advisor.sh`)
+  emits `hookSpecificOutput.updatedInput.model` when the advisor resolver
+  (`hooks/_lib/advisor_resolver.py::resolve_model_conditional`) yields
+  `source == "rule-match:budget_lt:N"` (a conditional rule actually changed
+  the model). The `model` param binding is driven by the advisor resolver, not
+  the thinking resolver. The thinking resolver owns `effort` and `display` only.
+  Takes effect **iff CC honors `updatedInput` on the Agent matcher (unverified at author time)**. Suppressed by `CLAUDE_DISABLE_MODEL_BINDING=1`.
+
+- **`$CLAUDE_EFFORT` injection note**: `$CLAUDE_EFFORT` cannot be set by a
+  PreToolUse hook for spawned subagents. `CLAUDE_ENV_FILE` (the env-injection
+  mechanism for hooks) is available only to `SessionStart`/`Setup`/
+  `CwdChanged`/`FileChanged` hooks, not PreToolUse. The resolver continues to
+  *consume* `$CLAUDE_EFFORT` via rule 2a (source token `"claude-effort-env"`) —
+  unchanged.
 
 What v2.1.140 does NOT expose (and gates promotion-to-enforced):
 
 - Per-spawn `tool_input.thinking.effort` on the Agent PreToolUse input.
+- Per-spawn `tool_input.thinking.display` on the Agent PreToolUse input.
 
 Behavioural rules:
 

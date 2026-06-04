@@ -26,6 +26,11 @@ SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // empty' 2>/de
 OUT=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/resolve-advisor.py" 2>/dev/null) || exit 0
 DECISION=$(printf '%s\n' "$OUT" | sed -n '1p')
 RESOLVED=$(printf '%s\n' "$OUT" | sed -n '2p')
+HOOK_OUTPUT=$(printf '%s\n' "$OUT" | sed -n '3p')
+
+# Reversibility escape: CLAUDE_DISABLE_MODEL_BINDING=1 suppresses binding
+# stdout emission but does NOT skip JSONL logging.
+[[ "${CLAUDE_DISABLE_MODEL_BINDING:-0}" == "1" ]] && HOOK_OUTPUT=""
 
 [[ "$DECISION" == "LOG" ]] || exit 0
 
@@ -34,6 +39,9 @@ SESSION="${SESSION_RAW//[^A-Za-z0-9_-]/_}"
 [[ -z "$SESSION" || "$SESSION" =~ ^_+$ ]] && SESSION="local-$$"
 CLAUDE_SESSION_ID="$SESSION" \
   bash "${HOOK_DIR}/_lib/log-injection.sh" "$INPUT" "$RESOLVED" "logged" "advisor-dispatch.jsonl" 2>/dev/null
+
+# Emit model binding to stdout when non-empty (CC reads hookSpecificOutput).
+[[ -n "$HOOK_OUTPUT" ]] && printf '%s\n' "$HOOK_OUTPUT"
 
 # AC8b — patch-critic mode-token mutual-exclusivity guard.
 # Classifies the spawn prompt's mode tokens (Mode: tournament vs Persona:).

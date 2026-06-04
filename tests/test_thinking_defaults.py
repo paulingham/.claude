@@ -1221,5 +1221,43 @@ class ClaudeMdCarriesOpus47PostmortemNote(unittest.TestCase):
             "`Opus 4.7` within 200 characters of each other")
 
 
+# ---------------------------------------------------------------------------
+# Slice C — Doc honesty tests (C1, C2, C8 in test_thinking_defaults.py)
+# ---------------------------------------------------------------------------
+
+_THINKING_DEFAULTS_PATH = REPO_ROOT / "protocols" / "thinking-defaults.md"
+
+
+class HookBehaviorDocumentsModelBindingWithCaveat(unittest.TestCase):
+    """C1: thinking-defaults.md § Hook Behavior contains model-binding caveat."""
+
+    def test_model_binding_caveat_present(self):
+        body = _THINKING_DEFAULTS_PATH.read_text()
+        self.assertIn("iff CC honors", body,
+                      "thinking-defaults.md must contain 'iff CC honors' caveat")
+        self.assertIn("unverified at author time", body,
+                      "thinking-defaults.md must contain 'unverified at author time'")
+
+
+class HookBehaviorDocumentsClaudeEffortInjectionImpossible(unittest.TestCase):
+    """C2: thinking-defaults.md § Hook Behavior contains CLAUDE_ENV_FILE note."""
+
+    def test_claude_env_file_not_available_to_pretooluse(self):
+        body = _THINKING_DEFAULTS_PATH.read_text()
+        self.assertIn("CLAUDE_ENV_FILE", body,
+                      "thinking-defaults.md must mention CLAUDE_ENV_FILE")
+        self.assertIn("SessionStart", body,
+                      "thinking-defaults.md must mention SessionStart")
+
+
+class HookBehaviorDocumentsThatModelBindingIsFromAdvisorResolver(unittest.TestCase):
+    """C8: thinking-defaults.md contains 'advisor resolver' attribution."""
+
+    def test_advisor_resolver_attribution_present(self):
+        body = _THINKING_DEFAULTS_PATH.read_text()
+        self.assertIn("advisor resolver", body.lower(),
+                      "thinking-defaults.md must attribute model binding to advisor resolver")
+
+
 if __name__ == "__main__":
     unittest.main()

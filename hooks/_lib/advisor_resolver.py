@@ -19,11 +19,13 @@ def _solo(reason):
 
 
 def _env_disabled(env):
-    return _solo("env-disabled") if (env or {}).get("CLAUDE_REVIEW_ADVISOR_DISABLED") == "1" else None
+    disabled = (env or {}).get("CLAUDE_REVIEW_ADVISOR_DISABLED") == "1"
+    return _solo("env-disabled") if disabled else None
 
 
 def _no_api_key(env):
-    return _solo("no-api-key") if not (env or {}).get("ANTHROPIC_API_KEY") else None
+    has_key = bool((env or {}).get("ANTHROPIC_API_KEY"))
+    return _solo("no-api-key") if not has_key else None
 
 
 def _pairing(fm):

@@ -176,13 +176,21 @@ class ResolverReturnsFrontmatterPairingWhenBothPresent(unittest.TestCase):
 
 class StdinScriptEmitsDecisionAndResolved(unittest.TestCase):
     def test_stdin_script_emits_decision_and_resolved(self):
+        """B11: updated to index-based 3-line unpack (Slice B)."""
         payload = {"tool_name": "Agent",
                    "tool_input": {"subagent_type": "code-reviewer"}}
         result = _run_resolver(payload, env={"ANTHROPIC_API_KEY": "sk-test"})
         self.assertEqual(result.returncode, 0)
-        first, second = result.stdout.strip().splitlines()
+        # Use splitlines() WITHOUT .strip() so an empty 3rd line is preserved.
+        lines = result.stdout.splitlines()
+        self.assertEqual(len(lines), 3, f"expected 3 lines, got {len(lines)}: {result.stdout!r}")
+        first = lines[0]
+        second = lines[1]
         self.assertIn(first, {"LOG", "SKIP"})
         json.loads(second)  # second line is valid JSON
+        # Third line is empty string OR valid JSON (binding JSON when rule fires)
+        if lines[2]:
+            json.loads(lines[2])
 
     def test_non_agent_emits_skip(self):
         result = _run_resolver({"tool_name": "Bash", "tool_input": {}})
@@ -280,6 +288,7 @@ class ResolverRejectsTraversalSubagentType(unittest.TestCase):
     from outside ~/.claude/agents/."""
 
     def test_traversal_subagent_type_returns_no_pairing_frontmatter(self):
+        """B12: updated to index-based unpack (Slice B)."""
         evil_dir = Path("/tmp/sec-poc-test-advisor-frontmatter")
         evil_file = evil_dir / "evil.md"
         evil_dir.mkdir(parents=True, exist_ok=True)
@@ -292,7 +301,9 @@ class ResolverRejectsTraversalSubagentType(unittest.TestCase):
                                       "../../../../tmp/sec-poc-test-advisor-frontmatter/evil"}}
             result = _run_resolver(payload, env={"ANTHROPIC_API_KEY": "sk-test"})
             self.assertEqual(result.returncode, 0)
-            _decision, resolved_json = result.stdout.strip().splitlines()
+            lines = result.stdout.splitlines()
+            _decision = lines[0]
+            resolved_json = lines[1]
             resolved = json.loads(resolved_json)
             self.assertNotEqual(resolved.get("executor"), "ATTACKER-CONTROLLED-EXECUTOR")
             self.assertNotEqual(resolved.get("advisor"), "ATTACKER-CONTROLLED-ADVISOR")
@@ -591,6 +602,420 @@ class TestCodeReviewerFrontmatterModelConditional(unittest.TestCase):
     def test_code_reviewer_status_flag_is_advisory_structural(self):
         fm = self._fm()
         self.assertEqual(fm["model_conditional"]["status"], "advisory")
+
+
+# ---------------------------------------------------------------------------
+# Slice B — Model binding wire tests (B1-B10)
+# ---------------------------------------------------------------------------
+
+_REVIEWER_PAYLOAD_BUDGET4 = {
+    "tool_name": "Agent",
+    "tool_input": {"subagent_type": "code-reviewer"},
+}
+
+_SE_PAYLOAD = {
+    "tool_name": "Agent",
+    "tool_input": {"subagent_type": "software-engineer"},
+}
+
+# qa-engineer has no model_conditional block — used for "no binding" assertions.
+_QA_PAYLOAD = {
+    "tool_name": "Agent",
+    "tool_input": {"subagent_type": "qa-engineer"},
+}
+
+_NON_AGENT_PAYLOAD = {
+    "tool_name": "Bash",
+    "tool_input": {},
+}
+
+
+def _run_resolver_with_budget(payload, budget, env=None):
+    """Run resolve-advisor.py with a fake pipeline-state that has the given budget."""
+    proc_env = {
+        **os.environ, **(env or {}),
+        "ANTHROPIC_API_KEY": "sk-test",
+        # Point to worktree agents dir so model_conditional frontmatter is visible
+        "CLAUDE_AGENTS_DIR": str(REPO_ROOT / "agents"),
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        state_file = Path(tmp) / "test-pipeline.md"
+        state_file.write_text(
+            f"---\ntask_id: test\nphase: build\nbudget: {budget}\n---\n")
+        proc_env["CLAUDE_PIPELINE_STATE_DIR"] = tmp
+        return subprocess.run(
+            ["python3", str(RESOLVER_SCRIPT)],
+            input=json.dumps(payload),
+            capture_output=True, text=True, timeout=10, env=proc_env)
+
+
+def _run_hook_with_budget(payload, budget, env=None):
+    """Run pre-agent-advisor.sh with a fake pipeline-state that has the given budget."""
+    proc_env = {
+        **os.environ, **(env or {}),
+        "ANTHROPIC_API_KEY": "sk-test",
+        "CLAUDE_AGENTS_DIR": str(REPO_ROOT / "agents"),
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        state_file = Path(tmp) / "test-pipeline.md"
+        state_file.write_text(
+            f"---\ntask_id: test\nphase: build\nbudget: {budget}\n---\n")
+        proc_env["CLAUDE_PIPELINE_STATE_DIR"] = tmp
+        return subprocess.run(
+            ["bash", str(HOOK)],
+            input=json.dumps(payload),
+            capture_output=True, text=True, timeout=10, env=proc_env)
+
+
+class ResolverEmitsThreeLinesForReviewerWithConditional(unittest.TestCase):
+    """B1: code-reviewer + budget=4 → line 3 is hookSpecificOutput JSON."""
+
+    def test_third_line_is_hook_output_json(self):
+        result = _run_resolver_with_budget(_REVIEWER_PAYLOAD_BUDGET4, budget=4)
+        self.assertEqual(result.returncode, 0)
+        lines = result.stdout.splitlines()
+        self.assertGreaterEqual(len(lines), 3)
+        self.assertEqual(lines[0], "LOG")
+        third = lines[2]
+        self.assertTrue(third, "line 3 should be non-empty for budget=4 code-reviewer")
+        parsed = json.loads(third)
+        self.assertEqual(
+            parsed["hookSpecificOutput"]["updatedInput"]["model"], "sonnet")
+
+
+class ResolverThirdLineIsEmptyWhenNoModelConditional(unittest.TestCase):
+    """B2: qa-engineer (no model_conditional) → line 3 is empty."""
+
+    def test_qa_engineer_third_line_empty(self):
+        # qa-engineer chosen because it has no model_conditional block, so no binding fires.
+        result = _run_resolver_with_budget(_QA_PAYLOAD, budget=4)
+        self.assertEqual(result.returncode, 0)
+        lines = result.stdout.splitlines()
+        self.assertGreaterEqual(len(lines), 3)
+        self.assertEqual(lines[2], "",
+                         "line 3 must be empty for qa-engineer (no model_conditional)")
+
+
+class ResolverThirdLineEmptyForNonAgentSkip(unittest.TestCase):
+    """B3: non-Agent payload → SKIP decision → line 3 empty."""
+
+    def test_skip_decision_third_line_empty(self):
+        result = _run_resolver(_NON_AGENT_PAYLOAD,
+                               env={"ANTHROPIC_API_KEY": "sk-test"})
+        self.assertEqual(result.returncode, 0)
+        lines = result.stdout.splitlines()
+        self.assertGreaterEqual(len(lines), 3)
+        self.assertEqual(lines[0], "SKIP")
+        self.assertEqual(lines[2], "",
+                         "line 3 must be empty for SKIP decision")
+
+
+class HookEmitsModelBindingToStdoutWhenResolved(unittest.TestCase):
+    """B4: hook subprocess stdout contains hookSpecificOutput for reviewer, budget=4."""
+
+    def test_hook_stdout_contains_hook_specific_output(self):
+        result = _run_hook_with_budget(_REVIEWER_PAYLOAD_BUDGET4, budget=4)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("hookSpecificOutput", result.stdout,
+                      "hook stdout must contain hookSpecificOutput JSON")
+        # Parse the hookSpecificOutput line from stdout
+        for line in result.stdout.splitlines():
+            if "hookSpecificOutput" in line:
+                parsed = json.loads(line)
+                self.assertEqual(
+                    parsed["hookSpecificOutput"]["updatedInput"]["model"], "sonnet")
+                break
+
+
+class HookStaysStdoutSilentForNonReviewer(unittest.TestCase):
+    """B5: qa-engineer (no model_conditional) → hook stdout empty."""
+
+    def test_hook_stdout_empty_for_software_engineer(self):
+        # qa-engineer has no model_conditional block; binding does not fire.
+        result = _run_hook_with_budget(_QA_PAYLOAD, budget=4)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), "",
+                         "hook stdout must be empty for qa-engineer (no model_conditional binding)")
+
+
+class DisableGateShortCircuitsBeforeModelBinding(unittest.TestCase):
+    """B6: CLAUDE_DISABLE_ADVISOR_GATE=1 → hook exits before resolver; stdout empty,
+    and NO advisor-dispatch.jsonl is written (short-circuit is pre-logging)."""
+
+    def test_disable_gate_hook_stdout_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = _run_hook(
+                _REVIEWER_PAYLOAD_BUDGET4,
+                env={"CLAUDE_DISABLE_ADVISOR_GATE": "1",
+                     "ANTHROPIC_API_KEY": "sk-test",
+                     "CLAUDE_PIPELINE_STATE_DIR": tmp})
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), "",
+                         "CLAUDE_DISABLE_ADVISOR_GATE=1 must suppress all stdout")
+
+    def test_disable_gate_does_not_write_jsonl(self):
+        """CLAUDE_DISABLE_ADVISOR_GATE=1 short-circuits at line 19 of the hook,
+        BEFORE JSONL logging — so no advisor-dispatch.jsonl must be created."""
+        session = f"test-b6-{uuid.uuid4()}"
+        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                result = _run_hook(
+                    _REVIEWER_PAYLOAD_BUDGET4,
+                    env={"CLAUDE_DISABLE_ADVISOR_GATE": "1",
+                         "ANTHROPIC_API_KEY": "sk-test",
+                         "CLAUDE_SESSION_ID": session,
+                         "CLAUDE_PIPELINE_STATE_DIR": tmp})
+            self.assertEqual(result.returncode, 0)
+            self.assertFalse(log_path.exists(),
+                             f"CLAUDE_DISABLE_ADVISOR_GATE=1 must NOT write JSONL at {log_path}")
+        finally:
+            if log_path.exists():
+                log_path.unlink()
+            if log_path.parent.exists():
+                try:
+                    log_path.parent.rmdir()
+                except OSError:
+                    pass
+
+
+class ExistingJsonlLoggingPreservedAlongsideBinding(unittest.TestCase):
+    """B7: JSONL written AND stdout binding emitted for same spawn."""
+
+    def test_jsonl_and_stdout_both_emitted(self):
+        session = f"test-b7-{uuid.uuid4()}"
+        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
+        try:
+            result = _run_hook_with_budget(
+                _REVIEWER_PAYLOAD_BUDGET4, budget=4,
+                env={"CLAUDE_SESSION_ID": session})
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue(log_path.exists(), f"JSONL not written at {log_path}")
+            self.assertIn("hookSpecificOutput", result.stdout,
+                          "hook stdout must emit binding when JSONL is written")
+        finally:
+            if log_path.exists():
+                log_path.unlink()
+            if log_path.parent.exists():
+                try:
+                    log_path.parent.rmdir()
+                except OSError:
+                    pass
+
+
+class HookExitsZeroOnResolverCrash(unittest.TestCase):
+    """B8: broken python path → hook exits 0 (never-block invariant)."""
+
+    def test_never_block_on_bad_python_path(self):
+        import shutil
+        bash_path = shutil.which("bash") or "/bin/bash"
+        bash_dir = str(Path(bash_path).parent)
+        # Keep bash (and jq, etc.) accessible but break python3 lookup.
+        broken_python_bin = tempfile.mkdtemp()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                result = subprocess.run(
+                    ["bash", str(HOOK)],
+                    input=json.dumps(_REVIEWER_PAYLOAD_BUDGET4),
+                    capture_output=True, text=True, timeout=10,
+                    env={
+                        **os.environ,
+                        # PATH has bash + broken dir; python3 in broken_python_bin
+                        # does not exist so python3 lookup fails at hook line 26.
+                        "PATH": f"{bash_dir}:/usr/bin:{broken_python_bin}",
+                        "ANTHROPIC_API_KEY": "sk-test",
+                        "CLAUDE_PIPELINE_STATE_DIR": tmp,
+                    })
+            self.assertEqual(result.returncode, 0,
+                             "hook must exit 0 even when resolver crashes")
+        finally:
+            shutil.rmtree(broken_python_bin, ignore_errors=True)
+
+
+THINKING_HOOK = Path(__file__).resolve().parents[1] / "hooks" / "pre-agent-thinking.sh"
+
+
+class ThinkingHookProducesNoStdoutForAgentPayload(unittest.TestCase):
+    """B9: pre-agent-thinking.sh stdout is empty for an Agent payload."""
+
+    def test_thinking_hook_stdout_empty(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                ["bash", str(THINKING_HOOK)],
+                input=json.dumps({"tool_name": "Agent",
+                                  "tool_input": {"subagent_type": "code-reviewer"}}),
+                capture_output=True, text=True, timeout=10,
+                env={**os.environ,
+                     "ANTHROPIC_API_KEY": "sk-test",
+                     "CLAUDE_PIPELINE_STATE_DIR": tmp})
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "",
+                         "pre-agent-thinking.sh must produce no stdout (log-only)")
+
+
+class DisableModelBindingKeepsJsonlButSilencesStdout(unittest.TestCase):
+    """B10: CLAUDE_DISABLE_MODEL_BINDING=1 → stdout empty; JSONL still written."""
+
+    def test_disable_binding_env_var(self):
+        session = f"test-b10-{uuid.uuid4()}"
+        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
+        try:
+            result = _run_hook_with_budget(
+                _REVIEWER_PAYLOAD_BUDGET4, budget=4,
+                env={"CLAUDE_SESSION_ID": session,
+                     "CLAUDE_DISABLE_MODEL_BINDING": "1"})
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.stdout.strip(), "",
+                             "CLAUDE_DISABLE_MODEL_BINDING=1 must silence stdout binding")
+            self.assertTrue(log_path.exists(),
+                            f"JSONL must still be written: {log_path}")
+        finally:
+            if log_path.exists():
+                log_path.unlink()
+            if log_path.parent.exists():
+                try:
+                    log_path.parent.rmdir()
+                except OSError:
+                    pass
+
+
+class FirstMatchingRuleWinsWhenTwoRulesBothMatch(unittest.TestCase):
+    """QA gap 1 — first-match-wins semantics.
+
+    A last-match mutant would survive single-rule tests. With two rules
+    both matching at budget=5 (budget_lt:10 and budget_lt:6), the FIRST
+    rule (budget_lt:10 → model=haiku) must be returned, not the second.
+    """
+
+    def test_first_matching_rule_wins_when_two_rules_both_match(self):
+        fm = {
+            "model": "opus",
+            "executor": "claude-sonnet-4-6",
+            "advisor": "claude-opus-4-7",
+            "model_conditional": {
+                "default": {
+                    "model": "opus",
+                    "executor": "claude-sonnet-4-6",
+                    "advisor": "claude-opus-4-7",
+                },
+                "rules": [
+                    {
+                        "when": {"budget_lt": 10},
+                        "model": "haiku",
+                        "executor": "claude-haiku-4-5",
+                        "advisor": "none",
+                    },
+                    {
+                        "when": {"budget_lt": 6},
+                        "model": "sonnet",
+                        "executor": "claude-sonnet-4-6",
+                        "advisor": "none",
+                    },
+                ],
+                "status": "advisory",
+            },
+        }
+        result = resolve_model_conditional(fm, budget=5)
+        self.assertEqual(result["model"], "haiku",
+                         "first matching rule must win, not the second")
+        self.assertEqual(result["source"], "rule-match:budget_lt:10",
+                         "source must reference the FIRST matched rule's budget_lt value")
+
+
+class ResolverThirdLineEmptyForDefaultArmWithConditionalPresent(unittest.TestCase):
+    """QA gap 2 — default-arm at integration level.
+
+    When model_conditional IS present but no rule fires (code-reviewer at
+    budget=8, rule is budget_lt:6), the resolver's 3rd stdout line must be
+    empty (no model binding emitted).
+    """
+
+    def test_resolver_third_line_empty_for_default_arm_code_reviewer_budget_8(self):
+        result = _run_resolver_with_budget(_REVIEWER_PAYLOAD_BUDGET4, budget=8)
+        self.assertEqual(result.returncode, 0)
+        lines = result.stdout.splitlines()
+        self.assertGreaterEqual(len(lines), 3,
+                                f"expected >=3 lines, got {len(lines)}: {result.stdout!r}")
+        self.assertEqual(lines[2], "",
+                         "line 3 must be empty when model_conditional is present "
+                         "but no rule fires (default-arm, budget=8 vs budget_lt:6)")
+
+
+# ---------------------------------------------------------------------------
+# Slice C — Doc honesty tests (C3-C8 in test_advisor_resolver.py)
+# ---------------------------------------------------------------------------
+
+_ADVISOR_MODE_PATH = REPO_ROOT / "protocols" / "advisor-mode.md"
+
+
+class AdvisorModeDocDoesNotClaimEnforced(unittest.TestCase):
+    """C3: advisor-mode.md does not contain 'enforced default'."""
+
+    def test_no_enforced_default_phrase_in_advisor_mode_md(self):
+        body = _ADVISOR_MODE_PATH.read_text()
+        self.assertNotIn("enforced default", body,
+                         "advisor-mode.md must not claim 'enforced default'")
+
+
+class AdvisorModeDocDocumentsModelBindingWithCaveat(unittest.TestCase):
+    """C4: advisor-mode.md § Status contains 'updatedInput' + 'iff CC honors'."""
+
+    def test_model_binding_caveat_in_status_section(self):
+        body = _ADVISOR_MODE_PATH.read_text()
+        self.assertIn("updatedInput", body)
+        self.assertIn("iff CC honors", body)
+
+
+class AdvisorModeDocNoteAdvisorFieldStillLogOnly(unittest.TestCase):
+    """C5: advisor-mode.md states advisor: field is still not yet schema-exposed."""
+
+    def test_advisor_not_schema_exposed_clause(self):
+        body = _ADVISOR_MODE_PATH.read_text()
+        self.assertIn("not yet schema-exposed", body)
+
+
+class AdvisorModeDocNoStaleFollowUpReference(unittest.TestCase):
+    """C6: advisor-mode.md does not contain stale 'named follow-up' phrase."""
+
+    def test_no_named_follow_up_phrase(self):
+        body = _ADVISOR_MODE_PATH.read_text()
+        self.assertNotIn("named follow-up", body,
+                         "advisor-mode.md must not contain stale 'named follow-up'")
+
+
+class AdvisorModeDocOperatorControlsHasDisableModelBinding(unittest.TestCase):
+    """C7: advisor-mode.md § Operator Controls contains CLAUDE_DISABLE_MODEL_BINDING."""
+
+    def test_disable_model_binding_in_operator_controls(self):
+        body = _ADVISOR_MODE_PATH.read_text()
+        self.assertIn("CLAUDE_DISABLE_MODEL_BINDING", body)
+
+
+class MalformedAgentFrontmatterReturnsEmptyDict(unittest.TestCase):
+    """Finding #3: _parse_yaml_frontmatter must never raise on bad YAML; returns {}."""
+
+    def test_malformed_yaml_returns_empty_dict_not_raise(self):
+        import sys
+        import io
+        import importlib
+        import importlib.util
+        loader_path = REPO_ROOT / "hooks" / "_lib" / "agent_frontmatter_loader.py"
+        spec = importlib.util.spec_from_file_location("agent_frontmatter_loader", loader_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        # Unquoted colon-in-value is a YAML parse error.
+        bad_text = "---\nmodel: foo: bar\n---\n"
+        captured = io.StringIO()
+        old_stderr = sys.stderr
+        sys.stderr = captured
+        try:
+            result = mod._parse_yaml_frontmatter(bad_text)
+        finally:
+            sys.stderr = old_stderr
+        self.assertIsInstance(result, dict)
+        # Diagnostic must have been emitted to stderr.
+        self.assertIn("yaml parse failed", captured.getvalue())
 
 
 if __name__ == "__main__":
