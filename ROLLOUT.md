@@ -33,6 +33,105 @@ Do **not**, for this repo:
 
 Do not commit secrets into `managed-settings.json`.
 
+## Server-managed settings console JSON
+
+Use `templates/org-defaults/managed-settings.json` as the authoritative source to paste
+into the Anthropic enterprise console → Managed Settings.
+
+> **Template location**: `templates/org-defaults/managed-settings.json` is the canonical
+> version. The JSON below annotates the key fields. See `templates/org-defaults/README.md`
+> for the promotion path to `Adviser-Group/org-defaults`.
+
+### Field-by-field reference
+
+The console JSON is a standard Claude Code settings document. Key fields:
+
+```json
+{
+  // Force-enables the harness plugin for all engineers in the org.
+  // This triggers the CLI gap workaround (enabledPlugins alone does not
+  // install on CLI — the SessionStart hook handles the actual install).
+  "enabledPlugins": { "harness@adviser-group": true },
+
+  // Org-wide env vars injected into every Claude Code session.
+  // These control harness behaviour: hook profile, subagent limits, trace off.
+  "env": {
+    "CLAUDE_HOOK_PROFILE": "standard",
+    "CLAUDE_PIPELINE_MODE": "autonomous",
+    "CLAUDE_ENABLE_TRACE": "0"
+    // ... see managed-settings.json for the full list
+  },
+
+  // Destructive-op deny rules — protect main branches, prevent data loss.
+  "permissions": {
+    "deny": [ /* git push --force, rm -rf, etc */ ]
+  },
+
+  // Org doctrine injected into every session's system prompt.
+  // Points engineers to the harness pipeline entry point.
+  "claudeMd": "# Adviser Harness — Organization Doctrine (managed) ...",
+
+  "hooks": {
+    // SessionStart: on every session, clone or update the harness repo using
+    // system git + a GitHub token, register it as a local-directory marketplace,
+    // and install the plugin. Runs backgrounded (non-blocking). Idempotent:
+    // guarded by ~/.claude/.adviser-harness-installed sentinel.
+    // NOTE: requires gh auth login (one-time per engineer) — see Known Limitations.
+    "SessionStart": [ { "matcher": "startup|resume", "hooks": [ { "type": "command", "command": "<bootstrap-command>" } ] } ],
+
+    // PreToolUse: if the harness is still absent at Edit/Write time, fire a
+    // nudge directing the engineer to run gh auth login and restart.
+    "PreToolUse": [ { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": "<nudge-command>" } ] } ]
+  }
+}
+```
+
+For the exact command strings, copy directly from `templates/org-defaults/managed-settings.json`.
+
+### Staged rollout sequence
+
+Roll out in two stages to catch issues before org-wide deployment.
+
+**Stage 1 — Test cohort** (5-10 volunteer engineers):
+
+1. In the Anthropic enterprise console, apply `managed-settings.json` to a test-cohort
+   policy group only (not the full org).
+2. Ask cohort engineers to restart Claude Code and approve the one-time security prompt.
+3. Verify on each cohort machine:
+
+   ```bash
+   claude plugin list | grep harness@adviser-group
+   ```
+
+   Expected output: `harness@adviser-group → enabled`
+
+4. If the plugin does not appear:
+   - Check `~/.claude/logs/harness-bootstrap.log` for the error.
+   - Common cause: `gh auth login` not completed — run it and restart.
+   - See the Troubleshooting section below.
+
+**Stage 2 — Org-wide** (after cohort confirms):
+
+1. Expand the console policy from the test-cohort group to the full engineering org.
+2. Communicate the `gh auth login` prerequisite to all engineers (one-time step).
+3. Spot-check a sample of machines:
+
+   ```bash
+   claude plugin list | grep harness@adviser-group
+   ```
+
+### Known limitations (managed-settings path)
+
+- **Desktop gap**: Claude Desktop does not read the enterprise console managed-settings
+  policy. Engineers on Desktop are not covered by this rollout. See `templates/org-defaults/README.md`.
+- **Cloud-runner gap**: A cloud runner without the harness repo committed to its project
+  cannot run the bootstrap. `enabledPlugins` alone is inert on cloud without a registered
+  marketplace. See `templates/org-defaults/README.md` for cloud coverage options.
+- **gh auth login prerequisite**: The bootstrap hard-depends on `gh auth login` having been
+  completed. The `PreToolUse` nudge fires at the next `Edit`/`Write` call if the harness
+  is absent — but the nudge does not fire before the first edit. Engineers must run
+  `gh auth login` once before the bootstrap succeeds.
+
 ## How installation works
 
 1. The enterprise console pushes `managed-settings.json` to every engineer.
