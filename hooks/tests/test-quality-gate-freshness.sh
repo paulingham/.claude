@@ -624,6 +624,50 @@ rm -rf "$_AC_C1_HD"
 echo ""
 
 # ---------------------------------------------------------------------------
+# GAP-3: AC-C1 workstream variant
+# _qg_resolve_intake_path with CLAUDE_WORKSTREAM set must probe the workstream
+# subpath ($HARNESS_DATA/pipeline-state/workstreams/$ws/$task/intake.md) first.
+# Verifies the [[ -n "$ws" ]] branch in _qg_resolve_intake_path is exercised.
+# ---------------------------------------------------------------------------
+echo "-- GAP-3: AC-C1 workstream variant: CLAUDE_WORKSTREAM=my-ws + intake at workstream subpath --"
+
+_GAP3_HD="${TMPDIR:-/tmp}/gap3-harness-$$"
+_GAP3_WS_DIR="${_GAP3_HD}/pipeline-state/workstreams/my-ws/ws-test-task"
+mkdir -p "$_GAP3_WS_DIR"
+printf -- '---\ntask_id: ws-test-task\ntier_emitted: T4\n---\n' \
+  > "${_GAP3_WS_DIR}/intake.md"
+
+GAP3_PATH=$(
+  export HARNESS_DATA="$_GAP3_HD"
+  export CLAUDE_WORKSTREAM="my-ws"
+  source "$CHECKS_LIB"
+  _qg_resolve_intake_path "ws-test-task"
+)
+EXPECTED_GAP3="${_GAP3_HD}/pipeline-state/workstreams/my-ws/ws-test-task/intake.md"
+if [[ "$GAP3_PATH" == "$EXPECTED_GAP3" ]]; then
+  pass "GAP-3: _qg_resolve_intake_path returns workstream HARNESS_DATA path when CLAUDE_WORKSTREAM=my-ws"
+else
+  fail "GAP-3: _qg_resolve_intake_path workstream path" "$EXPECTED_GAP3" "$GAP3_PATH"
+fi
+
+GAP3_TIER=$(
+  export HARNESS_DATA="$_GAP3_HD"
+  export CLAUDE_WORKSTREAM="my-ws"
+  source "$CHECKS_LIB"
+  intake=$(_qg_resolve_intake_path "ws-test-task")
+  _qg_extract_intake_tier "$intake"
+)
+if [[ "$GAP3_TIER" == "T4" ]]; then
+  pass "GAP-3 tier: tier T4 extracted from workstream HARNESS_DATA intake.md"
+else
+  fail "GAP-3 tier: tier extracted from workstream intake.md" "T4" "$GAP3_TIER"
+fi
+
+rm -rf "$_GAP3_HD"
+
+echo ""
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
