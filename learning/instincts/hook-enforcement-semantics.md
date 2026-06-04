@@ -32,7 +32,7 @@ Examples:
 - `hooks/instinct-injector.sh` — wants to splice a `## Learned Patterns` block into the prompt.
 - `hooks/cache-breakpoint-injector.sh` — wants to inject cache breakpoints into long preambles.
 
-Flip mechanics: requires both a resolver-emitted `MUTATE` decision token AND a wrapper branch that prints `{"decision":"approve","modified_tool_input":{…}}` to stdout. Both are inert today because the Agent input schema does not expose `modified_tool_input`. Promoting these hooks requires an empirical probe (`hooks/probe-modified-tool-input.sh`) plus operator-run manual verification of `metrics/{session}/hook-injections.jsonl` mutation counters over a 14-day soak.
+Flip mechanics: requires both a resolver-emitted `MUTATE` decision token AND a wrapper branch that prints `{"decision":"approve","modified_tool_input":{…}}` to stdout. Both are inert today because the Agent input schema does not expose `modified_tool_input`. Promoting these hooks requires an empirical probe (`hooks/probe-modified-tool-input.sh`) plus operator-run manual verification of `metrics/{session}/hook-injections.jsonl` mutation counters over a 14-day soak. [probe-modified-tool-input.sh removed 2026-06-03 — ws-e-dead-hooks-audit]
 
 ## Why
 
