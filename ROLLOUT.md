@@ -229,6 +229,10 @@ sessions.
   the path-string form in `plugin.json` are **not**. Side effect: opening *this repo as a
   project* tries to start those servers with `${CLAUDE_PLUGIN_ROOT}` unset and shows them
   as failed. Harmless; affects only people working inside the harness repo itself.
+- **`repository-created.yml` pushes directly to main** in newly created repos. Direct push
+  is intentional — new repos have no branch protection rules. The security of this path
+  rests entirely on `Adviser-Group/org-defaults` repo integrity (restrict write access
+  accordingly). If your org requires PRs for all repos, modify the workflow to open a PR.
 
 ## Out of scope
 

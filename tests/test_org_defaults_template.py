@@ -30,17 +30,13 @@ def test_settings_template_valid_json():
 
 
 def test_settings_template_has_enabled_plugins():
-    """enabledPlugins field == ["harness@adviser-group"]."""
+    """enabledPlugins field == ["harness@adviser-group"] (exact list form for settings.json)."""
     data = json.loads(SETTINGS_FILE.read_text())
     assert "enabledPlugins" in data, "enabledPlugins must be present"
     enabled = data["enabledPlugins"]
-    # Accept either list form or dict form (dict: {name: true})
-    if isinstance(enabled, list):
-        assert "harness@adviser-group" in enabled
-    elif isinstance(enabled, dict):
-        assert "harness@adviser-group" in enabled
-    else:
-        pytest.fail(f"Unexpected enabledPlugins type: {type(enabled)}")
+    assert enabled == ["harness@adviser-group"], (
+        f"settings.json enabledPlugins must be exactly [\"harness@adviser-group\"], got {enabled!r}"
+    )
 
 
 def test_settings_template_has_no_extra_known_marketplaces():
@@ -97,9 +93,9 @@ def test_managed_settings_has_local_directory_install():
             cmd = hook.get("command", "")
             all_commands.append(cmd)
     combined = " ".join(all_commands)
-    # Must use local directory marketplace add (not "github" shorthand)
-    assert "local-marketplaces" in combined or "marketplace add" in combined, (
-        "SessionStart hook must use local-directory marketplace install"
+    # Must reference the local marketplace directory path explicitly
+    assert "local-marketplaces/adviser-group" in combined, (
+        "SessionStart hook must reference local-marketplaces/adviser-group directory path"
     )
     # Confirm no bare 'github' source shorthand for marketplace add
     assert "marketplace add Adviser-Group" not in combined, (
@@ -141,6 +137,56 @@ def test_nudge_message_contains_exact_strings():
 # ---------------------------------------------------------------------------
 # AC-B1g: README.md
 # ---------------------------------------------------------------------------
+
+def test_settings_deny_list_is_superset_of_managed_settings_deny_list():
+    """settings.json deny list must contain every rule present in managed-settings.json deny list."""
+    settings_data = json.loads(SETTINGS_FILE.read_text())
+    managed_data = json.loads(MANAGED_SETTINGS_FILE.read_text())
+    settings_deny = set(settings_data.get("permissions", {}).get("deny", []))
+    managed_deny = set(managed_data.get("permissions", {}).get("deny", []))
+    missing = managed_deny - settings_deny
+    assert not missing, (
+        f"settings.json deny list is missing rules present in managed-settings.json:\n"
+        + "\n".join(f"  {r!r}" for r in sorted(missing))
+    )
+
+
+def test_managed_settings_bootstrap_log_hygiene():
+    """managed-settings.json bootstrap command must redirect git remote set-url to /dev/null."""
+    data = json.loads(MANAGED_SETTINGS_FILE.read_text())
+    hooks = data.get("hooks", {})
+    session_start = hooks.get("SessionStart", [])
+    all_commands = []
+    for hook_group in session_start:
+        for hook in hook_group.get("hooks", []):
+            cmd = hook.get("command", "")
+            all_commands.append(cmd)
+    combined = " ".join(all_commands)
+    # git remote set-url must be silenced so tokenized URL can't leak into the log
+    assert "remote set-url origin" not in combined or (
+        "remote set-url origin" in combined and ">/dev/null" in combined
+    ), (
+        "git remote set-url origin must redirect output to /dev/null "
+        "to prevent tokenized URL leakage into harness-bootstrap.log"
+    )
+
+
+def test_managed_settings_bootstrap_log_perms():
+    """managed-settings.json bootstrap subshell must use umask 077 or equivalent for log security."""
+    data = json.loads(MANAGED_SETTINGS_FILE.read_text())
+    hooks = data.get("hooks", {})
+    session_start = hooks.get("SessionStart", [])
+    all_commands = []
+    for hook_group in session_start:
+        for hook in hook_group.get("hooks", []):
+            cmd = hook.get("command", "")
+            all_commands.append(cmd)
+    combined = " ".join(all_commands)
+    assert "umask 077" in combined, (
+        "Bootstrap subshell must set 'umask 077' before writing to harness-bootstrap.log "
+        "so the log is created with 0600 permissions (no token URL leakage to other users)"
+    )
+
 
 def test_readme_documents_promotion_path():
     """README.md contains 'Adviser-Group/org-defaults'."""

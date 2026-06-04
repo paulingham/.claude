@@ -43,21 +43,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout org-defaults source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: org-defaults
           fetch-depth: 1
 
       - name: Determine target repo
         id: target
+        env:
+          INPUT_TARGET_REPO: ${{ github.event.inputs.target_repo }}
+          PAYLOAD_REPO: ${{ github.event.client_payload.repository.full_name }}
         run: |
-          if [[ -n "${{ github.event.inputs.target_repo }}" ]]; then
-            echo "repo=${{ github.event.inputs.target_repo }}" >> "$GITHUB_OUTPUT"
+          # NOTE: Security — github.event expressions are bound to env: vars above,
+          # never interpolated directly into the shell script (CWE-94 script injection).
+          if [[ -n "${INPUT_TARGET_REPO}" ]]; then
+            echo "repo=${INPUT_TARGET_REPO}" >> "$GITHUB_OUTPUT"
           else
-            echo "repo=${{ github.event.client_payload.repository.full_name }}" >> "$GITHUB_OUTPUT"
+            echo "repo=${PAYLOAD_REPO}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Clone target repo and commit org defaults
+        # NOTE: Direct push to main is intentional — new repos have no branch protection.
+        # Security of this path rests entirely on Adviser-Group/org-defaults repo integrity.
+        # If your org requires PRs for all repos, change 'git push origin HEAD' to a PR workflow.
         env:
           GH_TOKEN: ${{ secrets.ORG_SYNC_TOKEN }}
           TARGET_REPO: ${{ steps.target.outputs.repo }}
@@ -67,9 +75,11 @@ jobs:
           git clone "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git" target
           cd target
 
-          # Copy canonical files from org-defaults source
+          # Copy canonical files from org-defaults source (org-defaults repo root after promotion)
           # Adjust this list to match your org policy
-          cp ../org-defaults/.claude/settings.json .claude/settings.json 2>/dev/null || true
+          mkdir -p .claude
+          cp ../org-defaults/settings.json .claude/settings.json \
+            || echo "WARNING: settings.json not found in org-defaults source"
           mkdir -p .github/workflows
           cp ../org-defaults/.github/workflows/repo-file-sync.yml .github/workflows/ 2>/dev/null || true
           cp ../org-defaults/.github/workflows/required-workflow-drift-check.yml .github/workflows/ 2>/dev/null || true

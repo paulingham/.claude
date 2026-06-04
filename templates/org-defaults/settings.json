@@ -1,8 +1,4 @@
 {
-  "_comment": "Canonical Claude Code settings template for Adviser-Group org distribution.",
-  "_comment_promotion": "Promote this file to Adviser-Group/org-defaults repo. See templates/org-defaults/README.md.",
-  "_comment_cloud_coverage": "Cloud runner coverage is provided by the cloud-bootstrap.sh SessionStart hook below.",
-  "_comment_no_marketplace": "extraKnownMarketplaces is intentionally absent: the github source fails on private dot-named repos (bundled git limitation). Use the cloud-bootstrap.sh hook for cloud coverage instead.",
   "enabledPlugins": [
     "harness@adviser-group"
   ],
@@ -20,10 +16,6 @@
   "hooks": {
     "SessionStart": [
       {
-        "_comment": "Cloud-runner coverage: when the harness repo is committed to a cloud project,",
-        "_comment2": "cloud-bootstrap.sh symlinks harness artifacts into $HOME/.claude so the plugin loads.",
-        "_comment3": "On Desktop or non-cloud sessions where $CLAUDE_PROJECT_DIR is unset, this is a no-op.",
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
@@ -136,8 +128,11 @@
       "Bash(rm -rf ~*)",
       "Bash(rm -rf /Users*)",
       "Bash(rm -rf $HOME*)",
+      "Bash(rm -rf /tmp*)",
       "Bash(dd if=*)",
       "Bash(mkfs*)",
+      "Bash(> /dev/sda*)",
+      "Bash(chmod -R 777 /*)",
       "Bash(git push --force origin main)",
       "Bash(git push --force origin master)",
       "Bash(git push -f origin main)",

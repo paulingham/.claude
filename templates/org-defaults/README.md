@@ -87,4 +87,53 @@ The `settings.json` template includes a `SessionStart` hook that invokes
    `$HOME/.claude`.
 3. The plugin loads from the symlinked path.
 
-If `CLAUDE_PROJECT_DIR` is unset (Desktop, or cloud without repo), the hook is a no-op.
+The cloud-bootstrap hook is a no-op on Desktop/local sessions: it only runs when
+BOTH `CLAUDE_CODE_REMOTE=true` AND `CLAUDE_PROJECT_DIR` are set. If either is
+unset (Desktop, local CLI, or cloud runner without the harness repo committed), the
+hook exits immediately without doing anything.
+
+## settings.json design notes
+
+- **`enabledPlugins`** uses list form `["harness@adviser-group"]` — the canonical
+  format for repo-committed `settings.json` (as opposed to `managed-settings.json`
+  which uses dict form `{"harness@adviser-group": true}` for enterprise console).
+- **`extraKnownMarketplaces` is intentionally absent**: Claude Code's bundled git
+  fails on private dot-named repos (`Adviser-Group/.claude`). Cloud coverage is
+  provided by the `cloud-bootstrap.sh` SessionStart hook instead.
+- **Cloud-runner coverage**: When the harness repo is committed to a cloud project,
+  `cloud-bootstrap.sh` symlinks harness artifacts into `$HOME/.claude` so the plugin
+  loads. This is a no-op on Desktop/local sessions where `CLAUDE_CODE_REMOTE` is
+  unset or `CLAUDE_PROJECT_DIR` is unset.
+
+## Required PAT scopes for ORG_SYNC_TOKEN
+
+Configure `ORG_SYNC_TOKEN` as an org-level secret with the following minimum scopes:
+
+| Workflow | Required scopes |
+|----------|----------------|
+| `repository-created.yml` | `repo` (write to new repos) + `pull-requests:write` |
+| `required-workflow-drift-check.yml` | `repo` (read across org) + `issues:write` (drift issue creation) |
+| `repo-file-sync.yml` | `repo` (write to target repos) |
+
+Use the narrowest scopes your branch protection rules allow.
+
+## repo-file-sync.yml — stub requiring configuration
+
+The `repo-file-sync.yml` workflow is a **stub**. The sync step (step 2) contains a
+placeholder `echo` command and does not sync anything until you configure a sync
+mechanism. Before running it:
+
+1. Choose a sync action (e.g. `BetaHuhn/repo-file-sync-action`) or write a custom
+   script.
+2. Configure `.github/sync.yml` with the file → repo mapping.
+3. **SHA-pin any third-party sync action** you add to the stub before promoting —
+   this workflow becomes an org-required workflow and must meet the same supply-chain
+   bar as the other two.
+
+## Direct-push-to-main in repository-created.yml
+
+`repository-created.yml` pushes directly to the main branch of newly created repos.
+This is intentional: brand-new repos have no branch protection rules yet. The
+security of this path rests entirely on the integrity of the `Adviser-Group/org-defaults`
+repository. If your org policy requires PRs for all pushes, modify the workflow to
+open a PR instead of pushing directly.
