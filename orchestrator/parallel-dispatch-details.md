@@ -52,14 +52,14 @@ Plan phase has up to three stages: Stage 0 (cache lookup) on every pipeline, Sta
 
 Invoke `skills/plan-cache-lookup/SKILL.md` BEFORE recon or architect dispatch. The skill computes the cache key `(task_class, repo_hash, tier, critical)` and emits one of:
 
-- `PLAN_CACHE_HIT` — the Haiku adapter (driven from the skill on `mode=on`) has written `pipeline-state/{task-id}/plan.md` with `cache_hit: true` in its frontmatter and the resume-safety stub `pipeline-state/{task-id}/architect-context.md` (plan.md § Slice slice-c AC C8). Skip Stages 1 and 2 — proceed directly to Plan Validation.
+- `PLAN_CACHE_HIT` — the Haiku adapter (driven from the skill on `mode=on`) has written `$state_dir/{task-id}/plan.md` with `cache_hit: true` in its frontmatter and the resume-safety stub `$state_dir/{task-id}/architect-context.md` (plan.md § Slice slice-c AC C8). Skip Stages 1 and 2 — proceed directly to Plan Validation.
 - `PLAN_CACHE_MISS` — `reason ∈ {no-template, disabled, shadow-mode, adapter-rejected, ...}`. Fall through to Stage 1 (when the heavy gate applies) and Stage 2. Iron Law 6: `adapter-rejected` falls through in this same pipeline; never deferred.
 
 The skill is callable as a single subagent dispatch from the orchestrator; no Agent spawn required for the MISS path. The HIT path internally spawns the `plan-cache-adapter` agent (model: haiku) per the skill body's `## HIT Path Dispatch` section. `CLAUDE_PLAN_CACHE_MODE` defaults to `off` until Slice F flips it to `shadow`, so any partial-merge before F is safe-by-default (mode resolver short-circuits to MISS reason=disabled).
 
 ### Stage 1: Pre-Architect Recon (heavy gate only)
 
-Three recon agents run in parallel to seed the architect with hindsight. Each writes its output to a separate file; the orchestrator concatenates them into `pipeline-state/{task-id}/architect-context.md` before architect dispatch.
+Three recon agents run in parallel to seed the architect with hindsight. Each writes its output to a separate file; the orchestrator concatenates them into `$state_dir/{task-id}/architect-context.md` before architect dispatch.
 
 Spawn all three in a single message:
 
@@ -74,7 +74,7 @@ CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
     ## Spawn inputs
     - Task ID: {task-id}
     - Acceptance criteria: see TaskList for details
-    - outputPath: pipeline-state/{task-id}/architect-context-archaeology.md
+    - outputPath: $state_dir/{task-id}/architect-context-archaeology.md
 
     Write your findings to outputPath, then emit RECON_COMPLETE or RECON_NULL on stdout."
 })
@@ -87,7 +87,7 @@ CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
     - Task ID: {task-id}
     - Acceptance criteria: see TaskList for details
     - Project hash: {project-hash}
-    - outputPath: pipeline-state/{task-id}/architect-context-memory.md
+    - outputPath: $state_dir/{task-id}/architect-context-memory.md
 
     Write your findings to outputPath, then emit RECON_COMPLETE or RECON_NULL on stdout."
 })
@@ -99,7 +99,7 @@ CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
     ## Spawn inputs
     - Task ID: {task-id}
     - Acceptance criteria: see TaskList for details
-    - outputPath: pipeline-state/{task-id}/architect-context-domain.md
+    - outputPath: $state_dir/{task-id}/architect-context-domain.md
 
     Write your findings to outputPath, then emit RECON_COMPLETE or RECON_NULL on stdout."
 })
@@ -108,13 +108,13 @@ CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
 After all three return, the orchestrator concatenates:
 
 ```bash
-cat pipeline-state/{task-id}/architect-context-archaeology.md \
-    pipeline-state/{task-id}/architect-context-memory.md \
-    pipeline-state/{task-id}/architect-context-domain.md \
-    > pipeline-state/{task-id}/architect-context.md
+cat $state_dir/{task-id}/architect-context-archaeology.md \
+    $state_dir/{task-id}/architect-context-memory.md \
+    $state_dir/{task-id}/architect-context-domain.md \
+    > $state_dir/{task-id}/architect-context.md
 ```
 
-The three intermediate files are kept for forensic visibility (deleted by Reflect cleanup along with the rest of `pipeline-state/{task-id}/`).
+The three intermediate files are kept for forensic visibility (deleted by Reflect cleanup along with the rest of `$state_dir/{task-id}/`).
 
 `RECON_NULL` from any agent is non-blocking — the agent still wrote a valid file (anti-findings only). Concatenation proceeds normally and the architect sees the gap.
 
@@ -132,15 +132,15 @@ CLAUDE_SUBAGENT_DEPTH=$child_depth Agent({
     ## Spawn inputs
     - Task ID: {task-id}
     - Acceptance criteria: see TaskList for details
-    - Architect context (recon, heavy gate only): pipeline-state/{task-id}/architect-context.md (Read this BEFORE drafting if it exists)
+    - Architect context (recon, heavy gate only): $state_dir/{task-id}/architect-context.md (Read this BEFORE drafting if it exists)
     - Project CLAUDE.md: read for tech stack and conventions
 
     ## Output
-    Write the plan to pipeline-state/{task-id}/plan.md per the Plan Output Contract (4 artifacts + Pre-Emit Self-Review)."
+    Write the plan to $state_dir/{task-id}/plan.md per the Plan Output Contract (4 artifacts + Pre-Emit Self-Review)."
 })
 ```
 
-When recon ran, the architect's plan citations should reflect the recon findings — codebase precedents, fragile areas, prior challenger findings the architect now knows about. The Plan Validation challengers will detect a hollow `architect-context.md` (architect did not Read it) by checking whether plan citations align with recon findings; misalignment is a HIGH finding on Artifact 2. **Cache-HIT exception (Domain D7)**: when `pipeline-state/{task-id}/plan.md` frontmatter contains `cache_hit: true`, challengers MUST skip the citation-alignment check — the HIT path bypassed recon by design and writes a stub `architect-context.md` (slice-c AC C8); applying the alignment grader to a stub would force a false HIGH finding on every cache hit.
+When recon ran, the architect's plan citations should reflect the recon findings — codebase precedents, fragile areas, prior challenger findings the architect now knows about. The Plan Validation challengers will detect a hollow `architect-context.md` (architect did not Read it) by checking whether plan citations align with recon findings; misalignment is a HIGH finding on Artifact 2. **Cache-HIT exception (Domain D7)**: when `$state_dir/{task-id}/plan.md` frontmatter contains `cache_hit: true`, challengers MUST skip the citation-alignment check — the HIT path bypassed recon by design and writes a stub `architect-context.md` (slice-c AC C8); applying the alignment grader to a stub would force a false HIGH finding on every cache hit.
 
 ## Plan Validation Phase Dispatch (Autonomous Mode)
 
@@ -161,9 +161,9 @@ Agent({
     Read ~/.claude/agents/product-reviewer.md and follow the **'Plan Validation Mode (Challenger)'** section as your full grading rubric. Do NOT apply the post-build Acceptance Review rubric — that is the wrong mode for this phase.
 
     ## Inputs
-    - Plan file: pipeline-state/{task-id}/plan.md (Read this; do not assume the prompt contains the full plan)
+    - Plan file: $state_dir/{task-id}/plan.md (Read this; do not assume the prompt contains the full plan)
     - Original story / acceptance criteria: see TaskList for details
-    - Architect-context (recon): pipeline-state/{task-id}/architect-context.md (if it exists)
+    - Architect-context (recon): $state_dir/{task-id}/architect-context.md (if it exists)
 
     ## Grading Surface (per agents/architect.md § Plan Output Contract)
 
@@ -197,9 +197,9 @@ Agent({
     Read the project CLAUDE.md for tech stack and conventions.
 
     ## Inputs
-    - Plan file: pipeline-state/{task-id}/plan.md (Read this; do not assume the prompt contains the full plan)
+    - Plan file: $state_dir/{task-id}/plan.md (Read this; do not assume the prompt contains the full plan)
     - Original story / acceptance criteria: see TaskList for details
-    - Architect-context (recon): pipeline-state/{task-id}/architect-context.md (if it exists)
+    - Architect-context (recon): $state_dir/{task-id}/architect-context.md (if it exists)
     - The actual codebase (use Read/Grep to verify the architect's citations)
 
     ## Grading Surface (per agents/architect.md § Plan Output Contract)
@@ -231,7 +231,7 @@ Agent({
   prompt: "Read ~/.claude/agents/architect.md and ~/.claude/skills/epic-breakdown/SKILL.md.
     Your previous plan was challenged in Plan Validation. Revise based on this feedback.
 
-    Original plan: pipeline-state/{task-id}/plan.md (read it)
+    Original plan: $state_dir/{task-id}/plan.md (read it)
 
     Challenger feedback (HIGH/MEDIUM/LOW findings from plan-reviewer + plan-engineer):
     {combined_feedback}
@@ -241,7 +241,7 @@ Agent({
     - Re-run the Pre-Emit Self-Review section if any persona's answer changed substantively.
     - Re-verify any Codebase Ground-Truth Citations the engineering challenger flagged — Read the cited file/lines, correct the claim or mark `<unverified>`.
     - Do not make unrelated changes to approved aspects.
-    - Output the revised plan to pipeline-state/{task-id}/plan.md (overwrite)."
+    - Output the revised plan to $state_dir/{task-id}/plan.md (overwrite)."
 })
 
 // 2. Re-submit to SAME challengers (still alive, have context)
@@ -249,7 +249,7 @@ Agent({
 SendMessage({
   to: "plan-reviewer",  // only if this challenger rejected
   message: "The architect has revised the plan based on your feedback.
-    Revised plan: pipeline-state/{task-id}/plan.md (re-Read it; the file was overwritten)
+    Revised plan: $state_dir/{task-id}/plan.md (re-Read it; the file was overwritten)
     Re-review ONLY the HIGH and MEDIUM findings you raised previously. Do not re-grade approved artifacts.
     Verdict format unchanged: APPROVE or CHANGES_REQUESTED with HIGH/MEDIUM/LOW findings."
 })
@@ -309,7 +309,7 @@ After both complete: merge branches, shut down teammates.
 
 ### Multi-Slice DAG Mode (schema_version: 2)
 
-When `pipeline-state/{task-id}/plan.md` carries `schema_version: 2` in its
+When `$state_dir/{task-id}/plan.md` carries `schema_version: 2` in its
 frontmatter, Build dispatch routes through the v2 DAG path defined here.
 Plans without `schema_version: 2` (legacy v1 plans) fall through to the
 flat parallel-engineer path documented above — the legacy block is
@@ -523,7 +523,7 @@ future debuggers seeing a cherry-pick conflict on a diamond should suspect
 - **Verbatim escalation copy** (`format_cancel_escalation`):
 
   ```
-  Pipeline halted: {failed_slice} failed after 2 retries. Cancelled {N} dependent slice(s): {sorted_ids}. See pipeline-state/{task-id}/pipeline.md § Re-routes for full lineage. Recovery options:
+  Pipeline halted: {failed_slice} failed after 2 retries. Cancelled {N} dependent slice(s): {sorted_ids}. See $state_dir/{task-id}/pipeline.md § Re-routes for full lineage. Recovery options:
     1. Re-run /harness:pipeline-resume to retry from the failed wave.
     2. Edit the plan to remove the failed slice (set `aborted: true`) and re-emit.
     3. Run /harness:forensics for full timeline reconstruction.
@@ -570,8 +570,8 @@ Agent({
   model: "sonnet",
   prompt: """
 TaskId: {task-id}
-PlanPath: pipeline-state/{task-id}/plan.md
-ScratchpadDir: pipeline-state/{task-id}/scratchpad/
+PlanPath: $state_dir/{task-id}/plan.md
+ScratchpadDir: $state_dir/{task-id}/scratchpad/
 TeamRoster: {comma-separated names of build engineer teammates}
 PollSeconds: 60
 
@@ -630,13 +630,13 @@ The previous threshold (`task_class=="feature" AND Budget>=5`) was tightened to 
      1. Fewer changed files; then
      2. Fewer changed lines; then
      3. Cheaper executor tier (sonnet < opus < external-frontier, integer ranks 1/2/3).
-   - **Divergence record (advisory, no gate, no new verdict)**: when the top two candidates clear the tie-breaker boundary above AND their changed-files sets have Jaccard < 0.5 (non-overlapping work on the same slice), append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` with winner/runner-up SHAs, per-candidate diff-stat, and the verbatim `## Selection Rationale`. The dispatch never writes `category: anti-pattern` — recurring divergence is mined into anti-pattern instincts only by `/harness:learn` Step 3d via the standard observations.jsonl path (see `skills/learn/SKILL.md` § 3d), gated on `recurrence>=3 AND phases.review.rounds>=2`. `category: decision` is in the scratchpad enum at `protocols/autonomous-intelligence.md` § Pipeline Scratchpad and is forwarded to reviewers and Final Gate roles by the existing injection matrix.
+   - **Divergence record (advisory, no gate, no new verdict)**: when the top two candidates clear the tie-breaker boundary above AND their changed-files sets have Jaccard < 0.5 (non-overlapping work on the same slice), append a `category: decision` finding to `$state_dir/{task-id}/scratchpad/best-of-n-selection.md` with winner/runner-up SHAs, per-candidate diff-stat, and the verbatim `## Selection Rationale`. The dispatch never writes `category: anti-pattern` — recurring divergence is mined into anti-pattern instincts only by `/harness:learn` Step 3d via the standard observations.jsonl path (see `skills/learn/SKILL.md` § 3d), gated on `recurrence>=3 AND phases.review.rounds>=2`. `category: decision` is in the scratchpad enum at `protocols/autonomous-intelligence.md` § Pipeline Scratchpad and is forwarded to reviewers and Final Gate roles by the existing injection matrix.
    - Reviewer MUST write a `## Selection Rationale` section — copied verbatim to the scratchpad for future `/harness:learn` runs. The diff-stat and the Jaccard value (when the divergence record fires) are quoted in the rationale.
 6. **Merge & cleanup**:
    - `git merge --no-ff build/{task-id}-boN-{winner-slug}` into the pipeline's working branch
    - For every loser: `git worktree remove --force <path>` then `git branch -D build/{task-id}-boN-{slug}`
-   - Write `pipeline-state/{task-id}/best-of-n.md` (frontmatter: task_id, phase=build, verdict=BEST_OF_N_COMPLETE, timestamp; sections: Candidates Run, Winner, Selection Rationale, Cost Estimate Per Candidate)
-   - Append `category: decision` note to `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md`
+   - Write `$state_dir/{task-id}/best-of-n.md` (frontmatter: task_id, phase=build, verdict=BEST_OF_N_COMPLETE, timestamp; sections: Candidates Run, Winner, Selection Rationale, Cost Estimate Per Candidate)
+   - Append `category: decision` note to `$state_dir/{task-id}/scratchpad/best-of-n-selection.md`
 7. **Winner proceeds to standard Review** — Best-of-N does not skip review or any subsequent gate.
 
 **Fallback**: on `BEST_OF_N_FAILED` (insufficient candidates or all candidates failed their own tests), fall back to the standard single-engineer Build dispatch. Log the fallback in pipeline state under `## Re-routes`. Never halts.
@@ -657,7 +657,7 @@ The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastruct
 
 0. **Pre-flight worktree-capacity check**: source `skills/best-of-n/lib/score.sh` and call `check_worktree_capacity` against the project repo. Default cap is 6 worktrees on workstations, 12 on CI; override via `CLAUDE_BESTOFN_MAX_WORKTREES`. Peak concurrent worktrees for PDR-RTV is N=4 (iter-0 worktrees are reaped before iter-1 spawns; see `skills/pdr-rtv/lib/dispatch.sh::reap_iteration_0_worktrees`). If the cap is exceeded → emit `PDR_NO_CONSENSUS` with `fallback_reason: "worktree-cap-exceeded"`, log the re-route to pipeline state's `## Re-routes`, and silently re-route to Best-of-N → standard. Never halts; never asks the user.
 
-1. **Iteration 0 — fresh rollouts**: source `skills/pdr-rtv/lib/dispatch.sh` and call `dispatch_iteration 0`. The helper spawns N=4 parallel build engineers in a single message, each in its own worktree on branch `build/{task-id}-pdr-iter0-<slug>`. Each engineer's spawn prompt extends `software-engineer` with a `Self-Summarize` directive: at completion, write `pipeline-state/{task-id}/pdr-rtv/rollouts/<slug>/summary.md` with three required H2 sections (`## Hypotheses Tried`, `## Progress Made`, `## Failure Modes`) AND a `pipeline-state/{task-id}/pdr-rtv/rollouts/<slug>/meta` file with `sha:` and `diff_stat:` fields. Summaries persist OUTSIDE the worktree so iteration-0 worktrees can be reaped before iteration-1 spawns.
+1. **Iteration 0 — fresh rollouts**: source `skills/pdr-rtv/lib/dispatch.sh` and call `dispatch_iteration 0`. The helper spawns N=4 parallel build engineers in a single message, each in its own worktree on branch `build/{task-id}-pdr-iter0-<slug>`. Each engineer's spawn prompt extends `software-engineer` with a `Self-Summarize` directive: at completion, write `$state_dir/{task-id}/pdr-rtv/rollouts/<slug>/summary.md` with three required H2 sections (`## Hypotheses Tried`, `## Progress Made`, `## Failure Modes`) AND a `$state_dir/{task-id}/pdr-rtv/rollouts/<slug>/meta` file with `sha:` and `diff_stat:` fields. Summaries persist OUTSIDE the worktree so iteration-0 worktrees can be reaped before iteration-1 spawns.
 
 2. **Reap iteration 0**: call `reap_iteration_0_worktrees` AFTER all iter-0 summaries are persisted to `pipeline-state/`. The helper enumerates iter-0 worktree paths and runs `git worktree remove <path>` on each, releasing inodes/disk before iter-1 spawns. Peak concurrent worktrees stays at N=4 throughout.
 
@@ -671,7 +671,7 @@ The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastruct
 
    ```
    export CLAUDE_PDR_RTV_LIVE_PICKER=1
-   export PDR_RTV_VERDICT_DIR="<absolute path under pipeline-state/{task-id}/pdr-rtv/verdicts>"
+   export PDR_RTV_VERDICT_DIR="<absolute path under $state_dir/{task-id}/pdr-rtv/verdicts>"
    mkdir -p "$PDR_RTV_VERDICT_DIR"
    ```
 
@@ -694,7 +694,7 @@ The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastruct
 
 5. **MODE_AMBIGUOUS surfacing (Path-B advisory today)**: when a tournament-mode spawn carries BOTH `Mode: tournament` AND `Persona: <name>` tokens (as a future multi-persona prompt-builder bug could inject), `hooks/pre-agent-advisor.sh` (PreToolUse) logs `source: "mode-ambiguous"` to `metrics/{session}/advisor-dispatch.jsonl` per `agents/patch-critic.md` § Tournament Mode AC8b. The orchestrator MUST parse this forensic line at tournament conclusion and surface the offending match as `PATCH_REJECTED` (per AC8b verbatim) — propagate as `PDR_NO_CONSENSUS` with `fallback_reason: "all-finalists-rejected"` if the rejection eliminates the final pair. The hook is currently log-only because the Agent input schema does not yet expose the relevant fields; promotion to enforcement is a single-line flip in `hooks/pre-agent-advisor.sh` when the schema lands. The orchestrator-side `MODE_AMBIGUOUS → PATCH_REJECTED` surfacing is decoupled from the hook's promotion timeline.
 
-6. **Verdict & merge**: `run_tournament` writes `pipeline-state/{task-id}/pdr-rtv/tournament.md` with the full bracket (N-1 round entries), the `## Winner` section (slug + SHA + verbatim selection rationale), and the cost estimate. The orchestrator merges the winner branch into the pipeline working branch (`git -C "$WORKTREE" merge --no-ff build/{task-id}-pdr-iter<N>-<winner-slug>`) and removes loser worktrees + branches. Emits:
+6. **Verdict & merge**: `run_tournament` writes `$state_dir/{task-id}/pdr-rtv/tournament.md` with the full bracket (N-1 round entries), the `## Winner` section (slug + SHA + verbatim selection rationale), and the cost estimate. The orchestrator merges the winner branch into the pipeline working branch (`git -C "$WORKTREE" merge --no-ff build/{task-id}-pdr-iter<N>-<winner-slug>`) and removes loser worktrees + branches. Emits:
    - `PDR_WINNER_SELECTED` (success): winner proceeds to standard Review (`/harness:code-review` + `/harness:security-review` per `protocols/pipeline-protocol.md`).
    - `PDR_NO_CONSENSUS` (failure): silent re-route to Best-of-N → standard. Log to pipeline state's `## Re-routes` with one of four `fallback_reason` enum values:
      - `worktree-cap-exceeded` (Step 0 above)
@@ -704,7 +704,7 @@ The variant lives at `skills/pdr-rtv/` and reuses Best-of-N's helper infrastruct
 
    Tournament-time `meta-missing` indicates filesystem race or post-distill corruption — distill itself fails-loud at the upstream producer, so the meta file is always present immediately after `distill_rollout` returns 0.
 
-**Pipeline state** (`pipeline-state/{task-id}/pdr-rtv.md`):
+**Pipeline state** (`$state_dir/{task-id}/pdr-rtv.md`):
 
 ```yaml
 ---
@@ -720,7 +720,7 @@ timestamp: {ISO 8601}
 - iter1: {green count}/{N} green builds, {failed count} failures
 
 ## Tournament Bracket
-{See pipeline-state/{task-id}/pdr-rtv/tournament.md for full match log}
+{See $state_dir/{task-id}/pdr-rtv/tournament.md for full match log}
 
 ## Winner
 - slug: {winner-slug}
@@ -916,13 +916,13 @@ After both APPROVE: shut down both reviewers.
 
 **Tier-conditional fan-out**: T4 and T5 spawn 4 agents (verify + test + accept +
 patch-critique). T6 spawns 5 agents (the 4 core agents plus spec-blind). The orchestrator
-reads `tier_emitted` from `pipeline-state/{task-id}/intake.md` using the
+reads `tier_emitted` from `$state_dir/{task-id}/intake.md` using the
 `_qg_extract_intake_tier` pattern from `hooks/_lib/quality-gate-checks.sh:64-71`.
 
 ```
 // Extract tier from intake.md (same sed pattern as _qg_extract_intake_tier)
 tier=$(sed -n -E 's/^[[:space:]]*tier_emitted:[[:space:]]*"?(T[0-6])"?[[:space:]]*$/\1/p' \
-  pipeline-state/{task-id}/intake.md | head -n 1)
+  $state_dir/{task-id}/intake.md | head -n 1)
 
 // Step 1: Create tasks (4 always; 5th only when tier==T6)
 TaskCreate({ title: "Verify: contract + smoke + mutation", description: "..." })
@@ -992,9 +992,9 @@ Agent({
   isolation: "worktree",
   prompt: "Read ~/.claude/skills/spec-blind-validate/SKILL.md and execute it fully.
     Read ~/.claude/agents/spec-blind-validator.md for your role definition.
-    Context: branch feature/X, ACs: [verbatim AC list from pipeline-state/{task-id}/plan.md].
+    Context: branch feature/X, ACs: [verbatim AC list from $state_dir/{task-id}/plan.md].
     NEVER receive the diff — independence from implementation is the design.
-    The intake spec is at pipeline-state/{task-id}/intake.md.
+    The intake spec is at $state_dir/{task-id}/intake.md.
     Three PreToolUse hooks (read-guard, write-guard, bash-guard) enforce
     the spec-blind property — Read/Bash content-leak attempts on src/ will
     exit 2 with a JSONL violation log. This is the design.
@@ -1077,7 +1077,7 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
        Candidate diff: [git diff main...HEAD]
        Test output: [most recent fresh test-suite run]
        Intake spec: [task description]
-       A11y index (if present): pipeline-state/{task-id}/design-qc/index.json
+       A11y index (if present): $state_dir/{task-id}/design-qc/index.json
        ## Execution Evidence  # ← optional block — conditionally injected only when CLAUDE_PATCH_CRITIC_EXEC_LAYER=1 AND Steps 1-3 all succeed; absent by default"
    })
    ```
@@ -1145,9 +1145,9 @@ Background: inspired by Multi-Agent Reflexion (Yu et al., arXiv 2512.20845) wher
    - The escalation path's majority rule is intentionally less conservative than the previous always-3 OR-aggregation. Rationale: persona-1's `uncertainty: true` already biased the gate toward extra scrutiny; a single dissenting voice among three personas does not warrant blocking when the other two agree.
    - **Operator override**: when stricter aggregation is desired for a specific pipeline (e.g. an Iron-Law-surface change), an operator can set `CLAUDE_PATCH_CRITIC_AGGREGATION=or` to revert to OR-aggregation (any REJECT → gate REJECT) on the escalation path. Default is `majority`.
 
-5. **Audit artifact**: write `pipeline-state/{task-id}/patch-critic.md` with frontmatter (`task_id, phase=final-gate, verdict, timestamp, mode=persona-1 | escalated, uncertainty_fired: bool, aggregation: majority | or`). When `mode=persona-1`, include one section (persona-1's Rubric table + Findings). When `mode=escalated`, include three sections (one per persona). The orchestrator-aggregated verdict appears in frontmatter and at the top of the file.
+5. **Audit artifact**: write `$state_dir/{task-id}/patch-critic.md` with frontmatter (`task_id, phase=final-gate, verdict, timestamp, mode=persona-1 | escalated, uncertainty_fired: bool, aggregation: majority | or`). When `mode=persona-1`, include one section (persona-1's Rubric table + Findings). When `mode=escalated`, include three sections (one per persona). The orchestrator-aggregated verdict appears in frontmatter and at the top of the file.
 
-6. **Divergence record on split votes** (mode=escalated AND not-unanimous): append a `category: decision` finding to `pipeline-state/{task-id}/scratchpad/patch-critic-divergence.md`. Body includes: dissenting persona(s), dimension(s), severity, finding text, file:line, and `uncertainty_reason` from persona-1 if set. `/harness:learn` mines split-vote dimensions over time; consistently-split dimensions are rubric-clarity calibration targets.
+6. **Divergence record on split votes** (mode=escalated AND not-unanimous): append a `category: decision` finding to `$state_dir/{task-id}/scratchpad/patch-critic-divergence.md`. Body includes: dissenting persona(s), dimension(s), severity, finding text, file:line, and `uncertainty_reason` from persona-1 if set. `/harness:learn` mines split-vote dimensions over time; consistently-split dimensions are rubric-clarity calibration targets.
 
 7. **PATCH_REJECTED → fix → re-critique**:
    - If `mode=persona-1` at rejection → re-dispatch persona-1 only on the updated diff (same shape as existing Review pattern: re-dispatch the raising reviewer).

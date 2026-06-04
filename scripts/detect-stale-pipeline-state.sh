@@ -24,13 +24,24 @@ done
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 [[ -z "$REPO_ROOT" ]] && { echo "Not in a git repo" >&2; exit 2; }
+HARNESS_DATA="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
 STATE_DIR="$REPO_ROOT/pipeline-state"
-[[ -d "$STATE_DIR" ]] || { [[ "$JSON" -eq 0 ]] && echo "No pipeline-state/ directory at $STATE_DIR"; exit 0; }
-mapfile -t FILES < <(find "$STATE_DIR" -maxdepth 2 -type f \
+HARNESS_STATE_DIR="${HARNESS_DATA}/pipeline-state"
+# Scan both HARNESS_DATA (new writes) and REPO_ROOT (legacy soak fallback).
+# After 90-day soak from merge of relocate-pipeline-state-writes PR
+# (git log --format=%aI -1 <merge-commit>), the REPO_ROOT scan may be removed.
+_FIND_DIRS=()
+[[ -d "$HARNESS_STATE_DIR" ]] && _FIND_DIRS+=("$HARNESS_STATE_DIR")
+[[ -d "$STATE_DIR" ]] && _FIND_DIRS+=("$STATE_DIR")
+if [[ "${#_FIND_DIRS[@]}" -eq 0 ]]; then
+  [[ "$JSON" -eq 0 ]] && echo "No pipeline-state/ directory found at HARNESS_DATA or REPO_ROOT"
+  exit 0
+fi
+mapfile -t FILES < <(find "${_FIND_DIRS[@]}" -maxdepth 2 -type f \
   \( -path "*/pipeline.md" -o -name "*-pipeline.md" \) \
   -not -path "*/health-reports/*" \
   -not -path "*/wave3-structural-cleanup/*" \
-  -not -path "*/workstreams/*/*" 2>/dev/null | sort)
+  -not -path "*/workstreams/*/*" 2>/dev/null | sort -u)
 
 extract_field() {  # $1=path, $2=key
   awk -v key="$2" '

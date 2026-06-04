@@ -282,7 +282,7 @@ session_memory_sync_out "$PROJECT_HASH" "$PROJ_DIR"  # directory → backend (no
 
 Before spawning any agent during a pipeline, the orchestrator reads the scratchpad and applies a **category-based relevance filter** so each spawn only sees findings that bear on its phase. This keeps prompt size bounded and prevents irrelevant noise from drowning load-bearing warnings.
 
-1. **Read**: `ls pipeline-state/{task-id}/scratchpad/*.md` (workstream variant: `pipeline-state/workstreams/{ws}/{task-id}/scratchpad/*.md`). During the DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State), the legacy form `pipeline-state/{task-id}-scratchpad/*.md` is still tolerated.
+1. **Read**: `ls $state_dir/{task-id}/scratchpad/*.md` (workstream variant: `$state_dir/workstreams/{ws}/{task-id}/scratchpad/*.md`). During the DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State), the legacy form `$state_dir/{task-id}-scratchpad/*.md` is still tolerated.
 2. **Filter** by category × spawn target:
 
    | Finding category | Forwarded to |
@@ -299,7 +299,7 @@ Before spawning any agent during a pipeline, the orchestrator reads the scratchp
 
 Also include the scratchpad write instruction in every write-capable agent's prompt:
 
-> "Before completing, write any noteworthy discoveries to `pipeline-state/{task-id}/scratchpad/{your-role}-{phase}.md` with YAML frontmatter `category: discovery|warning|pattern|fragility|decision`. Skip if nothing noteworthy."
+> "Before completing, write any noteworthy discoveries to `$state_dir/{task-id}/scratchpad/{your-role}-{phase}.md` with YAML frontmatter `category: discovery|warning|pattern|fragility|decision`. Skip if nothing noteworthy."
 
 **Forensics**: the `scratchpad-bytes.sh` PreToolUse hook (Agent matcher) measures the bytes of scratchpad content visible to each spawn after filtering and logs to `metrics/{session-id}/scratchpad-bytes.jsonl`. Use this to spot regressions (a phase suddenly seeing 10x more bytes) or under-injection (warnings dropped because the filter was misapplied).
 
@@ -315,7 +315,7 @@ Also include the scratchpad write instruction in every write-capable agent's pro
 | Instincts (learning/instincts/) | No -- injected by orchestrator into spawn prompt |
 | Agent memory (agent-memory/{role}/) | No -- injected by orchestrator into spawn prompt |
 | Session memory (session-memory/{hash}/) | No -- injected by orchestrator into spawn prompt |
-| Pipeline scratchpad (pipeline-state/{id}/scratchpad/) | No -- injected by orchestrator into spawn prompt |
+| Pipeline scratchpad ($state_dir/{id}/scratchpad/) | No -- injected by orchestrator into spawn prompt |
 
 ### Interacting with Teammates
 
