@@ -32,7 +32,7 @@ _wcc_emit_record() {
 }
 
 _wcc_drift_check() {
-  local repo_root="${CLAUDE_REPO_ROOT:-$HOME/.claude}" head
+  local repo_root="${CLAUDE_REPO_ROOT:-$HARNESS_DATA}" head
   head=$(git -C "$repo_root" rev-parse --abbrev-ref HEAD 2>/dev/null) || return 0
   [[ "$head" == "main" ]] && return 0
   mkdir -p "$(dirname "$LOG")" 2>/dev/null

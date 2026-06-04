@@ -13,7 +13,10 @@ consumers can read these fields; older consumers ignore them.
 """
 import json
 import os
+import shutil
 import subprocess
+import sys
+import tempfile
 import unittest
 import uuid
 from pathlib import Path
@@ -29,18 +32,27 @@ _RESOLVER_ENV_VARS = (
 )
 
 
-def _run_hook(payload, env=None):
+_SITE_PP = ":".join(p for p in sys.path if "site-packages" in p)
+
+
+def _run_hook(payload, env=None, plugin_data=None):
     proc_env = {k: v for k, v in os.environ.items()
                 if k not in _RESOLVER_ENV_VARS}
+    existing_pp = proc_env.get("PYTHONPATH", "")
+    proc_env["PYTHONPATH"] = ":".join(filter(None, [_SITE_PP, existing_pp]))
+    proc_env["CLAUDE_PLUGIN_ROOT"] = str(REPO_ROOT)
+    if plugin_data is not None:
+        proc_env["CLAUDE_PLUGIN_DATA"] = str(plugin_data)
+        proc_env["HOME"] = str(plugin_data)
     proc_env.update(env or {})
     return subprocess.run(
         ["bash", str(HOOK)], input=json.dumps(payload),
         capture_output=True, text=True, timeout=10, env=proc_env)
 
 
-def _cleanup_session(session):
-    log_path = (Path.home() / ".claude" / "metrics" / session
-                / "hook-injections.jsonl")
+def _cleanup_session(session, base):
+    root = base
+    log_path = root / "metrics" / session / "hook-injections.jsonl"
     if log_path.exists():
         log_path.unlink()
     parent = log_path.parent
@@ -51,88 +63,74 @@ def _cleanup_session(session):
             pass
 
 
-def _last_entry(session):
-    log_path = (Path.home() / ".claude" / "metrics" / session
-                / "hook-injections.jsonl")
+def _last_entry(session, base):
+    root = base
+    log_path = root / "metrics" / session / "hook-injections.jsonl"
     return json.loads(log_path.read_text().strip().splitlines()[-1])
 
 
-class HookInjectionsJsonlEmitsEffortField(unittest.TestCase):
-    """B.2 verify-only: the existing JSONL line carries `resolved.effort`
-    drawn from `{low, medium, high, xhigh}` AND a non-empty
-    `resolved.source` token.
-    """
+class _InjectionTestCase(unittest.TestCase):
+    def setUp(self):
+        self.plugin_data = Path(tempfile.mkdtemp(prefix="injection-test-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.plugin_data, ignore_errors=True)
+
+    def _run(self, payload, extra_env=None):
+        return _run_hook(payload, env=extra_env, plugin_data=self.plugin_data)
+
+    def _last(self, session):
+        return _last_entry(session, base=self.plugin_data)
+
+    def _cleanup(self, session):
+        _cleanup_session(session, base=self.plugin_data)
+
+
+class HookInjectionsJsonlEmitsEffortField(_InjectionTestCase):
+    """B.2 verify-only: the existing JSONL line carries `resolved.effort`."""
 
     def test_jsonl_emits_effort_field(self):
         session = f"test-{uuid.uuid4()}"
-        try:
-            result = _run_hook(
-                {"tool_name": "Agent",
-                 "tool_input": {"subagent_type": "code-reviewer"}},
-                env={"CLAUDE_SESSION_ID": session})
-            self.assertEqual(result.returncode, 0)
-            entry = _last_entry(session)
-            self.assertIn(entry["resolved"]["effort"],
-                          {"low", "medium", "high", "xhigh"})
-            self.assertNotEqual(entry["resolved"]["source"], "")
-        finally:
-            _cleanup_session(session)
+        result = self._run(
+            {"tool_name": "Agent",
+             "tool_input": {"subagent_type": "code-reviewer"}},
+            extra_env={"CLAUDE_SESSION_ID": session})
+        self.assertEqual(result.returncode, 0)
+        entry = self._last(session)
+        self.assertIn(entry["resolved"]["effort"],
+                      {"low", "medium", "high", "xhigh"})
+        self.assertNotEqual(entry["resolved"]["source"], "")
 
 
-class JsonlEmitsBetaHeaderToken(unittest.TestCase):
-    """B.4: when effort is in `{medium, high, xhigh}` (or `low` for an
-    effort-enabled role), `resolved.beta_header == "effort-2025-11-24"`
-    AND `resolved.api_effort` is set to the resolved effort.
-
-    Effort `low` resolved via the role layer for planning-agent IS treated
-    as "role disables effort" — see the sibling
-    `BetaHeaderOmittedWhenRoleDisablesEffort` test. For other roles low
-    via env-override remains effort-enabled — the beta header still ships
-    so the API has the necessary capability.
-    """
+class JsonlEmitsBetaHeaderToken(_InjectionTestCase):
+    """B.4: beta_header field present for effort-enabled roles."""
 
     def test_jsonl_emits_beta_header_for_architect(self):
         session = f"test-{uuid.uuid4()}"
-        try:
-            result = _run_hook(
-                {"tool_name": "Agent",
-                 "tool_input": {"subagent_type": "architect"}},
-                env={"CLAUDE_SESSION_ID": session})
-            self.assertEqual(result.returncode, 0)
-            entry = _last_entry(session)
-            self.assertEqual(entry["resolved"]["beta_header"],
-                             "effort-2025-11-24")
-            self.assertIn(entry["resolved"]["api_effort"],
-                          {"low", "medium", "high", "xhigh"})
-        finally:
-            _cleanup_session(session)
+        result = self._run(
+            {"tool_name": "Agent",
+             "tool_input": {"subagent_type": "architect"}},
+            extra_env={"CLAUDE_SESSION_ID": session})
+        self.assertEqual(result.returncode, 0)
+        entry = self._last(session)
+        self.assertEqual(entry["resolved"]["beta_header"], "effort-2025-11-24")
+        self.assertIn(entry["resolved"]["api_effort"],
+                      {"low", "medium", "high", "xhigh"})
 
 
-class BetaHeaderOmittedWhenRoleDisablesEffort(unittest.TestCase):
-    """B.4: planning-agent resolves to `effort=low` via role layer rule 3b
-    — the role disables effort. `resolved.beta_header` is ABSENT (field
-    not present at all, not null) in the JSONL line for this spawn.
-
-    The semantic: a `low` floor from the role-disable downgrade signals
-    that the role does not want extended-thinking budget at all; emitting
-    the beta header would request capability the role explicitly opts out
-    of.
-    """
+class BetaHeaderOmittedWhenRoleDisablesEffort(_InjectionTestCase):
+    """B.4: planning-agent omits beta_header."""
 
     def test_planning_agent_omits_beta_header(self):
         session = f"test-{uuid.uuid4()}"
-        try:
-            result = _run_hook(
-                {"tool_name": "Agent",
-                 "tool_input": {"subagent_type": "planning-agent"}},
-                env={"CLAUDE_SESSION_ID": session})
-            self.assertEqual(result.returncode, 0)
-            entry = _last_entry(session)
-            self.assertNotIn("beta_header", entry["resolved"],
-                             "beta_header must be absent for low-effort "
-                             "role-disable spawns (planning-agent)")
-        finally:
-            _cleanup_session(session)
+        result = self._run(
+            {"tool_name": "Agent",
+             "tool_input": {"subagent_type": "planning-agent"}},
+            extra_env={"CLAUDE_SESSION_ID": session})
+        self.assertEqual(result.returncode, 0)
+        entry = self._last(session)
+        self.assertNotIn("beta_header", entry["resolved"],
+                         "beta_header must be absent for planning-agent")
 
 
 if __name__ == "__main__":

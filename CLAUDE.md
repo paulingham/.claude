@@ -17,6 +17,8 @@
 
 All runtime state (pipeline-state, session-memory, agent-memory session dirs, metrics, db, learning project dirs) lives in `$CLAUDE_PLUGIN_DATA` (end-user local, never committed back to the harness repo). The maintainer's repo ships only curated seed: `learning/instincts/`, `agent-memory/<role>/MEMORY.md`, `session-memory/config/`, `session-memory/adapters/`. At Reflect, confirm no runtime state dirs are staged for commit — only seed files belong in the repo.
 
+Paths shown as `~/.claude/…` in agent and protocol files resolve at runtime via `HARNESS_ROOT` (shipped content) or `HARNESS_DATA` (runtime state) — see `hooks/_lib/harness-paths.sh`.
+
 ## Session Start (automatic)
 
 1. **In-progress pipeline check**: source `hooks/_lib/pipeline-state-paths.sh` and run `_psp_find_active_pipelines 2>/dev/null | head -1`. If found, auto-invoke `/harness:pipeline-resume` and inform: "Resuming [pipeline name] from [phase]."

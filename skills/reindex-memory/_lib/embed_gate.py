@@ -4,7 +4,12 @@ from pathlib import Path
 
 from _lib.embed_presence import models_present, warn_missing_once
 
-_LOG = Path.home() / ".claude" / "db" / "live-writer.log"
+_LIB_DIR = str(Path(__file__).parent)
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+from harness_paths import harness_data  # noqa: E402
+
+_LOG = harness_data() / "db" / "live-writer.log"
 
 
 def maybe_embed(con, obj, content_hash):

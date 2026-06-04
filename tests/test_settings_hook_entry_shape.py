@@ -219,5 +219,37 @@ class McpServersUntouched(unittest.TestCase):
             )
 
 
+class ThreeTierFallbackPresent(unittest.TestCase):
+    """AC-A4a/b: hook entry-points use three-tier CLAUDE_PLUGIN_ROOT fallback."""
+
+    TWO_TIER = re.compile(r'\$\{CLAUDE_CONFIG_DIR:-\$HOME/\.claude\}/')
+    THREE_TIER = "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/"
+
+    def test_settings_json_valid_after_sweep(self):
+        text = SETTINGS_PATH.read_text()
+        json.loads(text)  # raises json.JSONDecodeError on invalid JSON
+
+    def test_hook_commands_use_three_tier_fallback(self):
+        text = SETTINGS_PATH.read_text()
+        self.assertFalse(
+            self.TWO_TIER.search(text),
+            "settings.json still has two-tier ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/ patterns",
+        )
+        self.assertIn(
+            self.THREE_TIER, text,
+            "settings.json has no three-tier CLAUDE_PLUGIN_ROOT entry-points",
+        )
+
+    def test_status_line_uses_three_tier_fallback(self):
+        data = json.loads(SETTINGS_PATH.read_text())
+        status_line = data.get("statusLine", {})
+        cmd = status_line.get("command", "")
+        self.assertIn(
+            "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/statusline",
+            cmd,
+            "statusLine command must use three-tier CLAUDE_PLUGIN_ROOT fallback",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -12,6 +12,7 @@ import sys
 import time
 from pathlib import Path
 
+from harness_paths import harness_data, resolved_harness_data
 from log_allowlist_session import sanitize_session
 from pipeline_entry_guard import decide
 from pipeline_state_paths import find_pipeline_files
@@ -29,26 +30,16 @@ def _sanitize_path_component(value: str) -> str:
 
 
 def _pipeline_state_dir() -> str:
-    """3-step: HARNESS_DATA > CLAUDE_CONFIG_DIR > ~/.claude, then /pipeline-state."""
-    base = (
-        os.environ.get("HARNESS_DATA")
-        or os.environ.get("CLAUDE_CONFIG_DIR")
-        or str(Path.home() / ".claude")
-    )
-    return str(Path(base) / "pipeline-state")
+    """3-step: HARNESS_DATA > harness_data() fallback, then /pipeline-state."""
+    return str(Path(resolved_harness_data()) / "pipeline-state")
 
 
 def _metrics_dir() -> Path:
-    """4-step: CLAUDE_METRICS_DIR > HARNESS_DATA > CLAUDE_CONFIG_DIR > ~/.claude."""
+    """CLAUDE_METRICS_DIR > HARNESS_DATA > harness_data() fallback."""
     standalone = os.environ.get("CLAUDE_METRICS_DIR")
     if standalone:
         return Path(standalone)
-    config = (
-        os.environ.get("HARNESS_DATA")
-        or os.environ.get("CLAUDE_CONFIG_DIR")
-        or str(Path.home() / ".claude")
-    )
-    return Path(config) / "metrics"
+    return Path(resolved_harness_data()) / "metrics"
 
 
 def _session_id() -> str:

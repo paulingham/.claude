@@ -149,6 +149,23 @@ version's data directory is active.
 
 ---
 
+## (g) `additionalDirectories` deferred (CA4)
+
+The `additionalDirectories` array in `settings.json` (lines 71–84) lists paths
+rooted at `"$HOME/.claude/…"`. Claude Code does **not** expand plugin vars
+(`CLAUDE_PLUGIN_ROOT`, `CLAUDE_PLUGIN_DATA`) in the `additionalDirectories`
+field — it reads these as literal strings. Replacing them with env-var
+references would break the feature on all current installs.
+
+This migration is **deferred** pending Claude Code adding plugin-var expansion
+support for `additionalDirectories`. The workaround for plugin-mode installs:
+ensure `$HOME/.claude` is symlinked to or equal to `$CLAUDE_PLUGIN_DATA` for
+the relevant subdirectories. Until then, `additionalDirectories` paths remain
+hardcoded to `$HOME/.claude` and are explicitly excluded from the
+plugin-portability sweep.
+
+---
+
 ## Troubleshooting
 
 **`mcp_memory/SKILL.md:46` sample path**

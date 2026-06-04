@@ -10,9 +10,9 @@ import re
 from pathlib import Path
 
 from advisor_resolver import parse_frontmatter
+from harness_paths import harness_root
 
-_AGENTS_DIR = Path(os.environ.get("CLAUDE_AGENTS_DIR") or
-                   Path.home() / ".claude" / "agents")
+_AGENTS_DIR = Path(os.environ.get("CLAUDE_AGENTS_DIR") or harness_root() / "agents")
 _VALID_SUBAGENT = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 
 

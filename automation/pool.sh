@@ -138,7 +138,7 @@ _clean_pipeline_state() {
   ticket_key="$(cat "$lock_dir/ticket" 2>/dev/null || echo "")"
 
   if [ -n "$ticket_key" ]; then
-    local state_dir="$HOME/.claude/pipeline-state"
+    local state_dir="$HARNESS_DATA/pipeline-state"
     if [ -d "$state_dir" ]; then
       find "$state_dir" -name "${ticket_key}*" -delete 2>/dev/null || true
       _log INFO "Cleaned pipeline state for $ticket_key"

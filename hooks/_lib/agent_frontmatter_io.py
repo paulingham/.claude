@@ -10,11 +10,11 @@ from pathlib import Path
 import yaml
 
 from agent_path_validator import is_valid_subagent_type
+from harness_paths import harness_root
 
 
 def agents_dir():
-    return Path(os.environ.get("CLAUDE_AGENTS_DIR") or
-                Path.home() / ".claude" / "agents")
+    return Path(os.environ.get("CLAUDE_AGENTS_DIR") or harness_root() / "agents")
 
 
 def read_frontmatter(path):

@@ -17,9 +17,9 @@ _log_hook_start
 _log_hook_trigger "SessionStart"
 trap 'log_hook_event $?' EXIT
 
-SUPERVISOR="$HOME/.claude/automation/supervisor.sh"
-SUPERVISOR_PID="$HOME/.claude/automation/supervisor.pid"
-REPOS_CONF="$HOME/.claude/automation/repos.conf"
+SUPERVISOR="$HARNESS_DATA/automation/supervisor.sh"
+SUPERVISOR_PID="$HARNESS_DATA/automation/supervisor.pid"
+REPOS_CONF="$HARNESS_DATA/automation/repos.conf"
 
 if [[ -x "$SUPERVISOR" && -f "$REPOS_CONF" ]]; then
     # Check if repos.conf has any non-comment, non-empty lines
@@ -35,9 +35,9 @@ if [[ -x "$SUPERVISOR" && -f "$REPOS_CONF" ]]; then
         fi
         if [[ "$RUNNING" == false ]]; then
             # Ensure logs directory exists before starting
-            mkdir -p "$HOME/.claude/automation/logs"
+            mkdir -p "$HARNESS_DATA/automation/logs"
             # Start supervisor in background, fully detached
-            nohup "$SUPERVISOR" start >> "$HOME/.claude/automation/logs/supervisor.log" 2>&1 &
+            nohup "$SUPERVISOR" start >> "$HARNESS_DATA/automation/logs/supervisor.log" 2>&1 &
             disown
         fi
     fi
@@ -213,7 +213,7 @@ fi
 # ---------------------------------------------------------------------------
 # Hook anomaly detection (per-hook latency + failure surface)
 # ---------------------------------------------------------------------------
-HOOK_SUMMARY="$HOME/.claude/scripts/hook-summary.sh"
+HOOK_SUMMARY="$HARNESS_ROOT/scripts/hook-summary.sh"
 HOOK_METRICS_DIR="$HARNESS_DATA/metrics"
 if [[ -x "$HOOK_SUMMARY" && -d "$HOOK_METRICS_DIR" ]]; then
     # Run anomaly check silently; only surface if exit_code != 0 (anomaly found).

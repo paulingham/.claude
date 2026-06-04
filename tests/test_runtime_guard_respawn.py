@@ -16,6 +16,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 import uuid
@@ -39,8 +40,16 @@ def _bash_payload(command="echo hello"):
     return {"tool_name": "Bash", "tool_input": {"command": command}}
 
 
+_SITE_PP = ":".join(p for p in sys.path if "site-packages" in p)
+
+
 def _run_hook(hook_path, payload, env=None):
-    proc_env = {**os.environ, **(env or {})}
+    existing_pp = os.environ.get("PYTHONPATH", "")
+    merged_pp = ":".join(filter(None, [_SITE_PP, existing_pp]))
+    proc_env = {**os.environ, "PYTHONPATH": merged_pp,
+                "CLAUDE_PLUGIN_ROOT": str(REPO_ROOT)}
+    if env:
+        proc_env.update(env)
     return subprocess.run(
         ["bash", str(hook_path)],
         input=json.dumps(payload),
@@ -73,20 +82,25 @@ class _RespawnCapBase(unittest.TestCase):
     def setUp(self):
         self.session = f"test-{self.label}-{uuid.uuid4().hex[:8]}"
         self.state_dir = Path(tempfile.mkdtemp(prefix="ps-"))
+        self.plugin_data = Path(tempfile.mkdtemp(prefix="pd-"))
         _make_pipeline_state(self.state_dir, self.task_id)
+        # Also seed pipeline-state inside plugin_data so the stop hook can
+        # discover the active task via HARNESS_DATA/pipeline-state.
+        _make_pipeline_state(self.plugin_data / "pipeline-state", self.task_id)
         self.env = {
             "CLAUDE_SESSION_ID": self.session,
             "CLAUDE_PIPELINE_STATE_DIR": str(self.state_dir),
-            "HOME": str(Path.home()),
+            "CLAUDE_PIPELINE_TASK_ID": self.task_id,
+            "HOME": str(self.plugin_data),
+            "CLAUDE_PLUGIN_DATA": str(self.plugin_data),
         }
 
     def tearDown(self):
         shutil.rmtree(self.state_dir, ignore_errors=True)
-        side = Path.home() / ".claude" / "metrics" / self.session
-        shutil.rmtree(side, ignore_errors=True)
+        shutil.rmtree(self.plugin_data, ignore_errors=True)
 
     def runtime_dir(self):
-        return Path.home() / ".claude" / "metrics" / self.session / "subagent-runtimes"
+        return self.plugin_data / "metrics" / self.session / "subagent-runtimes"
 
 
 class RespawnCapBlocksFourthSpawn(_RespawnCapBase):
@@ -125,7 +139,7 @@ class RespawnCounterPersistsToSubagentRuntimesDir(_RespawnCapBase):
         )
         self.assertEqual(count_files[0].read_text().strip(), "2")
         # Regression guard: no respawn-counts/ directory anywhere
-        wrong = Path.home() / ".claude" / "metrics" / self.session / "respawn-counts"
+        wrong = self.plugin_data / "metrics" / self.session / "respawn-counts"
         self.assertFalse(
             wrong.exists(),
             f"respawn-counts/ must not be created (legacy mis-spec): {wrong}",

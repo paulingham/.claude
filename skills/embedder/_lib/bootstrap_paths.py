@@ -7,7 +7,13 @@ install" from "already resolved" via Path.exists().
 """
 import os
 import platform
+import sys
 from pathlib import Path
+
+_LIB_DIR = str(Path(__file__).parent)
+if _LIB_DIR not in sys.path:
+    sys.path.insert(0, _LIB_DIR)
+from harness_paths import harness_root  # noqa: E402
 
 from embedder._lib.bootstrap_errors import UnsupportedOSError
 
@@ -41,8 +47,7 @@ def _first_existing(paths):
 
 
 def model_path():
-    return (Path.home() / ".claude" / "models"
-            / "bge-small-en-v1.5" / "model.onnx")
+    return harness_root() / "models" / "bge-small-en-v1.5" / "model.onnx"
 
 
 def download_script():
