@@ -387,3 +387,44 @@ _run_guard_capture() {
   run _run_guard Bash 'git checkout -b newbranch'
   [ "$status" -eq 2 ]
 }
+
+# ---------------------------------------------------------------------------
+# R2 fixes — -b/-B/--orphan bypass and trailing-dash-dash tightening (AC2.56-AC2.62)
+# Finding #1 (HIGH): -b/-B/--orphan with -- separator was wrongly allowed as pathspec.
+# Finding #2 (SECURITY MEDIUM): trailing -- with no pathspec was wrongly allowed.
+# ---------------------------------------------------------------------------
+
+@test "AC2.56 git checkout -b evil -- foo.sh blocked (-b branch create, exit 2)" {
+  run _run_guard Bash 'git checkout -b evil -- foo.sh'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.57 git checkout -B evil -- foo.sh blocked (-B force-create, exit 2)" {
+  run _run_guard Bash 'git checkout -B evil -- foo.sh'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.58 git checkout --orphan evil -- foo.sh blocked (--orphan, exit 2)" {
+  run _run_guard Bash 'git checkout --orphan evil -- foo.sh'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.59 git checkout main -- blocked (trailing -- no pathspec, exit 2)" {
+  run _run_guard Bash 'git checkout main --'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.60 git checkout main -- . allowed (trailing -- with pathspec dot, exit 0)" {
+  run _run_guard Bash 'git checkout main -- .'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.61 git checkout -- . allowed (bare -- with dot pathspec, exit 0)" {
+  run _run_guard Bash 'git checkout -- .'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.62 git checkout -- foo.sh still allowed after R2 fix (regression guard)" {
+  run _run_guard Bash 'git checkout -- foo.sh'
+  [ "$status" -eq 0 ]
+}
