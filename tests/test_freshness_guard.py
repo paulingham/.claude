@@ -619,5 +619,117 @@ class HookTaskIdTraversalHardening(unittest.TestCase):
                 _cleanup(_log_path(session))
 
 
+class HookRootFallbackSuccessPath(unittest.TestCase):
+    """Gap (c): resolve-freshness.py lines 115-130 (Story B fix).
+
+    When evidence is absent at the registered worktree but present at the
+    main checkout root (git --git-common-dir), the resolver must find it
+    via the common-dir root fallback and emit action=fresh when the SHA
+    matches the worktree HEAD.
+
+    All prior tests use _make_repo_with_commit (standalone repo, no worktree
+    relationship), so the common-dir branch was unreachable.  This test
+    creates a genuine git worktree add relationship.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self.tmp.name)
+        self.plugin_data = Path(tempfile.mkdtemp(prefix="freshness-rootfb-"))
+        git_env = {**os.environ,
+                   "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+                   "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+        # Create root checkout
+        self.root = self.tmp_path / "root-repo"
+        self.root.mkdir()
+        subprocess.run(["git", "init", "-q", "-b", "main", str(self.root)],
+                       check=True, env=git_env)
+        (self.root / "README").write_text("root\n")
+        subprocess.run(["git", "-C", str(self.root), "add", "README"],
+                       check=True, env=git_env)
+        subprocess.run(["git", "-C", str(self.root), "commit", "-q", "-m", "root-init"],
+                       check=True, env=git_env)
+        # Create registered worktree at root/.claude/worktrees/agent-test
+        self.wt_dir = self.root / ".claude" / "worktrees" / "agent-test"
+        self.wt_dir.parent.mkdir(parents=True)
+        subprocess.run(
+            ["git", "-C", str(self.root), "worktree", "add", "-q",
+             str(self.wt_dir), "-b", "wt-branch"],
+            check=True, env=git_env)
+        # Advance the worktree branch so its HEAD differs from root HEAD
+        subprocess.run(
+            ["git", "-C", str(self.wt_dir), "commit", "--allow-empty",
+             "-q", "-m", "wt-commit"],
+            check=True, env=git_env)
+        self.wt_head = subprocess.run(
+            ["git", "-C", str(self.wt_dir), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True, env=git_env).stdout.strip()
+        self.git_env = git_env
+
+    def tearDown(self):
+        self.tmp.cleanup()
+        shutil.rmtree(self.plugin_data, ignore_errors=True)
+
+    def test_root_fallback_evidence_yields_fresh_when_sha_matches(self):
+        """Story B fix: evidence written to ROOT by the verifier (who ran from
+        repo root) is found via --git-common-dir and yields action=fresh when
+        its git_head equals the registered worktree HEAD."""
+        from datetime import datetime, timezone
+        now_ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        # Place evidence ONLY at the root checkout (not in the worktree dir)
+        root_evidence_dir = self.root / "pipeline-state" / "test-task"
+        root_evidence_dir.mkdir(parents=True)
+        _write_evidence(root_evidence_dir, git_head=self.wt_head,
+                        generated_at=now_ts)
+
+        # Point the hook at the WORKTREE (not root); evidence is only at root
+        session = f"test-rootfb-{uuid.uuid4()}"
+        try:
+            _run_hook(
+                {"tool_name": "Agent",
+                 "tool_input": {"subagent_type": GATED}},
+                env={"CLAUDE_SESSION_ID": session,
+                     "CLAUDE_WORKTREE_PATH": str(self.wt_dir),
+                     "CLAUDE_PIPELINE_TASK_ID": "test-task"},
+                plugin_data=self.plugin_data)
+            log = _log_path(session, base=self.plugin_data)
+            self.assertTrue(log.exists(),
+                            "hook must emit a JSONL line for root-fallback path")
+            entry = json.loads(log.read_text().strip().splitlines()[-1])
+            self.assertEqual(
+                entry["resolved"]["action"], "fresh",
+                f"expected fresh via root fallback; got: {entry['resolved']}")
+            self.assertEqual(entry["resolved"]["reason"], "fresh")
+        finally:
+            _cleanup(_log_path(session, base=self.plugin_data))
+
+    def test_root_fallback_still_blocks_when_sha_mismatches(self):
+        """Root-fallback evidence with wrong SHA still yields would_block.
+        Guards against the root fallback becoming a bypass: finding evidence
+        at root is not sufficient — the SHA must still match the wt HEAD."""
+        # Place evidence at root with an incorrect SHA (fabricated)
+        root_evidence_dir = self.root / "pipeline-state" / "test-task"
+        root_evidence_dir.mkdir(parents=True, exist_ok=True)
+        _write_evidence(root_evidence_dir, git_head="deadbeef" * 5)
+
+        session = f"test-rootfb-mismatch-{uuid.uuid4()}"
+        try:
+            _run_hook(
+                {"tool_name": "Agent",
+                 "tool_input": {"subagent_type": GATED}},
+                env={"CLAUDE_SESSION_ID": session,
+                     "CLAUDE_WORKTREE_PATH": str(self.wt_dir),
+                     "CLAUDE_PIPELINE_TASK_ID": "test-task"},
+                plugin_data=self.plugin_data)
+            log = _log_path(session, base=self.plugin_data)
+            entry = json.loads(log.read_text().strip().splitlines()[-1])
+            self.assertEqual(
+                entry["resolved"]["action"], "would_block",
+                f"root-fallback with wrong SHA must block; got: {entry['resolved']}")
+            self.assertEqual(entry["resolved"]["reason"], "git_head_mismatch")
+        finally:
+            _cleanup(_log_path(session, base=self.plugin_data))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -355,6 +355,63 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
+# Gap (a): Priority-order lock — P1 (wt-local exact) beats P3 (root exact)
+# when BOTH exist. Place fresh evidence at WT_DIR2 (correct WT_HEAD2) AND
+# stale/wrong evidence at ROOT_DIR (ROOT_HEAD ≠ WT_HEAD2). Gate must use the
+# wt-local file (P1) and PASS; if priority were inverted (root first), it
+# would find the ROOT_HEAD evidence, detect a HEAD mismatch, and FAIL.
+# ---------------------------------------------------------------------------
+echo "-- (priority-order) P1 wt-local beats P3 root when both present --"
+
+# Place fresh wt-local evidence (correct WT_HEAD2)
+mkdir -p "$WT_DIR2/pipeline-state/test-task"
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  "$WT_HEAD2" > "$WT_DIR2/pipeline-state/test-task/verification-evidence.json"
+
+# Place stale root evidence (ROOT_HEAD — wrong for WT_DIR2)
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  "$ROOT_HEAD" > "$ROOT_DIR/pipeline-state/test-task/verification-evidence.json"
+
+PRIORITY_CMD="cd ${WT_DIR2} && gh pr create --title \"Fix\""
+run_freshness "$PRIORITY_CMD"
+run_exit_test "priority-order: wt-local (P1) beats root (P3) → PASS not mismatch" 0 $?
+
+# Cleanup: remove wt-local evidence so later tests start from root-only state
+rm -rf "$WT_DIR2/pipeline-state"
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# Gap (b): CLAUDE_PIPELINE_TASK_ID unset — P4 glob route at root.
+# When CLAUDE_PIPELINE_TASK_ID is unset, task="" skips P1 and P3 (exact
+# task-id checks require -n "$task"). P2 finds nothing at wt (no evidence),
+# P4 glob must find evidence at root and return it. gate PASSES because
+# git_head in the evidence matches WT_HEAD2.
+# This exercises the new root-fallback P4 code path added in this diff.
+# ---------------------------------------------------------------------------
+echo "-- (task-id-unset) P4 glob at root when CLAUDE_PIPELINE_TASK_ID unset --"
+
+# Root evidence has WT_HEAD2 (correct), stored under a different task dir
+# so that P3 (exact task match) won't trigger even if task were set.
+# We use the existing root evidence which is already at test-task/.
+# Evidence was placed under test-task/ by the priority-order section above.
+# Re-verify it's there with WT_HEAD2:
+printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestamp":"2026-01-01T00:00:00Z","branch":"main"}\n' \
+  "$WT_HEAD2" > "$ROOT_DIR/pipeline-state/test-task/verification-evidence.json"
+
+  (
+    export CLAUDE_DISABLE_FRESHNESS_QG=0
+    # Intentionally do NOT export CLAUDE_PIPELINE_TASK_ID — simulate unset env
+    unset CLAUDE_PIPELINE_TASK_ID
+    source "$CHECKS_LIB"
+    _qg_check_freshness "cd ${WT_DIR2} && gh pr create --title \"Fix\"" 2>/dev/null
+  )
+TASK_UNSET_EXIT=$?
+run_exit_test "task-id-unset: P4 root glob finds evidence when task unset → PASS" 0 "$TASK_UNSET_EXIT"
+
+echo ""
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
