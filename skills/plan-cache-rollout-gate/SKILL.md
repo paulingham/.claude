@@ -25,7 +25,7 @@ payload from this skill (plan.md § Decision Drivers — HIGH-prod-1, MEDIUM-pro
 - **Before authoring** the `CLAUDE_PLAN_CACHE_MODE=on` PR. The PR description
   MUST include the PASS payload.
 - **Do NOT use when**: a single pipeline's cache behaviour is the question —
-  that lives in `pipeline-state/{task-id}/scratchpad/` and in the per-pipeline
+  that lives in `$state_dir/{task-id}/scratchpad/` and in the per-pipeline
   `plan-cache.jsonl` line.
 
 ## Inputs

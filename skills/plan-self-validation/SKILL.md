@@ -2,7 +2,7 @@
 name: "plan-self-validation"
 description: "Lightweight Plan Validation for non-critical, low-budget pipelines. Architect re-reads its own plan against a structured holes-finding rubric and returns PLAN_APPROVED or PLAN_HOLES. Used in autonomous mode when criticality is standard AND Budget < 7. Heavy challenger team is reserved for critical or Budget >= 7 plans."
 model: opus
-argument-hint: "Path to plan file (pipeline-state/{task-id}/plan.md)"
+argument-hint: "Path to plan file ($state_dir/{task-id}/plan.md)"
 ---
 
 # Plan Self-Validation
@@ -17,7 +17,7 @@ The pipeline routes here automatically (autonomous mode only) when ALL are true:
 
 - `critical == false` (intake did not tag the task as critical)
 - `Budget < 7` (Complexity Budget under the heavy-challenger threshold)
-- Plan file exists at `pipeline-state/{task-id}/plan.md`
+- Plan file exists at `$state_dir/{task-id}/plan.md`
 
 When `critical == true OR Budget >= 7`, the pipeline routes to the heavy product-reviewer + software-engineer challenger team instead. See `protocols/pipeline-protocol.md` § Phase Checklist (Plan).
 
@@ -31,7 +31,7 @@ Before scoring the rubric, re-run the fingerprint detectors from `protocols/work
 
 **Steps**:
 
-1. Read `tier_initial` from `pipeline-state/{task-id}/intake.md` frontmatter (set by `/harness:intake` Step 1.5 Fingerprint).
+1. Read `tier_initial` from `$state_dir/{task-id}/intake.md` frontmatter (set by `/harness:intake` Step 1.5 Fingerprint).
 2. Read the architect plan's `## Affected Files` list.
 3. **Re-run Phase 1 detectors** (T1_doc_only / T2_config_only / T3_mechanical_sweep glob/regex matchers) against that list.
 4. **Re-run Phase 2 safety override** including the rules/core.md path-pattern check: if any affected file matches `rules/core.md` / `protocols/atdd-procedure.md` / `protocols/verdict-catalog.md` / `hooks/*.sh` body / `auth/*` / `secrets/*` / `*crypto*` / `*.env` / test files / auth-payment-crypto keywords → upshift to T6 (or T4 minimum for non-Iron-Law-surface). This is the HIGH-1 conservative check.
@@ -53,7 +53,7 @@ Before scoring the rubric, re-run the fingerprint detectors from `protocols/work
 
 ### Step 1: Read the Plan
 
-Read `pipeline-state/{task-id}/plan.md` end to end. The architect spawned for this skill is the same architect role that wrote the plan, but a fresh spawn — no carry-over context. The fresh read is load-bearing.
+Read `$state_dir/{task-id}/plan.md` end to end. The architect spawned for this skill is the same architect role that wrote the plan, but a fresh spawn — no carry-over context. The fresh read is load-bearing.
 
 ### Step 2: Apply the Holes-Finding Rubric
 
@@ -72,13 +72,13 @@ For each rubric item, write a one-line verdict (`OK` / `HOLE: {what is missing}`
 
 ### Step 3: Verdict
 
-- **Step 0 upshift detected** → `ROUTING_UPSHIFTED`. Write the upshift fields (`tier_initial`, `tier_replanned`, `routing_upshifted: true`) to `pipeline-state/{task-id}/plan-validation.md` and return. The pipeline re-dispatches downstream phases at the new tier.
-- **All items OK** → `PLAN_APPROVED`. Write a one-line confirmation to `pipeline-state/{task-id}/plan-validation.md` and return.
-- **One or more HOLE entries** → `PLAN_HOLES`. Write the hole list to `pipeline-state/{task-id}/plan-validation.md` and return. The pipeline returns the plan to architect with the hole list for ONE revision pass. If holes persist after that pass, the pipeline escalates to heavy challengers (product-reviewer + software-engineer team) per `protocols/pipeline-protocol.md`.
+- **Step 0 upshift detected** → `ROUTING_UPSHIFTED`. Write the upshift fields (`tier_initial`, `tier_replanned`, `routing_upshifted: true`) to `$state_dir/{task-id}/plan-validation.md` and return. The pipeline re-dispatches downstream phases at the new tier.
+- **All items OK** → `PLAN_APPROVED`. Write a one-line confirmation to `$state_dir/{task-id}/plan-validation.md` and return.
+- **One or more HOLE entries** → `PLAN_HOLES`. Write the hole list to `$state_dir/{task-id}/plan-validation.md` and return. The pipeline returns the plan to architect with the hole list for ONE revision pass. If holes persist after that pass, the pipeline escalates to heavy challengers (product-reviewer + software-engineer team) per `protocols/pipeline-protocol.md`.
 
 ### Step 4: Write Validation State File
 
-Write `pipeline-state/{task-id}/plan-validation.md`:
+Write `$state_dir/{task-id}/plan-validation.md`:
 
 ```markdown
 ---

@@ -46,7 +46,7 @@ When the breakpoint work fully lands (schema flip + splice landing), drift in up
 
 ## Slice C ESCALATION — SDK flag (2026-05-15)
 
-SDK flag — consumer outside repo. The `enablePromptCaching: true` annotation on the Agent SDK is the runtime-API consumer that signals cache_control breakpoint enforcement to Anthropic's API. The harness has zero SDK call sites in tree (per recon D3.2 of `pipeline-state/harness-opus-4-5-migration/architect-context.md`); the surface lives in the Claude Code binary / Agent SDK runtime, which is outside this repository.
+SDK flag — consumer outside repo. The `enablePromptCaching: true` annotation on the Agent SDK is the runtime-API consumer that signals cache_control breakpoint enforcement to Anthropic's API. The harness has zero SDK call sites in tree (per recon D3.2 of `$state_dir/harness-opus-4-5-migration/architect-context.md`); the surface lives in the Claude Code binary / Agent SDK runtime, which is outside this repository.
 
 The in-tree wire emission shipped 2026-05-15 as part of Slice C: `hooks/_lib/resolve-cache-breakpoints.py` emits `cache_flag: true` in the resolved payload, and `hooks/cache-breakpoint-injector.sh` writes that token into `metrics/{session}/cache-injections.jsonl` via `log-injection.sh`. When the Agent SDK consumer lands, the wire-emission token is the signal it consults; until then the token is observable-only.
 

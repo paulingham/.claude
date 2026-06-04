@@ -1,6 +1,6 @@
 ---
 name: spec-grounding
-description: Ground raw acceptance criteria against codebase evidence and recall. Invoked as Step 2c-ter (Stage 0 of Plan Phase) before the architect runs. Emits EARS-tagged ACs with per-AC citations to pipeline-state/{task-id}/spec-grounding.md.
+description: Ground raw acceptance criteria against codebase evidence and recall. Invoked as Step 2c-ter (Stage 0 of Plan Phase) before the architect runs. Emits EARS-tagged ACs with per-AC citations to $state_dir/{task-id}/spec-grounding.md.
 verdict: GROUNDED|GROUNDING_GAPS
 phase: plan
 dispatch: subagent
@@ -22,7 +22,7 @@ Invoked by the orchestrator as **Step 2c-ter** in `skills/pipeline/SKILL.md`, im
 
 ## Inputs
 
-- `pipeline-state/{task-id}/intake.md` — raw acceptance criteria (AC list).
+- `$state_dir/{task-id}/intake.md` — raw acceptance criteria (AC list).
 - `repo_root` — absolute path to the repository root for codebase traversal (scoped to relevant subtree when possible to avoid hitting the 5000-file traversal limit).
 - `CLAUDE_RECALL_DB_PATH` env var — optional path to recall memory.sqlite; if absent or pointing to a non-existent file, grounding degrades to codebase-only (never raises, never blocks Plan).
 
@@ -30,7 +30,7 @@ Invoked by the orchestrator as **Step 2c-ter** in `skills/pipeline/SKILL.md`, im
 
 ### Step 1: Read Raw ACs from intake.md
 
-Read `pipeline-state/{task-id}/intake.md` and extract the acceptance criteria list (lines matching `- [ ] AC…` or numbered AC entries).
+Read `$state_dir/{task-id}/intake.md` and extract the acceptance criteria list (lines matching `- [ ] AC…` or numbered AC entries).
 
 ### Step 2: Call the Python helper
 
@@ -52,9 +52,9 @@ The helper:
 2. Calls `recall.search()` if `CLAUDE_RECALL_DB_PATH` is set to a valid path; degrades gracefully (returns `[]`) on missing DB or import failure.
 3. Returns one `GroundedAC` per input, never raises.
 
-### Step 3: Write pipeline-state/{task-id}/spec-grounding.md
+### Step 3: Write $state_dir/{task-id}/spec-grounding.md
 
-Write the output file per the Data Model in `pipeline-state/ws-g-spec-grounding/plan.md`:
+Write the output file per the Data Model in `$state_dir/ws-g-spec-grounding/plan.md`:
 
 ```markdown
 ---
@@ -93,7 +93,7 @@ Emit to stdout: `GROUNDED` or `GROUNDING_GAPS`.
 
 ## Output
 
-- **State file**: `pipeline-state/{task-id}/spec-grounding.md` with verdict in frontmatter.
+- **State file**: `$state_dir/{task-id}/spec-grounding.md` with verdict in frontmatter.
 - **Stdout**: one verdict line (`GROUNDED` or `GROUNDING_GAPS`).
 
 ## Verdict
@@ -107,7 +107,7 @@ The exact set of verdicts this skill emits. Both must appear in `protocols/verdi
 
 **User-facing copy (Persona 2):**
 - `GROUNDED`: "All acceptance criteria grounded against codebase evidence."
-- `GROUNDING_GAPS`: "{N} of {M} acceptance criteria have no codebase match. Gap ACs listed in `pipeline-state/{task-id}/spec-grounding.md` § Gaps. Architect must supply evidence for these ACs."
+- `GROUNDING_GAPS`: "{N} of {M} acceptance criteria have no codebase match. Gap ACs listed in `$state_dir/{task-id}/spec-grounding.md` § Gaps. Architect must supply evidence for these ACs."
 
 **Degradation behaviour (recall absent):** When `CLAUDE_RECALL_DB_PATH` is unset or points to a non-existent file, grounding falls back to codebase-only pathlib traversal. The skill still emits `GROUNDED` or `GROUNDING_GAPS` based on codebase evidence alone. This path is identical to the absent-recall path — `recall.search()` degrades to `[]` via `@dispatch.guarded` and the skill continues. Plan is never blocked.
 

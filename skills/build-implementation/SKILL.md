@@ -21,7 +21,7 @@ This skill is dispatched via the Agent tool with `isolation: "worktree"`. The or
 ### Step 1: Read AC Test Stubs from the Plan
 
 Before writing any code:
-1. Open `pipeline-state/{task-id}/plan.md` and locate the **Failing Test Stubs (per AC)** section the architect produced.
+1. Open `$state_dir/{task-id}/plan.md` and locate the **Failing Test Stubs (per AC)** section the architect produced.
 2. For each AC in this slice, the stub list names: test file path, test name, assertion intent.
 3. **If any AC has no stub, halt immediately** — surface the gap to the architect and request a stub. Implementation cannot begin without a complete stub list.
 4. The stub list IS your implementation plan. Three test invocations per slice — not three per AC, three per slice. See `protocols/atdd-procedure.md` for the full cycle.
@@ -38,7 +38,7 @@ If the orchestrator's prompt specifies dependencies, install them here. If you d
 
 ### Step 1c: Write Contract Assertions (Tier 0 — Spec-as-Contract)
 
-Inserted between "Read AC Test Stubs" and "Batched RED". Required for every slice that touches a contract listed in `pipeline-state/{task-id}/intake.md` § Contracts Touched. If `(none)` was recorded at intake, skip this step (no public surface changed).
+Inserted between "Read AC Test Stubs" and "Batched RED". Required for every slice that touches a contract listed in `$state_dir/{task-id}/intake.md` § Contracts Touched. If `(none)` was recorded at intake, skip this step (no public surface changed).
 
 For each contract in the list:
 
@@ -139,7 +139,7 @@ After adversarials are GREEN, return to Step 2's MUTATION GATE on the **union su
 
 Inserted between Step 2b and Step 3. Authors a runtime smoke check via Chrome DevTools MCP: navigate each changed route, fail Build on console `level: error` or network `status >= 400` (after the inline ignore-list filter). Default ON. The escape hatch is `CLAUDE_DOM_SMOKE=0`. Triad verdicts: `DOM_SMOKE_PASSED`, `DOM_SMOKE_SKIPPED`, `DOM_SMOKE_FAILED`.
 
-**2am breadcrumb.** If DOM smoke fails on every Build and nothing in the diff explains it → (1) check the ignore-list regex below, (2) check `.claude/dom-smoke-ignore.json`, (3) check sentinel state `pipeline-state/{task-id}/.dom-smoke-warm`, (4) set `CLAUDE_DOM_SMOKE=0` to confirm Step 2d is the offender.
+**2am breadcrumb.** If DOM smoke fails on every Build and nothing in the diff explains it → (1) check the ignore-list regex below, (2) check `.claude/dom-smoke-ignore.json`, (3) check sentinel state `$state_dir/{task-id}/.dom-smoke-warm`, (4) set `CLAUDE_DOM_SMOKE=0` to confirm Step 2d is the offender.
 
 Note: `mcp__chrome-devtools__*` tool calls outside the four-entry allowlist are advisory-blocked only (v2.1.140); enforcement promotes to hard-block when the per-spawn `thinking` field exposure ships.
 
@@ -174,12 +174,12 @@ Note: `mcp__chrome-devtools__*` tool calls outside the four-entry allowlist are 
    # Use setsid so we can kill the process group on cleanup (SIGKILL-safe).
    HOST=127.0.0.1 setsid npm run dev > /dev/null 2>&1 &
    DEV_PID=$!
-   echo "$DEV_PID" > "pipeline-state/{task-id}/.dev-server.pid"
+   echo "$DEV_PID" > "$state_dir/{task-id}/.dev-server.pid"
    for i in $(seq 1 30); do
      curl -fsS http://127.0.0.1:3000/ >/dev/null 2>&1 && break
      sleep 1
    done
-   trap 'kill -- -$DEV_PID 2>/dev/null; rm -f "pipeline-state/{task-id}/.dev-server.pid"' EXIT
+   trap 'kill -- -$DEV_PID 2>/dev/null; rm -f "$state_dir/{task-id}/.dev-server.pid"' EXIT
    ```
 
    Framework-specific overrides: Vite `--host 127.0.0.1`, Nuxt `NITRO_HOST=127.0.0.1`, Astro `--host 127.0.0.1`. Step 2d MUST verify dev server is bound to loopback only — if `ss -tlnp` (or `lsof -iTCP -sTCP:LISTEN`) shows 0.0.0.0 binding, emit `DOM_SMOKE_FAILED reason=dev-server-non-loopback`.
@@ -187,8 +187,8 @@ Note: `mcp__chrome-devtools__*` tool calls outside the four-entry allowlist are 
    Reflect phase reaps stale `.dev-server.pid` files across `pipeline-state/*` directories.
 
 6. **MCP unavailable — sentinel escalation.** On first invocation:
-   - If `npx -y chrome-devtools-mcp@0.26.0` exceeds 90s OR the MCP server returns "server unavailable" → emit `DOM_SMOKE_SKIPPED reason=mcp-unavailable-first-run` AND `touch pipeline-state/{task-id}/.dom-smoke-warm` (the sentinel). Return.
-   - On any subsequent invocation: if `pipeline-state/{task-id}/.dom-smoke-warm` exists AND MCP is unavailable → emit `DOM_SMOKE_FAILED reason=mcp-unavailable-after-warm`. HALT Build. (No silent skip — the sentinel proves MCP worked once in this task.)
+   - If `npx -y chrome-devtools-mcp@0.26.0` exceeds 90s OR the MCP server returns "server unavailable" → emit `DOM_SMOKE_SKIPPED reason=mcp-unavailable-first-run` AND `touch $state_dir/{task-id}/.dom-smoke-warm` (the sentinel). Return.
+   - On any subsequent invocation: if `$state_dir/{task-id}/.dom-smoke-warm` exists AND MCP is unavailable → emit `DOM_SMOKE_FAILED reason=mcp-unavailable-after-warm`. HALT Build. (No silent skip — the sentinel proves MCP worked once in this task.)
 
 7. **Per-route smoke.** For each resolved route, invoke the Chrome DevTools MCP tools in **invocation form** (double-underscore + hyphen, server segment `chrome-devtools` matching the npm package name):
 
@@ -222,7 +222,7 @@ Note: `mcp__chrome-devtools__*` tool calls outside the four-entry allowlist are 
 
 10. **Success.** All routes clean → `DOM_SMOKE_PASSED`. Kill the dev server. Proceed to Step 3.
 
-11. **Audit trail.** Write `pipeline-state/{task-id}/build-artifacts/dom-smoke-report.json` with `{routes_checked, verdict, payload, sentinel_present, comparison_base}` on every invocation (PASSED, SKIPPED, FAILED).
+11. **Audit trail.** Write `$state_dir/{task-id}/build-artifacts/dom-smoke-report.json` with `{routes_checked, verdict, payload, sentinel_present, comparison_base}` on every invocation (PASSED, SKIPPED, FAILED).
 
 ### Step 3: Shape Check After Every File
 
@@ -332,7 +332,7 @@ After running the suite at the end of Step 2 step (2) IMPLEMENT CLEANLY — or a
 
 ### Step 4b: Iterative Refinement on RED (ReVeal, arXiv 2506.11442)
 
-1. Append a finding to `pipeline-state/{task-id}/scratchpad/{role}-build.md` with `category: test-failure-feedback`. Body:
+1. Append a finding to `$state_dir/{task-id}/scratchpad/{role}-build.md` with `category: test-failure-feedback`. Body:
    - (a) failing test names,
    - (b) first 20 lines of failure output,
    - (c) one-sentence root-cause hypothesis,
@@ -357,14 +357,14 @@ case "$MAX_ITER" in ''|*[!0-9]*) MAX_ITER=3 ;; esac
 
 When the iteration counter reaches `MAX_ITER` (cap exceeded):
 
-1. Write structured handoff to `pipeline-state/{task-id}/build-handoff.md` with sections:
+1. Write structured handoff to `$state_dir/{task-id}/build-handoff.md` with sections:
    - `## Failing Tests`   (names + 20-line excerpts per iteration)
    - `## Attempted Edits` (chronological, file:line per iteration)
    - `## Hypotheses Tried` (one bullet per iteration)
    All derived from the scratchpad `test-failure-feedback` entries.
 2. Emit verdict `BUILD_FAILED` with
    - `reason: iteration_cap_exhausted`
-   - `handoff: pipeline-state/{task-id}/build-handoff.md`
+   - `handoff: $state_dir/{task-id}/build-handoff.md`
    The orchestrator detects this verdict + reason and dispatches `/harness:bug-fix` per `protocols/pipeline-protocol.md` § In-Cycle Fix Rule. The build agent does NOT invoke `/harness:bug-fix` directly (Skill is in the build agent's disallowedTools).
 3. Escape-hatch: `CLAUDE_BUILD_ITERATIONS=0` SKIPS the loop entirely — first RED at Step 4a writes the handoff (single entry: current failure) and emits `BUILD_FAILED reason: iteration_loop_disabled`.
 
@@ -377,7 +377,7 @@ After the self-review checklist passes, the build agent (or orchestrator on its 
 Procedure:
 1. Dispatch `code-reviewer` agent (read-only, no worktree) per `skills/code-review/SKILL.md`.
 2. If APPROVE → emit `BUILD_COMPLETE`.
-3. If CHANGES_REQUESTED → spawn `fix-engineer` on the same worktree, re-run the suite, re-dispatch `code-reviewer` with the original finding + fix diff. Max 2 rounds total at the current model tier. On the 3rd CHANGES_REQUESTED (round_idx==3): if fix-engineer was running at Opus (budget>=7), Round 3: downgrade to Sonnet for one final attempt; if already at Sonnet (or the Sonnet downgrade round also returns CHANGES_REQUESTED), escalate to user. Log the downgrade event to `pipeline-state/{task-id}/scratchpad/fix-engineer-downgrade.md` (category: decision) AND call `hooks/_lib/fix_engineer_retry_log.py::emit_retry_record` to append a JSONL line to `metrics/{session}/fix-engineer-retry.jsonl`.
+3. If CHANGES_REQUESTED → spawn `fix-engineer` on the same worktree, re-run the suite, re-dispatch `code-reviewer` with the original finding + fix diff. Max 2 rounds total at the current model tier. On the 3rd CHANGES_REQUESTED (round_idx==3): if fix-engineer was running at Opus (budget>=7), Round 3: downgrade to Sonnet for one final attempt; if already at Sonnet (or the Sonnet downgrade round also returns CHANGES_REQUESTED), escalate to user. Log the downgrade event to `$state_dir/{task-id}/scratchpad/fix-engineer-downgrade.md` (category: decision) AND call `hooks/_lib/fix_engineer_retry_log.py::emit_retry_record` to append a JSONL line to `metrics/{session}/fix-engineer-retry.jsonl`.
 
 Security review is a separate phase that runs after `BUILD_COMPLETE` — do NOT dispatch `/harness:security-review` from inside Build.
 
@@ -385,10 +385,10 @@ Security review is a separate phase that runs after `BUILD_COMPLETE` — do NOT 
 
 After Step 5 returns APPROVE, the build agent (or orchestrator on its behalf) dispatches `/harness:sandbox-verify` inline. Step 5b is the second inline gate inside Build — it confirms the worktree's pass set reproduces inside a fresh E2B sandbox so machine-specific or "works on my worktree" patches do not reach Final Gate. Like Step 5, this is a gate inside Build, NOT a separate pipeline phase.
 
-The build agent writes the build-phase state file `pipeline-state/{task-id}/build.md` with three append-only sections: `## Decision Record`, `## Context for Review`, and (added by Step 5b) `## Sandbox Verify`. The exact `## Sandbox Verify` section template — including its body table with columns `Test | Worktree | Sandbox | Diff` — is documented in `### Sandbox Verify Section (Mandatory After Step 5b)` below, which appears in the file AFTER the `### Context for Next Phase` subsection so Story-4 forensics can locate the block deterministically.
+The build agent writes the build-phase state file `$state_dir/{task-id}/build.md` with three append-only sections: `## Decision Record`, `## Context for Review`, and (added by Step 5b) `## Sandbox Verify`. The exact `## Sandbox Verify` section template — including its body table with columns `Test | Worktree | Sandbox | Diff` — is documented in `### Sandbox Verify Section (Mandatory After Step 5b)` below, which appears in the file AFTER the `### Context for Next Phase` subsection so Story-4 forensics can locate the block deterministically.
 
 Procedure:
-1. **State stub first** — write the `## Sandbox Verify` section header to `pipeline-state/{task-id}/build.md` BEFORE invoking the skill (state-before-expensive-op — the E2B microVM is timeout-bounded and may be killed at the wall-clock cap; the stub makes the round recoverable).
+1. **State stub first** — write the `## Sandbox Verify` section header to `$state_dir/{task-id}/build.md` BEFORE invoking the skill (state-before-expensive-op — the E2B microVM is timeout-bounded and may be killed at the wall-clock cap; the stub makes the round recoverable).
 2. Dispatch `sandbox-verify-engineer` agent via `/harness:sandbox-verify` (worktree-reuse — the engineer inherits the prior build's worktree path). The engineer parses the worktree's pytest/jest/rspec pass set, runs the same suite inside an E2B microVM, compares both pass sets, and returns one of three verdicts.
 3. Branch on verdict:
    - **SANDBOX_VERIFIED** → write the final `## Sandbox Verify` body (per the template subsection below) and emit `BUILD_COMPLETE`.
@@ -446,7 +446,7 @@ This gives reviewers a guided entry point instead of a cold diff read.
 
 ### Sandbox Verify Section (Mandatory After Step 5b)
 
-Step 5b writes one `## Sandbox Verify` section to `pipeline-state/{task-id}/build.md`. The section appears AFTER the `## Context for Review` section so the Story-4 forensics consumer can locate the block deterministically. Round-2 overwrites round-1 (last-writer-wins).
+Step 5b writes one `## Sandbox Verify` section to `$state_dir/{task-id}/build.md`. The section appears AFTER the `## Context for Review` section so the Story-4 forensics consumer can locate the block deterministically. Round-2 overwrites round-1 (last-writer-wins).
 
 ```markdown
 ## Sandbox Verify

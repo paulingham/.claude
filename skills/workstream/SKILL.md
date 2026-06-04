@@ -22,8 +22,8 @@ Manages isolated workstreams for parallel feature development. Each workstream g
 
 Creates a new workstream:
 
-1. Create directory: `pipeline-state/workstreams/{name}/`
-2. Create metadata: `pipeline-state/workstreams/{name}/workstream.md`
+1. Create directory: `$state_dir/workstreams/{name}/`
+2. Create metadata: `$state_dir/workstreams/{name}/workstream.md`
 
 ```markdown
 ---
@@ -42,13 +42,13 @@ branch_prefix: feat/{name}/
 (none yet)
 ```
 
-3. Report: "Workstream `{name}` created. Pipelines started within this workstream will use branch prefix `feat/{name}/` and store state in `pipeline-state/workstreams/{name}/`."
+3. Report: "Workstream `{name}` created. Pipelines started within this workstream will use branch prefix `feat/{name}/` and store state in `$state_dir/workstreams/{name}/`."
 
 ### switch {name}
 
 Switches active workstream context:
 
-1. Verify `pipeline-state/workstreams/{name}/workstream.md` exists
+1. Verify `$state_dir/workstreams/{name}/workstream.md` exists
 2. Read workstream metadata for branch prefix and status
 3. List active pipelines in the workstream
 4. Report current state
@@ -58,7 +58,7 @@ Switches active workstream context:
 Lists all workstreams and their status:
 
 ```bash
-ls ~/.claude/pipeline-state/workstreams/*/workstream.md 2>/dev/null
+ls ~/.claude/$state_dir/workstreams/*/workstream.md 2>/dev/null
 ```
 
 Output format:
@@ -79,27 +79,27 @@ Ungrouped pipelines:
 Archives a completed workstream:
 
 1. Verify all pipelines in the workstream are completed (no `in_progress` status)
-2. Create `pipeline-state/workstreams/archive/` if it doesn't exist
-3. Move `pipeline-state/workstreams/{name}/` to `pipeline-state/workstreams/archive/{name}/`
+2. Create `$state_dir/workstreams/archive/` if it doesn't exist
+3. Move `$state_dir/workstreams/{name}/` to `$state_dir/workstreams/archive/{name}/`
 4. Update workstream.md status to `archived` with timestamp
 
 ## Integration with Pipeline
 
 When a workstream is active, the pipeline skill stores state files under a per-task subdirectory inside the workstream directory (DUAL_PATH soak — see `protocols/pipeline-protocol.md` § Structured Pipeline State):
 
-- Pipeline state: `pipeline-state/workstreams/{name}/{task-id}/pipeline.md`
-- Build results: `pipeline-state/workstreams/{name}/{task-id}/build.md`
-- Debug state: `pipeline-state/workstreams/{name}/{task-id}/debug.md`
-- Discussion: `pipeline-state/workstreams/{name}/{task-id}/discussion.md`
-- Trajectory: `pipeline-state/workstreams/{name}/{task-id}/trajectory.jsonl`
+- Pipeline state: `$state_dir/workstreams/{name}/{task-id}/pipeline.md`
+- Build results: `$state_dir/workstreams/{name}/{task-id}/build.md`
+- Debug state: `$state_dir/workstreams/{name}/{task-id}/debug.md`
+- Discussion: `$state_dir/workstreams/{name}/{task-id}/discussion.md`
+- Trajectory: `$state_dir/workstreams/{name}/{task-id}/trajectory.jsonl`
 
-Legacy flat form (`pipeline-state/workstreams/{name}/{task-id}-{phase}.md`) remains readable during the 90-day soak window but is never written by new code. Path resolution always goes through `hooks/_lib/pipeline_state_paths.py` (or `pipeline-state-paths.sh` from bash).
+Legacy flat form (`$state_dir/workstreams/{name}/{task-id}-{phase}.md`) remains readable during the 90-day soak window but is never written by new code. Path resolution always goes through `hooks/_lib/pipeline_state_paths.py` (or `pipeline-state-paths.sh` from bash).
 
 Branch convention: `feat/{workstream}/{task}` (e.g., `feat/auth/login-page`)
 
 ## Integration with Pipeline Resume
 
-`/harness:pipeline-resume` uses the canonical four-glob discovery sequence (see `skills/pipeline-resume/SKILL.md` Step 1). Workstream-nested pipelines (`pipeline-state/workstreams/{name}/{task-id}/pipeline.md`) are returned alongside root-level pipelines (`pipeline-state/{task-id}/pipeline.md`). When the same `task_id` collides between root and workstream, **workstream wins**; ties within a layout class break by mtime.
+`/harness:pipeline-resume` uses the canonical four-glob discovery sequence (see `skills/pipeline-resume/SKILL.md` Step 1). Workstream-nested pipelines (`$state_dir/workstreams/{name}/{task-id}/pipeline.md`) are returned alongside root-level pipelines (`$state_dir/{task-id}/pipeline.md`). When the same `task_id` collides between root and workstream, **workstream wins**; ties within a layout class break by mtime.
 
 Display groups results for the user:
 - Workstream-nested pipelines (grouped by workstream name)
@@ -111,6 +111,6 @@ Display groups results for the user:
 ```
 Verdict: WORKSTREAM_CREATED / WORKSTREAM_LISTED / WORKSTREAM_ARCHIVED
 Next: Start a pipeline within the workstream
-Artifacts: pipeline-state/workstreams/{name}/workstream.md
+Artifacts: $state_dir/workstreams/{name}/workstream.md
 ```
 $ARGUMENTS

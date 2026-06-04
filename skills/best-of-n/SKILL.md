@@ -14,7 +14,7 @@ Routed by `/harness:pipeline` only when `/harness:intake` set `bestofn: true` (`
 
 ## Inputs
 
-- Slice spec at `pipeline-state/{task-id}/plan.md` with per-AC failing-test stubs.
+- Slice spec at `$state_dir/{task-id}/plan.md` with per-AC failing-test stubs.
 - Candidate roster from `skills/best-of-n/config.json` (Opus 4.7 + Sonnet 4.6 always; external slot via `required_env`).
 - Pre-flight worktree-pool capacity (default cap 6 workstation / 12 CI; `CLAUDE_BESTOFN_MAX_WORKTREES`).
 
@@ -24,8 +24,8 @@ See `~/.claude/orchestrator/parallel-dispatch-details.md` § Best-of-N Build Tea
 
 ## Output
 
-- Pipeline state: `pipeline-state/{task-id}/best-of-n.md` (frontmatter `verdict`, sections: Candidates Run, Winner SHA, Per-Candidate Scores, Selection Rationale, Total Cost USD via `cost_estimator`, Cluster Sizes — `N/A` until FMV is wired).
-- Scratchpad: `pipeline-state/{task-id}/scratchpad/best-of-n-selection.md` (`category: decision`) — always carries the verbatim Selection Rationale; additionally carries a divergence record with diff-stat + Jaccard when the top two candidates clear the Step 5 tie-breaker boundary AND have changed-files Jaccard < 0.5 (mining path: `observations.jsonl` → `/harness:learn` Step 3d, never direct scratchpad → anti-pattern). Tie-breaker source + spec: see orchestrator details § Best-of-N Step 5.
+- Pipeline state: `$state_dir/{task-id}/best-of-n.md` (frontmatter `verdict`, sections: Candidates Run, Winner SHA, Per-Candidate Scores, Selection Rationale, Total Cost USD via `cost_estimator`, Cluster Sizes — `N/A` until FMV is wired).
+- Scratchpad: `$state_dir/{task-id}/scratchpad/best-of-n-selection.md` (`category: decision`) — always carries the verbatim Selection Rationale; additionally carries a divergence record with diff-stat + Jaccard when the top two candidates clear the Step 5 tie-breaker boundary AND have changed-files Jaccard < 0.5 (mining path: `observations.jsonl` → `/harness:learn` Step 3d, never direct scratchpad → anti-pattern). Tie-breaker source + spec: see orchestrator details § Best-of-N Step 5.
 - Winner branch merged into the pipeline working branch; loser worktrees + branches removed.
 
 ## Verdict

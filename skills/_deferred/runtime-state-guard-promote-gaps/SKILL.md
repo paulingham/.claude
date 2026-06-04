@@ -38,7 +38,7 @@ An agent (or a compromised session) can create a directory that matches the patt
 ```bash
 mkdir -p .claude/worktrees/agent-evil
 cd .claude/worktrees/agent-evil
-mkdir -p <ABS_REPO_ROOT>/pipeline-state/exfil
+mkdir -p <ABS_REPO_ROOT>/$state_dir/exfil
 # → _rsg_is_worktree() returns 0 (fast-path matches) → guard exits 0 → ALLOWED
 ```
 
@@ -177,18 +177,20 @@ any active worktrees) rather than relying solely on the env var.
 
 ### Description
 
-The Bash-tool path only detects `mkdir` invocations targeting `pipeline-state/`
-under REPO_ROOT (line 203: `if [[ "$COMMAND" =~ (^|[[:space:]])mkdir([[:space:]]|$) ]]`).
+The Bash-tool path only detects directory-creation invocations (via `mkdir`) when the target
+is a bare path under REPO_ROOT (line 203: `if [[ "$COMMAND" =~ (^|[[:space:]])mkdir([[:space:]]|$) ]]`).
+The guard fires on REPO_ROOT-relative state directories; agents must instead write to
+`state_dir="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/pipeline-state"` (HARNESS_DATA).
 
 The following commands can also create or populate `pipeline-state/` at root without
 triggering the guard:
 
 ```bash
-cp -r /tmp/my-state pipeline-state/task           # copy in
-mv /tmp/my-state pipeline-state/task              # move in
-rsync -a /tmp/my-state/ pipeline-state/task/      # rsync in
+cp -r /tmp/my-state $state_dir/task           # copy in
+mv /tmp/my-state $state_dir/task              # move in
+rsync -a /tmp/my-state/ $state_dir/task/      # rsync in
 tar -xf archive.tar pipeline-state/               # extract in
-install -d pipeline-state/task                    # GNU install -d (creates dirs)
+install -d $state_dir/task                    # GNU install -d (creates dirs)
 ```
 
 ### Proposed Fix

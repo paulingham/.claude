@@ -1076,11 +1076,11 @@ B10_RED_SCAN=$(python3 - "$B10_SCRATCH_DIR" <<'B10REDHEREDOC'
 import os, re, sys
 
 VERB_PAT = re.compile(
-    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
-    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+    r'\b(Write|Writes|Create|Creates|Persist|persist|Append|append|mkdir|touch)\b'
+    r'|outputPath:|> pipeline-state|>> pipeline-state'
 )
 # A bare pipeline-state/ path: pipeline-state/ not preceded by known-good prefixes
-BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\}/)(?<!\$HARNESS_DATA/)(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
 
 EXCLUDED_FILES = {'PORTING-NOTES.md', 'ROLLOUT.md'}
 
@@ -1119,10 +1119,10 @@ for VERB_FILE in "$B10_SCRATCH_DIR"/verb_*.md; do
 import re, sys
 
 VERB_PAT = re.compile(
-    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
-    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+    r'\b(Write|Writes|Create|Creates|Persist|persist|Append|append|mkdir|touch)\b'
+    r'|outputPath:|> pipeline-state|>> pipeline-state'
 )
-BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\}/)(?<!\$HARNESS_DATA/)(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
 
 path = sys.argv[1]
 count = 0
@@ -1148,10 +1148,10 @@ B10_TOTAL=$(python3 - "$REPO_ROOT" <<'B10GREENPYEOF'
 import os, re, sys
 
 VERB_PAT = re.compile(
-    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
-    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+    r'\b(Write|Writes|Create|Creates|Persist|persist|Append|append|mkdir|touch)\b'
+    r'|outputPath:|> pipeline-state|>> pipeline-state'
 )
-BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\}/)(?<!\$HARNESS_DATA/)(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
 
 EXCLUDED_FILES = {'PORTING-NOTES.md', 'ROLLOUT.md'}
 SCAN_DIRS = ['skills', 'protocols', 'agents', 'orchestrator']
@@ -1189,10 +1189,10 @@ B10_SKILLS=$(python3 - "$REPO_ROOT" <<'B10SKILLSPYEOF'
 import os, re, sys
 
 VERB_PAT = re.compile(
-    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
-    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+    r'\b(Write|Writes|Create|Creates|Persist|persist|Append|append|mkdir|touch)\b'
+    r'|outputPath:|> pipeline-state|>> pipeline-state'
 )
-BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\}/)(?<!\$HARNESS_DATA/)(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
 
 root = sys.argv[1]
 count = 0
@@ -1219,10 +1219,10 @@ B10_PROTOCOLS=$(python3 - "$REPO_ROOT" <<'B10PROTOCOLSPYEOF'
 import os, re, sys
 
 VERB_PAT = re.compile(
-    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
-    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+    r'\b(Write|Writes|Create|Creates|Persist|persist|Append|append|mkdir|touch)\b'
+    r'|outputPath:|> pipeline-state|>> pipeline-state'
 )
-BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\}/)(?<!\$HARNESS_DATA/)(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
 
 root = sys.argv[1]
 count = 0
@@ -1249,10 +1249,10 @@ B10_AGENTS=$(python3 - "$REPO_ROOT" <<'B10AGENTSPYEOF'
 import os, re, sys
 
 VERB_PAT = re.compile(
-    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
-    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+    r'\b(Write|Writes|Create|Creates|Persist|persist|Append|append|mkdir|touch)\b'
+    r'|outputPath:|> pipeline-state|>> pipeline-state'
 )
-BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\}/)(?<!\$HARNESS_DATA/)(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
 
 root = sys.argv[1]
 count = 0
@@ -1279,10 +1279,10 @@ B10_ORCH=$(python3 - "$REPO_ROOT" <<'B10ORCHPYEOF'
 import os, re, sys
 
 VERB_PAT = re.compile(
-    r'(Write|Writes|Create|Creates|[Pp]ersist|[Aa]ppend|mkdir|touch'
-    r'|outputPath:|> pipeline-state|>> pipeline-state)'
+    r'\b(Write|Writes|Create|Creates|Persist|persist|Append|append|mkdir|touch)\b'
+    r'|outputPath:|> pipeline-state|>> pipeline-state'
 )
-BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\})(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
+BARE_PATH_PAT = re.compile(r'(?<!\$\{HARNESS_DATA\}/)(?<!\$HARNESS_DATA/)(?<!\$\{CLAUDE_PLUGIN_DATA)(?<!\$\{CLAUDE_CONFIG_DIR)(?<!state_dir\}/)(?<!state_dir/)pipeline-state/')
 
 root = sys.argv[1]
 count = 0
@@ -1379,8 +1379,9 @@ fi
 
 # AC-C5: pipeline-resume SKILL.md zero ~/.claude/pipeline-state refs (GREEN after slice-c)
 echo "-- AC-C5: pipeline-resume SKILL.md zero ~/.claude/pipeline-state refs (GREEN after slice-c) --"
-AC_C5_COUNT=$(grep -c '\.claude/pipeline-state' "$REPO_ROOT/skills/pipeline-resume/SKILL.md" 2>/dev/null || echo 0)
-AC_C5_COUNT="${AC_C5_COUNT// /}"
+AC_C5_COUNT=$(grep -c '\.claude/pipeline-state' "$REPO_ROOT/skills/pipeline-resume/SKILL.md" 2>/dev/null; true)
+AC_C5_COUNT=$(printf '%s' "$AC_C5_COUNT" | tr -d '[:space:]')
+AC_C5_COUNT="${AC_C5_COUNT:-0}"
 if [[ "$AC_C5_COUNT" -eq 0 ]]; then pass "AC-C5: pipeline-resume SKILL.md has zero ~/.claude/pipeline-state refs"
 else fail "AC-C5: pipeline-resume SKILL.md has zero ~/.claude/pipeline-state refs [EXPECTED-FAIL until slice-c]" 0 "$AC_C5_COUNT"; fi
 

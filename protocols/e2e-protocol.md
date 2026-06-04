@@ -233,7 +233,7 @@ Flake-rate semantics: **intra-run** via Playwright's retry counter (Cypress equi
 Web E2E screenshots-on-assertion land at:
 
 ```
-pipeline-state/{task_id}/scratchpad/qa-engineer-verify-screenshots/
+$state_dir/{task_id}/scratchpad/qa-engineer-verify-screenshots/
 ```
 
 This path is a verbatim invariant (mirrored in `hooks/_lib/e2e_target_resolver.py` as `SCREENSHOT_PATH_TEMPLATE`). Screenshots survive into the PR narrative because the scratchpad subdirectory is preserved through Reflect cleanup until the pipeline state is removed.

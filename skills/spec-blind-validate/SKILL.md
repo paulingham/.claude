@@ -27,8 +27,8 @@ The orchestrator hands the spawned agent these inputs in the prompt:
 
 | Input | Source |
 |-------|--------|
-| AC list | `pipeline-state/{task-id}/plan.md` § Acceptance Criteria (verbatim — NEVER the diff) |
-| Intake spec | `pipeline-state/{task-id}/intake.md` (user's verbatim spec) |
+| AC list | `$state_dir/{task-id}/plan.md` § Acceptance Criteria (verbatim — NEVER the diff) |
+| Intake spec | `$state_dir/{task-id}/intake.md` (user's verbatim spec) |
 | Recursion-guard precheck result | from `is_harness_internal_cwd` invocation in step 1 of § Process below |
 | AC form annotation | ACs may carry a `form:` tag (e.g. `form: ears-event`); an EARS clause maps trigger→arrange, response→assert; no read-model change — the verbatim AC line is still the oracle source |
 
@@ -40,8 +40,8 @@ The path-allowlist is established by `hooks/_lib/spec-blind-allow-paths.{sh,txt}
 
 | Glob | Source / rationale |
 |---|---|
-| `pipeline-state/{task-id}/plan.md` | The AC list IS the spec — primary input |
-| `pipeline-state/{task-id}/intake.md` | User's verbatim spec — secondary input |
+| `$state_dir/{task-id}/plan.md` | The AC list IS the spec — primary input |
+| `$state_dir/{task-id}/intake.md` | User's verbatim spec — secondary input |
 | `**/interface.{ts,tsx,js,jsx,rb,py,go,rs,java,kt,swift}` | `protocols/module-boundaries-protocol.md` § Module Contract Artifacts |
 | `**/types.{ts,tsx,js,jsx,rb,py,go,rs,java,kt,swift}` | Same source, optional artifact |
 | `**/events.{ts,tsx,js,jsx,rb,py,go,rs,java,kt,swift}` | Same source, optional artifact |
@@ -79,7 +79,7 @@ On `SPEC_BLIND_FAILED`, the orchestrator dispatches `fix-engineer` per `protocol
 > **Subagent-type resolution (SEC-MED-2).** All three guards (read / write / bash) resolve `subagent_type` via this fallback chain: (1) the `.subagent_type` top-level field on the PreToolUse JSON envelope, (2) the `CLAUDE_SUBAGENT_TYPE` environment variable. The orchestrator MUST set `CLAUDE_SUBAGENT_TYPE=spec-blind-validator` in the spawn shell when dispatching this validator so the guards still fire even if the harness omits the JSON field. Mirrors the precedent at `hooks/cost-feed.sh:33`.
 
 1. **Recursion-guard precheck (BEFORE any Read)**: source `hooks/_lib/spec-blind-recursion.sh` and call `is_harness_internal_cwd "$(pwd)"`. If the helper returns 0 (harness-internal), emit `SPEC_BLIND_INSUFFICIENT_SURFACE` with reason `harness-internal-recursion` and exit. This invocation MUST precede the first Read step — without the precheck, V1 would attempt to author spec-blind tests against the harness itself.
-2. **Read inputs**: Read the AC list (`pipeline-state/{task-id}/plan.md`) and intake spec (`pipeline-state/{task-id}/intake.md`).
+2. **Read inputs**: Read the AC list (`$state_dir/{task-id}/plan.md`) and intake spec (`$state_dir/{task-id}/intake.md`).
 3. **Discover public surface**: Glob the public-surface allowlist. If nothing matches (no `interface.*`, no `index.*`, no `__init__.py`, no OpenAPI/Protobuf/JSON-Schema), emit `SPEC_BLIND_INSUFFICIENT_SURFACE` with reason `no-public-surface-discoverable`.
 4. **Read public surface**: Read each discovered artifact. The read-guard hook will exit 2 on any read attempt outside the allowlist; if your read fails, the path is denied — choose a public-surface alternative.
 5. **Author behavioural tests**: Write tests under `tests/`, `test/`, `spec/`, or `__tests__/`. Each test MUST import only from public-surface paths or test-only fixtures. Imports of `src/handlers/foo` etc. are forbidden by convention even if not blocked at the hook layer.
@@ -106,7 +106,7 @@ On `SPEC_BLIND_FAILED`, the orchestrator dispatches `fix-engineer` per `protocol
 - **SPEC_BLIND_INSUFFICIENT_SURFACE** (info) — pipeline advances; Final Gate summary renders `spec-blind: SKIPPED (no public surface)`.
 - **SPEC_BLIND_BLOCKED** (failure) — HALT pipeline + emit operator-visible escalation.
 
-## Future Work (V2 placeholder — see `pipeline-state/spec-blind-validator-harness-aware-soak-end/pipeline.md`)
+## Future Work (V2 placeholder — see `$state_dir/spec-blind-validator-harness-aware-soak-end/pipeline.md`)
 
 V1 emits `SPEC_BLIND_INSUFFICIENT_SURFACE` for harness-internal pipelines. V2 will augment the allowlist to make spec-blind validation viable on the harness itself. Specifically, V2 will add:
 
@@ -119,7 +119,7 @@ V1 emits `SPEC_BLIND_INSUFFICIENT_SURFACE` for harness-internal pipelines. V2 wi
 
 Sources under `hooks/*.sh` and `hooks/_lib/*.sh` remain deny — they are implementation, not contract.
 
-The placeholder pipeline `pipeline-state/spec-blind-validator-harness-aware-soak-end/pipeline.md` carries a `not_before:` calendar anchor pinned 30 days post-merge of V1; SessionStart's active-pipeline scan surfaces it once the date passes.
+The placeholder pipeline `$state_dir/spec-blind-validator-harness-aware-soak-end/pipeline.md` carries a `not_before:` calendar anchor pinned 30 days post-merge of V1; SessionStart's active-pipeline scan surfaces it once the date passes.
 
 ## Anti-Patterns
 

@@ -75,7 +75,7 @@ If the bug meets ANY of these criteria, invoke `/harness:debug` to create persis
 - Multiple hypotheses need systematic elimination
 - Fix requires more than 2 fix-test cycles
 
-The `/harness:debug` skill creates `pipeline-state/{task-id}/debug.md` that survives context compaction and session boundaries. See the debug skill for the full hypothesis tracking protocol.
+The `/harness:debug` skill creates `$state_dir/{task-id}/debug.md` that survives context compaction and session boundaries. See the debug skill for the full hypothesis tracking protocol.
 
 ## Design Patterns for Prevention
 

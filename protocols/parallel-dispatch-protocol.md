@@ -49,7 +49,7 @@ Orchestrator dispatch procedure lives in `~/.claude/orchestrator/parallel-dispat
 
 ### Planning Agent (advisory — multi-slice Build only)
 
-A long-lived Sonnet 4.6 `planning-agent` teammate is spawned **alongside** Build engineers when `slice_count >= 2`. It polls the pipeline scratchpad for findings that contradict the active plan, appends `## Plan Update` sections to `pipeline-state/{task-id}-plan.md`, and broadcasts `plan_update` messages to active build teammates. Single-slice Build path is unchanged (no planning-agent spawned).
+A long-lived Sonnet 4.6 `planning-agent` teammate is spawned **alongside** Build engineers when `slice_count >= 2`. It polls the pipeline scratchpad for findings that contradict the active plan, appends `## Plan Update` sections to `$state_dir/{task-id}-plan.md`, and broadcasts `plan_update` messages to active build teammates. Single-slice Build path is unchanged (no planning-agent spawned).
 
 | Direction | Message Type | Semantics |
 |-----------|-------------|-----------|
@@ -179,12 +179,12 @@ Context:
 [session memory content — full or priority sections by role]
 
 ## Pipeline Scratchpad (findings from prior agents)
-[relevant findings from pipeline-state/{task-id}/scratchpad/]
+[relevant findings from $state_dir/{task-id}/scratchpad/]
 
 Before completing, write any noteworthy discoveries to:
-pipeline-state/{task-id}/scratchpad/{your-role}-{phase}.md
+$state_dir/{task-id}/scratchpad/{your-role}-{phase}.md
 
-**Continuous Planning:** A `planning-agent` teammate may append `## Plan Update — <ISO>` sections to `pipeline-state/{task-id}-plan.md` while you work. Before starting each new behavior in your TDD cycle, re-read the plan file and check for `## Plan Update —` sections with timestamps newer than your spawn time. If you receive a `SendMessage` of type `plan_update`, finish your current RED-GREEN-REFACTOR cycle first, then re-read before starting the next behavior. Do not abandon a cycle in flight.
+**Continuous Planning:** A `planning-agent` teammate may append `## Plan Update — <ISO>` sections to `$state_dir/{task-id}-plan.md` while you work. Before starting each new behavior in your TDD cycle, re-read the plan file and check for `## Plan Update —` sections with timestamps newer than your spawn time. If you receive a `SendMessage` of type `plan_update`, finish your current RED-GREEN-REFACTOR cycle first, then re-read before starting the next behavior. Do not abandon a cycle in flight.
 
 Emit `[CHECKPOINT] <marker>` lines on stdout at key milestones so the orchestrator can wait on them with `scripts/await-pattern.sh`. See the Checkpoint Vocabulary below for standard markers.
 ```

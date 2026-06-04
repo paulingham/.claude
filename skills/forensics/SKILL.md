@@ -23,16 +23,16 @@ Post-incident investigation of pipeline runs. Reconstructs timelines, detects an
 
 ```bash
 # Trajectory file (agent events timeline) — new layout, with legacy fallback during 90-day DUAL_PATH soak
-cat ~/.claude/pipeline-state/{task-id}/trajectory.jsonl 2>/dev/null \
-  || cat ~/.claude/pipeline-state/{task-id}-trajectory.jsonl 2>/dev/null
+cat ~/.claude/$state_dir/{task-id}/trajectory.jsonl 2>/dev/null \
+  || cat ~/.claude/$state_dir/{task-id}-trajectory.jsonl 2>/dev/null
 
 # Pipeline state file
-cat ~/.claude/pipeline-state/{task-id}/pipeline.md 2>/dev/null \
-  || cat ~/.claude/pipeline-state/{task-id}-pipeline.md 2>/dev/null
+cat ~/.claude/$state_dir/{task-id}/pipeline.md 2>/dev/null \
+  || cat ~/.claude/$state_dir/{task-id}-pipeline.md 2>/dev/null
 
 # Debug state (if debugging loop was entered)
-cat ~/.claude/pipeline-state/{task-id}/debug.md 2>/dev/null \
-  || cat ~/.claude/pipeline-state/{task-id}-debug.md 2>/dev/null
+cat ~/.claude/$state_dir/{task-id}/debug.md 2>/dev/null \
+  || cat ~/.claude/$state_dir/{task-id}-debug.md 2>/dev/null
 
 # Git history during the pipeline
 git log --oneline --since="{pipeline start}" --until="{pipeline end or now}"
@@ -83,7 +83,7 @@ sys.path.insert(0, f"{os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ.get('CL
 from sandbox_verify_observation import diverging_tests_from_build_md
 from pathlib import Path
 
-build_md_path = Path(os.environ.get('CLAUDE_PLUGIN_DATA') or os.environ.get('CLAUDE_CONFIG_DIR') or os.path.join(os.path.expanduser('~'), '.claude')) / f"pipeline-state/{task_id}/build.md"
+build_md_path = Path(os.environ.get('CLAUDE_PLUGIN_DATA') or os.environ.get('CLAUDE_CONFIG_DIR') or os.path.join(os.path.expanduser('~'), '.claude')) / f"$state_dir/{task_id}/build.md"
 if build_md_path.is_file():
     diverging = diverging_tests_from_build_md(build_md_path.read_text())
     if diverging:
@@ -195,7 +195,7 @@ For each anomaly, propose a cause:
 
 ### Step 6: Produce Findings
 
-Write `pipeline-state/{task-id}/forensics.md`:
+Write `$state_dir/{task-id}/forensics.md`:
 
 ```markdown
 ---
@@ -240,6 +240,6 @@ timestamp: {ISO 8601}
 ```
 Verdict: CLEAN / ANOMALIES_FOUND / INVESTIGATION_INCOMPLETE
 Next: Feed findings into /harness:pipeline Step 7 (Reflect)
-Artifacts: pipeline-state/{task-id}/forensics.md
+Artifacts: $state_dir/{task-id}/forensics.md
 ```
 $ARGUMENTS

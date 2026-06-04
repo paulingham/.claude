@@ -11,7 +11,7 @@ agent: vlm-critic
 
 ## What This Skill Does
 
-Adds a **semantic-diff Final Gate teammate** that compares baseline+current screenshot pairs and writes a per-route `vlm_verdict` (PASS|FAIL) + ≤50-word `vlm_summary` into `pipeline-state/{task-id}/design-qc/index.json`. The pixel-diff producer (design-qc Step 6 via `hooks/_lib/visual_diff.js`) and the vlm-critic semantic-diff producer (this skill) BOTH feed product-reviewer; product-reviewer gates APPROVE on `pixel_diff_ratio < threshold AND vlm_verdict == PASS` for every route.
+Adds a **semantic-diff Final Gate teammate** that compares baseline+current screenshot pairs and writes a per-route `vlm_verdict` (PASS|FAIL) + ≤50-word `vlm_summary` into `$state_dir/{task-id}/design-qc/index.json`. The pixel-diff producer (design-qc Step 6 via `hooks/_lib/visual_diff.js`) and the vlm-critic semantic-diff producer (this skill) BOTH feed product-reviewer; product-reviewer gates APPROVE on `pixel_diff_ratio < threshold AND vlm_verdict == PASS` for every route.
 
 `hooks/vlm-critic-read-guard.sh` enforces the constraint by exiting 2 on any read attempt outside the vlm-critic-allow-paths allowlist (PNG pairs, plan.md, the index.json itself). The hook is a structural clone of `hooks/spec-blind-read-guard.sh` with renamed prefix `_vlm_critic_*` — soak-safe per the 2026-06-09 spec-blind V2 freeze (plan § 8).
 
@@ -29,8 +29,8 @@ The orchestrator hands the spawned agent these inputs in the prompt:
 
 | Input | Source |
 |-------|--------|
-| AC plan | `pipeline-state/{task-id}/plan.md` (verbatim) |
-| Index.json path | `pipeline-state/{task-id}/design-qc/index.json` (input + Write target) |
+| AC plan | `$state_dir/{task-id}/plan.md` (verbatim) |
+| Index.json path | `$state_dir/{task-id}/design-qc/index.json` (input + Write target) |
 | Route set | `index.json.routes[*]` — every route with `visual_regression.{baseline_path, current_path}` |
 
 The agent is NOT given `git diff main...HEAD` — implementation source is OUT of scope by design.
@@ -41,10 +41,10 @@ The path-allowlist is established by `hooks/_lib/vlm-critic-allow-paths.{sh,txt}
 
 | Glob (ERE) | Purpose |
 |---|---|
-| `pipeline-state/.+/visual-baselines/[^/]+\.png` | Baseline screenshots (against `main`) — primary input |
+| `$state_dir/.+/visual-baselines/[^/]+\.png` | Baseline screenshots (against `main`) — primary input |
 | `.*/\.claude/screenshots/[^/]+\.png` | Current-branch screenshots — comparison input |
-| `pipeline-state/.+/design-qc/index\.json` | Per-route inputs + Write target |
-| `pipeline-state/.+/plan\.md` | The AC plan (informs in-scope/out-of-scope visible changes) |
+| `$state_dir/.+/design-qc/index\.json` | Per-route inputs + Write target |
+| `$state_dir/.+/plan\.md` | The AC plan (informs in-scope/out-of-scope visible changes) |
 
 **Denied (concrete examples)**: `src/**`, `lib/**`, `app/**`, `internal/**`, `cmd/**`, `pkg/**`, `bin/**`, `dist/**`, `build/**`, `node_modules/**`, `vendor/**`. Default-deny.
 
@@ -123,7 +123,7 @@ JSONL violation logs at `metrics/$SESSION/vlm-critic-violations.jsonl` provide f
 
 1. **Escape-hatch check (BEFORE any Read).** If `CLAUDE_DISABLE_VLM_CRITIC=1` is set, jump to § Escape Hatch above and short-circuit. No PNG reads are issued.
 
-2. **Read inputs.** Read `pipeline-state/{task-id}/design-qc/index.json` and `pipeline-state/{task-id}/plan.md`. The index.json names every route; the plan informs whether a visible delta is in-scope.
+2. **Read inputs.** Read `$state_dir/{task-id}/design-qc/index.json` and `$state_dir/{task-id}/plan.md`. The index.json names every route; the plan informs whether a visible delta is in-scope.
 
 3. **Per-route comparison.** For every route in `index.json.routes[*]`:
    - Read the baseline PNG at `route.visual_regression.baseline_path` (multimodal Read).

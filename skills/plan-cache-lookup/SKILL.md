@@ -20,7 +20,7 @@ Stage 0 of Plan Phase Dispatch. Computes a cache key from the current pipeline's
 
 ## Inputs
 
-- **Pipeline state**: the active pipeline file located via `_psp_find_active_pipelines` (the canonical pipeline-state reader at `hooks/_lib/pipeline-state-paths.sh`). NEVER use bare `[ -f pipeline-state/$task/$phase.md ]`; the union helper resolves DUAL_PATH layouts (new `pipeline-state/{task}/{phase}.md`, legacy `pipeline-state/{task}-{phase}.md`, and workstream variants).
+- **Pipeline state**: the active pipeline file located via `_psp_find_active_pipelines` (the canonical pipeline-state reader at `hooks/_lib/pipeline-state-paths.sh`). NEVER use bare `[ -f pipeline-state/$task/$phase.md ]`; the union helper resolves DUAL_PATH layouts (new `$state_dir/{task}/{phase}.md`, legacy `$state_dir/{task}-{phase}.md`, and workstream variants).
 - **Environment**:
   - `CLAUDE_PLAN_CACHE_MODE` ∈ `{off, shadow, on}`; unset → `off` in Slice B (flipped to `shadow` in Slice F).
   - `CLAUDE_PROJECT_HASH` — env-first override for the cache namespace (mirrors `hooks/observation-capture.sh:30-38`); unset → `_project_hash --fallback "$(basename "$(pwd)")"`.
@@ -74,7 +74,7 @@ Stage 1+2 per Iron Law 6; the adapter is not re-invoked in this pipeline.
    Memory M5). Crash mid-adapter leaves the `pending` marker on disk so the
    next entry treats the template as stale.
 2. Write the resume-safety stub via `_plan_cache_write_resume_stub TASK_ID`
-   (AC C8). Creates `pipeline-state/{task-id}/architect-context.md` with
+   (AC C8). Creates `$state_dir/{task-id}/architect-context.md` with
    body `<!-- cache_hit: true, recon-skipped -->` so `/harness:pipeline-resume`
    readers don't stall on the missing recon output.
 3. Spawn the adapter agent (one Agent directive — single-shot, no loop):
@@ -86,8 +86,8 @@ Agent({
   maxTurns: 8,
   prompt: "Read ~/.claude/agents/plan-cache-adapter.md.
     Cached template: {template-path}.
-    Current ACs: {ACs from pipeline-state/{task-id}/intake.md}.
-    Write adapted plan to pipeline-state/{task-id}/plan.md with `cache_hit: true`
+    Current ACs: {ACs from $state_dir/{task-id}/intake.md}.
+    Write adapted plan to $state_dir/{task-id}/plan.md with `cache_hit: true`
     in the frontmatter and preserve the four required H2 sections:
     ## Slices, ## Alternatives Considered, ## Codebase Ground-Truth Citations,
     ## Pre-Mortem."
@@ -124,7 +124,7 @@ or, on HIT:
 
 Each verdict pairs the `[PlanCacheLookup]` JSON audit marker with one
 user-facing console line (or stays silent). Strings below are VERBATIM
-per `pipeline-state/plan-cache-agentic/plan.md` § Status Line Copy and are
+per `$state_dir/plan-cache-agentic/plan.md` § Status Line Copy and are
 emitted by `_plan_cache_status_line` (`hooks/_lib/plan-cache-lookup.sh`).
 
 | State | Console string |
@@ -142,7 +142,7 @@ the adapter spawn).
 ## Verdicts
 
 - `PLAN_CACHE_MISS` (info, plan, emitter=plan-cache-lookup) — fall through to Stage 1 recon + Stage 2 architect in the same pipeline (Iron Law 6 on `adapter-rejected`).
-- `PLAN_CACHE_HIT` (info, plan, emitter=plan-cache-lookup) — adapted plan written to `pipeline-state/{task-id}/plan.md` with `cache_hit: true` marker; skip Stage 1+2.
+- `PLAN_CACHE_HIT` (info, plan, emitter=plan-cache-lookup) — adapted plan written to `$state_dir/{task-id}/plan.md` with `cache_hit: true` marker; skip Stage 1+2.
 
 ## Failure Modes
 
@@ -160,7 +160,7 @@ the adapter spawn).
 
 ## References
 
-- Plan: `pipeline-state/plan-cache-agentic/plan.md` § Slice slice-b-skill-miss-only and § Slice slice-c-adapter-and-validator.
+- Plan: `$state_dir/plan-cache-agentic/plan.md` § Slice slice-b-skill-miss-only and § Slice slice-c-adapter-and-validator.
 - Helper: `hooks/_lib/plan-cache-lookup.sh` (Slice B + Slice C functions).
 - Repo-hash helper: `hooks/_lib/repo-hash.sh` (Slice A).
 - Adapter agent: `agents/plan-cache-adapter.md` (Slice C).

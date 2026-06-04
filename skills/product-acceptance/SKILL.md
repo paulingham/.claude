@@ -52,7 +52,7 @@ Agent({
        - If E2E flows ran (PASS): confirm they cover the changed behavior
        - If E2E flows failed: this should have been caught in Verify -- flag if it wasn't
     - visual_regression machine pre-check (frontend-touching changes):
-       - Read pipeline-state/{task-id}/design-qc/index.json
+       - Read $state_dir/{task-id}/design-qc/index.json
        - REJECT the story-level verdict if any route has pixel_diff_ratio > threshold OR vlm_verdict == FAIL
        - If the visual_regression block is missing on a frontend-touching change, treat as vlm_verdict == BLOCKED and REJECT with reason `visual_regression block missing — producer (vlm-critic) did not run` (AC3+AC4 atomicity guard; see agents/product-reviewer.md § Outcome)
        - Per-route threshold (routes[*].visual_regression.threshold) overrides default 0.02 when present
@@ -101,7 +101,7 @@ bash "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/writ
 - `$TASK_ID`: the current pipeline task ID (from `CLAUDE_PIPELINE_TASK_ID` env or branch name last segment)
 - `$VERDICT`: one of `APPROVED`, `APPROVED_WITH_CONDITIONS`, `REJECTED`
 - Token is written for ALL verdicts — readers distinguish "phase ran and approved" from "phase ran and rejected" from "phase never ran (missing)"
-- Token is deleted at Reflect step 6d alongside the other `pipeline-state/{task-id}/` artifacts (canonical write path: `pipeline-state/{task-id}/approval.token`; legacy `pipeline-state/{task-id}-approval.token` is read-tolerated during the 90-day DUAL_PATH soak)
+- Token is deleted at Reflect step 6d alongside the other `$state_dir/{task-id}/` artifacts (canonical write path: `$state_dir/{task-id}/approval.token`; legacy `$state_dir/{task-id}-approval.token` is read-tolerated during the 90-day DUAL_PATH soak)
 
 ## Acceptance Checklist
 
@@ -114,7 +114,7 @@ bash "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/writ
 - [ ] Business stakeholder would understand what was built from the PR description
 - [ ] If VERIFIED_WITH_SKIP: E2E skip reason acknowledged and risk assessed (see `protocols/e2e-protocol.md`)
 - [ ] If E2E flows exist for changed behavior: confirm they passed in verification report
-- [ ] Verification evidence state file present (`pipeline-state/{task-id}/verification-evidence.json`). If absent OR `hooks/verification-freshness-guard.sh` logged a `would_block` record for this dispatch, note the staleness risk in the per-AC notes — but do NOT REJECT solely on this signal. The hard gate is at patch-critic and pr-creation; product-reviewer's role is to acknowledge the risk.
+- [ ] Verification evidence state file present (`$state_dir/{task-id}/verification-evidence.json`). If absent OR `hooks/verification-freshness-guard.sh` logged a `would_block` record for this dispatch, note the staleness risk in the per-AC notes — but do NOT REJECT solely on this signal. The hard gate is at patch-critic and pr-creation; product-reviewer's role is to acknowledge the risk.
 
 ## Prerequisite
 

@@ -43,7 +43,7 @@ If absent: generate from scratch
 
 **Priority order for design inputs** (first match wins):
 
-1. **Design brief exists**: Check `pipeline-state/{task-id}/design-brief.md` (output from `/harness:creative-direction`). If found, extract: font pairing, palette HSL values, layout archetype, interaction paradigm. This is the primary source — skip to Step 3.
+1. **Design brief exists**: Check `$state_dir/{task-id}/design-brief.md` (output from `/harness:creative-direction`). If found, extract: font pairing, palette HSL values, layout archetype, interaction paradigm. This is the primary source — skip to Step 3.
 
 2. **User provides a brand brief**: Extract dominant hue → primary color scale, energy level → spacing density, personality → border radius style, voice → font pairing.
 

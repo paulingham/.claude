@@ -50,7 +50,7 @@ All checks must pass before deployment proceeds:
 4. Dependencies:       No known CVEs (npm audit / bundle audit / pip-audit)
 5. Build succeeds:     Compile/build step passes (npm run build / bundle exec rake assets:precompile)
 6. Branch is clean:    No uncommitted changes, branch is up-to-date with main
-7. Security review:    Verify pipeline-state/{task-id}/review.md has security_verdict: APPROVE
+7. Security review:    Verify $state_dir/{task-id}/review.md has security_verdict: APPROVE
 ```
 
 Output pre-deploy checklist with PASS/FAIL per item. Any FAIL = deployment blocked.

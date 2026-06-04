@@ -26,7 +26,7 @@ A new PreToolUse hook `hooks/verification-freshness-guard.sh` that runs on Agent
 
 ### State file convention
 
-`pipeline-state/{task-id}/verification-evidence.json` (schema_version 1):
+`$state_dir/{task-id}/verification-evidence.json` (schema_version 1):
 
 ```json
 {
@@ -71,8 +71,8 @@ Logged to `metrics/{session}/freshness-guard.jsonl`. `/harness:forensics` consum
 
 ## Integration Points
 
-1. **`skills/verify/SKILL.md`** — add Step 6: "Write `pipeline-state/{task-id}/verification-evidence.json` with the schema above using `os.replace` atomic rename. Resolve the write target via `_psp_verification_evidence_path` relative to `$CLAUDE_REPO_ROOT` (not cwd)."
-2. **`skills/patch-critique/SKILL.md`** — append one row to the `## Inputs` table: `Verification evidence | pipeline-state/{task-id}/verification-evidence.json written by /harness:verify Step 6`. Existing missing-input semantics inherit (returns `PATCH_REJECTED` with `reason: missing input: {name}`).
+1. **`skills/verify/SKILL.md`** — add Step 6: "Write `$state_dir/{task-id}/verification-evidence.json` with the schema above using `os.replace` atomic rename. Resolve the write target via `_psp_verification_evidence_path` relative to `$CLAUDE_REPO_ROOT` (not cwd)."
+2. **`skills/patch-critique/SKILL.md`** — append one row to the `## Inputs` table: `Verification evidence | $state_dir/{task-id}/verification-evidence.json written by /harness:verify Step 6`. Existing missing-input semantics inherit (returns `PATCH_REJECTED` with `reason: missing input: {name}`).
 3. **`skills/pr-creation/SKILL.md` quality-gate check** — `_qg_check_freshness` is added to `hooks/_lib/quality-gate-checks.sh` and `freshness` is added to the `for check in tests lint audit shape contract` loop in `hooks/quality-gate.sh:31`. Synchronous blocking gate on `gh pr create`.
 4. **`agents/patch-critic.md`** — its Operating Discipline already states "Stale results from earlier in the session are not evidence" (line 34). APPEND a sentence after the trailing parenthetical pointing at the hook: ` Enforcement: hooks/verification-freshness-guard.sh (log-only at v2.1.141; blocks once permissionDecision ships on Agent matcher).` (S5 — append-only edit, not a replacement of the broader paragraph).
 5. **`hooks/_lib/pipeline-state-paths.sh`** — add `_psp_verification_evidence_path "$task" "$ws"` helper, follows the existing `_psp_*` convention (corrects the proposal's earlier `_state_verification_evidence_path` / `state_paths.sh` reference — see intake discrepancy #2).
@@ -94,7 +94,7 @@ Logged to `metrics/{session}/freshness-guard.jsonl`. `/harness:forensics` consum
 
 ## Implementation Checklist
 
-1. **`hooks/verification-freshness-guard.sh`** (new) — ~80 LOC bash script following the Path-B advisory pattern from `hooks/pre-agent-allowlist.sh`. Reads `pipeline-state/{task-id}/verification-evidence.json`, compares to worktree HEAD, emits JSONL via `_lib/log-injection.sh` with filename `freshness-guard.jsonl`.
+1. **`hooks/verification-freshness-guard.sh`** (new) — ~80 LOC bash script following the Path-B advisory pattern from `hooks/pre-agent-allowlist.sh`. Reads `$state_dir/{task-id}/verification-evidence.json`, compares to worktree HEAD, emits JSONL via `_lib/log-injection.sh` with filename `freshness-guard.jsonl`.
 2. **`hooks/_lib/resolve-freshness.py`** (new) — ~60 LOC Python resolver delegate, mirrors `resolve-tool-allowlist.py`.
 3. **`hooks/_lib/pipeline-state-paths.sh`** — add `_psp_verification_evidence_path` helper.
 4. **`hooks/_lib/quality-gate-checks.sh`** — add `_qg_check_freshness` (≤8 lines, `jq`-based, matches existing `_qg_*` style).

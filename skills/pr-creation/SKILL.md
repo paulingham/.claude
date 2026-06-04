@@ -32,7 +32,7 @@ Automated pull request creation with validation:
 **Workaround (when the misfire still recurs after the description fix)**:
 1. Orchestrator dispatches a `fix-engineer` directly with a build-style spawn whose prompt is the literal contents of this SKILL.md's Steps 0-5.
 2. Pass `Working directory: <worktree-path>` and the original task-id in the spawn prompt so the approval-token gate + worktree precondition both resolve.
-3. Treat the fix-engineer's PR-URL return value as the `PR_CREATED` verdict for the Ship-phase state file. Manually write `pipeline-state/{task-id}/ship.md` with `verdict: PR_CREATED` and the PR URL.
+3. Treat the fix-engineer's PR-URL return value as the `PR_CREATED` verdict for the Ship-phase state file. Manually write `$state_dir/{task-id}/ship.md` with `verdict: PR_CREATED` and the PR URL.
 
 **Action note for operators investigating recurrences**:
 - Compare this skill's frontmatter + body shape against `~/.claude/skills/internal-eval/SKILL.md` and `~/.claude/skills/learn/SKILL.md` — both auto-invoke reliably.
@@ -66,13 +66,13 @@ bash "$WORKTREE/skills/pr-creation/lib/check-approval-token.sh"
 
 - **APPROVED** or **APPROVED_WITH_CONDITIONS**: proceed to Step 1.
 - **Missing token** or **REJECTED**: exits with `PR_BLOCKED` message including remediation hint.
-- **No active pipeline** (no `pipeline-state/{task-id}/pipeline.md` and no legacy `pipeline-state/{task-id}-pipeline.md`): manual PR path — gate skips, proceed.
+- **No active pipeline** (no `$state_dir/{task-id}/pipeline.md` and no legacy `$state_dir/{task-id}-pipeline.md`): manual PR path — gate skips, proceed.
 
 Cross-references: `hooks/auto-pr.sh` performs an advisory read of the same token and suppresses its PR suggestion when the gate is closed.
 
 ## Verification Freshness Dependency
 
-`hooks/quality-gate.sh` runs on `gh pr create` and includes the new `_qg_check_freshness` check (extension landed in this slice). The check reads `pipeline-state/{task-id}/verification-evidence.json` written by `/harness:verify` Step 6 and FAILs (rc=1 → quality-gate exit 2) when the recorded `git_head` does not match the current worktree HEAD, the file is missing, or the verdict is not `VERIFIED` / `VERIFIED_WITH_SKIP`. Operators must re-run `/harness:verify` before re-attempting `gh pr create` in that case.
+`hooks/quality-gate.sh` runs on `gh pr create` and includes the new `_qg_check_freshness` check (extension landed in this slice). The check reads `$state_dir/{task-id}/verification-evidence.json` written by `/harness:verify` Step 6 and FAILs (rc=1 → quality-gate exit 2) when the recorded `git_head` does not match the current worktree HEAD, the file is missing, or the verdict is not `VERIFIED` / `VERIFIED_WITH_SKIP`. Operators must re-run `/harness:verify` before re-attempting `gh pr create` in that case.
 
 ## Worktree Precondition (HARD GATE)
 

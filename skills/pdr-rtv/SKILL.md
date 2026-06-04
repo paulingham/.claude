@@ -14,7 +14,7 @@ Routed by `/harness:pipeline` only when `/harness:intake` set `pdr_rtv: true` (`
 
 ## Inputs
 
-- Slice spec at `pipeline-state/{task-id}/plan.md` with per-AC failing-test stubs.
+- Slice spec at `$state_dir/{task-id}/plan.md` with per-AC failing-test stubs.
 - Candidate roster from `skills/pdr-rtv/config.json` (N, T, K, seed, max_runtime).
 - Pre-flight worktree-pool capacity via `skills/best-of-n/lib/score.sh`'s `check_worktree_capacity` (peak concurrent worktrees = N = 4 due to strict iteration serialisation).
 
@@ -24,9 +24,9 @@ See `~/.claude/orchestrator/parallel-dispatch-details.md` § PDR-RTV Build Team 
 
 ## Output
 
-- Pipeline state: `pipeline-state/{task-id}/pdr-rtv.md` (frontmatter `verdict`, sections: Iterations, Tournament Bracket, Winner SHA, Total Cost USD, Re-routes if any).
-- Per-rollout summaries: `pipeline-state/{task-id}/pdr-rtv/rollouts/{slug}/summary.md` (three required H2 sections; persists OUTSIDE worktrees so iteration-0 worktrees can be reaped before iteration-1).
-- Tournament log: `pipeline-state/{task-id}/pdr-rtv/tournament.md` (Slice 2).
+- Pipeline state: `$state_dir/{task-id}/pdr-rtv.md` (frontmatter `verdict`, sections: Iterations, Tournament Bracket, Winner SHA, Total Cost USD, Re-routes if any).
+- Per-rollout summaries: `$state_dir/{task-id}/pdr-rtv/rollouts/{slug}/summary.md` (three required H2 sections; persists OUTSIDE worktrees so iteration-0 worktrees can be reaped before iteration-1).
+- Tournament log: `$state_dir/{task-id}/pdr-rtv/tournament.md` (Slice 2).
 - Winner branch merged into the pipeline working branch; loser worktrees + branches removed.
 
 ## Verdict

@@ -73,7 +73,7 @@ Last N pipeline records for this project. Each contains: phase verdicts, review 
 #### 2c. Review Findings (Current Pipeline Only)
 If invoked from pipeline Reflect step, read the review phase state file:
 ```bash
-cat ~/.claude/pipeline-state/{task-id}/review.md  # legacy: ~/.claude/pipeline-state/{task-id}-review.md
+cat ~/.claude/$state_dir/{task-id}/review.md  # legacy: ~/.claude/$state_dir/{task-id}-review.md
 ```
 Extract findings with their severity and category.
 

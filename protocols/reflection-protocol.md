@@ -140,7 +140,7 @@ This gate pairs with `hooks/reflect-token-emit.sh` (token writer, invoked during
 
 ### 6d. Clean Up Scratchpad
 
-Delete BOTH the new-layout scratchpad subdir `pipeline-state/{task-id}/scratchpad/` AND any legacy `pipeline-state/{task-id}-scratchpad/` directory alongside the pipeline state files. During the DUAL_PATH soak, both forms may coexist — see `skills/pipeline/SKILL.md` § 7d for the canonical dual-form cleanup snippet (uses `_psp_phase_list` enumeration to avoid bare globs that would match prefix neighbours).
+Delete BOTH the new-layout scratchpad subdir `$state_dir/{task-id}/scratchpad/` AND any legacy `$state_dir/{task-id}-scratchpad/` directory alongside the pipeline state files. During the DUAL_PATH soak, both forms may coexist — see `skills/pipeline/SKILL.md` § 7d for the canonical dual-form cleanup snippet (uses `_psp_phase_list` enumeration to avoid bare globs that would match prefix neighbours).
 
 ### 6e. Commit Persistent Harness State
 

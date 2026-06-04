@@ -24,7 +24,7 @@ Story 1 (this slice) mints the skill + agent contract, the three verdicts in the
 
 ## Inputs
 
-- **Pipeline state**: `pipeline-state/{task-id}/build.md` containing the worktree's local test verdict.
+- **Pipeline state**: `$state_dir/{task-id}/build.md` containing the worktree's local test verdict.
 - **External**: `E2B_API_KEY` environment variable (if missing → `SANDBOX_SKIPPED(no-e2b-token)`); `CLAUDE_SESSION_ID` for skip-log path resolution.
 - **Worktree**: the build engineer's worktree path (read-only).
 - **Project**: `CLAUDE.md` Commands section for the test command (Story 2).
@@ -111,9 +111,9 @@ The diff algorithm uses symmetric difference of pass sets:
 
 ## Output
 
-- **State file**: `pipeline-state/{task-id}/sandbox-verify.md` with the verdict in frontmatter.
+- **State file**: `$state_dir/{task-id}/sandbox-verify.md` with the verdict in frontmatter.
 - **Skip log**: `metrics/{session-id}/sandbox-verify-skips.jsonl` (only on `SANDBOX_SKIPPED`).
-- **Scratchpad**: `pipeline-state/{task-id}/scratchpad/sandbox-verify-engineer-build.md` for any divergence diagnostics.
+- **Scratchpad**: `$state_dir/{task-id}/scratchpad/sandbox-verify-engineer-build.md` for any divergence diagnostics.
 
 ### Output File Format
 

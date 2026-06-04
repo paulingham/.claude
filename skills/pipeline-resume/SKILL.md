@@ -20,18 +20,25 @@ Detects and resumes in-progress pipelines from structured state files in `pipeli
 
 ### Step 1: Scan for Active Pipelines
 
-The DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State) means readers MUST tolerate both the new per-task-subdir layout (`pipeline-state/{task-id}/pipeline.md`) and the legacy flat form (`pipeline-state/{task-id}-pipeline.md`). Use the canonical four-glob discovery sequence (encapsulated in `_psp_find_active_pipelines` from `hooks/_lib/pipeline-state-paths.sh`):
+The DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State) means readers MUST tolerate both the new per-task-subdir layout (`$state_dir/{task-id}/pipeline.md`) and the legacy flat form (`$state_dir/{task-id}-pipeline.md`). Use the canonical four-glob discovery sequence (encapsulated in `_psp_find_active_pipelines` from `hooks/_lib/pipeline-state-paths.sh`):
 
 ```bash
+# Resolve primary state root (HARNESS_DATA, new writes land here)
+HARNESS_DATA="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
 # 1. New layout, root
-find ~/.claude/pipeline-state -maxdepth 2 -mindepth 2 -name "pipeline.md" \
+find "${HARNESS_DATA}/pipeline-state" -maxdepth 2 -mindepth 2 -name "pipeline.md" \
   -not -path "*/workstreams/*" -not -path "*/health-reports/*"
 # 2. New layout, workstream
-find ~/.claude/pipeline-state/workstreams -maxdepth 3 -mindepth 3 -name "pipeline.md"
+find "${HARNESS_DATA}/pipeline-state/workstreams" -maxdepth 3 -mindepth 3 -name "pipeline.md"
 # 3. Legacy layout, root
-find ~/.claude/pipeline-state -maxdepth 1 -name "*-pipeline.md"
+find "${HARNESS_DATA}/pipeline-state" -maxdepth 1 -name "*-pipeline.md"
 # 4. Legacy layout, workstream
-find ~/.claude/pipeline-state/workstreams -maxdepth 2 -name "*-pipeline.md"
+find "${HARNESS_DATA}/pipeline-state/workstreams" -maxdepth 2 -name "*-pipeline.md"
+# REPO_ROOT/pipeline-state (legacy read-only soak fallback — remove after 90 days from
+# merge of relocate-pipeline-state-writes PR: git log --format=%aI -1 <merge-commit>)
+find "${REPO_ROOT}/pipeline-state" -maxdepth 2 -mindepth 2 -name "pipeline.md" \
+  -not -path "*/workstreams/*" -not -path "*/health-reports/*" 2>/dev/null
+find "${REPO_ROOT}/pipeline-state" -maxdepth 1 -name "*-pipeline.md" 2>/dev/null
 ```
 
 Dedup the union by `task_id` with **workstream-wins precedence**; tie-break by mtime (fresher wins; ties favour the new layout). The shorthand glob `pipeline-state/*/pipeline.md` matches the new-layout root form — combine with the other three for full coverage.
@@ -41,19 +48,21 @@ Always use the helper (`_psp_find_active_pipelines`) rather than open-coding the
 Also scan for debug state and discussion files (DUAL_PATH — same dedup
 rules as above; same `health-reports/` exclusion):
 ```bash
+# Resolve state root (HARNESS_DATA)
+HARNESS_DATA="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
 # New layout (root + workstream-nested)
-find ~/.claude/pipeline-state \( -name "debug.md" -o -name "discussion.md" \) \
+find "${HARNESS_DATA}/pipeline-state" \( -name "debug.md" -o -name "discussion.md" \) \
   -not -path "*/health-reports/*" 2>/dev/null
 # Legacy layout
-ls ~/.claude/pipeline-state/*-debug.md 2>/dev/null
-ls ~/.claude/pipeline-state/*-discussion.md 2>/dev/null
-ls ~/.claude/pipeline-state/workstreams/*/*-debug.md 2>/dev/null
-ls ~/.claude/pipeline-state/workstreams/*/*-discussion.md 2>/dev/null
+ls "${HARNESS_DATA}/pipeline-state"/*-debug.md 2>/dev/null
+ls "${HARNESS_DATA}/pipeline-state"/*-discussion.md 2>/dev/null
+ls "${HARNESS_DATA}/pipeline-state"/workstreams/*/*-debug.md 2>/dev/null
+ls "${HARNESS_DATA}/pipeline-state"/workstreams/*/*-discussion.md 2>/dev/null
 ```
 
 Also scan workstream metadata:
 ```bash
-ls ~/.claude/pipeline-state/workstreams/*/workstream.md 2>/dev/null
+ls "${HARNESS_DATA}/pipeline-state/workstreams"/*/workstream.md 2>/dev/null
 ```
 
 Display results grouped:

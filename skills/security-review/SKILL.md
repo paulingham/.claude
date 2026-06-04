@@ -31,7 +31,7 @@ unchanged.
 | Rung | Source | When |
 |---|---|---|
 | rung 1 | `$CLAUDE_SAST_SARIF_PATH` (operator override) | CI providing pre-computed SARIF |
-| rung 2 | `pipeline-state/{task_id}/scratchpad/sast-*.sarif` | Earlier pipeline phase staged SARIF |
+| rung 2 | `$state_dir/{task_id}/scratchpad/sast-*.sarif` | Earlier pipeline phase staged SARIF |
 | rung 3 | direct semgrep subprocess (`semgrep --sarif --json --quiet -- <changed>`) on `git diff main...HEAD` files | On-demand fallback when rungs 1-2 absent. Bounded by `CLAUDE_SAST_SEMGREP_TIMEOUT_SEC` (default 60s). `shutil.which("semgrep") is None` → rung skipped silently. |
 | rung 4 | None | Tool not installed and no staged SARIF — emit `TRIAGE_NO_INPUT`, OWASP rubric proceeds |
 
