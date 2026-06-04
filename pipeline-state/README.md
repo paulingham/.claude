@@ -18,7 +18,7 @@ Structured phase results for in-progress pipelines. See `protocols/pipeline-prot
 
 ## Quick Reference
 
-- **Naming**: `{task-id}-{phase}.md`
+- **Naming**: `{task-id}-{phase}.md` _(legacy flat form — read-tolerated during soak, never written by new pipelines)_
 - **Lifecycle**: created by phase, read by next phase, deleted after pipeline completes
 - **Purpose**: survives context compaction, enables inter-phase communication
 - **Cleanup**: orchestrator deletes all files for a task after completion

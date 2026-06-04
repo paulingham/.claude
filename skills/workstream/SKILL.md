@@ -61,7 +61,7 @@ Lists all workstreams and their status:
 
 ```bash
 # Resolve: state_dir="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/pipeline-state"
-ls "${state_dir}/workstreams/*/workstream.md" 2>/dev/null
+ls "${state_dir}"/workstreams/*/workstream.md 2>/dev/null
 ```
 
 Output format:
