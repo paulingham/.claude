@@ -363,7 +363,8 @@ timestamp: {ISO 8601}
 ```
 Verdict: GREENFIELD_SCAFFOLD_COMPLETE
 Next: /harness:epic-breakdown → /harness:pipeline per story
-Artifacts: [product-brief.md, tech-stack.md, ui-architecture.md, design-brief.md,
+Artifacts: [pipeline-state/{task-id}/product-brief.md, pipeline-state/{task-id}/tech-stack.md,
+            pipeline-state/{task-id}/ui-architecture.md, design-brief.md,
             project files, CLAUDE.md, AGENTS.md]
 ```
 $ARGUMENTS

@@ -39,8 +39,8 @@ The orchestrator injects the following into the planning-agent's prompt header:
 
 ```
 TaskId: {task-id}
-PlanPath: $state_dir/{task-id}/plan.md
-ScratchpadDir: $state_dir/{task-id}/scratchpad/
+PlanPath: $state_dir/{task-id}/plan.md      # pipeline-state/{task-id}/plan.md relative to HARNESS_DATA
+ScratchpadDir: $state_dir/{task-id}/scratchpad/    # pipeline-state/{task-id}/scratchpad/ relative to HARNESS_DATA
 TeamRoster: name1,name2,name3
 PollSeconds: 60   # default; overridable via CLAUDE_PLANNING_POLL_SECONDS
 ```
@@ -70,7 +70,8 @@ A general observation is not a contradiction.
 
 1. Read spawn parameters from the prompt header.
 2. Initialize the cursor file at `$state_dir/{task-id}/planning-cursor.json`
-   (a JSON list of `{filename, content_hash}`). The cursor persists across
+   (bare path relative to HARNESS_DATA: `pipeline-state/{task-id}/planning-cursor.json`).
+   A JSON list of `{filename, content_hash}`. The cursor persists across
    poll cycles and survives context compaction.
 3. Loop until `shutdown_request` SendMessage received:
    1. Call `hooks/_lib/scratchpad_diff.py::peek_new_findings(scratchpad_dir, cursor_path)`

@@ -13,6 +13,8 @@ $state_dir/{task-id}/scratchpad/
   {role}-{phase}.md          # Agent findings
 ```
 
+Bare path relative to HARNESS_DATA: `pipeline-state/{task-id}/scratchpad/`.
+
 Workstream variant: `$state_dir/workstreams/{ws}/{task-id}/scratchpad/{role}-{phase}.md`.
 
 Created by the orchestrator at pipeline start (alongside the pipeline state file). Cleaned up via `find $state_dir/{task-id} -type f -delete && find $state_dir/{task-id} -depth -type d -empty -delete` after completion — `rm -rf` on directories is sandbox-denied even on orchestrator-writable paths; see `skills/pipeline/SKILL.md` Step 7d for the canonical snippet. During the DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State), the legacy form `$state_dir/{task-id}-scratchpad/` is still tolerated by readers; new pipelines write to the new layout only.

@@ -99,6 +99,8 @@ Reason enum: `rules` | `fallthrough` (Phase 3 `haiku` reserved for follow-up). P
 
 #### Persistence to `$state_dir/{task-id}/intake.md` frontmatter
 
+Canonical bare path (relative to HARNESS_DATA): `pipeline-state/{task-id}/intake.md`. Exploration discussion (when gate fires): `pipeline-state/{task-id}/discussion.md`.
+
 Persist the following 12 forensic-schema fields (read by `hooks/intake-fingerprint-audit.sh`):
 
 ```yaml

@@ -87,7 +87,7 @@ Archives a completed workstream:
 
 When a workstream is active, the pipeline skill stores state files under a per-task subdirectory inside the workstream directory (DUAL_PATH soak — see `protocols/pipeline-protocol.md` § Structured Pipeline State):
 
-- Pipeline state: `$state_dir/workstreams/{name}/{task-id}/pipeline.md`
+- Pipeline state: `$state_dir/workstreams/{name}/{task-id}/pipeline.md` (bare path: `pipeline-state/workstreams/{name}/{task-id}/pipeline.md`)
 - Build results: `$state_dir/workstreams/{name}/{task-id}/build.md`
 - Debug state: `$state_dir/workstreams/{name}/{task-id}/debug.md`
 - Discussion: `$state_dir/workstreams/{name}/{task-id}/discussion.md`

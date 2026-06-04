@@ -84,7 +84,7 @@ Check whether the working directory has no recognizable project file (`package.j
 
 **MANDATORY**: Create a structured pipeline state file at pipeline start. This is the single source of truth for pipeline state — it survives context compaction.
 
-The canonical write path is the per-task subdir layout: `$state_dir/{task-id}/pipeline.md` (workstream variant: `$state_dir/workstreams/{ws}/{task-id}/pipeline.md`). The legacy flat form `$state_dir/{task-id}-pipeline.md` is read-tolerated during the 90-day DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State) but MUST NOT be written by new pipelines.
+The canonical write path is the per-task subdir layout: `$state_dir/{task-id}/pipeline.md` (workstream variant: `$state_dir/workstreams/{ws}/{task-id}/pipeline.md`). When `state_dir` resolves to its default, this is `pipeline-state/{task-id}/pipeline.md` relative to HARNESS_DATA. The legacy flat form `$state_dir/{task-id}-pipeline.md` is read-tolerated during the 90-day DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State) but MUST NOT be written by new pipelines.
 
 ```
 pipeline-state/[feature-name]/pipeline.md

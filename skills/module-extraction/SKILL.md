@@ -60,6 +60,7 @@ Produces a written artifact that downstream phases and the Build pipeline consum
    - Grep for writes to state owned by OTHER modules (cross-boundary mutation — breaks extraction).
    - If either is present and cannot be resolved → return `EXTRACTION_BLOCKED: shared-state must be resolved first` with the specific state cited.
 6. **Write the artifact** to `$state_dir/{task-id}/boundary-analysis.md`.
+   Bare path relative to HARNESS_DATA: `pipeline-state/{task-id}/boundary-analysis.md`.
 
 ### Artifact Format
 
