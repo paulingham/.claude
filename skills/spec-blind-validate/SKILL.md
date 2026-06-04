@@ -30,6 +30,7 @@ The orchestrator hands the spawned agent these inputs in the prompt:
 | AC list | `pipeline-state/{task-id}/plan.md` § Acceptance Criteria (verbatim — NEVER the diff) |
 | Intake spec | `pipeline-state/{task-id}/intake.md` (user's verbatim spec) |
 | Recursion-guard precheck result | from `is_harness_internal_cwd` invocation in step 1 of § Process below |
+| AC form annotation | ACs may carry a `form:` tag (e.g. `form: ears-event`); an EARS clause maps trigger→arrange, response→assert; no read-model change — the verbatim AC line is still the oracle source |
 
 **The agent NEVER receives `git diff main...HEAD`.** That is the patch-critic's input, not this gate's. Independence from implementation is the design.
 

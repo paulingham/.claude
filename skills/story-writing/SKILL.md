@@ -44,6 +44,35 @@ For every AC, write a one-line test stub the build agent uses as the contract fo
 
 Stubs are dependency-ordered: foundational ACs first, composed ACs last. The build agent halts if any AC has no stub — no implementation begins without a complete stub list.
 
+### Acceptance Criteria Form
+
+Prefer EARS-notation ACs where the requirement is a trigger→response clause. Fall back to prose only for genuinely narrative ACs. Advisory-then-default: EARS preferred, not mandatory.
+
+**Five EARS forms** (with worked examples):
+
+| Form | Template | Worked Example |
+|------|----------|----------------|
+| **Ubiquitous** | `The system SHALL <response>.` | `The system SHALL reject passwords shorter than 8 characters.` |
+| **Event** | `WHEN <trigger> the system SHALL <response>.` | `WHEN a user submits an expired token the system SHALL return 401.` |
+| **State** | `WHILE <state> the system SHALL <response>.` | `WHILE the database connection is unavailable the system SHALL return 503.` |
+| **Unwanted** | `IF <condition> THEN the system SHALL <response>.` | `IF the payload exceeds 10 MB THEN the system SHALL reject with 413.` |
+| **Optional** | `WHERE <feature-flag> the system SHALL <response>.` | `WHERE dark-mode is enabled the system SHALL render backgrounds as #1a1a1a.` |
+
+**AC-line format** — when `spec-grounding` output is present, each AC carries a `form:` tag and a `[grounded:]` inline citation suffix:
+
+```
+- [ ] AC1 (form: ears-event): WHEN <trigger> the system SHALL <response> [grounded: path/to/file.py:14-28]
+- [ ] AC2 (form: prose): <assertion text> [grounded: gap]
+```
+
+The `form: ears-<type> | prose` label lets `spec-blind-validate` map the EARS clause trigger→arrange, response→assert without parsing prose. The `[grounded: citation]` suffix is a plain-text parenthetical — it survives verbatim reads. For unresolved citations, `[grounded: gap]` marks the AC so the architect must supply evidence.
+
+**Stub table Grounding Citation column** — when `spec-grounding` output is present, the failing-test stubs table gains a fourth column:
+
+| AC | Test File | Test Name | Assertion Intent | Grounding Citation |
+|----|-----------|-----------|------------------|--------------------|
+| AC1 | `tests/test_<feature>.py` | `test_<behavior>` | <assertion intent> | `skills/foo.py:14-28` |
+
 ### 5. Check Anti-Patterns
 
 Reject if:

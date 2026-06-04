@@ -201,6 +201,19 @@ Until Slice F flips `CLAUDE_PLAN_CACHE_MODE` to `shadow`, the resolver hard-defa
 
 Full wiring: `orchestrator/parallel-dispatch-details.md` § Plan Phase Dispatch (Stage 0).
 
+### Step 2c-ter: Spec-Grounding (Stage 0 of Plan Phase)
+
+After `PLAN_CACHE_MISS` from Step 2c-bis and BEFORE dispatching Stage 1 recon or Stage 2 architect, invoke `skills/spec-grounding/SKILL.md`. The skill spawns a spec-grounding subagent that:
+
+1. Reads raw ACs from `pipeline-state/{task-id}/intake.md`.
+2. Calls the Python helper (`skills/spec_grounding/_lib/grounding.ground_acs()`) — pure-Python pathlib/re traversal of the codebase (bounded: max 5000 files, max 1MB per file; skips `.git/`, `.claude/worktrees/`, binary files, OSError/UnicodeDecodeError files silently) plus guarded `recall.search()` (degrades to `[]` if DB absent).
+3. Writes `pipeline-state/{task-id}/spec-grounding.md` with EARS-tagged ACs and per-AC citations.
+4. Emits exactly one of:
+   - `GROUNDED` — all ACs resolved against codebase or recall evidence.
+   - `GROUNDING_GAPS` — one or more ACs have `[grounded: gap]`. **Non-blocking.** The pipeline falls through to Stage 1 recon + Stage 2 architect regardless. Gap ACs are listed in `spec-grounding.md` § Gaps; the architect reads this section and supplies citations for gap ACs in Artifact 2.
+
+**GROUNDING_GAPS is never a blocking verdict.** The architect proceeds whether the verdict is `GROUNDED` or `GROUNDING_GAPS`. Skip this step only on `PLAN_CACHE_HIT` — the cached plan already contains grounded ACs.
+
 ### Step 2d: Plan Validation Gate (ALL pipelines)
 
 After the architect produces a plan, validate it before proceeding to Build.

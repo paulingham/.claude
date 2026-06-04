@@ -71,7 +71,7 @@ design decisions are expensive to revisit.
 
 ## Pre-Drafting Recon (Read First)
 
-If `pipeline-state/{task-id}/architect-context.md` exists, Read it BEFORE drafting any part of the plan. It contains parallel recon findings produced by the `architect-context-recon` agents that ran before you:
+If `pipeline-state/{task-id}/architect-context.md` exists, Read it BEFORE drafting any part of the plan. It contains parallel recon findings produced by the `architect-context-recon` agents that ran before you. Also read `pipeline-state/{task-id}/spec-grounding.md` if present — contains EARS-grounded ACs and grounding citations for use in Artifact 2.
 
 - **Code archaeology** — prior implementations of similar functionality with file:line citations, fragile areas to avoid, naming conventions in use
 - **Memory mining** — challenger findings from prior pipelines on similar work, project memory, agent-memory entries

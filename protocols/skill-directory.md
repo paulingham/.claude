@@ -28,6 +28,7 @@ Verdict semantics for every entry below are defined in `protocols/verdict-catalo
 | `/harness:project-setup` | Scaffolding project-level CLAUDE.md | PROJECT_SETUP_COMPLETE |
 | `/harness:pipeline-resume` | Resume interrupted pipeline from state files | RESUMED |
 | `/harness:plan-self-validation` | Lightweight Plan Validation: architect re-reads its own plan against a structured holes-finding rubric. Used when `critical == false AND Budget < 7`; runs re-fingerprint sanity check on architect plan | PLAN_APPROVED / PLAN_HOLES / ROUTING_UPSHIFTED |
+| `/harness:spec-grounding` | Plan phase Stage 0 (Step 2c-ter) — dispatched by orchestrator after plan-cache lookup miss, before the architect runs. Grounds raw ACs against codebase evidence (pathlib/re traversal + `recall.search()` fallback). Writes `pipeline-state/{task-id}/spec-grounding.md` with EARS-tagged, citation-suffixed ACs. Non-blocking: GROUNDING_GAPS proceeds to architect with gaps flagged | GROUNDED / GROUNDING_GAPS |
 | `/harness:harness-config` | Modify hooks, settings.json, non-.md config | CONFIG_APPLIED |
 | `/harness:deploy` | CD phase: staging/production deploy with rollback | DEPLOYED / ROLLED_BACK |
 | `/harness:infra-scaffold` | Generate Dockerfile, docker-compose, CI/CD, health endpoints | INFRA_SCAFFOLDED |
