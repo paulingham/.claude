@@ -36,6 +36,25 @@ These files are destined for a standalone `Adviser-Group/org-defaults` repositor
 3. The console distributes the policy to all engineers on next session start.
 4. Engineers need `gh auth login` (one-time) before the bootstrap runs — see prerequisite below.
 
+## Release process (SHA-based versioning)
+
+`harness@adviser-group` uses **SHA-based versioning**. There is no `version` field in
+`.claude-plugin/plugin.json`. The plugin version is the git commit SHA of the local
+marketplace clone. No manual version bump in `plugin.json` is needed or permitted.
+
+**To release a new harness version:**
+
+1. Merge your changes to `main` in `Adviser-Group/.claude`.
+2. Re-paste `managed-settings.json` into the Anthropic enterprise console → Managed Settings.
+3. Engineers' next session start automatically `git pull`s the new SHA and runs
+   `claude plugin update` to sync the cache.
+
+**Rollback:** revert the commit on `main`; the next engineer session start syncs to the
+revert SHA automatically.
+
+**If you ever need to pin a specific version:** re-introduce `"version": "<sha>"` in
+`.claude-plugin/plugin.json`. Remove the pin when it is no longer needed.
+
 ## One-time engineer prerequisite: gh auth login
 
 The `SessionStart` bootstrap uses **system git** to clone the harness repo with a GitHub
