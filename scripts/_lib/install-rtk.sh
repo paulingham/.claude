@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install_rtk <os> — installs the rtk CLI token-optimization proxy.
+# install_rtk — installs the rtk CLI token-optimization proxy.
 # Install method order: curl universal installer -> cargo fallback -> brew last-resort.
 # Idempotent: no-op if rtk already on PATH.
 #

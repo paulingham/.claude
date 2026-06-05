@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install_node_via_manager <os> — installs Node LTS via an existing version
+# install_node_via_manager — installs Node LTS via an existing version
 # manager (nvm → fnm → mise → asdf) or installs nvm if none is found.
 # Idempotent: no-op if node already on PATH. NEVER uses Homebrew.
 #
