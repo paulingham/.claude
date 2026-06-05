@@ -93,7 +93,7 @@
             "command": "bash",
             "args": [
               "-lc",
-              "exec \"$HOME/.local/bin/hcom\" notify"
+              "h=\"$HOME/.local/bin/hcom\"; [ -x \"$h\" ] && exec \"$h\" notify || exit 0"
             ],
             "timeout": 10000
           }
@@ -108,7 +108,7 @@
             "command": "bash",
             "args": [
               "-lc",
-              "exec \"$HOME/.local/bin/hcom\" permission-request"
+              "h=\"$HOME/.local/bin/hcom\"; [ -x \"$h\" ] && exec \"$h\" permission-request || exit 0"
             ],
             "timeout": 10000
           }
@@ -342,7 +342,7 @@
             "command": "bash",
             "args": [
               "-lc",
-              "exec \"$HOME/.local/bin/hcom\" post"
+              "h=\"$HOME/.local/bin/hcom\"; [ -x \"$h\" ] && exec \"$h\" post || exit 0"
             ],
             "timeout": 86400
           }
@@ -798,7 +798,7 @@
             "command": "bash",
             "args": [
               "-lc",
-              "exec \"$HOME/.local/bin/hcom\" pre"
+              "h=\"$HOME/.local/bin/hcom\"; [ -x \"$h\" ] && exec \"$h\" pre || exit 0"
             ],
             "timeout": 10000
           }
@@ -839,7 +839,7 @@
             "command": "bash",
             "args": [
               "-lc",
-              "exec \"$HOME/.local/bin/hcom\" sessionend"
+              "h=\"$HOME/.local/bin/hcom\"; [ -x \"$h\" ] && exec \"$h\" sessionend || exit 0"
             ],
             "timeout": 10000
           }
@@ -995,7 +995,7 @@
             "command": "bash",
             "args": [
               "-lc",
-              "exec \"$HOME/.local/bin/hcom\" poll"
+              "h=\"$HOME/.local/bin/hcom\"; [ -x \"$h\" ] && exec \"$h\" poll || exit 0"
             ],
             "timeout": 86400
           }
@@ -1034,7 +1034,7 @@
             "command": "bash",
             "args": [
               "-lc",
-              "exec \"$HOME/.local/bin/hcom\" subagent-start"
+              "h=\"$HOME/.local/bin/hcom\"; [ -x \"$h\" ] && exec \"$h\" subagent-start || exit 0"
             ],
             "timeout": 10000
           }
@@ -1116,7 +1116,7 @@
             "command": "bash",
             "args": [
               "-lc",
-              "exec \"$HOME/.local/bin/hcom\" subagent-stop"
+              "h=\"$HOME/.local/bin/hcom\"; [ -x \"$h\" ] && exec \"$h\" subagent-stop || exit 0"
             ],
             "timeout": 86400
           }
@@ -1144,7 +1144,7 @@
             "command": "bash",
             "args": [
               "-lc",
-              "exec \"$HOME/.local/bin/hcom\" userpromptsubmit"
+              "h=\"$HOME/.local/bin/hcom\"; [ -x \"$h\" ] && exec \"$h\" userpromptsubmit || exit 0"
             ],
             "timeout": 10000
           }
