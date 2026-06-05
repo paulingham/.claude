@@ -55,7 +55,7 @@ _make_cargo_stub() {
   [[ "$output" == *"--git"* ]]
 }
 
-# ---------- FORCE_CURL_FAIL + FORCE_CARGO_FAIL + brew -> brew last-resort ----------
+# ---------- FORCE_CURL_FAIL + FORCE_CARGO_FAIL + brew -> brew last-resort (macOS only) ----------
 
 @test "install_rtk: FORCE_CURL_FAIL + FORCE_CARGO_FAIL + brew stub -> emits brew install rtk" {
   _make_brew_stub
@@ -63,6 +63,12 @@ _make_cargo_stub() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"brew"* ]]
   [[ "$output" == *"rtk"* ]]
+}
+
+@test "install_rtk: FORCE_CURL_FAIL + FORCE_CARGO_FAIL + brew stub + os=ubuntu -> does NOT use brew (rc 1)" {
+  _make_brew_stub
+  run bash -c "export CLAUDE_RTK_FORCE_CURL_FAIL=1; export CLAUDE_RTK_FORCE_CARGO_FAIL=1; export PATH='$TMP_DIR/bin:/usr/bin:/bin'; source '$LIB_DIR/install-rtk.sh'; install_rtk ubuntu"
+  [ "$status" -ne 0 ]
 }
 
 # ---------- all methods fail -> rc 1 ----------

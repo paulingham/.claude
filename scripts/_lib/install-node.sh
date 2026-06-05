@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# install_node_via_manager — installs Node LTS via an existing version
-# manager (nvm → fnm → mise → asdf) or installs nvm if none is found.
+# install_node_via_manager <os> — installs Node LTS via an existing version manager
+# (nvm → fnm → mise → asdf) or installs nvm if none is found.
 # Idempotent: no-op if node already on PATH. NEVER uses Homebrew.
+# <os> accepted for call-site symmetry; manager chain is OS-agnostic.
 #
 # nvm is a shell function defined in $NVM_DIR/nvm.sh — non-interactive bash
 # shells do NOT source ~/.bashrc, so the lib sources nvm.sh explicitly.
@@ -91,13 +92,13 @@ _node_install_via_asdf() {
 }
 
 _node_install_nvm_then_node() {
-  local cmd="curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/HEAD/install.sh | bash"
+  local cmd="curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/HEAD/install.sh | bash"
   local printer="${CLAUDE_NODE_PRINTER:-}"
   if [[ -n "$printer" ]]; then
     "$printer" "$cmd"
     return 0
   fi
-  eval "$cmd" || return 1
+  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/HEAD/install.sh | bash || return 1
   # Source the freshly-installed nvm.sh
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
   # shellcheck disable=SC1090
@@ -112,6 +113,7 @@ _node_install_nvm_then_node() {
 }
 
 install_node_via_manager() {
+  local os="${1:-}"
   _node_has_node && return 0
   [[ "${CLAUDE_NODE_FORCE_INSTALL_FAIL:-}" == "1" ]] && return 1
   if _node_has_nvm; then

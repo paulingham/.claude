@@ -38,3 +38,10 @@ setup() {
   # grep returns 1 when no match — that is the passing condition.
   [ "$status" -ne 0 ]
 }
+
+@test "L3.5 LSP block guards idempotency before calling ensure_lsp_servers" {
+  # setup.sh must check command_exists for both LSP binaries before calling
+  # ensure_lsp_servers — prevents mislabelling an already-installed state as 'installed'.
+  run grep -n 'typescript-language-server.*pyright\|command_exists typescript-language-server' "$SETUP"
+  [ "$status" -eq 0 ]
+}

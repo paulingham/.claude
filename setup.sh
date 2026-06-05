@@ -119,7 +119,7 @@ case "$(uname -s)" in
     else
       print_warning "brew not found -- some macOS tools (dippy, claude-devtools) will be skipped."
       print_warning "  Install Homebrew to enable them: https://brew.sh"
-      record_failed "brew (optional, macOS-only tools)"
+      SKIPPED+=("brew (optional, macOS-only tools)")
     fi
     ;;
   Linux)
@@ -275,7 +275,9 @@ fi
 echo ""
 echo "  LSP servers (typescript-language-server, pyright)..."
 if command_exists npm; then
-  if ensure_lsp_servers; then
+  if command_exists typescript-language-server && command_exists pyright; then
+    record_skipped "lsp-servers (typescript-language-server, pyright)"
+  elif ensure_lsp_servers; then
     record_installed "lsp-servers (typescript-language-server, pyright)"
   else
     record_failed "lsp-servers (npm install -g failed)"

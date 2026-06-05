@@ -27,7 +27,7 @@ _lsp_install_pkg() {
     "$printer" "$cmd"
     return 0
   fi
-  eval "$cmd"
+  npm install -g "$pkg"
 }
 
 ensure_lsp_servers() {

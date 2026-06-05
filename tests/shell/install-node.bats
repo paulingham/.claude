@@ -144,35 +144,38 @@ FNM
 # ---------- NVM_BIN unset after nvm use -> PATH export via fallback ----------
 
 @test "install_node_via_manager: nvm present + NVM_BIN unset after use -> PATH-export via nvm-which fallback" {
-  # Create stub NVM_DIR where nvm use does NOT set NVM_BIN
+  # This test exercises the real (non-PRINTER) branch of _node_install_via_nvm.
+  # The stub nvm.sh defines nvm as a real function: install/use succeed without
+  # setting NVM_BIN, and 'which current' returns a known path so the fallback
+  # block runs.  No PRINTER is set so the guard-clause short-circuit is skipped.
   local nvm_no_bin_dir="$TMP_DIR/nvm_no_bin"
-  mkdir -p "$nvm_no_bin_dir"
-  cat > "$nvm_no_bin_dir/nvm.sh" <<'NVMSTUB2'
+  local fake_bin="$TMP_DIR/fake_bin"
+  mkdir -p "$nvm_no_bin_dir" "$fake_bin"
+  # Place a stub node in fake_bin so the PATH export is testable
+  printf '#!/bin/sh\necho "fake-node"\n' > "$fake_bin/node"
+  chmod +x "$fake_bin/node"
+  # nvm stub: install and use succeed; which returns the fake_bin path; NVM_BIN never set
+  cat > "$nvm_no_bin_dir/nvm.sh" <<NVMSTUB2
 nvm() {
-  local printer="${CLAUDE_NODE_PRINTER:-}"
-  if [[ -n "$printer" ]]; then
-    "$printer" "nvm $*"
-    # Deliberately do NOT set NVM_BIN after 'use' to test fallback
-    if [[ "$1" == "which" ]]; then
-      # Simulate 'nvm which current' returning a path
-      echo "/fake/nvm/node/bin/node"
-    fi
-    return 0
-  fi
-  echo "nvm $*"
+  case "\$1" in
+    install) return 0 ;;
+    use)     return 0 ;;
+    which)   echo "$fake_bin/node" ;;
+    *)       return 0 ;;
+  esac
 }
-export -f nvm 2>/dev/null || true
 NVMSTUB2
   run bash -c "
-    export CLAUDE_NODE_PRINTER=echo
     export CLAUDE_NODE_FORCE_NVM_PRESENT=1
     export NVM_DIR='$nvm_no_bin_dir'
     export PATH='/nowhere:/usr/bin:/bin'
     unset NVM_BIN
     source '$LIB_DIR/install-node.sh'
     install_node_via_manager macos
+    echo \"PATH_CONTAINS::\$PATH\"
   "
   [ "$status" -eq 0 ]
-  # Should still complete (fallback path attempted)
-  [[ "$output" == *"nvm"* ]]
+  # The fallback block should have prepended fake_bin to PATH
+  [[ "$output" == *"PATH_CONTAINS::"* ]]
+  [[ "$output" == *"$fake_bin"* ]]
 }
