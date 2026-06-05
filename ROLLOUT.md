@@ -154,6 +154,10 @@ string in `plugin.json`. This means:
   the old bootstrap will `git pull` new code but never call `plugin update`, leaving their
   cache frozen.
 
+The security of this mechanism depends on `main` being branch-protected (required PR reviews,
+no direct pushes) — a compromise of `main` is equivalent to org-wide code execution on next
+restart.
+
 Logs: `~/.claude/logs/harness-bootstrap.log`. If engineers report stale harness despite
 restarts, check the log for `plugin marketplace update` and `plugin update` lines. If those
 lines are absent or show a CLI error, the `claude` binary may be too old — upgrade Claude
@@ -169,8 +173,9 @@ Code CLI on the affected machine.
      then stripped from the stored remote, so it is never persisted to `.git/config`;
    - `claude plugin marketplace add <that directory>` (a **directory** source);
    - `claude plugin install harness@adviser-group`.
-3. Subsequent sessions `git pull` to update, then exit silently (idempotent — guarded by
-   `~/.claude/.adviser-harness-installed`).
+3. Subsequent sessions `git pull` to update, then run `claude plugin marketplace update` and
+   `claude plugin update harness@adviser-group` to sync the plugin cache, then exit silently
+   (idempotent — guarded by `~/.claude/.adviser-harness-installed`).
 4. If the harness is still absent at `PreToolUse` time, a nudge fires (see
    Self-remediation).
 

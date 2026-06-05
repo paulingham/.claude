@@ -310,6 +310,9 @@ def test_managed_settings_bootstrap_contains_plugin_update_commands():
     AC-2: The bootstrap must call 'claude plugin marketplace update adviser-group' and
     'claude plugin update harness@adviser-group' so each session syncs the plugin cache
     to the latest git SHA pulled by the preceding 'git pull'.
+
+    Note: this test checks only the template copy; the repo-root copy is guarded by
+    test_template_managed_settings_matches_repo_root_managed_settings (AC-6 byte-parity).
     """
     data = json.loads(MANAGED_SETTINGS_FILE.read_text())
     hooks = data.get("hooks", {})
