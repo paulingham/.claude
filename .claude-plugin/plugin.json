@@ -1,6 +1,5 @@
 {
   "name": "harness",
-  "version": "1.1.0",
   "description": "Adviser Group Claude Code harness — pipeline orchestration, specialized agents, and engineering-discipline hooks.",
   "author": { "name": "Adviser Group Platform Engineering", "email": "platform-eng@aberdeenplc.com" },
   "homepage": "https://github.com/Adviser-Group/.claude",

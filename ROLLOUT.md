@@ -1,5 +1,10 @@
 # Enterprise Rollout
 
+> **After every merge to `main`:** re-paste `templates/org-defaults/managed-settings.json`
+> into the Anthropic enterprise console → Managed Settings. The console distributes the
+> updated bootstrap to all engineers automatically — no per-engineer action needed.
+> See [§ How updates propagate](#how-updates-propagate).
+
 How this harness gets onto engineer Macs via the Claude Code plugin system.
 
 > **Why this is not a vanilla `github` marketplace.** Claude Code's built-in plugin
@@ -132,6 +137,28 @@ Roll out in two stages to catch issues before org-wide deployment.
   is absent — but the nudge does not fire before the first edit. Engineers must run
   `gh auth login` once before the bootstrap succeeds.
 
+## How updates propagate
+
+The harness uses **SHA-based versioning**: the installed plugin version is the git commit
+SHA of the `~/.claude/local-marketplaces/adviser-group` clone, not an explicit version
+string in `plugin.json`. This means:
+
+- Every merge to `main` in `Adviser-Group/.claude` is immediately a new version.
+- No manual version bump in `plugin.json` is needed or permitted.
+- On each session start the bootstrap runs `git pull` (advancing the clone's HEAD SHA)
+  then `claude plugin marketplace update adviser-group` + `claude plugin update harness@adviser-group`,
+  which re-syncs the plugin cache to the new SHA.
+- **Rollback**: revert the commit on `main` — the next session start syncs to the revert SHA.
+- **Admin action required after each release**: re-paste `templates/org-defaults/managed-settings.json`
+  into the Anthropic enterprise console → Managed Settings. Without this step, engineers on
+  the old bootstrap will `git pull` new code but never call `plugin update`, leaving their
+  cache frozen.
+
+Logs: `~/.claude/logs/harness-bootstrap.log`. If engineers report stale harness despite
+restarts, check the log for `plugin marketplace update` and `plugin update` lines. If those
+lines are absent or show a CLI error, the `claude` binary may be too old — upgrade Claude
+Code CLI on the affected machine.
+
 ## How installation works
 
 1. The enterprise console pushes `managed-settings.json` to every engineer.
@@ -175,7 +202,7 @@ claude plugin details harness@adviser-group
 Expected:
 
 ```
-Status: ✔ enabled        Version: 1.1.0
+Status: ✔ enabled        Version: <commit-sha>
 Skills (65)  Agents (19)  Hooks (14)  MCP servers (4)
 ```
 

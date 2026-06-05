@@ -4,6 +4,11 @@ AC-B1a: settings.json is valid JSON, has enabledPlugins, no extraKnownMarketplac
 AC-B1b: managed-settings.json has no secrets and uses local-directory install
 AC-B1c: managed-settings.json PreToolUse permissionDecisionReason contains exact nudge strings
 AC-B1g: README.md documents promotion path, Desktop gap, gh auth prerequisite
+AC-1: plugin.json has no version key (SHA-based versioning)
+AC-2: both managed-settings SessionStart commands contain plugin update substrings
+AC-4: ROLLOUT.md contains re-paste callout, SHA, and plugin update references
+AC-5: README contains SHA-versioning release section
+AC-7: ROLLOUT.md does NOT contain literal "Version: 1.1.0"
 """
 import json
 import re
@@ -16,6 +21,8 @@ TEMPLATES_DIR = REPO_ROOT / "templates" / "org-defaults"
 SETTINGS_FILE = TEMPLATES_DIR / "settings.json"
 MANAGED_SETTINGS_FILE = TEMPLATES_DIR / "managed-settings.json"
 README_FILE = TEMPLATES_DIR / "README.md"
+PLUGIN_JSON_FILE = REPO_ROOT / ".claude-plugin" / "plugin.json"
+ROLLOUT_MD_FILE = REPO_ROOT / "ROLLOUT.md"
 
 
 # ---------------------------------------------------------------------------
@@ -271,4 +278,116 @@ def test_managed_settings_bootstrap_set_url_redirect_is_adjacent():
         "git remote set-url origin must be immediately followed by '>/dev/null 2>&1' "
         "on the same command (not just a >/dev/null somewhere else in the blob). "
         "This prevents the tokenized URL from leaking into harness-bootstrap.log."
+    )
+
+
+# ---------------------------------------------------------------------------
+# AC-1: plugin.json has no version key (SHA-based versioning)
+# ---------------------------------------------------------------------------
+
+def test_plugin_json_has_no_version_field():
+    """plugin.json must NOT contain a 'version' key; SHA-based versioning is automatic.
+
+    AC-1: Removing the version field causes Claude Code to use the git commit SHA of the
+    local-marketplace clone as the cache key.  An explicit version freezes the cache.
+    """
+    assert PLUGIN_JSON_FILE.exists(), ".claude-plugin/plugin.json must exist"
+    data = json.loads(PLUGIN_JSON_FILE.read_text())
+    assert "version" not in data, (
+        "plugin.json must NOT contain a 'version' key. "
+        "SHA-based versioning is automatic when the version field is absent. "
+        f"Found: version={data.get('version')!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# AC-2: managed-settings.json SessionStart contains plugin update commands
+# ---------------------------------------------------------------------------
+
+def test_managed_settings_bootstrap_contains_plugin_update_commands():
+    """managed-settings.json SessionStart hook must contain both plugin update substrings.
+
+    AC-2: The bootstrap must call 'claude plugin marketplace update adviser-group' and
+    'claude plugin update harness@adviser-group' so each session syncs the plugin cache
+    to the latest git SHA pulled by the preceding 'git pull'.
+    """
+    data = json.loads(MANAGED_SETTINGS_FILE.read_text())
+    hooks = data.get("hooks", {})
+    session_start = hooks.get("SessionStart", [])
+    assert len(session_start) > 0, "managed-settings.json must have SessionStart hooks"
+    all_commands = []
+    for hook_group in session_start:
+        for hook in hook_group.get("hooks", []):
+            cmd = hook.get("command", "")
+            all_commands.append(cmd)
+    combined = " ".join(all_commands)
+    assert "plugin marketplace update adviser-group" in combined, (
+        "SessionStart bootstrap must contain 'plugin marketplace update adviser-group' "
+        "to sync marketplace metadata after git pull."
+    )
+    assert "plugin update harness@adviser-group" in combined, (
+        "SessionStart bootstrap must contain 'plugin update harness@adviser-group' "
+        "to update the plugin cache to the new SHA."
+    )
+
+
+# ---------------------------------------------------------------------------
+# AC-4: ROLLOUT.md contains re-paste callout, SHA, and plugin update references
+# ---------------------------------------------------------------------------
+
+def test_rollout_md_contains_propagation_note():
+    """ROLLOUT.md must contain re-paste callout, SHA reference, and plugin update text.
+
+    AC-4: Documents the admin action required after each merge and explains SHA-based
+    update propagation so admins know what triggers engineer updates.
+    """
+    assert ROLLOUT_MD_FILE.exists(), "ROLLOUT.md must exist"
+    content = ROLLOUT_MD_FILE.read_text()
+    assert "re-paste" in content.lower(), (
+        "ROLLOUT.md must contain 're-paste' (case-insensitive) to instruct admins "
+        "to re-paste managed-settings.json after every merge."
+    )
+    assert "SHA" in content, (
+        "ROLLOUT.md must contain 'SHA' to document SHA-based versioning."
+    )
+    assert "plugin update" in content, (
+        "ROLLOUT.md must contain 'plugin update' to document the update mechanism."
+    )
+
+
+# ---------------------------------------------------------------------------
+# AC-5: templates/org-defaults/README.md contains SHA-versioning release section
+# ---------------------------------------------------------------------------
+
+def test_readme_documents_sha_versioning():
+    """templates/org-defaults/README.md must contain SHA-based versioning and Release process sections.
+
+    AC-5: Provides engineers and release managers with clear instructions for releasing
+    new harness versions under SHA-based versioning (no manual plugin.json version bump).
+    """
+    content = README_FILE.read_text()
+    assert "SHA-based versioning" in content, (
+        "README.md must contain 'SHA-based versioning' to document the release model."
+    )
+    assert "Release process" in content, (
+        "README.md must contain a 'Release process' section heading."
+    )
+
+
+# ---------------------------------------------------------------------------
+# AC-7: ROLLOUT.md does NOT contain literal "Version: 1.1.0"
+# ---------------------------------------------------------------------------
+
+def test_rollout_md_version_snippet_updated():
+    """ROLLOUT.md must NOT contain the literal string 'Version: 1.1.0'.
+
+    AC-7: The verification expected-output block in ROLLOUT.md must be updated to show
+    a SHA version placeholder (<commit-sha>) rather than the now-stale pinned version.
+    Presence of 'Version: 1.1.0' would mislead engineers about expected output.
+    """
+    assert ROLLOUT_MD_FILE.exists(), "ROLLOUT.md must exist"
+    content = ROLLOUT_MD_FILE.read_text()
+    assert "Version: 1.1.0" not in content, (
+        "ROLLOUT.md must NOT contain the literal 'Version: 1.1.0'. "
+        "Update the verification snippet to show 'Version: <commit-sha>' instead."
     )
