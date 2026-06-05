@@ -70,9 +70,10 @@ teardown() {
 # ---------------------------------------------------------------------------
 
 @test "AC5.1 no coupling outside allowlist files" {
-  # Allowlist: the 2 new files, the 2 protocol docs, the SKILL stanza
-  # Everything else must not reference phase-boundary-compress
-  ALLOWLIST=(
+  # Allowlist: exact absolute paths that ARE permitted to reference phase-boundary-compress.
+  # We grep for all matches first, then post-filter out the exact allowed paths.
+  # This catches coupling sneaked into any other SKILL.md or any other file.
+  ALLOWLIST_EXACT=(
     "$REPO_ROOT/hooks/phase-boundary-compress.sh"
     "$REPO_ROOT/hooks/_lib/phase_boundary_tokens.py"
     "$REPO_ROOT/protocols/pipeline-protocol.md"
@@ -82,23 +83,24 @@ teardown() {
     "$REPO_ROOT/tests/test_phase_boundary_tokens.py"
   )
 
-  # Build grep exclusion args
-  GREP_ARGS=()
-  for f in "${ALLOWLIST[@]}"; do
-    GREP_ARGS+=("--exclude=$(basename "$f")")
-  done
-
-  # grep -rl in the repo root, excluding allowlist basenames
-  result=$(grep -rl "phase-boundary-compress" "$REPO_ROOT" \
+  # Collect all matching files (full paths)
+  all_matches=$(grep -rl "phase-boundary-compress" "$REPO_ROOT" \
     --include="*.sh" \
     --include="*.py" \
     --include="*.md" \
     --include="*.bats" \
-    "${GREP_ARGS[@]}" 2>/dev/null || true)
+    2>/dev/null || true)
 
-  [ -z "$result" ] || {
-    echo "Unexpected coupling found:"
-    echo "$result"
+  # Remove each allowlisted path from the match list
+  remaining="$all_matches"
+  for allowed in "${ALLOWLIST_EXACT[@]}"; do
+    remaining=$(printf '%s\n' "$remaining" | grep -vxF "$allowed" || true)
+  done
+
+  # Anything left is unexpected coupling
+  [ -z "$remaining" ] || {
+    echo "Unexpected coupling found outside allowlist:"
+    echo "$remaining"
     false
   }
 }

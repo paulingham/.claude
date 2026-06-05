@@ -198,3 +198,182 @@ class TestEmitOneRecord:
             out = os.path.join(tmpdir, "phase-boundary.jsonl")
             lines = Path(out).read_text().strip().splitlines()
             assert len(lines) == 2
+
+
+# ---------------------------------------------------------------------------
+# Fix 1 (CRITICAL) — AC-prefix false-positive: non-criterion items must be kept
+# ---------------------------------------------------------------------------
+
+class TestExtractFindingsAcPrefix:
+    def test_acme_finding_is_kept(self):
+        """'- ACME deploy failed' is NOT an AC criterion — must be kept as a finding."""
+        from phase_boundary_tokens import compress_handoff
+        doc = """\
+## Goal
+
+Test goal.
+
+## Key Findings
+
+- ACME deploy failed in staging.
+- AC reconciliation broke the pipeline.
+- Finding C is fine.
+- Finding D is fine.
+- Finding E is fine.
+- Finding F is fine.
+"""
+        result = compress_handoff(doc, n=5)
+        # With 6 findings, n=5: first finding elided, last 5 kept.
+        # "ACME deploy failed" is finding 1 → summarized; all others kept.
+        # The key assertion: the function must NOT silently drop ACME/ACr lines.
+        # Findings 2-6 should appear verbatim.
+        assert "AC reconciliation broke the pipeline." in result
+        assert "Finding C is fine." in result
+        assert "Finding D is fine." in result
+        assert "Finding E is fine." in result
+        assert "Finding F is fine." in result
+
+    def test_ac_digit_criterion_excluded_from_findings(self):
+        """'- AC1: ...' IS a criterion line and must NOT appear as a finding."""
+        from phase_boundary_tokens import _extract_findings
+        lines = [
+            "## Key Findings",
+            "",
+            "- AC1: This is an acceptance criterion.",
+            "- AC2: Another criterion.",
+            "- Real finding here.",
+        ]
+        findings = _extract_findings(lines)
+        texts = "\n".join(findings)
+        assert "AC1:" not in texts
+        assert "AC2:" not in texts
+        assert "Real finding here." in texts
+
+    def test_non_digit_ac_prefix_kept_as_finding(self):
+        """'- ACme thing' and '- AC reconciliation' are findings, not criteria."""
+        from phase_boundary_tokens import _extract_findings
+        lines = [
+            "## Key Findings",
+            "",
+            "- ACME thing broke.",
+            "- AC reconciliation failed.",
+            "- Normal finding.",
+        ]
+        findings = _extract_findings(lines)
+        texts = "\n".join(findings)
+        assert "ACME thing broke." in texts
+        assert "AC reconciliation failed." in texts
+        assert "Normal finding." in texts
+
+
+# ---------------------------------------------------------------------------
+# Fix 2 (CRITICAL) — Verbatim round-trip: blank lines between findings preserved
+# ---------------------------------------------------------------------------
+
+HANDOFF_WITH_BLANK_LINES = """\
+## Goal
+
+Goal text here.
+
+## Key Findings
+
+- Finding 1: first.
+
+- Finding 2: second.
+
+- Finding 3: third.
+
+- Finding 4: fourth.
+
+- Finding 5: fifth.
+
+- Finding 6: sixth.
+"""
+
+
+class TestVerbatimRoundTrip:
+    def test_kept_findings_are_byte_identical(self):
+        """Last-N findings must be byte-identical (including surrounding blank lines)."""
+        from phase_boundary_tokens import compress_handoff
+        result = compress_handoff(HANDOFF_WITH_BLANK_LINES, n=5)
+        # findings 2-6 are the kept last-5; verify each appears verbatim
+        assert "- Finding 2: second." in result
+        assert "- Finding 3: third." in result
+        assert "- Finding 4: fourth." in result
+        assert "- Finding 5: fifth." in result
+        assert "- Finding 6: sixth." in result
+
+    def test_blank_lines_between_kept_findings_preserved(self):
+        """Blank lines separating kept findings must survive compression."""
+        from phase_boundary_tokens import compress_handoff
+        result = compress_handoff(HANDOFF_WITH_BLANK_LINES, n=5)
+        # Each pair of adjacent kept findings should still be separated by a blank line
+        assert "- Finding 2: second.\n\n- Finding 3: third." in result
+
+
+# ---------------------------------------------------------------------------
+# Fix 3 (HIGH) — goal_retained must be computed, not hardcoded True
+# ---------------------------------------------------------------------------
+
+class TestGoalRetainedComputed:
+    def test_goal_retained_true_when_goal_present(self):
+        """When the doc has a goal block that survives compression, goal_retained=True."""
+        from phase_boundary_tokens import main
+        with tempfile.TemporaryDirectory() as tmpdir:
+            argv = [
+                "phase_boundary_tokens.py",
+                tmpdir,
+                "2026-06-05T12:00:00Z",
+                "build",
+                "security-review",
+                HANDOFF_DOC,
+            ]
+            main(argv)
+            rec = json.loads(Path(tmpdir, "phase-boundary.jsonl").read_text().strip())
+            assert rec["goal_retained"] is True
+
+    def test_goal_retained_false_when_no_goal_block(self):
+        """When the doc has NO ## Goal section, goal_retained=False."""
+        from phase_boundary_tokens import main
+        no_goal_doc = """\
+## Key Findings
+
+- Finding 1.
+- Finding 2.
+- Finding 3.
+- Finding 4.
+- Finding 5.
+- Finding 6.
+"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            argv = [
+                "phase_boundary_tokens.py",
+                tmpdir,
+                "2026-06-05T12:00:00Z",
+                "build",
+                "security-review",
+                no_goal_doc,
+            ]
+            main(argv)
+            rec = json.loads(Path(tmpdir, "phase-boundary.jsonl").read_text().strip())
+            assert rec["goal_retained"] is False
+
+    def test_build_record_accepts_goal_retained_param(self):
+        """build_record must accept and store a computed goal_retained value."""
+        from phase_boundary_tokens import build_record
+        rec_true = build_record("ts", "a", "b", 100, 50, 5, goal_retained=True)
+        rec_false = build_record("ts", "a", "b", 100, 50, 5, goal_retained=False)
+        assert rec_true["goal_retained"] is True
+        assert rec_false["goal_retained"] is False
+
+
+# ---------------------------------------------------------------------------
+# Fix 6 (cheap) — wrong argc logs to stderr, still returns 0
+# ---------------------------------------------------------------------------
+
+class TestWrongArgcLogsStderr:
+    def test_wrong_argc_emits_stderr_warning(self, capsys):
+        from phase_boundary_tokens import main
+        main(["phase_boundary_tokens.py"])  # only 1 arg, expects 6
+        captured = capsys.readouterr()
+        assert "usage" in captured.err.lower() or "expected" in captured.err.lower() or "argc" in captured.err.lower() or captured.err != ""
