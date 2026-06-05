@@ -148,17 +148,25 @@ Short goal.
 # AC3 — One JSONL record per boundary with the agreed schema
 # ---------------------------------------------------------------------------
 
+def _write_handoff(directory, content=HANDOFF_DOC):
+    """Write content to a temp handoff file and return its path string."""
+    p = Path(directory) / "handoff.md"
+    p.write_text(content, encoding="utf-8")
+    return str(p)
+
+
 class TestEmitOneRecord:
     def test_emit_one_record(self):
         from phase_boundary_tokens import main
         with tempfile.TemporaryDirectory() as tmpdir:
+            handoff_path = _write_handoff(tmpdir)
             argv = [
                 "phase_boundary_tokens.py",
                 tmpdir,               # metrics_dir
                 "2026-06-05T12:00:00Z",  # ts
                 "build",              # phase_from
                 "security-review",    # phase_to
-                HANDOFF_DOC,          # doc (raw phase notes = tokens_before source)
+                handoff_path,         # path to handoff file (not content)
             ]
             main(argv)
             out = os.path.join(tmpdir, "phase-boundary.jsonl")
@@ -176,6 +184,21 @@ class TestEmitOneRecord:
             assert isinstance(rec["last_n_full"], int)
             assert rec["mode"] == "advisory"
 
+    def test_missing_handoff_file_returns_0_without_crash(self):
+        """Non-existent handoff path must return 0 (advisory: never crash pipeline)."""
+        from phase_boundary_tokens import main
+        with tempfile.TemporaryDirectory() as tmpdir:
+            argv = [
+                "phase_boundary_tokens.py",
+                tmpdir,
+                "2026-06-05T12:00:00Z",
+                "build",
+                "security-review",
+                "/nonexistent/path/handoff.md",
+            ]
+            result = main(argv)
+            assert result == 0
+
     def test_wrong_arg_count_does_not_crash(self):
         from phase_boundary_tokens import main
         # Should return 0 without raising
@@ -185,13 +208,14 @@ class TestEmitOneRecord:
     def test_two_calls_append_two_lines(self):
         from phase_boundary_tokens import main
         with tempfile.TemporaryDirectory() as tmpdir:
+            handoff_path = _write_handoff(tmpdir)
             base_argv = [
                 "phase_boundary_tokens.py",
                 tmpdir,
                 "2026-06-05T12:00:00Z",
                 "build",
                 "security-review",
-                HANDOFF_DOC,
+                handoff_path,
             ]
             main(base_argv)
             main(base_argv)
@@ -320,13 +344,14 @@ class TestGoalRetainedComputed:
         """When the doc has a goal block that survives compression, goal_retained=True."""
         from phase_boundary_tokens import main
         with tempfile.TemporaryDirectory() as tmpdir:
+            handoff_path = _write_handoff(tmpdir)
             argv = [
                 "phase_boundary_tokens.py",
                 tmpdir,
                 "2026-06-05T12:00:00Z",
                 "build",
                 "security-review",
-                HANDOFF_DOC,
+                handoff_path,
             ]
             main(argv)
             rec = json.loads(Path(tmpdir, "phase-boundary.jsonl").read_text().strip())
@@ -346,13 +371,14 @@ class TestGoalRetainedComputed:
 - Finding 6.
 """
         with tempfile.TemporaryDirectory() as tmpdir:
+            handoff_path = _write_handoff(tmpdir, no_goal_doc)
             argv = [
                 "phase_boundary_tokens.py",
                 tmpdir,
                 "2026-06-05T12:00:00Z",
                 "build",
                 "security-review",
-                no_goal_doc,
+                handoff_path,
             ]
             main(argv)
             rec = json.loads(Path(tmpdir, "phase-boundary.jsonl").read_text().strip())

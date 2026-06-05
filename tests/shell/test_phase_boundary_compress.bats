@@ -69,6 +69,56 @@ teardown() {
 # AC5 — Self-contained: no references outside the allowlist
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Security Fix 1 — SESSION_ID sanitization: path-traversal prevention
+# ---------------------------------------------------------------------------
+
+@test "SEC1.1 crafted session-id with ../ does not escape metrics tree" {
+  unset CLAUDE_DISABLE_PHASE_BOUNDARY_COMPRESS
+  # A crafted session id that would attempt path traversal
+  export CLAUDE_SESSION_ID="../../evil"
+  run "$HOOK" "build" "security-review"
+  [ "$status" -eq 0 ]
+  # The metrics file must NOT appear at the traversal target
+  [ ! -f "$CLAUDE_PLUGIN_DATA/evil/phase-boundary.jsonl" ]
+  [ ! -f "$TMP/evil/phase-boundary.jsonl" ]
+  # And no file should exist outside the CLAUDE_PLUGIN_DATA/metrics/ subtree
+  evil_file=$(find "$TMP" -name "phase-boundary.jsonl" \
+    ! -path "$CLAUDE_PLUGIN_DATA/metrics/*" 2>/dev/null || true)
+  [ -z "$evil_file" ] || {
+    echo "File written outside metrics tree: $evil_file"
+    false
+  }
+}
+
+@test "SEC1.2 sanitized session-id still produces a metrics file under metrics tree" {
+  unset CLAUDE_DISABLE_PHASE_BOUNDARY_COMPRESS
+  export CLAUDE_SESSION_ID="../../evil"
+  run "$HOOK" "build" "security-review"
+  [ "$status" -eq 0 ]
+  # Some file must have been written somewhere under metrics/
+  found=$(find "$CLAUDE_PLUGIN_DATA/metrics" -name "phase-boundary.jsonl" 2>/dev/null || true)
+  [ -n "$found" ] || {
+    echo "No phase-boundary.jsonl found under metrics tree after sanitization"
+    false
+  }
+}
+
+@test "SEC1.3 all-slash session-id falls back to local-PID safe default" {
+  unset CLAUDE_DISABLE_PHASE_BOUNDARY_COMPRESS
+  export CLAUDE_SESSION_ID="///"
+  run "$HOOK" "build" "security-review"
+  [ "$status" -eq 0 ]
+  # Must not have written outside the metrics tree
+  evil_file=$(find "$TMP" -name "phase-boundary.jsonl" \
+    ! -path "$CLAUDE_PLUGIN_DATA/metrics/*" 2>/dev/null || true)
+  [ -z "$evil_file" ] || { echo "Escape: $evil_file"; false; }
+}
+
+# ---------------------------------------------------------------------------
+# AC5 — Self-contained: no references outside the allowlist
+# ---------------------------------------------------------------------------
+
 @test "AC5.1 no coupling outside allowlist files" {
   # Allowlist: exact absolute paths that ARE permitted to reference phase-boundary-compress.
   # We grep for all matches first, then post-filter out the exact allowed paths.

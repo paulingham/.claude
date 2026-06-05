@@ -4,9 +4,12 @@
 Implements the CAT (arXiv:2512.22087) measure+enforce-handoff step.
 
 Args (positional):
-  metrics_dir  ts  phase_from  phase_to  doc
+  metrics_dir  ts  phase_from  phase_to  handoff_path
 
-Where doc is the raw phase state-file body (tokens_before source per R2).
+Where handoff_path is the path to the completed phase's state file on disk
+(tokens_before source per R2).  The file is read inside this process to avoid
+ARG_MAX/E2BIG limits that arise when passing large document content via argv.
+A missing or unreadable file returns 0 silently (advisory mode).
 
 Emits one JSONL record to {metrics_dir}/phase-boundary.jsonl.
 Advisory mode only: does NOT rewrite the handoff file.
@@ -172,7 +175,11 @@ def build_record(ts, phase_from, phase_to, tokens_before, tokens_after, last_n,
 
 def main(argv):
     """Entry point. argv[1]=metrics_dir, argv[2]=ts, argv[3]=phase_from,
-    argv[4]=phase_to, argv[5]=doc.
+    argv[4]=phase_to, argv[5]=handoff_path (path to state file, read internally).
+
+    Reads the handoff file from disk rather than accepting content via argv to
+    avoid ARG_MAX/E2BIG limits on large documents.  A missing or unreadable
+    file returns 0 silently (advisory mode: never block the pipeline).
     """
     if len(argv) != _EXPECTED_ARGC:
         print(
@@ -181,7 +188,8 @@ def main(argv):
         )
         return 0
     try:
-        _, metrics_dir, ts, phase_from, phase_to, doc = argv
+        _, metrics_dir, ts, phase_from, phase_to, handoff_path = argv
+        doc = Path(handoff_path).read_text(encoding="utf-8") if handoff_path else ""
         tokens_before = count_tokens(doc)
         compressed = compress_handoff(doc, n=_DEFAULT_N)
         tokens_after = count_tokens(compressed)

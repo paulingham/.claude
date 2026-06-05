@@ -25,17 +25,19 @@ PHASE_TO="${2:-unknown}"
 HANDOFF_FILE="${3:-}"
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "1970-01-01T00:00:00Z")"
 SESSION_ID="${CLAUDE_SESSION_ID:-default}"
+
+# Sanitize SESSION_ID: allow only alphanumerics, hyphens, underscores.
+# Any other character (including '/') is replaced with '_'.
+# Mirror: hooks/_lib/cost-helpers.sh:26, hooks/reflect-token-emit.sh:28
+SESSION_ID="${SESSION_ID//[^A-Za-z0-9_-]/_}"
+[[ -z "$SESSION_ID" || "$SESSION_ID" =~ ^_+$ ]] && SESSION_ID="local-$$"
+
 METRICS_DIR="${HARNESS_DATA}/metrics/${SESSION_ID}"
 
-# Read handoff document: prefer explicit file arg, else empty string
-DOC=""
-if [[ -n "$HANDOFF_FILE" && -f "$HANDOFF_FILE" ]]; then
-    DOC="$(cat "$HANDOFF_FILE")"
-fi
-
-# Invoke Python helper (advisory — never fails the pipeline)
+# Invoke Python helper with the handoff FILE PATH (not content) to avoid
+# ARG_MAX/E2BIG limits on large documents. Python reads the file internally.
 python3 "${HOOK_DIR}/_lib/phase_boundary_tokens.py" \
-    "$METRICS_DIR" "$TS" "$PHASE_FROM" "$PHASE_TO" "$DOC" 2>/dev/null || true
+    "$METRICS_DIR" "$TS" "$PHASE_FROM" "$PHASE_TO" "${HANDOFF_FILE}" 2>/dev/null || true
 
 echo "phase-boundary: advisory measurement recorded (${PHASE_FROM} → ${PHASE_TO})" >&2
 
