@@ -5,12 +5,11 @@
 
 set -uo pipefail
 
-# Source the bootstrap libs: detect-os.sh provides the canonical OS identifier,
-# dippy-gate.sh decides whether dippy + claude-devtools install based on
-# (OS, CLAUDE_REQUIRE_DIPPY). Both libs ship in this tree; their absence is a
-# packaging bug, so fail fast with a clear diagnostic rather than falling
-# through to undefined functions (which would silently skip on every OS,
-# contradicting the Mac-only default).
+# Source the bootstrap libs: detect-os.sh provides the canonical OS identifier;
+# dippy-gate.sh / rtk-gate.sh decide install gating; install-rtk.sh /
+# install-node.sh / install-lsp-servers.sh provide the cross-platform installers.
+# All libs ship in this tree; their absence is a packaging bug, so fail fast with
+# a clear diagnostic rather than falling through to undefined functions.
 _SETUP_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1091
 source "$_SETUP_DIR/scripts/_lib/detect-os.sh" || {
@@ -35,6 +34,21 @@ source "$_SETUP_DIR/scripts/_lib/install-rust.sh" || {
 # shellcheck disable=SC1091
 source "$_SETUP_DIR/scripts/_lib/cloud-link.sh" || {
   printf 'FATAL: cannot source %s/scripts/_lib/cloud-link.sh\n' "$_SETUP_DIR" >&2
+  exit 1
+}
+# shellcheck disable=SC1091
+source "$_SETUP_DIR/scripts/_lib/install-rtk.sh" || {
+  printf 'FATAL: cannot source %s/scripts/_lib/install-rtk.sh\n' "$_SETUP_DIR" >&2
+  exit 1
+}
+# shellcheck disable=SC1091
+source "$_SETUP_DIR/scripts/_lib/install-node.sh" || {
+  printf 'FATAL: cannot source %s/scripts/_lib/install-node.sh\n' "$_SETUP_DIR" >&2
+  exit 1
+}
+# shellcheck disable=SC1091
+source "$_SETUP_DIR/scripts/_lib/install-lsp-servers.sh" || {
+  printf 'FATAL: cannot source %s/scripts/_lib/install-lsp-servers.sh\n' "$_SETUP_DIR" >&2
   exit 1
 }
 # --- end bootstrap ---
@@ -76,6 +90,9 @@ record_failed()   { FAILED+=("$1");   print_failure "$1"; }
 
 command_exists() { command -v "$1" > /dev/null 2>&1; }
 
+# Detect OS once, before all steps that depend on it.
+_SETUP_OS="$(detect_os)"
+
 print_header "=== Claude Code Orchestration Layer Setup ==="
 echo ""
 
@@ -84,40 +101,43 @@ echo ""
 # -------------------------------------------------------------------
 print_header "Step 1: Checking prerequisites"
 
-PREREQS_OK=true
-
+# node/npm: missing node is remediated by install_node_via_manager below.
+# Presence check here is informational only; absence is not fatal.
 if command_exists node; then
   print_success "node $(node --version)"
-else
-  print_failure "node not found -- install Node.js first"
-  PREREQS_OK=false
 fi
-
 if command_exists npm; then
   print_success "npm $(npm --version)"
-else
-  print_failure "npm not found -- install Node.js first"
-  PREREQS_OK=false
 fi
 
+# brew: required only for dippy/claude-devtools (macOS-only tools).
+# Missing brew is a WARNING and continues — node/rtk/LSP never use brew.
 case "$(uname -s)" in
-    Darwin)
-        if command_exists brew; then
-            print_success "brew $(brew --version | head -1)"
-        else
-            print_failure "brew not found -- install Homebrew: https://brew.sh"
-            PREREQS_OK=false
-        fi
-        ;;
-    Linux)
-        print_success "Linux detected -- brew not required"
-        print_success "  (use scripts/install-tools.sh for distro-native package installs)"
-        ;;
+  Darwin)
+    if command_exists brew; then
+      print_success "brew $(brew --version | head -1)"
+    else
+      print_warning "brew not found -- some macOS tools (dippy, claude-devtools) will be skipped."
+      print_warning "  Install Homebrew to enable them: https://brew.sh"
+      record_failed "brew (optional, macOS-only tools)"
+    fi
+    ;;
+  Linux)
+    print_success "Linux detected -- brew not required"
+    print_success "  (use scripts/install-tools.sh for distro-native package installs)"
+    ;;
 esac
 
-if [[ "$PREREQS_OK" == "false" ]]; then
-  print_failure "Prerequisites missing. Install them and re-run this script."
-  exit 1
+# PREREQS_OK guard removed: node/npm remediated below via install_node_via_manager.
+# Remaining failures propagate via ${FAILED[@]} and exit 1 at end of script.
+
+# Remediate node/npm via version manager (no-op if already present).
+if ! command_exists node || ! command_exists npm; then
+  if install_node_via_manager "$_SETUP_OS"; then
+    record_installed "node (via version manager)"
+  else
+    record_failed "node (version manager install failed)"
+  fi
 fi
 
 # -------------------------------------------------------------------
@@ -129,8 +149,6 @@ print_header "Step 2: Installing external tools"
 # CLAUDE_REQUIRE_DIPPY=1 forces install on any OS (opt-in on Linux).
 # CLAUDE_REQUIRE_DIPPY=0 forces skip on any OS (opt-out on macOS).
 # Unset: macOS installs, Linux skips.
-_SETUP_OS="$(detect_os)"
-
 if should_install_dippy "$_SETUP_OS"; then
   echo ""
   echo "  Dippy (AST-based bash command safety)..."
@@ -232,24 +250,38 @@ else
   fi
 fi
 
-# -- rtk (route tracking and safety analysis CLI) --
-# CLAUDE_REQUIRE_RTK=1 forces install; =0 forces skip; unset: install if brew available.
+# -- rtk (CLI token-optimization proxy — github.com/rtk-ai/rtk) --
+# CLAUDE_REQUIRE_RTK=1 forces install; =0 forces skip; unset: install on mac+linux.
 # CLAUDE_REQUIRE_RTK=0 to skip — rtk intercepts every Bash call (PreToolUse); opt out to audit the binary before install.
 echo ""
-echo "  rtk (route tracking CLI)..."
-if should_install_rtk; then
+echo "  rtk (CLI token-optimization proxy)..."
+if should_install_rtk "$_SETUP_OS"; then
   if command_exists rtk; then
     record_skipped "rtk"
   else
-    if brew install rtk 2>/dev/null; then
+    if install_rtk "$_SETUP_OS"; then
       record_installed "rtk"
     else
-      record_failed "rtk (brew install rtk)"
+      record_failed "rtk (curl installer + cargo fallback both failed)"
     fi
   fi
 else
-  print_warning "rtk: skipped — $(rtk_skip_reason)"
+  print_warning "rtk: skipped — $(rtk_skip_reason "$_SETUP_OS")"
   SKIPPED+=("rtk (gated)")
+fi
+
+# -- LSP servers (typescript-language-server + pyright) --
+# Gated on npm presence; node guaranteed by Step 1 above.
+echo ""
+echo "  LSP servers (typescript-language-server, pyright)..."
+if command_exists npm; then
+  if ensure_lsp_servers; then
+    record_installed "lsp-servers (typescript-language-server, pyright)"
+  else
+    record_failed "lsp-servers (npm install -g failed)"
+  fi
+else
+  record_failed "lsp-servers (npm not found)"
 fi
 
 # -------------------------------------------------------------------

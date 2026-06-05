@@ -28,8 +28,8 @@ _rtk_run_installer() {
     return 0
   fi
   eval "$cmd"
-  # Re-check that the binary is actually present after install
-  [[ -z "${CLAUDE_RTK_PRINTER:-}" ]] && command -v rtk >/dev/null 2>&1
+  # Re-check that the binary is actually present after install (pre-mortem mitigation)
+  command -v rtk >/dev/null 2>&1
 }
 
 _rtk_run_cargo() {

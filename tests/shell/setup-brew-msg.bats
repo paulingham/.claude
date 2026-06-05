@@ -31,3 +31,10 @@ setup() {
   ' "$SETUP"
   [ -z "$output" ] || { echo "install Homebrew referenced outside Darwin scope:"; echo "$output"; false; }
 }
+
+@test "L3.4 node remediation block does not emit brew install node" {
+  # The install_node_via_manager call site must not contain 'brew install node'.
+  run grep -n 'brew install node' "$SETUP"
+  # grep returns 1 when no match — that is the passing condition.
+  [ "$status" -ne 0 ]
+}
