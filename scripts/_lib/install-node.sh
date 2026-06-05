@@ -12,6 +12,8 @@
 #   CLAUDE_NODE_PRINTER=echo         — capture install command instead of running
 #   CLAUDE_NODE_FORCE_NVM_PRESENT=1  — simulate nvm detected
 #   CLAUDE_NODE_FORCE_FNM_PRESENT=1  — simulate fnm detected
+#   CLAUDE_NODE_FORCE_MISE_PRESENT=1 — simulate mise detected
+#   CLAUDE_NODE_FORCE_ASDF_PRESENT=1 — simulate asdf detected
 #   CLAUDE_NODE_FORCE_INSTALL_FAIL=1 — force all install paths to fail
 #   NVM_DIR=<path>                   — redirect nvm home (default: $HOME/.nvm)
 
@@ -33,10 +35,12 @@ _node_has_fnm() {
 }
 
 _node_has_mise() {
+  [[ "${CLAUDE_NODE_FORCE_MISE_PRESENT:-}" == "1" ]] && return 0
   command -v mise >/dev/null 2>&1
 }
 
 _node_has_asdf() {
+  [[ "${CLAUDE_NODE_FORCE_ASDF_PRESENT:-}" == "1" ]] && return 0
   command -v asdf >/dev/null 2>&1
 }
 

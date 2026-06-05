@@ -119,6 +119,42 @@ FNM
   [[ "$output" != *"brew"* ]]
 }
 
+# ---------- GAP-2: mise present -> emits mise install node@lts ----------
+
+@test "install_node_via_manager: mise present -> emits mise install node@lts (no brew token)" {
+  # FORCE_MISE_PRESENT simulates mise detected; nvm/fnm must NOT be present so
+  # dispatch reaches the mise arm.
+  run bash -c "
+    export CLAUDE_NODE_PRINTER=echo
+    export CLAUDE_NODE_FORCE_MISE_PRESENT=1
+    export PATH='/nowhere:/usr/bin:/bin'
+    export NVM_DIR='$TMP_DIR/nonexistent_nvm'
+    source '$LIB_DIR/install-node.sh'
+    install_node_via_manager macos
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"mise install node@lts"* ]]
+  [[ "$output" != *"brew"* ]]
+}
+
+# ---------- GAP-3: asdf present -> emits asdf install nodejs lts ----------
+
+@test "install_node_via_manager: asdf present -> emits asdf install nodejs lts (no brew token)" {
+  # FORCE_ASDF_PRESENT simulates asdf detected; nvm/fnm/mise must all be absent
+  # so dispatch reaches the asdf arm.
+  run bash -c "
+    export CLAUDE_NODE_PRINTER=echo
+    export CLAUDE_NODE_FORCE_ASDF_PRESENT=1
+    export PATH='/nowhere:/usr/bin:/bin'
+    export NVM_DIR='$TMP_DIR/nonexistent_nvm'
+    source '$LIB_DIR/install-node.sh'
+    install_node_via_manager macos
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"asdf install nodejs lts"* ]]
+  [[ "$output" != *"brew"* ]]
+}
+
 # ---------- FORCE_INSTALL_FAIL -> rc 1 ----------
 
 @test "install_node_via_manager: FORCE_INSTALL_FAIL -> returns non-zero (continue-on-failure)" {

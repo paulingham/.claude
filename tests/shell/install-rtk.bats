@@ -85,3 +85,58 @@ _make_cargo_stub() {
   [ "$status" -eq 0 ]
   [[ "$output" != *"brew"* ]]
 }
+
+# ---------- GAP-1: brew last-resort with INSTALL_PKG_CMD_PRINTER pre-set ----------
+
+@test "install_rtk: brew last-resort with INSTALL_PKG_CMD_PRINTER pre-set -> caller value takes precedence and is restored" {
+  # INSTALL_PKG_CMD_PRINTER is pre-set by the caller to a DISTINCT sentinel.
+  # CLAUDE_RTK_PRINTER is set to a DIFFERENT sentinel.
+  # After install_rtk returns, INSTALL_PKG_CMD_PRINTER must still equal the
+  # caller's sentinel (not clobbered, not unset).
+  _make_brew_stub
+  local caller_printer_log="$TMP_DIR/caller_printer.log"
+  local rtk_printer_log="$TMP_DIR/rtk_printer.log"
+
+  # The caller's INSTALL_PKG_CMD_PRINTER sentinel logs to caller_printer_log.
+  # We write a small script so it is an executable command name.
+  mkdir -p "$TMP_DIR/bin"
+  printf '#!/bin/sh\necho "$@" >> "%s"\n' "$caller_printer_log" > "$TMP_DIR/bin/caller_sentinel"
+  chmod +x "$TMP_DIR/bin/caller_sentinel"
+
+  printf '#!/bin/sh\necho "$@" >> "%s"\n' "$rtk_printer_log" > "$TMP_DIR/bin/rtk_sentinel"
+  chmod +x "$TMP_DIR/bin/rtk_sentinel"
+
+  run bash -c "
+    export PATH='$TMP_DIR/bin:/usr/bin:/bin'
+    export CLAUDE_RTK_FORCE_CURL_FAIL=1
+    export CLAUDE_RTK_FORCE_CARGO_FAIL=1
+    export CLAUDE_RTK_PRINTER='$TMP_DIR/bin/rtk_sentinel'
+    export INSTALL_PKG_CMD_PRINTER='$TMP_DIR/bin/caller_sentinel'
+    source '$LIB_DIR/install-rtk.sh'
+    install_rtk macos
+    # After install_rtk returns, INSTALL_PKG_CMD_PRINTER must equal the caller's value
+    echo \"POST_INSTALL_PKG_CMD_PRINTER::\${INSTALL_PKG_CMD_PRINTER}\"
+  "
+  [ "$status" -eq 0 ]
+  # The caller's printer captured the brew install command (not the rtk_sentinel)
+  [ -f "$caller_printer_log" ]
+  grep -q "rtk" "$caller_printer_log"
+  # INSTALL_PKG_CMD_PRINTER was restored to the caller's sentinel after return
+  [[ "$output" == *"POST_INSTALL_PKG_CMD_PRINTER::$TMP_DIR/bin/caller_sentinel"* ]]
+}
+
+# ---------- GAP-4: CLAUDE_RTK_HAS_RTK=0 -> proceeds to install ----------
+
+@test "install_rtk: CLAUDE_RTK_HAS_RTK=0 -> proceeds to install (explicit-absent treated as not-present)" {
+  # CLAUDE_RTK_HAS_RTK=0 exercises the '0) return 1' arm of _rtk_has_rtk.
+  # install_rtk must NOT short-circuit (must attempt the curl installer).
+  run bash -c "
+    export CLAUDE_RTK_HAS_RTK=0
+    export CLAUDE_RTK_PRINTER=echo
+    source '$LIB_DIR/install-rtk.sh'
+    install_rtk macos
+  "
+  [ "$status" -eq 0 ]
+  # The curl installer command must be emitted (install was NOT skipped)
+  [[ "$output" == *"curl"* ]]
+}
