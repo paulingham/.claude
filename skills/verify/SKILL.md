@@ -92,7 +92,7 @@ Do NOT report only an exit code or only the first failure. The full diff of fail
 
 ### 4. Run Tier 3: Mutation Testing (HARD GATE — >= 70% kill rate)
 
-> **Read-only note.** Tier 3 at verify is **read-only measuring** only. The active, time-boxed Mutation Kill loop ran at Build (atdd-procedure.md step 4 Mutation Kill Loop); because the loop runs at Build before the Final Gate fans out, no mid-gate commits occur and the `verification-evidence.json` git_head freshness contract is intact. Verify MUST NOT write tests or commit. If kill rate is below 70% here, the slice returns to Build (UNVERIFIED) — the fix loop runs there, not here.
+> **Read-only note.** Tier 3 at verify is **read-only measuring** only. The active, time-boxed Mutation Kill Loop ran at Build (atdd-procedure.md step 4 Mutation Kill Loop); because the loop runs at Build before the Final Gate fans out, no mid-gate commits occur and the `verification-evidence.json` git_head freshness contract is intact. Verify MUST NOT write tests or commit. If kill rate is below 70% here, the slice returns to Build (UNVERIFIED) — the fix loop runs there, not here.
 
 > **Tier 3 is a HARD GATE.** Kill rate >= 70% on changed lines is required for VERIFIED. Below threshold means UNVERIFIED — the slice returns to Build with the surviving-mutation list as targeted test gaps. Patch-critic also reads this report; a failing mutation gate is a deal-breaker for PATCH_APPROVED.
 
@@ -115,7 +115,7 @@ The manual fallback is approved as a gate-passing methodology — but the >= 70%
 
 > **Tier 3.5 is ADDITIVE to Tier 3, NOT a replacement.** Tier 3 retains its ≥70% rule-based mutation gate. Tier 3.5 layers a Claude-driven semantic-mutant pass on top: rule-based catches operator-shape bugs (5x cheaper); LLM-based catches intent-shape bugs (Wang et al.'s 46.3 pp lift on fault detection). Both gates must pass for VERIFIED. Iron Law 1's 70% mutation requirement on changed lines refers to Tier 3 — Tier 3.5 ships its own per-tier gate at 60%.
 
-**Prerequisite**: Tier 3 has produced a mutation report. Read the **latest Kill-Loop round's** survivor list to dedup (the `### Kill-Loop Round N` section with the highest N, if any Kill-Loop rounds exist; fall back to the Tier-3 baseline only when no Kill-Loop rounds are present) — Tier 3.5 does not re-propose mutations the latest Kill-Loop round already covered. Deduplying against the stale Tier-3 baseline when Kill-Loop rounds exist would (a) miss mutants the loop did not kill, and (b) re-propose mutants the loop already killed.
+**Prerequisite**: Tier 3 has produced a mutation report. Read the **latest Kill-Loop round's** survivor list to dedup (the `### Kill-Loop Round N` section with the highest N, if any Kill-Loop rounds exist; fall back to the Tier-3 baseline only when no Kill-Loop rounds are present) — Tier 3.5 does not re-propose mutations the latest Kill-Loop round already covered. Deduping against the stale Tier-3 baseline when Kill-Loop rounds exist would (a) miss mutants the loop did not kill, and (b) re-propose mutants the loop already killed.
 
 **Operator categories (5 fixed, no others):**
 - `off-by-one` — boundary mutations (`<` ↔ `<=`, `i + 1` ↔ `i`, range/slice endpoints).

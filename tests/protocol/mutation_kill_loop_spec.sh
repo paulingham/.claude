@@ -86,8 +86,8 @@ assert_contains "AC3: NO_PROGRESS outcome present" "$ATDD" "NO_PROGRESS"
 assert_contains "AC3: two-consecutive-zero-kill rule present" \
   "$ATDD" "two consecutive"
 
-assert_contains_re "AC3: canonical order line places NO_PROGRESS check before authoring" \
-  "$ATDD" "NO_PROGRESS.*check.*author|NO_PROGRESS check.*before author"
+assert_contains "AC3: canonical order line places NO_PROGRESS check before authoring" \
+  "$ATDD" "NO_PROGRESS check → author"
 
 # ── Slice A: AC6 — append-not-clobber structure ──────────────────────────────
 
@@ -103,7 +103,7 @@ assert_contains "AC6: atdd step 4 references single mutation-report artifact" \
   "$ATDD" "single mutation-report"
 
 assert_contains "AC6: Tier-3.5-appends-below-Kill-Loop ordering documented" \
-  "$ATDD" "Tier 3.5"
+  "$ATDD" "appended BELOW"
 
 # ── Slice A: AC7 — engineering-invariants Tier 3 threshold + cross-ref ────────
 
@@ -150,7 +150,7 @@ assert_contains "AC5: verify/SKILL.md § 4 contains read-only-measuring note" \
   "$VERIFY_SKILL" "read-only"
 
 assert_contains "AC5: verify/SKILL.md § 4 states active loop ran at Build" \
-  "$VERIFY_SKILL" "loop ran at Build"
+  "$VERIFY_SKILL" "Loop ran at Build"
 
 assert_contains "AC5: verify/SKILL.md § 4 states MUST NOT write tests or commit" \
   "$VERIFY_SKILL" "MUST NOT write tests or commit"
@@ -170,7 +170,7 @@ assert_contains "AC8: verify/SKILL.md § 4 states no mid-gate commits occur" \
   "$VERIFY_SKILL" "no mid-gate commits"
 
 assert_contains "AC8: verify/SKILL.md § 4 states verification-evidence.json git_head freshness contract intact" \
-  "$VERIFY_SKILL" "verification-evidence.json"
+  "$VERIFY_SKILL" "freshness contract is intact"
 
 # ── Slice B: AC9 — Tier 3.5 Kill-Loop-aware dedup + append ───────────────────
 
@@ -212,6 +212,9 @@ assert_contains "consistency: =0 is NOT a disable hatch stated in atdd" \
 
 assert_contains_re "consistency: atdd contains no-disable / Iron Law assertion" \
   "$ATDD" "(cannot be disabled|NOT.*disable|=0.*is NOT|Iron Law.*cannot)"
+
+assert_contains "consistency: atdd pins =0 deterministically to 120 (floor rule, not 300)" \
+  "$ATDD" "0 → 120"
 
 # Verify cross-refs resolve: engineering-invariants → atdd step 4 loop
 assert_contains "consistency: engineering-invariants cross-ref to atdd step 4 Mutation Kill Loop" \
