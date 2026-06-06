@@ -87,17 +87,21 @@ def _rindex_event(events: list, target: dict, start_after: int = -1) -> int:
     return -1
 
 
+def _msg_indices(events: list) -> list:
+    """Return indices in events of all message-kind entries."""
+    return [i for i, e in enumerate(events) if e["kind"] == "message"]
+
+
 def check_monologue(events: list) -> dict | None:
-    """Pattern 3: last 3 agent messages identical, no observation between first and last."""
-    msgs = _messages(events)
-    if len(msgs) < 3 or not _all_equal(msgs[-3:]):
+    """Pattern 3: last 3 agent messages identical, no observation between them."""
+    idxs = _msg_indices(events)
+    if len(idxs) < 3:
         return None
-    last3 = msgs[-3:]
-    first_idx = _rindex_event(events, last3[0])
-    last_idx = _rindex_event(events, last3[-1], start_after=first_idx)
-    if first_idx < 0 or last_idx < 0:
+    last3_idxs = idxs[-3:]
+    last3 = [events[i] for i in last3_idxs]
+    if not _all_equal(last3):
         return None
-    between = events[first_idx + 1:last_idx]
+    between = events[last3_idxs[0] + 1:last3_idxs[-1]]
     if any(e["kind"] == "observation" for e in between):
         return None
     return {"messages": last3}

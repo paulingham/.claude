@@ -1227,6 +1227,14 @@ else
   fail "stuck-detector: edge too-few-events → NOMATCH" "NOMATCH" "$SD8_OUT"
 fi
 
+# Test 9: negative — 3 identical messages but observation interleaved → NOMATCH
+SD9_OUT=$(_run_stuck "$STUCK_FIXTURES/negative-monologue-obs-between.jsonl")
+if echo "$SD9_OUT" | grep -q "^NOMATCH"; then
+  pass "stuck-detector: negative monologue obs-between → NOMATCH (observation interrupts)"
+else
+  fail "stuck-detector: negative monologue obs-between → NOMATCH (observation interrupts)" "NOMATCH" "$SD9_OUT"
+fi
+
 echo ""
 
 # -- Summary -----------------------------------------------------------------

@@ -59,13 +59,40 @@ check_stuck() {
 
 # _emit_stuck_telemetry PATTERN EVIDENCE_JSON
 # Writes one JSONL line to $HARNESS_DATA/metrics/{session}/stuck-detector.jsonl.
+# String fields in evidence are capped at 200 chars; full value stored as sha1_<field>.
 _emit_stuck_telemetry() {
   local pattern="$1" evidence="$2"
   local session="${CLAUDE_SESSION_ID:-local-$$}"
   session="${session//[^A-Za-z0-9_-]/_}"
+  [[ -z "$session" || "$session" =~ ^_+$ ]] && session="local-$$"
   local dir="${HARNESS_DATA}/metrics/${session}"
-  mkdir -p "$dir" 2>/dev/null || return 0
+  # shellcheck disable=SC2174
+  mkdir -p -m 700 "$dir" 2>/dev/null || return 0
   local ts; ts=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
-  printf '{"timestamp":"%s","source":"stuck-advisory","pattern":"%s","evidence":%s,"session":"%s"}\n' \
-    "$ts" "$pattern" "$evidence" "$session" >> "$dir/stuck-detector.jsonl" 2>/dev/null
+  python3 - "$ts" "$pattern" "$evidence" "$session" >> "$dir/stuck-detector.jsonl" 2>/dev/null << 'PYEOF'
+import json, hashlib, sys
+ts, pattern, evidence_raw, session = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+try:
+    ev = json.loads(evidence_raw)
+except Exception:
+    ev = {}
+def cap(v):
+    s = str(v) if not isinstance(v, str) else v
+    return s[:200]
+def cap_obj(o):
+    if not isinstance(o, dict):
+        return o
+    out = {}
+    for k, v in o.items():
+        if isinstance(v, str) and len(v) > 200:
+            out[k] = v[:200]
+            out[f"sha1_{k}"] = "sha1:" + hashlib.sha1(v.encode()).hexdigest()
+        elif isinstance(v, list):
+            out[k] = [cap(i) for i in v]
+        else:
+            out[k] = v
+    return out
+print(json.dumps({"timestamp": ts, "source": "stuck-advisory",
+                  "pattern": pattern, "evidence": cap_obj(ev), "session": session}))
+PYEOF
 }
