@@ -17,9 +17,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from swe_pruner_record import accumulate_block_stats
-
 BLOCK_TYPE_MAP = {
+    # Canonical orchestrator-injected headers (prefix match, case-insensitive)
+    "pipeline scratchpad": "scratchpad",
+    "session context": "session_memory",
+    "learned patterns": "instincts",
+    "your project knowledge": "role_doc",
+    # Short-form aliases for backward compatibility
     "scratchpad": "scratchpad",
     "protocol": "protocol",
     "protocols": "protocol",
@@ -166,6 +170,12 @@ def propose_drops(
     return drops
 
 
+def _sanitise_session() -> str:
+    session_raw = os.environ.get("CLAUDE_SESSION_ID") or f"local-{os.getpid()}"
+    session = re.sub(r"[^A-Za-z0-9_-]", "_", session_raw)
+    return session if (session and not re.match(r"^_+$", session)) else f"local-{os.getpid()}"
+
+
 def get_jsonl_path() -> Path:
     """Compute JSONL path via three-tier cascade; sanitise session against traversal."""
     base = (
@@ -173,15 +183,12 @@ def get_jsonl_path() -> Path:
         or os.environ.get("CLAUDE_CONFIG_DIR")
         or os.path.join(os.environ.get("HOME", ""), ".claude")
     )
-    session_raw = os.environ.get("CLAUDE_SESSION_ID") or f"local-{os.getpid()}"
-    session = re.sub(r"[^A-Za-z0-9_-]", "_", session_raw)
-    if not session or re.match(r"^_+$", session):
-        session = f"local-{os.getpid()}"
+    session = _sanitise_session()
     return Path(base) / "metrics" / session / "swe-pruner.jsonl"
 
 
-def _extract_tool_input(payload) -> tuple[str, str]:
-    """Return (subagent_type, prompt) from payload; never raises."""
+def _extract_tool_input(payload) -> tuple[str, str, str]:
+    """Return (subagent_type, prompt, task_id) from payload; never raises."""
     try:
         tool_input = (payload or {}).get("tool_input") or {}
     except Exception:
@@ -194,18 +201,51 @@ def _extract_tool_input(payload) -> tuple[str, str]:
         prompt = str(tool_input.get("prompt") or "")
     except Exception:
         prompt = ""
-    return subagent_type, prompt
+    try:
+        task_id = str(tool_input.get("task_id") or "")[:64]
+    except Exception:
+        task_id = ""
+    return subagent_type, prompt, task_id
 
 
-def _sanitise_session() -> str:
-    session_raw = os.environ.get("CLAUDE_SESSION_ID") or f"local-{os.getpid()}"
-    session = re.sub(r"[^A-Za-z0-9_-]", "_", session_raw)
-    return session if (session and not re.match(r"^_+$", session)) else f"local-{os.getpid()}"
+def accumulate_block_stats(proposals) -> tuple[list[dict], int, int, int]:
+    """Compute per-block drop stats from (ContentBlock, ranges) pairs.
+
+    Returns (blocks_analyzed, total_lines, total_drop_lines, total_tokens_saved).
+    Never raises; returns empty-zero tuple on any error.
+    """
+    blocks_analyzed: list[dict] = []
+    total_lines = 0
+    total_drop_lines = 0
+    total_tokens_saved = 0
+    try:
+        for block, ranges in (proposals or []):
+            drop_chars = sum(
+                len(block.lines[i])
+                for start, end in ranges
+                for i in range(start, end)
+                if i < len(block.lines)
+            )
+            tokens_saved = drop_chars // 4
+            drop_lines = sum(end - start for start, end in ranges)
+            blocks_analyzed.append({
+                "block_type": block.block_type,
+                "total_lines": len(block.lines),
+                "proposed_drop_lines": drop_lines,
+                "proposed_drop_ranges": [[s, e] for s, e in ranges],
+                "estimated_tokens_saved": tokens_saved,
+            })
+            total_lines += len(block.lines)
+            total_drop_lines += drop_lines
+            total_tokens_saved += tokens_saved
+    except Exception:
+        pass
+    return blocks_analyzed, total_lines, total_drop_lines, total_tokens_saved
 
 
 def build_record(payload, proposals) -> dict:
     """Build the JSONL record dict. Never raises on malformed payload."""
-    subagent_type, prompt = _extract_tool_input(payload)
+    subagent_type, prompt, task_id = _extract_tool_input(payload)
     session = _sanitise_session()
     try:
         keywords = extract_goal_keywords(subagent_type, prompt)
@@ -221,6 +261,7 @@ def build_record(payload, proposals) -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "session": session,
         "agent_role": subagent_type,
+        "task_id": task_id,
         "goal_hash": goal_hash,
         "keyword_count": len(keywords),
         "blocks_analyzed": blocks_analyzed,

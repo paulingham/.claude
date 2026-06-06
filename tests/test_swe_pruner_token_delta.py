@@ -150,8 +150,8 @@ class TestMutationGate(unittest.TestCase):
 
         # The mutant drop rate should be 0 — but the ORACLE says it should be > 50%
         # This proves the mutant FAILS the oracle fixture
-        self.assertLess(mutant_drop_rate, 0.5,
-                        "Expected mutant (always-relevant) to drop < 50% — it passes vacuously")
+        self.assertEqual(mutant_drop_rate, 0.0,
+                         "always-relevant scorer must drop nothing")
 
         # Now verify the REAL scorer does better
         real_drops = sum(

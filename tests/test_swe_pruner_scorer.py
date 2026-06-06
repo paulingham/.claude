@@ -348,5 +348,58 @@ class TestThresholdConfig(unittest.TestCase):
         self.assertIsInstance(ranges, list)
 
 
+class TestCanonicalBlockHeaders(unittest.TestCase):
+    """ORCH-1: canonical orchestrator-injected headers must classify correctly."""
+
+    def test_pipeline_scratchpad_with_suffix_classifies_as_scratchpad(self):
+        from swe_pruner import segment_content_blocks
+        prompt = "## Pipeline Scratchpad (findings from prior agents)\nsome content\n"
+        blocks = segment_content_blocks(prompt)
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual(blocks[0].block_type, "scratchpad")
+
+    def test_session_context_with_suffix_classifies_as_session_memory(self):
+        from swe_pruner import segment_content_blocks
+        prompt = "## Session Context (engineering notes for this project)\nsome content\n"
+        blocks = segment_content_blocks(prompt)
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual(blocks[0].block_type, "session_memory")
+
+    def test_learned_patterns_with_suffix_classifies_as_instincts(self):
+        from swe_pruner import segment_content_blocks
+        prompt = "## Learned Patterns (from system learning — apply these proactively)\nsome content\n"
+        blocks = segment_content_blocks(prompt)
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual(blocks[0].block_type, "instincts")
+
+    def test_your_project_knowledge_with_suffix_classifies_as_role_doc(self):
+        from swe_pruner import segment_content_blocks
+        prompt = "## Your Project Knowledge (accumulated from prior work on this project)\nsome content\n"
+        blocks = segment_content_blocks(prompt)
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual(blocks[0].block_type, "role_doc")
+
+    def test_canonical_header_case_insensitive(self):
+        from swe_pruner import segment_content_blocks
+        prompt = "## pipeline scratchpad (findings)\nsome content\n"
+        blocks = segment_content_blocks(prompt)
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual(blocks[0].block_type, "scratchpad")
+
+    def test_short_form_scratchpad_still_works(self):
+        from swe_pruner import segment_content_blocks
+        prompt = "## Scratchpad\nsome content\n"
+        blocks = segment_content_blocks(prompt)
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual(blocks[0].block_type, "scratchpad")
+
+    def test_short_form_session_memory_still_works(self):
+        from swe_pruner import segment_content_blocks
+        prompt = "## Session Memory\nsome content\n"
+        blocks = segment_content_blocks(prompt)
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual(blocks[0].block_type, "session_memory")
+
+
 if __name__ == "__main__":
     unittest.main()

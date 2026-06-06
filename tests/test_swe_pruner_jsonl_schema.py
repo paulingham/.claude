@@ -290,5 +290,38 @@ class TestGoalHash(unittest.TestCase):
         self.assertNotEqual(record1["goal_hash"], record2["goal_hash"])
 
 
+class TestNoRawPromptContent(unittest.TestCase):
+    """Security: build_record must NOT contain raw prompt content."""
+
+    def test_build_record_excludes_raw_prompt_content(self):
+        from swe_pruner import build_record
+        secret = "SECRET_API_KEY=sk-123456abcdef"
+        payload = {
+            "tool_input": {
+                "subagent_type": "software-engineer",
+                "prompt": f"## Scratchpad\n{secret}\nsome other content\n",
+            }
+        }
+        with patch.dict(os.environ, {"CLAUDE_SESSION_ID": "test"}, clear=False):
+            record = build_record(payload, [])
+        self.assertNotIn(secret, json.dumps(record),
+                         "Raw prompt content (including secrets) must not appear in build_record output")
+
+    def test_build_record_excludes_task_id_from_prompt(self):
+        from swe_pruner import build_record
+        payload = {
+            "tool_input": {
+                "subagent_type": "software-engineer",
+                "task_id": "task-abc-123",
+                "prompt": "## Scratchpad\nbuild the service\n",
+            }
+        }
+        with patch.dict(os.environ, {"CLAUDE_SESSION_ID": "test"}, clear=False):
+            record = build_record(payload, [])
+        self.assertIn("task_id", record,
+                      "task_id should be present in record (from tool_input, not prompt)")
+        self.assertEqual(record["task_id"], "task-abc-123")
+
+
 if __name__ == "__main__":
     unittest.main()
