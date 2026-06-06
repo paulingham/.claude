@@ -1151,6 +1151,84 @@ rm -f /tmp/rcc-test-out-$$.log
 
 echo ""
 
+# -- stuck-detector ----------------------------------------------------------
+echo "-- stuck-detector --"
+
+STUCK_DETECTOR="$HOOKS_DIR/_lib/stuck-detector.py"
+STUCK_FIXTURES="$HOOKS_DIR/tests/fixtures/stuck"
+
+# Helper: run detector with a fixture file as transcript_path
+_run_stuck() {
+  local fixture="$1"
+  python3 "$STUCK_DETECTOR" <<< "{\"transcript_path\":\"$fixture\",\"stop_hook_active\":false}" 2>/dev/null
+}
+
+# Test 1: pattern1 — 4x identical action+obs → MATCH repeating-action-observation
+SD1_OUT=$(_run_stuck "$STUCK_FIXTURES/pattern1-repeating-action-obs.jsonl")
+if echo "$SD1_OUT" | grep -q "^MATCH repeating-action-observation"; then
+  pass "stuck-detector: pattern1 repeating-action-observation matched"
+else
+  fail "stuck-detector: pattern1 repeating-action-observation matched" "MATCH repeating-action-observation" "$SD1_OUT"
+fi
+
+# Test 2: pattern2 — 3x identical action, all is_error:true → MATCH repeating-action-error
+SD2_OUT=$(_run_stuck "$STUCK_FIXTURES/pattern2-repeating-action-error.jsonl")
+if echo "$SD2_OUT" | grep -q "^MATCH repeating-action-error"; then
+  pass "stuck-detector: pattern2 repeating-action-error matched"
+else
+  fail "stuck-detector: pattern2 repeating-action-error matched" "MATCH repeating-action-error" "$SD2_OUT"
+fi
+
+# Test 3: pattern3 — 3x identical agent text, no obs between → MATCH monologue
+SD3_OUT=$(_run_stuck "$STUCK_FIXTURES/pattern3-monologue.jsonl")
+if echo "$SD3_OUT" | grep -q "^MATCH monologue"; then
+  pass "stuck-detector: pattern3 monologue matched"
+else
+  fail "stuck-detector: pattern3 monologue matched" "MATCH monologue" "$SD3_OUT"
+fi
+
+# Test 4: pattern4 — A,B,A,B,A,B alternating → MATCH alternating
+SD4_OUT=$(_run_stuck "$STUCK_FIXTURES/pattern4-alternating.jsonl")
+if echo "$SD4_OUT" | grep -q "^MATCH alternating"; then
+  pass "stuck-detector: pattern4 alternating matched"
+else
+  fail "stuck-detector: pattern4 alternating matched" "MATCH alternating" "$SD4_OUT"
+fi
+
+# Test 5: pattern5 — ≥10 consecutive context-window obs → MATCH context-window
+SD5_OUT=$(_run_stuck "$STUCK_FIXTURES/pattern5-context-window.jsonl")
+if echo "$SD5_OUT" | grep -q "^MATCH context-window"; then
+  pass "stuck-detector: pattern5 context-window matched"
+else
+  fail "stuck-detector: pattern5 context-window matched" "MATCH context-window" "$SD5_OUT"
+fi
+
+# Test 6: negative — same action, CHANGING observations → NOMATCH (false-positive guard)
+SD6_OUT=$(_run_stuck "$STUCK_FIXTURES/negative-changing-obs.jsonl")
+if echo "$SD6_OUT" | grep -q "^NOMATCH"; then
+  pass "stuck-detector: negative changing-obs → NOMATCH (no false positive)"
+else
+  fail "stuck-detector: negative changing-obs → NOMATCH (no false positive)" "NOMATCH" "$SD6_OUT"
+fi
+
+# Test 7: edge — identical action/obs but differing id/tool_use_id → MATCH (volatile fields ignored)
+SD7_OUT=$(_run_stuck "$STUCK_FIXTURES/edge-volatile-ids-ignored.jsonl")
+if echo "$SD7_OUT" | grep -q "^MATCH"; then
+  pass "stuck-detector: edge volatile ids ignored → MATCH"
+else
+  fail "stuck-detector: edge volatile ids ignored → MATCH" "MATCH *" "$SD7_OUT"
+fi
+
+# Test 8: edge — <3 events → NOMATCH
+SD8_OUT=$(_run_stuck "$STUCK_FIXTURES/edge-too-few-events.jsonl")
+if echo "$SD8_OUT" | grep -q "^NOMATCH"; then
+  pass "stuck-detector: edge too-few-events → NOMATCH"
+else
+  fail "stuck-detector: edge too-few-events → NOMATCH" "NOMATCH" "$SD8_OUT"
+fi
+
+echo ""
+
 # -- Summary -----------------------------------------------------------------
 echo "=== Results: $PASS passed, $FAIL failed ==="
 echo ""
