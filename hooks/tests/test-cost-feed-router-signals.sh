@@ -104,6 +104,20 @@ CB=$(jq_field "$CF" complexity_budget 2>/dev/null)
 rm -rf "$D"
 echo ""
 
+# ── AC5: complexity_budget_legacy_layout (pipeline-state/{task}-pipeline.md) ──
+echo "-- AC5: complexity_budget_legacy_layout --"
+D=$(fresh_data_dir)
+printf -- '---\ntask_id: %s\nverdict: in_progress\n---\n' "legacy-fixture" \
+  > "$D/pipeline-state/legacy-fixture-pipeline.md"
+printf -- '---\ncomplexity_budget:\n  total: 13\n---\n' \
+  > "$D/pipeline-state/legacy-fixture-intake.md"
+CF=$(drive "$D" env CLAUDE_SUBAGENT_DEPTH=1)
+CB=$(jq_field "$CF" complexity_budget 2>/dev/null)
+[[ "$CB" == "13" ]] && pass "legacy {task}-intake.md complexity_budget.total: 13 -> 13" \
+  || fail "expected 13, got '$CB'"
+rm -rf "$D"
+echo ""
+
 # ── AC1: graph_depth_from_env ───────────────────────────────────────────────
 echo "-- AC1: graph_depth_from_env --"
 D=$(fresh_data_dir)

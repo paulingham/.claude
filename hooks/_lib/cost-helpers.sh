@@ -63,12 +63,20 @@ _cf_router_decision() {
   echo none
 }
 
+_cf_intake_from_path() {
+  # New: sibling intake.md. Legacy: '{task}-pipeline.md' -> '{task}-intake.md'.
+  case "$(basename "$1")" in
+    pipeline.md) echo "$(dirname "$1")/intake.md" ;;
+    *) local base; base=$(basename "$1"); echo "$(dirname "$1")/${base%-pipeline.md}-intake.md" ;;
+  esac
+}
+
 _cf_active_intake_path() {
-  # Resolve the active pipeline (same path as _cf_pipeline_id) -> sibling intake.md.
+  # Resolve the active pipeline (same dual-path logic as _cf_pipeline_id) -> intake.md.
   source "$(dirname "${BASH_SOURCE[0]}")/pipeline-state-paths.sh"
   local newest; newest=$(_psp_find_active_pipelines | head -1)
   [ -z "$newest" ] && return 1
-  echo "$(dirname "$newest")/intake.md"
+  _cf_intake_from_path "$newest"
 }
 
 _cf_budget_from_file() {
