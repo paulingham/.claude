@@ -17,6 +17,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import pytest
+pytest.importorskip("networkx", reason="optional [codebase-map] dependency not installed")
+
 from codebase_map import build as build_mod  # noqa: E402
 from codebase_map import graph as graph_mod  # noqa: E402
 from codebase_map import render as render_mod  # noqa: E402
