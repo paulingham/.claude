@@ -119,6 +119,38 @@ teardown() {
 # AC5 — Self-contained: no references outside the allowlist
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Final-Gate condition 2 — honest advisory log
+# ---------------------------------------------------------------------------
+
+@test "FG2.1 'recorded' message appears only when JSONL line was actually written" {
+  unset CLAUDE_DISABLE_PHASE_BOUNDARY_COMPRESS
+  HANDOFF_FILE="$TMP/handoff.md"
+  printf '## Goal\n\nTest.\n\n## Key Findings\n\n- F1.\n' > "$HANDOFF_FILE"
+  run "$HOOK" "build" "security-review" "$HANDOFF_FILE"
+  [ "$status" -eq 0 ]
+  # A JSONL file must exist — confirms "recorded" is truthful here
+  [ -f "$CLAUDE_PLUGIN_DATA/metrics/$CLAUDE_SESSION_ID/phase-boundary.jsonl" ]
+  # The stderr output must contain "recorded"
+  [[ "$output" == *"recorded"* ]] || [[ "$stderr" == *"recorded"* ]]
+}
+
+@test "FG2.2 'skipped' message appears when metrics dir is unwritable" {
+  unset CLAUDE_DISABLE_PHASE_BOUNDARY_COMPRESS
+  # Make the metrics dir unwritable so Python cannot create the file
+  METRICS_PARENT="$CLAUDE_PLUGIN_DATA/metrics/$CLAUDE_SESSION_ID"
+  mkdir -p "$METRICS_PARENT"
+  chmod 000 "$METRICS_PARENT"
+  HANDOFF_FILE="$TMP/handoff.md"
+  printf '## Goal\n\nTest.\n\n## Key Findings\n\n- F1.\n' > "$HANDOFF_FILE"
+  run "$HOOK" "build" "security-review" "$HANDOFF_FILE"
+  # Restore permissions for teardown
+  chmod 755 "$METRICS_PARENT"
+  [ "$status" -eq 0 ]
+  # No JSONL written — must say "skipped", not "recorded"
+  [[ "$output" == *"skipped"* ]] || [[ "$stderr" == *"skipped"* ]]
+}
+
 @test "AC5.1 no coupling outside allowlist files" {
   # Allowlist: exact absolute paths that ARE permitted to reference phase-boundary-compress.
   # We grep for all matches first, then post-filter out the exact allowed paths.

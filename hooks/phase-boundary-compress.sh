@@ -36,9 +36,17 @@ METRICS_DIR="${HARNESS_DATA}/metrics/${SESSION_ID}"
 
 # Invoke Python helper with the handoff FILE PATH (not content) to avoid
 # ARG_MAX/E2BIG limits on large documents. Python reads the file internally.
+# Capture exit status to gate the advisory log message honestly.
 python3 "${HOOK_DIR}/_lib/phase_boundary_tokens.py" \
-    "$METRICS_DIR" "$TS" "$PHASE_FROM" "$PHASE_TO" "${HANDOFF_FILE}" 2>/dev/null || true
+    "$METRICS_DIR" "$TS" "$PHASE_FROM" "$PHASE_TO" "${HANDOFF_FILE}" 2>/dev/null
+HELPER_STATUS=$?
 
-echo "phase-boundary: advisory measurement recorded (${PHASE_FROM} → ${PHASE_TO})" >&2
+# Report truthfully: "recorded" only when the helper succeeded and wrote a record;
+# "skipped" otherwise (e.g. unwritable metrics dir, missing file). Always exit 0.
+if [[ "$HELPER_STATUS" -eq 0 && -f "${METRICS_DIR}/phase-boundary.jsonl" ]]; then
+    echo "phase-boundary: advisory measurement recorded (${PHASE_FROM} → ${PHASE_TO})" >&2
+else
+    echo "phase-boundary: advisory measurement skipped (${PHASE_FROM} → ${PHASE_TO})" >&2
+fi
 
 exit 0

@@ -183,6 +183,12 @@ class TestEmitOneRecord:
             assert rec["goal_retained"] is True
             assert isinstance(rec["last_n_full"], int)
             assert rec["mode"] == "advisory"
+            # omit-not-null: record key set must be exactly these 8 fields, no more
+            assert set(rec.keys()) == {
+                "ts", "phase_from", "phase_to",
+                "tokens_before", "tokens_after",
+                "goal_retained", "last_n_full", "mode",
+            }
 
     def test_missing_handoff_file_returns_0_without_crash(self):
         """Non-existent handoff path must return 0 (advisory: never crash pipeline)."""
@@ -403,3 +409,88 @@ class TestWrongArgcLogsStderr:
         main(["phase_boundary_tokens.py"])  # only 1 arg, expects 6
         captured = capsys.readouterr()
         assert "usage" in captured.err.lower() or "expected" in captured.err.lower() or "argc" in captured.err.lower() or captured.err != ""
+
+
+# ---------------------------------------------------------------------------
+# Final-Gate condition 1 — _goal_present_in: line-start match only
+# ---------------------------------------------------------------------------
+
+class TestGoalPresentLineStart:
+    def test_inline_goal_header_not_treated_as_present(self):
+        """'## Goal' embedded inside a finding body must not count as a goal header."""
+        from phase_boundary_tokens import _goal_present_in
+        # "## Goal" appears only mid-sentence, not at line-start as a header
+        doc_no_header = (
+            "## Key Findings\n\n"
+            "- See ## Goal below for context.\n"
+            "- Another finding.\n"
+        )
+        assert _goal_present_in(doc_no_header) is False
+
+    def test_real_goal_header_detected(self):
+        """A proper ## Goal section at line-start → True."""
+        from phase_boundary_tokens import _goal_present_in
+        assert _goal_present_in("## Goal\n\nShip it.\n") is True
+
+    def test_goal_not_present_in_empty_doc(self):
+        from phase_boundary_tokens import _goal_present_in
+        assert _goal_present_in("") is False
+
+
+# ---------------------------------------------------------------------------
+# Final-Gate condition 3 (QA gap 4) — exactly-n-findings boundary
+# ---------------------------------------------------------------------------
+
+_EXACTLY_N_DOC = """\
+## Goal
+
+Goal text.
+
+## Key Findings
+
+- Finding 1.
+- Finding 2.
+- Finding 3.
+- Finding 4.
+- Finding 5.
+"""
+
+
+class TestExactlyNFindings:
+    def test_exactly_n_findings_no_compression(self):
+        """With exactly n=5 findings, compress_handoff must return the doc unchanged."""
+        from phase_boundary_tokens import compress_handoff
+        result = compress_handoff(_EXACTLY_N_DOC, n=5)
+        assert result == _EXACTLY_N_DOC
+
+    def test_exactly_n_findings_no_summary_line(self):
+        """No 'summarized' marker when count == n."""
+        from phase_boundary_tokens import compress_handoff
+        result = compress_handoff(_EXACTLY_N_DOC, n=5)
+        assert "summarized" not in result.lower()
+
+
+# ---------------------------------------------------------------------------
+# Final-Gate condition 4 (QA gap 2) — SKILL.md Step 3 renumber intact
+# ---------------------------------------------------------------------------
+
+class TestSkillMdRenumber:
+    def test_no_duplicate_numeric_substep_in_step3_block(self):
+        """Step 3 sub-steps must not have any duplicate numeric label (e.g. two '5.')."""
+        import re
+        skill_path = (
+            Path(__file__).resolve().parent.parent / "skills" / "pipeline" / "SKILL.md"
+        )
+        text = skill_path.read_text(encoding="utf-8")
+        # Locate the "For each phase:" paragraph inside Step 3 — the immediate
+        # sub-step list that was renumbered.  Stop at the first sub-heading (####).
+        for_each_match = re.search(
+            r"For each phase:\n(.*?)(?=^####|\Z)", text, re.DOTALL | re.MULTILINE
+        )
+        assert for_each_match, "'For each phase:' block not found in SKILL.md Step 3"
+        block = for_each_match.group(1)
+        # Only column-0 top-level list items of the form "N. " (not 2b., not indented)
+        numbers = re.findall(r"^(\d+)\. ", block, re.MULTILINE)
+        assert len(numbers) == len(set(numbers)), (
+            f"Duplicate sub-step numbers in Step 3 'For each phase:' block: {numbers}"
+        )

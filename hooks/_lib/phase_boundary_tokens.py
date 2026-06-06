@@ -113,8 +113,12 @@ def _split_goal_and_body(doc: str):
 
 
 def _goal_present_in(text: str) -> bool:
-    """Return True when the text contains a ## Goal section with non-empty content."""
-    return _GOAL_HEADER in text
+    """Return True when text contains '## Goal' as a line-start section header.
+
+    A substring occurrence inside a finding body (e.g. 'see ## Goal below') does
+    not count — only a line whose stripped content is exactly '## Goal'.
+    """
+    return any(line.strip() == _GOAL_HEADER for line in text.splitlines())
 
 
 def compress_handoff(doc: str, n: int = _DEFAULT_N) -> str:
