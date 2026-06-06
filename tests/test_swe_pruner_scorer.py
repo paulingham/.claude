@@ -401,5 +401,100 @@ class TestCanonicalBlockHeaders(unittest.TestCase):
         self.assertEqual(blocks[0].block_type, "session_memory")
 
 
+class TestExtractGoalKeywordsIntegration(unittest.TestCase):
+    """Integration tests: extract_goal_keywords must NOT include scratchpad words."""
+
+    def test_scratchpad_words_excluded_from_keywords(self):
+        """Meteorology words in a scratchpad block must not appear in keywords."""
+        from swe_pruner import extract_goal_keywords
+        prompt = (
+            "## Pipeline Scratchpad (findings from prior agents)\n"
+            "Cumulonimbus clouds are associated with severe weather phenomena.\n"
+            "Orographic precipitation occurs on the windward side of mountains.\n"
+            "## Role\n"
+            "software-engineer: build the authentication service.\n"
+        )
+        keywords = extract_goal_keywords("software-engineer", prompt)
+        # Scratchpad-only words must not pollute the keyword set
+        self.assertNotIn("cumulonimbus", keywords)
+        self.assertNotIn("orographic", keywords)
+        self.assertNotIn("precipitation", keywords)
+        # Goal words from subagent_type and ## Role block must be present
+        self.assertIn("software", keywords)
+        self.assertIn("engineer", keywords)
+        self.assertIn("authentication", keywords)
+
+    def test_full_path_irrelevant_scratchpad_yields_nonzero_drops(self):
+        """Full Python-API path: realistic prompt with irrelevant scratchpad -> drops > 0."""
+        from unittest.mock import patch
+        from swe_pruner import (
+            segment_content_blocks,
+            extract_goal_keywords,
+            propose_drops,
+            build_record,
+        )
+        irrelevant_prompt = (
+            "## Pipeline Scratchpad (findings from prior agents)\n"
+            + (
+                "Cumulonimbus clouds are associated with severe weather phenomena.\n"
+                "Orographic precipitation occurs on the windward side of mountains.\n"
+                "The Coriolis effect deflects winds to the right in the northern hemisphere.\n"
+                "Sea breeze circulation develops due to differential heating of land and sea.\n"
+            ) * 10
+            + "## Role\nsoftware-engineer: build the authentication service.\n"
+        )
+        payload = {"tool_input": {
+            "subagent_type": "software-engineer",
+            "prompt": irrelevant_prompt,
+        }}
+        blocks = segment_content_blocks(irrelevant_prompt)
+        keywords = extract_goal_keywords("software-engineer", irrelevant_prompt)
+        proposals = [(b, propose_drops(b, keywords)) for b in blocks]
+        with patch.dict(os.environ, {"CLAUDE_SESSION_ID": "integration-test"}):
+            record = build_record(payload, proposals)
+
+        self.assertGreater(
+            record["total_proposed_drop_lines"], 0,
+            "Full-path scoring produced zero drops for large irrelevant scratchpad"
+        )
+        self.assertGreater(
+            record["total_estimated_tokens_saved"], 0,
+            "total_estimated_tokens_saved must be > 0 for large irrelevant scratchpad"
+        )
+
+    def test_full_path_relevant_scratchpad_yields_fewer_drops(self):
+        """Full Python-API path: relevant scratchpad yields fewer drops than irrelevant."""
+        from unittest.mock import patch
+        from swe_pruner import (
+            segment_content_blocks,
+            extract_goal_keywords,
+            propose_drops,
+            build_record,
+        )
+
+        def _drops(prompt):
+            payload = {"tool_input": {"subagent_type": "software-engineer", "prompt": prompt}}
+            blocks = segment_content_blocks(prompt)
+            kw = extract_goal_keywords("software-engineer", prompt)
+            proposals = [(b, propose_drops(b, kw)) for b in blocks]
+            with patch.dict(os.environ, {"CLAUDE_SESSION_ID": "integration-test2"}):
+                return build_record(payload, proposals)["total_proposed_drop_lines"]
+
+        irrelevant = (
+            "## Pipeline Scratchpad (findings from prior agents)\n"
+            + "Orographic lift causes precipitation on windward slopes.\n" * 10
+            + "## Role\nsoftware-engineer: build the authentication service.\n"
+        )
+        relevant = (
+            "## Pipeline Scratchpad (findings from prior agents)\n"
+            + "The authentication service must be built using TDD.\n" * 10
+            + "## Role\nsoftware-engineer: build the authentication service.\n"
+        )
+        self.assertGreater(
+            _drops(irrelevant), _drops(relevant),
+            "Irrelevant scratchpad should produce more drops than relevant scratchpad"
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

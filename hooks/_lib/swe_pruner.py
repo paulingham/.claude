@@ -57,16 +57,35 @@ class ContentBlock:
 
 
 def extract_goal_keywords(subagent_type: str, prompt) -> frozenset[str]:
-    """Extract lowercase tokens >= 3 chars from subagent_type + prompt.
+    """Extract tokens from the goal region only — NOT from prunable context blocks.
 
-    Never raises. Returns frozenset of lowercase strings.
+    Goal region: subagent_type + pre-header preamble + non-prunable blocks
+    (role_doc, unknown). Excludes scratchpad/session_memory/instincts/protocol
+    so the scorer is not self-referential. Never raises.
     """
+    _PRUNABLE = frozenset({"scratchpad", "session_memory", "instincts", "protocol"})
     try:
-        text = f"{subagent_type or ''} {prompt or ''}"
-        tokens = re.findall(r"[a-z]{3,}", text.lower())
-        return frozenset(tokens)
+        prompt_str = str(prompt or "")
+        preamble = _extract_preamble(prompt_str)
+        goal_blocks = " ".join(
+            " ".join(b.lines)
+            for b in segment_content_blocks(prompt_str)
+            if b.block_type not in _PRUNABLE
+        )
+        text = " ".join(filter(None, [str(subagent_type or ""), preamble, goal_blocks]))
+        return frozenset(re.findall(r"[a-z]{3,}", text.lower()))
     except Exception:
         return frozenset()
+
+
+def _extract_preamble(prompt_str: str) -> str:
+    """Return prompt text before the first '## ' header."""
+    lines: list[str] = []
+    for line in prompt_str.splitlines():
+        if line.startswith("## "):
+            break
+        lines.append(line)
+    return " ".join(lines)
 
 
 def segment_content_blocks(prompt) -> list[ContentBlock]:
