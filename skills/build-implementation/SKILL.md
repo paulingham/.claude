@@ -135,6 +135,22 @@ Walk these 5 categories IN ORDER:
 
 After adversarials are GREEN, return to Step 2's MUTATION GATE on the **union suite** (architect stubs + adversarials).
 
+### Step 2c: In-Loop Security Scan (secret hard-block + SAST/dep auto-fix-or-escalate)
+
+Inserted between Step 2b and Step 2d. A first-pass shift-left scan runs automatically on every `git commit` inside the worktree via the `build-loop-scan.sh` PreToolUse:Bash hook — it scans the staged diff, HARD-BLOCKS an introduced secret before the commit object is created, and surfaces SAST/dependency findings advisory. Default ON. Triad verdicts: `BUILD_SCAN_PASSED`, `BUILD_SCAN_SKIPPED`, `BUILD_SCAN_BLOCKED`. Artifact: `$state_dir/{task-id}/build-artifacts/build-loop-scan-report.json` (written on every commit attempt).
+
+**Why this is distinct from the second-pass gate.** This in-loop gate catches the obvious early; it does NOT replace, narrow, or skip security review. **Security-review remains the authoritative second-pass gate** — it runs its full OWASP rubric + SAST triage + secrets + dependency audit after `BUILD_COMPLETE`. The phase order `Build → Security Review → Final Gate` is unchanged.
+
+**Escape hatch.** Set `CLAUDE_DISABLE_BUILD_LOOP_SCAN=1` to bypass — the hook emits a stderr notice, writes one bypass-ledger JSONL line, and exits 0 even with a staged secret. The hatch matches the canonical `CLAUDE_DISABLE_*=1` shape. The second-pass gate still catches anything real, so the bypass is recoverable.
+
+**Auto-fix posture.**
+
+- **Secret (`BUILD_SCAN_BLOCKED`, exit 2)** → HALT. Never auto-commit a secret. Move the literal to an env var / secret store, re-stage, re-commit. The block is regex-based (canonical patterns in `hooks/_lib/build_loop_scan.py`) so it is tool-independent — a missing scanner never disables it.
+- **SAST/dep finding that is mechanical AND non-breaking** (e.g. a flagged `eval()` with an obvious safe rewrite, a patch-level dependency bump) → auto-fix in-loop and re-commit.
+- **Ambiguous OR breaking finding** → do NOT guess. Escalate to security-review (the second-pass gate) rather than invent the contract.
+
+**2am breadcrumb.** If a known secret was NOT blocked in-loop: (1) confirm the commit ran inside `.claude/worktrees/agent-*`; (2) check `build-loop-scan-report.json` at `$HARNESS_DATA/pipeline-state/${CLAUDE_TASK_ID:-inline-build-scan-gate}/build-artifacts/build-loop-scan-report.json` — the hook uses `CLAUDE_TASK_ID` env when available and falls back to `inline-build-scan-gate`; check `verdict` + `staged_file_count` — a `staged_file_count` of `0` means the staged-diff read targeted the wrong repo, check the `cwd` resolution in `hooks/_lib/build_loop_scan_cli.py`; (3) `grep CLAUDE_DISABLE_BUILD_LOOP_SCAN` the env and the bypass-ledger; (4) security-review is the backstop — the secret is still gated before Ship.
+
 ### Step 2d: DOM Smoke
 
 Inserted between Step 2b and Step 3. Authors a runtime smoke check via Chrome DevTools MCP: navigate each changed route, fail Build on console `level: error` or network `status >= 400` (after the inline ignore-list filter). Default ON. The escape hatch is `CLAUDE_DOM_SMOKE=0`. Triad verdicts: `DOM_SMOKE_PASSED`, `DOM_SMOKE_SKIPPED`, `DOM_SMOKE_FAILED`.
@@ -261,6 +277,7 @@ Before declaring the build complete:
 - [ ] ATDD audit trail visible (batched RED + GREEN + mutation report ≥ 70%)
 - [ ] Step 2b ran with the correct cap for the slice's task class (greenfield: default-on, cap=5; refactor: opt-in via `CLAUDE_ADVERSARIAL_TESTS_REFACTOR=1`, cap=3), OR was skipped per `CLAUDE_ADVERSARIAL_TESTS=0` (master kill-switch), OR is N/A for a bug-fix slice
 - [ ] Step 1d ran (PBT_AUTHORED or PBT_SKIPPED), OR was skipped per `CLAUDE_PBT=0`
+- [ ] Step 2c in-loop scan ran on each commit (BUILD_SCAN_PASSED/BUILD_SCAN_SKIPPED, never an unremediated BUILD_SCAN_BLOCKED), OR was bypassed per `CLAUDE_DISABLE_BUILD_LOOP_SCAN=1`
 - [ ] If changes touch URL/auth/nav/WebView files: note that E2E will be required in Verify phase (see `protocols/e2e-protocol.md` trigger matrix)
 - [ ] If `/harness:tool-synthesis` was invoked: `register.sh --cleanup ${WORKTREE}` ran AND `git status` shows no `.claude-scratch-tools/` entries
 - [ ] Patches for edits-to-existing-files apply cleanly via `git apply --check`.

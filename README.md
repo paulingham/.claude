@@ -270,6 +270,7 @@ Invoked only when a forcing function from `protocols/module-boundaries-protocol.
 | `subagent-stop-trajectory.sh` | Records agent completion to pipeline trajectory | Passive |
 | `session-start-bootstrap.sh` | Skill awareness, supervisor auto-start, pipeline/session detection | Bootstrap |
 | `commit-checkpoint.sh` | Shape + type check on staged files before commit | Advisory |
+| `build-loop-scan.sh` | In-loop secret/SAST/dep scan on worktree `git commit`; introduced secrets hard-block (exit 2), SAST/dep advisory | Hard block |
 | `intake-reminder.sh` | Nudges `/harness:intake` when implementation keywords detected | Advisory |
 | `pipeline-analytics.sh` | Aggregates phase verdicts into `metrics/pipelines.jsonl` | Passive |
 | `subagent-validation.sh` | Reminds orchestrator to validate worktree changes on agent stop | Advisory |
