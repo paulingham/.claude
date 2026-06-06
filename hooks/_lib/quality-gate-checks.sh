@@ -10,13 +10,24 @@ _qg_detect_runtime() {
   echo unknown
 }
 
+# Skip-eligible (return 0) ONLY when the HEAD~1..HEAD diff was computed AND has
+# zero files matching $1. Returns 1 when the diff touches $1 OR is undeterminable
+# (no/failed diff) — conservative: run the suite on uncertainty.
+_qg_diff_skip_eligible() {
+  local pat="$1" files
+  files=$(git diff --name-only HEAD~1 HEAD 2>/dev/null) || return 1
+  [[ -z "$files" ]] && return 1
+  printf '%s\n' "$files" | grep -qE "$pat" && return 1
+  return 0
+}
+
 _qg_check_tests() {
   local rt=${1:-$(_qg_detect_runtime)}
   case "$rt" in ruby) _qg_check_tests_ruby ;; node) _qg_check_tests_node ;; python) _qg_check_tests_python ;; *) return 0 ;; esac
 }
-_qg_check_tests_ruby() { command -v bundle &>/dev/null || return 0; bundle exec rspec --format progress &>/dev/null && { echo "[qg] tests: PASS" >&2; return 0; }; echo "[qg] tests: FAIL" >&2; return 1; }
-_qg_check_tests_node() { command -v npm &>/dev/null || return 0; npm test &>/dev/null && { echo "[qg] tests: PASS" >&2; return 0; }; echo "[qg] tests: FAIL" >&2; return 1; }
-_qg_check_tests_python() { command -v pytest &>/dev/null || return 0; pytest --tb=no -q &>/dev/null && { echo "[qg] tests: PASS" >&2; return 0; }; echo "[qg] tests: FAIL" >&2; return 1; }
+_qg_check_tests_ruby() { _qg_diff_skip_eligible '\.rb$' && { echo "[qg] tests: PASS (no Ruby files changed)" >&2; return 0; }; command -v bundle &>/dev/null || return 0; bundle exec rspec --format progress &>/dev/null && { echo "[qg] tests: PASS" >&2; return 0; }; echo "[qg] tests: FAIL" >&2; return 1; }
+_qg_check_tests_node() { _qg_diff_skip_eligible '\.(ts|tsx|js|jsx|mjs|cjs)$' && { echo "[qg] tests: PASS (no JS/TS files changed)" >&2; return 0; }; command -v npm &>/dev/null || return 0; npm test &>/dev/null && { echo "[qg] tests: PASS" >&2; return 0; }; echo "[qg] tests: FAIL" >&2; return 1; }
+_qg_check_tests_python() { _qg_diff_skip_eligible '\.py$' && { echo "[qg] tests: PASS (no Python files changed)" >&2; return 0; }; command -v pytest &>/dev/null || return 0; pytest --tb=no -q &>/dev/null && { echo "[qg] tests: PASS" >&2; return 0; }; echo "[qg] tests: FAIL" >&2; return 1; }
 
 _qg_check_lint() {
   local rt=${1:-$(_qg_detect_runtime)}
