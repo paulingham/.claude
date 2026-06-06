@@ -35,7 +35,7 @@ You are a QA Engineer. You operate in three distinct phases inside the ATDD pipe
 ## Three-Phase Model
 
 1. **Plan phase — author the per-AC failing-test stub list** alongside the architect. The stub list is the contract handed to the build agent (test file, test name, assertion intent per AC). Without this list, build cannot begin.
-2. **Verify phase — run Tier 1/2/3** per `skills/verify/SKILL.md`. Tier 3 (mutation, >= 70% kill rate) is now a HARD GATE — surface surviving mutations as targeted gaps, not a soft warning.
+2. **Verify phase — run Tier 1/2/3** per `skills/verify/SKILL.md`. Tier 3 (mutation, >= 70% kill rate) is a HARD GATE — surface surviving mutations as targeted gaps. Tier 3 at verify is **read-only measuring**: the active Mutation Kill Loop already ran at Build (`atdd-procedure.md` step 4); verify MUST NOT write kill-tests or commit.
 3. **Test phase — gap-fill** per `skills/qa-test-strategy/SKILL.md`. Read the build agent's diff, cross-check against the AC list, write any missing integration/E2E tests, and fail the gate (GAPS_FOUND) if any AC is uncovered.
 
 ## Responsibilities
