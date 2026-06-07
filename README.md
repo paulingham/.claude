@@ -44,10 +44,10 @@ You describe what you want. The system:
     e2e-protocol.md            #   Multi-target E2E trigger matrix (mobile + web)
     verdict-catalog.md         #   Harness-audit verdict registry (on-demand audit source)
   orchestrator/                # Orchestrator-only detailed procedures (4 files)
-  agents/                      # 17 specialized agent definitions
-  skills/                      # 59 skills (procedural workflows)
-  knowledge/                   # 37 domain pattern references
-  hooks/                       # 25 enforcement scripts
+  agents/                      # 19 specialized agent definitions
+  skills/                      # 66 skills (procedural workflows)
+  knowledge/                   # 41 domain pattern references
+  hooks/                       # 78 enforcement scripts
     _lib/                      #   Shared helpers, including:
                                #     plan_dag_resolver.py — schema_version: 2 plan
                                #       parsing, validation, topological waves
@@ -128,7 +128,7 @@ Next pipeline → Instinct injected into agent prompt → Better build → Fewer
 
 Review findings classified as "preventable by build agent" become build-targeted instincts — a backward feedback loop from review to build.
 
-## Skills (59)
+## Skills (66)
 
 ### Pipeline & Orchestration
 | Skill | Purpose |
@@ -136,9 +136,14 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `/harness:intake` | Entry point — classify work, score complexity, route |
 | `/harness:pipeline` | Autonomous conductor — drives all phases in sequence |
 | `/harness:pipeline-resume` | Resume interrupted pipeline from state files |
+| `/harness:batch-pipeline` | Lightweight pipeline for pre-planned batch work (readiness waves, bulk fixes) |
 | `/harness:epic-breakdown` | Decompose epics into estimated stories |
 | `/harness:estimation` | Complexity Budget scoring (5 dimensions) |
 | `/harness:story-writing` | Write stories with Given/When/Then ACs |
+| `/harness:spec-grounding` | Ground raw ACs against codebase evidence (EARS-tagged, Plan Stage 0) |
+| `/harness:plan-self-validation` | Architect re-reads its own plan against a holes rubric (non-critical, low-budget) |
+| `/harness:plan-cache-lookup` | Plan Stage 0 gate — check plan-template cache for a matching key |
+| `/harness:plan-cache-rollout-gate` | Rollout gate deciding plan-cache shadow→on flip readiness |
 
 ### Build Phase
 | Skill | Purpose |
@@ -149,6 +154,11 @@ Review findings classified as "preventable by build agent" become build-targeted
 | `/harness:module-extraction` | Default extraction path — bounded context → in-process module with an explicit port (same repo, no forcing function needed) |
 | `/harness:tool-synthesis` | Author a one-shot scratch tool inside the worktree mid-task (custom search/AST/lint). Tool lives in `.claude-scratch-tools/`, cleaned up before merge |
 | `/harness:tech-spike` | Time-boxed technical research |
+| `/harness:best-of-n` | N-candidate parallel build with critic-selected winner (high-stakes variant) |
+| `/harness:pdr-rtv` | Parallel-Diverse-Refine + Recursive-Tournament-Verification build variant |
+| `/harness:property-based-test` | Tier 1.5 property-based tests for changed-line public functions (auto-invoked) |
+| `/harness:sandbox-verify` | Run the test suite in a remote sandbox (E2B) and diff pass sets vs the worktree |
+| `/harness:continuous-planning` | Advisory planning-agent that refines the plan during multi-slice Build |
 
 **Continuous Planning**: On multi-slice Build runs (≥2 engineer slices), a `planning-agent` teammate (Sonnet 4.6) monitors the pipeline scratchpad and refines the active plan when findings contradict it. The planning-agent appends `## Plan Update` sections to the plan file and broadcasts updates to active build teammates. It is advisory only — Build engineers never block on it. Controlled by `should_spawn_planning_agent(slice_count, dispatch_mode, phase)` in `hooks/_lib/should_spawn_planning_agent.py`.
 
@@ -183,6 +193,9 @@ Invoked only when a forcing function from `protocols/module-boundaries-protocol.
 | `/harness:verify` | VERIFIED / UNVERIFIED |
 | `/harness:load-test` | PERFORMANCE_VERIFIED / FAILED |
 | `/harness:qa-test-strategy` | COVERED / GAPS_FOUND |
+| `/harness:spec-blind-validate` | Black-box behavioural tests from ACs + public API only (Final Gate) |
+| `/harness:accessibility-check` | axe-core WCAG 2.1 AA gate on changed routes |
+| `/harness:vlm-critic` | Per-route visual-diff verdict — VISUAL_DIFF_PASS / VISUAL_DIFF_FAIL |
 | `/harness:product-acceptance` | APPROVED / REJECTED |
 | `/harness:patch-critique` | PATCH_APPROVED / PATCH_REJECTED |
 | `/harness:pr-creation` | PR_CREATED / PR_BLOCKED |
@@ -195,7 +208,12 @@ Invoked only when a forcing function from `protocols/module-boundaries-protocol.
 | `/harness:harness-config` | Modify hooks, settings.json (delegates to infra-engineer) |
 | `/harness:harness-audit` | Health check of ~/.claude/ config (+ agnix integration) |
 | `/harness:debug` | Persistent debug state for complex, multi-session bugs |
+| `/harness:debug-trace` | Toggle prompt tracing on/off for the current session |
 | `/harness:forensics` | Post-incident pipeline investigation |
+| `/harness:cost-report` | Aggregate per-session tool-timings into a project-wide spend report |
+| `/harness:cache-audit` | Project-wide prompt-cache read-ratio report |
+| `/harness:cache-flip-gate` | Staged-flip gate for the cache read-ratio target (advisory) |
+| `/harness:eval-model-effectiveness` | Recommend per-role model downgrades/upgrades from observations (advisory) |
 | `/harness:workstream` | Manage isolated workstreams for parallel development |
 | `/harness:polish` | Mechanical cleanup between Build and Review (Haiku, Budget >= 7) |
 | `/harness:design-qc` | Visual QA screenshots for product acceptance (frontend changes) |
@@ -211,7 +229,7 @@ Invoked only when a forcing function from `protocols/module-boundaries-protocol.
 | `/harness:web-frontend-patterns` | React/Next.js, state, a11y, caching, security |
 | `/harness:react-native-patterns` | Expo, NativeWind, Maestro E2E |
 
-## Knowledge Library (37 files)
+## Knowledge Library (41 files)
 
 ### Core Engineering
 `database-patterns` `api-patterns` `testing-patterns` `integration-patterns` `auth-patterns` `env-management-patterns` `devx-patterns` `tech-stack-decision-matrix`
