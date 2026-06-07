@@ -1,0 +1,5 @@
+{"type":"user","message":{"content":"check the status"},"uuid":"u0","timestamp":"2026-01-01T00:00:00Z","sessionId":"s9"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"I need to think about this more carefully."}]},"uuid":"a1","timestamp":"2026-01-01T00:00:01Z","sessionId":"s9"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"observation between duplicates","is_error":false}]},"uuid":"u1","timestamp":"2026-01-01T00:00:02Z","sessionId":"s9"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"I need to think about this more carefully."}]},"uuid":"a2","timestamp":"2026-01-01T00:00:03Z","sessionId":"s9"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"I need to think about this more carefully."}]},"uuid":"a3","timestamp":"2026-01-01T00:00:04Z","sessionId":"s9"}

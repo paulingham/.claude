@@ -256,7 +256,8 @@ Invoked only when a forcing function from `protocols/module-boundaries-protocol.
 | `cc-check.sh` | Cyclomatic complexity (eslint/rubocop/radon/gocyclo) | Advisory |
 | `function-body-check.sh` | Function length limit (configurable, default 8 lines) | Advisory |
 | `hook-profile.sh` | Runtime profile gating (minimal/standard/strict) | Library |
-| `loop-guard.sh` | Re-entrancy prevention (>10 calls in 60s = skip) | Library |
+| `loop-guard.sh` | Re-entrancy prevention (>10 calls in 60s = skip); also provides `check_stuck()` semantic advisory detector | Library |
+| `stuck-guard.sh` | Stop-hook entrypoint: runs OpenHands five-pattern semantic stuck-detector (advisory, log-only) | Advisory |
 | `config-protection.sh` | Blocks linter/formatter config modifications | Hard block |
 | `governance-capture.sh` | Secret detection, policy violation, sensitive path logging | Advisory |
 | `auto-bug-detect.sh` | Detects 12 bug-fix categories from edit diffs | Passive |
