@@ -11,13 +11,19 @@ The wrapper logs only when decision == "LOG" and exits 0 in either case.
 """
 import json
 import os
+import re
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
-from advisor_resolver import resolve, resolve_model_conditional  # noqa: E402
+from advisor_resolver import (  # noqa: E402
+    resolve, resolve_model_conditional, route_model, extract_router_signals,
+)
 from agent_frontmatter_loader import load_agent_frontmatter  # noqa: E402
 from model_binding import should_emit_model, build_hook_output  # noqa: E402
 from pipeline_state import read_active_state  # noqa: E402
+from pipeline_state_paths import find_pipeline_files  # noqa: E402
+from harness_paths import harness_data  # noqa: E402
 
 
 def _payload():
@@ -41,6 +47,85 @@ def _binding_output(decision, frontmatter, budget):
     return ""
 
 
+def _router_mode(env):
+    """Read CLAUDE_MODEL_ROUTER; fail-closed to 'off' for unset/empty/0/unrecognised.
+
+    Returns: 'off', 'shadow', or 'active'.
+    """
+    raw = (env or {}).get("CLAUDE_MODEL_ROUTER", "")
+    if raw in ("shadow", "active"):
+        return raw
+    return "off"
+
+
+def _graph_depth(env):
+    """Parse CLAUDE_SUBAGENT_DEPTH from env; return int (incl 0) or None if unset/non-numeric.
+
+    '0' -> 0 (preserved as int; distinct from None = top-level/unset).
+    Non-numeric or absent -> None.
+    """
+    raw = (env or {}).get("CLAUDE_SUBAGENT_DEPTH", "")
+    if raw and raw.isdigit():
+        return int(raw)
+    return None
+
+
+def _intake_budget():
+    """Read complexity_budget from the active pipeline's intake.md.
+
+    Mirrors cost-helpers.sh:74-94 bash logic in Python.
+    Uses find_pipeline_files (same dual-path resolution as read_active_state)
+    to locate the active pipeline, then resolves intake.md sibling path,
+    then greps for complexity_budget flat or nested total:.
+    Returns int or None (never raises — budget absence is not an error).
+    """
+    try:
+        state_dir_env = os.environ.get("CLAUDE_PIPELINE_STATE_DIR")
+        if state_dir_env:
+            state_dir = Path(state_dir_env)
+        else:
+            state_dir = harness_data() / "pipeline-state"
+        files = find_pipeline_files(state_dir)
+        if not files:
+            return None
+        files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        pipeline_path = files[0]
+        intake_path = _resolve_intake_path(pipeline_path)
+        if not intake_path.is_file():
+            return None
+        return _parse_budget_from_intake(intake_path)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _resolve_intake_path(pipeline_path):
+    """Resolve sibling intake.md from a pipeline path (new or legacy layout)."""
+    name = pipeline_path.name
+    if name == "pipeline.md":
+        return pipeline_path.parent / "intake.md"
+    # Legacy: {task-id}-pipeline.md -> {task-id}-intake.md
+    base = name[: -len("-pipeline.md")] if name.endswith("-pipeline.md") else name
+    return pipeline_path.parent / f"{base}-intake.md"
+
+
+def _parse_budget_from_intake(intake_path):
+    """Extract first integer from complexity_budget flat or nested total: line."""
+    try:
+        text = intake_path.read_text()
+        # Match the whole line so multi-digit numbers are captured.
+        # Flat: complexity_budget: <digits>
+        # Nested: <spaces>total: <digits>
+        pattern = re.compile(
+            r'^(complexity_budget:|[^\S\r\n]*total:)[^\S\r\n]*([0-9]+)',
+            re.MULTILINE)
+        match = pattern.search(text)
+        if match:
+            return int(match.group(2))
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def main():
     payload = _payload()
     tool_input = payload.get("tool_input") or {}
@@ -50,6 +135,21 @@ def main():
     state = read_active_state()
     budget = state.get("budget") or None  # coerce 0 to None (indistinguishable from unset)
     binding = _binding_output(decision, frontmatter, budget)
+
+    mode = _router_mode(os.environ)
+    if mode != "off" and decision == "LOG":
+        try:
+            role = (tool_input.get("subagent_type") or "")
+            depth = _graph_depth(os.environ)
+            intake_budget = _intake_budget()
+            signals = extract_router_signals(
+                role=role, graph_depth=depth,
+                complexity_budget=intake_budget, prior_error_count=0)
+            tier = route_model(signals)
+            resolved["router_decision"] = tier
+        except Exception:  # noqa: BLE001
+            resolved["router_decision"] = "error"
+
     sys.stdout.write(f"{decision}\n{json.dumps(resolved)}\n{binding}\n")
 
 
