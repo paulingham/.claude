@@ -24,6 +24,15 @@ name = "claude-harness"
 version = "0.0.0"
 description = "Internal harness — not published to PyPI."
 requires-python = ">=3.9"
+dependencies = [
+    # Required by the agent-frontmatter and instinct-injection hook libraries
+    # (hooks/_lib/agent_frontmatter_io.py, agent_tools_loader.py,
+    # instinct_loader_helpers.py, plan_dag_resolver.py) which do an unguarded
+    # `import yaml`, plus 17+ test modules. Undeclared previously — only worked
+    # via a global PyYAML on PATH; absent in a fresh `pip install -e .` / CI /
+    # eval-isolation, causing pytest collection errors that block the Ship gate.
+    "pyyaml>=6.0",
+]
 
 [project.optional-dependencies]
 codebase-map = [
