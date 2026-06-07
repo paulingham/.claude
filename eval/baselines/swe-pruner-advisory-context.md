@@ -2,7 +2,7 @@
 advisory_mode: true
 eval_pass_rate: 1.00
 eval_suite: swe-pruner-unit-integration
-eval_n: 121
+eval_n: 162
 ---
 
 # SWE-Pruner Advisory Context Filter — Eval Baseline
@@ -25,9 +25,9 @@ enforcing mode requires ROLLOUT_GATE_PASS from
 
 ## Eval Results
 
-- `eval_pass_rate`: 1.00 (all 121 tests passing at baseline commit)
-- `eval_suite`: swe-pruner-unit-integration (tests/test_swe_pruner_*.py + tests/hooks/test_swe_pruner_hook_integration.py)
-- `eval_n`: 121 tests
+- `eval_pass_rate`: 1.00 (all 162 tests passing at baseline commit)
+- `eval_suite`: swe-pruner-unit-integration (tests/test_swe_pruner_*.py + tests/hooks/test_swe_pruner_hook_integration.py + tests/test_swe_pruner_spec_blind.py)
+- `eval_n`: 162 tests
 
 ## Regression Anchor
 
