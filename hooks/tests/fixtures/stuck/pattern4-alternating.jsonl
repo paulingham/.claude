@@ -1,0 +1,13 @@
+{"type":"user","message":{"content":"keep going"},"uuid":"u0","timestamp":"2026-01-01T00:00:00Z","sessionId":"s4"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"cat /etc/hosts","description":"read hosts"},"caller":{}}]},"uuid":"a1","timestamp":"2026-01-01T00:00:01Z","sessionId":"s4"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"127.0.0.1 localhost","is_error":false}]},"uuid":"u1","timestamp":"2026-01-01T00:00:02Z","sessionId":"s4"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t2","name":"Read","input":{"file_path":"/etc/hosts"},"caller":{}}]},"uuid":"a2","timestamp":"2026-01-01T00:00:03Z","sessionId":"s4"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t2","content":"127.0.0.1 localhost\n","is_error":false}]},"uuid":"u2","timestamp":"2026-01-01T00:00:04Z","sessionId":"s4"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t3","name":"Bash","input":{"command":"cat /etc/hosts","description":"read hosts"},"caller":{}}]},"uuid":"a3","timestamp":"2026-01-01T00:00:05Z","sessionId":"s4"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t3","content":"127.0.0.1 localhost","is_error":false}]},"uuid":"u3","timestamp":"2026-01-01T00:00:06Z","sessionId":"s4"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t4","name":"Read","input":{"file_path":"/etc/hosts"},"caller":{}}]},"uuid":"a4","timestamp":"2026-01-01T00:00:07Z","sessionId":"s4"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t4","content":"127.0.0.1 localhost\n","is_error":false}]},"uuid":"u4","timestamp":"2026-01-01T00:00:08Z","sessionId":"s4"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t5","name":"Bash","input":{"command":"cat /etc/hosts","description":"read hosts"},"caller":{}}]},"uuid":"a5","timestamp":"2026-01-01T00:00:09Z","sessionId":"s4"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t5","content":"127.0.0.1 localhost","is_error":false}]},"uuid":"u5","timestamp":"2026-01-01T00:00:10Z","sessionId":"s4"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t6","name":"Read","input":{"file_path":"/etc/hosts"},"caller":{}}]},"uuid":"a6","timestamp":"2026-01-01T00:00:11Z","sessionId":"s4"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t6","content":"127.0.0.1 localhost\n","is_error":false}]},"uuid":"u6","timestamp":"2026-01-01T00:00:12Z","sessionId":"s4"}

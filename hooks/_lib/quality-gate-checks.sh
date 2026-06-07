@@ -27,7 +27,74 @@ _qg_check_tests() {
 }
 _qg_check_tests_ruby() { _qg_diff_skip_eligible '\.rb$' && { echo "[qg] tests: PASS (no Ruby files changed)" >&2; return 0; }; command -v bundle &>/dev/null || return 0; bundle exec rspec --format progress &>/dev/null && { echo "[qg] tests: PASS" >&2; return 0; }; echo "[qg] tests: FAIL" >&2; return 1; }
 _qg_check_tests_node() { _qg_diff_skip_eligible '\.(ts|tsx|js|jsx|mjs|cjs)$' && { echo "[qg] tests: PASS (no JS/TS files changed)" >&2; return 0; }; command -v npm &>/dev/null || return 0; npm test &>/dev/null && { echo "[qg] tests: PASS" >&2; return 0; }; echo "[qg] tests: FAIL" >&2; return 1; }
-_qg_check_tests_python() { _qg_diff_skip_eligible '\.py$' && { echo "[qg] tests: PASS (no Python files changed)" >&2; return 0; }; command -v pytest &>/dev/null || return 0; pytest --tb=no -q &>/dev/null && { echo "[qg] tests: PASS" >&2; return 0; }; echo "[qg] tests: FAIL" >&2; return 1; }
+# Baseline path for tolerated pre-existing pytest failures (env-local runtime state).
+_qg_known_red_path() { printf '%s/pipeline-state/quality-gate/known-red.txt' "${HARNESS_DATA:-$HOME/.claude}"; }
+
+# Run pytest once, emit currently-failing node IDs (one per line, sorted/unique) on stdout.
+# `-rfE` surfaces both FAILED and (collection) ERROR summary lines; the
+# --continue flag prevents collection errors (e.g. an unprovisioned optional dep)
+# from aborting the whole run and silently hiding the real red set. rc captured via
+# `|| true` so the caller's pipefail cannot kill the function on a red suite.
+_qg_pytest_failures() {
+  local out; out=$(pytest -q --no-header -p no:cacheprovider -o addopts="" -rfE --continue-on-collection-errors 2>/dev/null || true)
+  printf '%s\n' "$out" | grep -oE '^(FAILED|ERROR|SUBFAILED[^ ]*) +tests/[^ ]+' \
+    | grep -oE 'tests/[^ ]+' | sort -u
+}
+
+# Concatenate N consecutive full pytest runs' failure sets (newline-joined, with
+# duplicates preserved so counts are meaningful). This suite is NONDETERMINISTIC in
+# full-run mode (~20 node IDs flap run-to-run from inter-test state pollution); a single
+# run's red set is unstable. CLAUDE_QG_TEST_RUNS overrides the run count (default 2).
+_qg_pytest_runs() {
+  local runs="${CLAUDE_QG_TEST_RUNS:-2}" merged="" i
+  for ((i = 0; i < runs; i++)); do merged=$(printf '%s\n%s\n' "$merged" "$(_qg_pytest_failures)"); done
+  printf '%s\n' "$merged" | grep -v '^$'
+}
+
+# Confirmed (stable) failures = intersection of all runs: node IDs that failed in EVERY
+# run. Flap collapses here — a flappy test rarely fails all N runs, a real one always does.
+_qg_pytest_confirmed() {
+  local runs="${CLAUDE_QG_TEST_RUNS:-2}"
+  printf '%s\n' "$1" | sort | uniq -c | awk -v n="$runs" '$1 == n {print $2}'
+}
+
+# Count of flappy (non-confirmed) node IDs: union minus intersection across the runs.
+_qg_pytest_flappy_count() {
+  local union confirmed
+  union=$(printf '%s\n' "$1" | sort -u | grep -c .)
+  confirmed=$(_qg_pytest_confirmed "$1" | grep -c .)
+  printf '%s' "$((union - confirmed))"
+}
+
+# Read baseline node IDs, ignoring blank lines and #-comment/provenance lines.
+_qg_read_baseline() { grep -vE '^[[:space:]]*(#|$)' "$1" 2>/dev/null | sort -u; }
+
+_qg_check_tests_python() {
+  _qg_diff_skip_eligible '\.py$' && { echo "[qg] tests: PASS (no Python files changed)" >&2; return 0; }
+  command -v pytest &>/dev/null || return 0
+  local baseline merged confirmed flappy
+  baseline=$(_qg_known_red_path); merged=$(_qg_pytest_runs)
+  confirmed=$(_qg_pytest_confirmed "$merged"); flappy=$(_qg_pytest_flappy_count "$merged")
+  [[ -f "$baseline" ]] || { _qg_tests_python_no_baseline "$confirmed" "$flappy"; return $?; }
+  local new_red; new_red=$(comm -23 <(printf '%s\n' "$confirmed" | grep -v '^$') <(_qg_read_baseline "$baseline"))
+  _qg_tests_python_verdict "$new_red" "$(_qg_read_baseline "$baseline" | grep -c .)" "$flappy"
+}
+
+# First-run fallback: no baseline recorded → strict (any CONFIRMED failure fails), with hint.
+_qg_tests_python_no_baseline() {
+  [[ -z "${1//[[:space:]]/}" ]] && { echo "[qg] tests: PASS (${2:-0} flappy ignored)" >&2; return 0; }
+  echo "[qg] tests: FAIL (no known-red baseline; run scripts/qg-baseline-record.sh to record current red as baseline)" >&2
+  return 1
+}
+
+# Verdict on the new-red set: empty → tolerate pre-existing; else list NEW RED and fail.
+_qg_tests_python_verdict() {
+  local new_red="$1" base_count="$2" flappy="${3:-0}"
+  [[ -z "${new_red//[[:space:]]/}" ]] && { echo "[qg] tests: PASS ($base_count pre-existing red tolerated, $flappy flappy ignored)" >&2; return 0; }
+  printf '%s\n' "$new_red" | grep -v '^$' | sed 's/^/[qg]   NEW RED: /' >&2
+  echo "[qg] tests: FAIL ($(printf '%s\n' "$new_red" | grep -c .) new regressions confirmed in both runs)" >&2
+  return 1
+}
 
 _qg_check_lint() {
   local rt=${1:-$(_qg_detect_runtime)}

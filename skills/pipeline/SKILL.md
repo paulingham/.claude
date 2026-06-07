@@ -296,8 +296,9 @@ For each phase:
 2b. **Sequential write-capable phases** (Build, Verify Tier 3, QA gap-fill, scaffold): Spawn agent via Agent tool with `isolation: "worktree"`, instructing them to read and execute the skill file at `~/.claude/skills/[name]/SKILL.md`
 3. **Parallel phases**: Use Parallel Dispatch Protocol (see `protocols/parallel-dispatch-protocol.md`) — spawn agents in a single message, each reading their own skill file
 4. Read the Phase Output (Verdict, Next, Artifacts)
-5. If verdict is a failure/rejection: handle per Step 4 (Recovery)
-6. If verdict is success: update memory file with verdict and artifacts, advance to next
+5. At each phase boundary, invoke `hooks/phase-boundary-compress.sh <completed-phase> <next-phase>` (advisory): measures tokens_before/tokens_after, emits one record to `metrics/{session}/phase-boundary.jsonl`. Does not rewrite the handoff. Escape hatch: `CLAUDE_DISABLE_PHASE_BOUNDARY_COMPRESS=1`.
+6. If verdict is a failure/rejection: handle per Step 4 (Recovery)
+7. If verdict is success: update memory file with verdict and artifacts, advance to next
 
 #### Build Phase Dispatch — Variant Routing (precedence: `pdr_rtv > bestofn > standard`)
 

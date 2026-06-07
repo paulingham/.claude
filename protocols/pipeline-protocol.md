@@ -98,6 +98,16 @@ timestamp: {ISO 8601}
 {What the next phase needs to know from this phase}
 ```
 
+#### Next Phase Input — Handoff Enforcement (phase-boundary-compress.sh)
+
+The `## Next Phase Input` section is the payload forwarded to the next phase. Shape contract:
+
+- **Goal + ACs**: retained verbatim (byte-identical) — never summarized.
+- **Completed-phase detail**: summarized — findings beyond the last N are collapsed to a single placeholder.
+- **Last-N findings**: retained full-resolution (default N=5).
+
+Measurement: `hooks/phase-boundary-compress.sh <phase_from> <phase_to> [handoff_file]` (advisory) emits `{ts, phase_from, phase_to, tokens_before, tokens_after, goal_retained, last_n_full, mode}` to `metrics/{session}/phase-boundary.jsonl`. Advisory mode: logs the delta, does NOT rewrite the handoff file. Revert: delete `hooks/phase-boundary-compress.sh` + `hooks/_lib/phase_boundary_tokens.py` and revert this stanza + the SKILL.md sub-step 5.
+
 ### Orchestrator Responsibilities
 - Check `pipeline-state/` for in-progress work before starting any new pipeline (use `_psp_find_active_pipelines` or `find_pipeline_files` — they cover both layouts)
 - If in-progress state found: invoke `/harness:pipeline-resume` to continue from the correct phase
