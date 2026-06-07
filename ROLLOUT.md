@@ -10,7 +10,7 @@ How this harness gets onto engineer Macs via the Claude Code plugin system.
 > **Why this is not a vanilla `github` marketplace.** Claude Code's built-in plugin
 > installer cannot clone this marketplace from a `github` source: the repo is **private**
 > *and* named `.claude` (leading dot). Its bundled git fails the clone (`Marketplace file
-> not found …/Adviser-Group--claude/.claude-plugin/marketplace.json`), and a
+> not found …/paulingham--claude/.claude-plugin/marketplace.json`), and a
 > `strictKnownMarketplaces` `github` matcher cannot match the dot-named repo either. The
 > rollout therefore clones the repo with **system git** and registers it as a **local
 > directory marketplace**. If Anthropic fixes private/dot-name cloning, this can revert to
@@ -21,9 +21,9 @@ How this harness gets onto engineer Macs via the Claude Code plugin system.
 Paste the contents of `managed-settings.json` into the Anthropic enterprise console's
 managed-settings section. It configures:
 
-- `enabledPlugins` — force-enables `harness@adviser-group`.
+- `enabledPlugins` — force-enables `harness@paulingham`.
 - `hooks.SessionStart` — clones the repo with **system git** into
-  `~/.claude/local-marketplaces/adviser-group`, registers it as a **local** marketplace,
+  `~/.claude/local-marketplaces/paulingham`, registers it as a **local** marketplace,
   and installs the plugin. (The explicit install covers CLI gap #45323 — `enabledPlugins`
   alone does not trigger a CLI install.)
 - `hooks.PreToolUse` — a nudge that fires on Edit/Write if the harness is absent.
@@ -32,7 +32,7 @@ managed-settings section. It configures:
 
 Do **not**, for this repo:
 - add an `extraKnownMarketplaces` entry with a `github` source — it triggers the failing
-  native clone (and the `adviser-group (managed) — Marketplace file not found` error);
+  native clone (and the `paulingham (managed) — Marketplace file not found` error);
 - set `strictKnownMarketplaces` — its `github` matcher does not match the `.claude`
   dot-name and blocks the marketplace (`not in the allowed marketplace list`).
 
@@ -45,7 +45,7 @@ into the Anthropic enterprise console → Managed Settings.
 
 > **Template location**: `templates/org-defaults/managed-settings.json` is the canonical
 > version. The JSON below annotates the key fields. See `templates/org-defaults/README.md`
-> for the promotion path to `Adviser-Group/org-defaults`.
+> for the promotion path to `paulingham/org-defaults`.
 
 ### Field-by-field reference
 
@@ -56,7 +56,7 @@ The console JSON is a standard Claude Code settings document. Key fields:
   // Force-enables the harness plugin for all engineers in the org.
   // This triggers the CLI gap workaround (enabledPlugins alone does not
   // install on CLI — the SessionStart hook handles the actual install).
-  "enabledPlugins": { "harness@adviser-group": true },
+  "enabledPlugins": { "harness@paulingham": true },
 
   // Org-wide env vars injected into every Claude Code session.
   // These control harness behaviour: hook profile, subagent limits, trace off.
@@ -74,13 +74,13 @@ The console JSON is a standard Claude Code settings document. Key fields:
 
   // Org doctrine injected into every session's system prompt.
   // Points engineers to the harness pipeline entry point.
-  "claudeMd": "# Adviser Harness — Organization Doctrine (managed) ...",
+  "claudeMd": "# Personal Harness — Doctrine (managed) ...",
 
   "hooks": {
     // SessionStart: on every session, clone or update the harness repo using
     // system git + a GitHub token, register it as a local-directory marketplace,
     // and install the plugin. Runs backgrounded (non-blocking). Idempotent:
-    // guarded by ~/.claude/.adviser-harness-installed sentinel.
+    // guarded by ~/.claude/.harness-installed sentinel.
     // NOTE: requires gh auth login (one-time per engineer) — see Known Limitations.
     "SessionStart": [ { "matcher": "startup|resume", "hooks": [ { "type": "command", "command": "<bootstrap-command>" } ] } ],
 
@@ -105,10 +105,10 @@ Roll out in two stages to catch issues before org-wide deployment.
 3. Verify on each cohort machine:
 
    ```bash
-   claude plugin list | grep harness@adviser-group
+   claude plugin list | grep harness@paulingham
    ```
 
-   Expected output: `harness@adviser-group → enabled`
+   Expected output: `harness@paulingham → enabled`
 
 4. If the plugin does not appear:
    - Check `~/.claude/logs/harness-bootstrap.log` for the error.
@@ -122,7 +122,7 @@ Roll out in two stages to catch issues before org-wide deployment.
 3. Spot-check a sample of machines:
 
    ```bash
-   claude plugin list | grep harness@adviser-group
+   claude plugin list | grep harness@paulingham
    ```
 
 ### Known limitations (managed-settings path)
@@ -140,13 +140,13 @@ Roll out in two stages to catch issues before org-wide deployment.
 ## How updates propagate
 
 The harness uses **SHA-based versioning**: the installed plugin version is the git commit
-SHA of the `~/.claude/local-marketplaces/adviser-group` clone, not an explicit version
+SHA of the `~/.claude/local-marketplaces/paulingham` clone, not an explicit version
 string in `plugin.json`. This means:
 
-- Every merge to `main` in `Adviser-Group/.claude` is immediately a new version.
+- Every merge to `main` in `paulingham/.claude` is immediately a new version.
 - No manual version bump in `plugin.json` is needed or permitted.
 - On each session start the bootstrap runs `git pull` (advancing the clone's HEAD SHA)
-  then `claude plugin marketplace update adviser-group` + `claude plugin update harness@adviser-group`,
+  then `claude plugin marketplace update paulingham` + `claude plugin update harness@paulingham`,
   which re-syncs the plugin cache to the new SHA.
 - **Rollback**: revert the commit on `main` — the next session start syncs to the revert SHA.
 - **Admin action required after each release**: re-paste `templates/org-defaults/managed-settings.json`
@@ -168,14 +168,14 @@ Code CLI on the affected machine.
 1. The enterprise console pushes `managed-settings.json` to every engineer.
 2. On session start the `SessionStart` hook (backgrounded, non-blocking):
    - resolves a GitHub token: `GITHUB_TOKEN` → `GH_TOKEN` → `gh auth token`;
-   - clones (or `git pull`s) `Adviser-Group/.claude` with **system git** into
-     `~/.claude/local-marketplaces/adviser-group` — the token is injected per-command and
+   - clones (or `git pull`s) `paulingham/.claude` with **system git** into
+     `~/.claude/local-marketplaces/paulingham` — the token is injected per-command and
      then stripped from the stored remote, so it is never persisted to `.git/config`;
    - `claude plugin marketplace add <that directory>` (a **directory** source);
-   - `claude plugin install harness@adviser-group`.
+   - `claude plugin install harness@paulingham`.
 3. Subsequent sessions `git pull` to update, then run `claude plugin marketplace update` and
-   `claude plugin update harness@adviser-group` to sync the plugin cache, then exit silently
-   (idempotent — guarded by `~/.claude/.adviser-harness-installed`).
+   `claude plugin update harness@paulingham` to sync the plugin cache, then exit silently
+   (idempotent — guarded by `~/.claude/.harness-installed`).
 4. If the harness is still absent at `PreToolUse` time, a nudge fires (see
    Self-remediation).
 
@@ -190,7 +190,7 @@ gh auth login
 ```
 
 Choose GitHub.com and complete the web/device flow with the account that has read access
-to `Adviser-Group/.claude`. That is the **only** per-engineer step — no SSH config, no
+to `paulingham/.claude`. That is the **only** per-engineer step — no SSH config, no
 `extraKnownMarketplaces`, no shared token, and `gh auth setup-git` is not required (the
 bootstrap injects the token into the clone URL directly).
 
@@ -200,8 +200,8 @@ managed-settings policy (it introduces hooks + env). Approve it.
 ## Verification
 
 ```bash
-claude plugin list                              # harness@adviser-group → enabled
-claude plugin details harness@adviser-group
+claude plugin list                              # harness@paulingham → enabled
+claude plugin details harness@paulingham
 ```
 
 Expected:
@@ -223,18 +223,18 @@ the policy landed):
 
 ```bash
 gh auth login
-D="$HOME/.claude/local-marketplaces/adviser-group"
-git clone https://github.com/Adviser-Group/.claude.git "$D"   # system git, uses your gh creds
+D="$HOME/.claude/local-marketplaces/paulingham"
+git clone https://github.com/paulingham/.claude.git "$D"   # system git, uses your gh creds
 claude plugin marketplace add "$D"
-claude plugin install harness@adviser-group
+claude plugin install harness@paulingham
 # then restart Claude Code
 ```
 
-> **Do not** run `claude plugin marketplace add Adviser-Group/.claude` (the github
+> **Do not** run `claude plugin marketplace add paulingham/.claude` (the github
 > shorthand) — Claude Code's bundled git cannot clone this private, dot-named repo. Always
 > add the **local directory** path.
 
-One-off bypass of the nudge for a single session: `export ADVISER_HARNESS_OPT_OUT=1` then
+One-off bypass of the nudge for a single session: `export HARNESS_OPT_OUT=1` then
 restart.
 
 ## Rollback
@@ -242,12 +242,12 @@ restart.
 Per machine:
 
 ```bash
-claude plugin uninstall harness@adviser-group
-claude plugin marketplace remove adviser-group
-rm -rf "$HOME/.claude/local-marketplaces/adviser-group"   # optional: drop the local clone
+claude plugin uninstall harness@paulingham
+claude plugin marketplace remove paulingham
+rm -rf "$HOME/.claude/local-marketplaces/paulingham"   # optional: drop the local clone
 ```
 
-Org-wide: remove `harness@adviser-group` from `enabledPlugins` in the console (and/or
+Org-wide: remove `harness@paulingham` from `enabledPlugins` in the console (and/or
 remove the `SessionStart` hook). The bootstrap will no longer install on subsequent
 sessions.
 
@@ -263,7 +263,7 @@ sessions.
   as failed. Harmless; affects only people working inside the harness repo itself.
 - **`repository-created.yml` pushes directly to main** in newly created repos. Direct push
   is intentional — new repos have no branch protection rules. The security of this path
-  rests entirely on `Adviser-Group/org-defaults` repo integrity (restrict write access
+  rests entirely on `paulingham/org-defaults` repo integrity (restrict write access
   accordingly). If your org requires PRs for all repos, modify the workflow to open a PR.
 
 ## Out of scope
@@ -274,18 +274,18 @@ sessions.
 
 ## Troubleshooting
 
-**`Marketplace file not found …/Adviser-Group--claude/.claude-plugin/marketplace.json`**
+**`Marketplace file not found …/paulingham--claude/.claude-plugin/marketplace.json`**
 The native `github` clone failed (expected for this repo). Use the local-directory method
 — it is the default in the shipped `managed-settings.json`; for a manual fix see
 Self-remediation.
 
-**`Marketplace "adviser-group" is not in the allowed marketplace list`**
+**`Marketplace "paulingham" is not in the allowed marketplace list`**
 `strictKnownMarketplaces` is set and its matcher does not match this repo. Remove
 `strictKnownMarketplaces` from managed-settings.
 
 **`could not read Username` / permission denied during clone**
 `gh auth status` must show an authenticated account with read access to
-`Adviser-Group/.claude`. Run `gh auth login`.
+`paulingham/.claude`. Run `gh auth login`.
 
 **Plugin fails to load: `Duplicate hooks file detected`**
 `plugin.json` must NOT declare `"hooks": "./hooks/hooks.json"` — the standard

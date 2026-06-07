@@ -100,7 +100,7 @@ db/*.sqlite-shm
 !.claude-plugin/**
 
 # Org-defaults distribution scaffold — tracks canonical templates for promotion to
-# Adviser-Group/org-defaults. See templates/org-defaults/README.md.
+# paulingham/org-defaults. See templates/org-defaults/README.md.
 !templates/
 !templates/**
 

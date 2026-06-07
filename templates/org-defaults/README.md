@@ -1,22 +1,22 @@
 # templates/org-defaults
 
-Canonical distribution scaffold for the Adviser Group Claude Code harness
-(`harness@adviser-group`). These artifacts are the source of truth for
+Canonical distribution scaffold for the personal Claude Code harness
+(`harness@paulingham`). These artifacts are the source of truth for
 org-wide harness delivery; they are staged here before promotion.
 
 ## Promotion path
 
-These files are destined for a standalone `Adviser-Group/org-defaults` repository.
+These files are destined for a standalone `paulingham/org-defaults` repository.
 
 **Promotion steps:**
 
-1. Create `Adviser-Group/org-defaults` (if it doesn't exist).
+1. Create `paulingham/org-defaults` (if it doesn't exist).
 2. Copy the contents of this directory into that repo's root.
 3. Configure the org-level required-workflow ruleset to reference
-   `.github/workflows/required-workflow-drift-check.yml` from `Adviser-Group/org-defaults`.
+   `.github/workflows/required-workflow-drift-check.yml` from `paulingham/org-defaults`.
 4. Set `ORG_SYNC_TOKEN` as an org-level secret with repo-read and pull-request-write access.
 5. Run `.github/workflows/repo-file-sync.yml` manually to seed existing repos.
-6. From that point on, pushes to `Adviser-Group/org-defaults` automatically sync
+6. From that point on, pushes to `paulingham/org-defaults` automatically sync
    canonical files to enrolled repos via `repo-file-sync.yml`.
 
 ## Contents
@@ -38,13 +38,13 @@ These files are destined for a standalone `Adviser-Group/org-defaults` repositor
 
 ## Release process (SHA-based versioning)
 
-`harness@adviser-group` uses **SHA-based versioning**. There is no `version` field in
+`harness@paulingham` uses **SHA-based versioning**. There is no `version` field in
 `.claude-plugin/plugin.json`. The plugin version is the git commit SHA of the local
 marketplace clone. No manual version bump in `plugin.json` is needed or permitted.
 
 **To release a new harness version:**
 
-1. Merge your changes to `main` in `Adviser-Group/.claude`.
+1. Merge your changes to `main` in `paulingham/.claude`.
 2. Re-paste `managed-settings.json` into the Anthropic enterprise console → Managed Settings.
 3. Engineers' next session start automatically `git pull`s the new SHA and runs
    `claude plugin update` to sync the cache.
@@ -65,7 +65,7 @@ gh auth login
 ```
 
 Choose GitHub.com and complete the web/device flow with an account that has read access
-to `Adviser-Group/.claude`. This is the **only** per-engineer step. Without it, the
+to `paulingham/.claude`. This is the **only** per-engineer step. Without it, the
 bootstrap clone silently fails. At the next `Edit` or `Write` tool call, the `PreToolUse`
 nudge fires to remind the engineer.
 
@@ -93,7 +93,7 @@ Coverage requires one of:
 
 `extraKnownMarketplaces` with a `github` source is intentionally absent from both
 `settings.json` and `managed-settings.json`. Claude Code's bundled git fails on the
-private dot-named `Adviser-Group/.claude` repo. Cloud coverage is achieved via the
+private dot-named `paulingham/.claude` repo. Cloud coverage is achieved via the
 `cloud-bootstrap.sh` SessionStart hook instead.
 
 ## How cloud coverage works
@@ -113,11 +113,11 @@ hook exits immediately without doing anything.
 
 ## settings.json design notes
 
-- **`enabledPlugins`** uses list form `["harness@adviser-group"]` — the canonical
+- **`enabledPlugins`** uses list form `["harness@paulingham"]` — the canonical
   format for repo-committed `settings.json` (as opposed to `managed-settings.json`
-  which uses dict form `{"harness@adviser-group": true}` for enterprise console).
+  which uses dict form `{"harness@paulingham": true}` for enterprise console).
 - **`extraKnownMarketplaces` is intentionally absent**: Claude Code's bundled git
-  fails on private dot-named repos (`Adviser-Group/.claude`). Cloud coverage is
+  fails on private dot-named repos (`paulingham/.claude`). Cloud coverage is
   provided by the `cloud-bootstrap.sh` SessionStart hook instead.
 - **Cloud-runner coverage**: When the harness repo is committed to a cloud project,
   `cloud-bootstrap.sh` symlinks harness artifacts into `$HOME/.claude` so the plugin
@@ -153,6 +153,6 @@ mechanism. Before running it:
 
 `repository-created.yml` pushes directly to the main branch of newly created repos.
 This is intentional: brand-new repos have no branch protection rules yet. The
-security of this path rests entirely on the integrity of the `Adviser-Group/org-defaults`
+security of this path rests entirely on the integrity of the `paulingham/org-defaults`
 repository. If your org policy requires PRs for all pushes, modify the workflow to
 open a PR instead of pushing directly.

@@ -1,11 +1,11 @@
 # repository-created.yml
 #
 # Purpose: Auto-commit canonical harness files (settings.json, managed-settings.json,
-#          required workflow stubs) to newly created repos in the Adviser-Group org.
+#          required workflow stubs) to newly created repos.
 #
 # Trigger: repository.created org event (via GitHub org webhook → Actions runner)
 #
-# Destination (when promoted): Adviser-Group/org-defaults
+# Destination (when promoted): paulingham/org-defaults
 #
 # This handler fires on the organisation-level `repository.created` webhook event.
 # It clones the new repo, commits the canonical org-defaults files, and opens a PR
@@ -64,14 +64,14 @@ jobs:
 
       - name: Clone target repo and commit org defaults
         # NOTE: Direct push to main is intentional — new repos have no branch protection.
-        # Security of this path rests entirely on Adviser-Group/org-defaults repo integrity.
+        # Security of this path rests entirely on paulingham/org-defaults repo integrity.
         # If your org requires PRs for all repos, change 'git push origin HEAD' to a PR workflow.
         env:
           GH_TOKEN: ${{ secrets.ORG_SYNC_TOKEN }}
           TARGET_REPO: ${{ steps.target.outputs.repo }}
         run: |
-          git config --global user.name "Adviser Harness Bot"
-          git config --global user.email "bot@adviser-group"
+          git config --global user.name "Personal Harness Bot"
+          git config --global user.email "bot@paulingham"
           git clone "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git" target
           cd target
 
@@ -88,7 +88,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit — repo already has org defaults."
           else
-            git commit -m "chore: seed org defaults from Adviser-Group/org-defaults"
+            git commit -m "chore: seed org defaults from paulingham/org-defaults"
             git push origin HEAD
             echo "Committed org defaults to ${TARGET_REPO}"
           fi

@@ -1,11 +1,11 @@
 # required-workflow-drift-check.yml
 #
 # Purpose: Detect drift between the canonical org-default workflows committed in each repo
-#          and the current versions in Adviser-Group/org-defaults (the source of truth).
+#          and the current versions in paulingham/org-defaults (the source of truth).
 #
 # Trigger: Daily schedule + manual dispatch
 #
-# Destination (when promoted): Adviser-Group/org-defaults — run as a required org workflow
+# Destination (when promoted): paulingham/org-defaults — run as a required org workflow
 #          via GitHub org ruleset so every repo in the org runs this drift check.
 #
 # When promoted, this workflow should be listed in the org's required-workflows ruleset.
@@ -53,7 +53,7 @@ jobs:
       - name: Checkout org-defaults source of truth
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          repository: Adviser-Group/org-defaults
+          repository: paulingham/org-defaults
           path: org-defaults-source
           token: ${{ secrets.ORG_SYNC_TOKEN }}
           fetch-depth: 1
@@ -93,7 +93,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: 'Org-workflow drift detected',
-              body: `## Org-defaults workflow drift\n\nThe following workflows have drifted from the org-defaults source of truth:\n${report}\n\nRun the repo-file-sync workflow or manually update from [Adviser-Group/org-defaults](https://github.com/Adviser-Group/org-defaults).`,
+              body: `## Org-defaults workflow drift\n\nThe following workflows have drifted from the org-defaults source of truth:\n${report}\n\nRun the repo-file-sync workflow or manually update from [paulingham/org-defaults](https://github.com/paulingham/org-defaults).`,
               labels: ['infra', 'drift']
             });
 

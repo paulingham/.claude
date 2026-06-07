@@ -1,7 +1,7 @@
 {
   "name": "harness",
-  "description": "Adviser Group Claude Code harness — pipeline orchestration, specialized agents, and engineering-discipline hooks.",
-  "author": { "name": "Adviser Group Platform Engineering", "email": "platform-eng@aberdeenplc.com" },
-  "homepage": "https://github.com/Adviser-Group/.claude",
-  "keywords": ["pipeline", "orchestration", "tdd", "adviser-group"]
+  "description": "Personal Claude Code harness — pipeline orchestration, specialized agents, and engineering-discipline hooks.",
+  "author": { "name": "Paul Ingham", "email": "pauldavidingham@gmail.com" },
+  "homepage": "https://github.com/paulingham/.claude",
+  "keywords": ["pipeline", "orchestration", "tdd", "personal"]
 }

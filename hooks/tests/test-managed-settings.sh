@@ -33,10 +33,10 @@ d = json.load(open(sys.argv[1]))
 assert "extraKnownMarketplaces" in d, "missing extraKnownMarketplaces"
 assert "enabledPlugins" in d, "missing enabledPlugins"
 assert "strictKnownMarketplaces" in d, "missing strictKnownMarketplaces"
-assert "adviser-group" in d["extraKnownMarketplaces"], "extraKnownMarketplaces missing adviser-group"
-assert "harness@adviser-group" in d["enabledPlugins"], "enabledPlugins missing harness@adviser-group"
-assert d["enabledPlugins"]["harness@adviser-group"] is True, "harness@adviser-group not true"
-assert any(e.get("source") == "github" and e.get("repo") == "Adviser-Group/.claude"
+assert "paulingham" in d["extraKnownMarketplaces"], "extraKnownMarketplaces missing paulingham"
+assert "harness@paulingham" in d["enabledPlugins"], "enabledPlugins missing harness@paulingham"
+assert d["enabledPlugins"]["harness@paulingham"] is True, "harness@paulingham not true"
+assert any(e.get("source") == "github" and e.get("repo") == "paulingham/.claude"
            for e in d["strictKnownMarketplaces"]), "strictKnownMarketplaces missing github entry"
 assert any(e.get("source") == "hostPattern" and e.get("hostPattern") == r"^github\.com$"
            for e in d["strictKnownMarketplaces"]), "strictKnownMarketplaces missing hostPattern entry"
@@ -223,9 +223,9 @@ import json, sys
 d = json.load(open(sys.argv[1]))
 cmd = d["hooks"]["SessionStart"][0]["hooks"][0]["command"]
 assert "marketplace add" in cmd, \
-    "SessionStart command must contain 'marketplace add' (bootstrap: claude plugin marketplace add Adviser-Group/.claude)"
+    "SessionStart command must contain 'marketplace add' (bootstrap: claude plugin marketplace add paulingham/.claude)"
 assert "plugin install" in cmd, \
-    "SessionStart command must contain 'plugin install' (bootstrap: claude plugin install harness@adviser-group)"
+    "SessionStart command must contain 'plugin install' (bootstrap: claude plugin install harness@paulingham)"
 PYEOF
 then
   pass "A10 SessionStart contains 'marketplace add' and 'plugin install'"
