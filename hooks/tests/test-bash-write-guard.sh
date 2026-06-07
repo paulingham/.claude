@@ -116,6 +116,58 @@ run_test "worktree: sed -i on .json -> allow (exit 0)" 0 $?
 run_bwg "echo hi > hooks/x.sh" "$BWG_WT"
 run_test "worktree: redirect > .sh -> allow (exit 0)" 0 $?
 
+# -- Hole 1: cp/mv into protected destinations (orchestrator PWD=main) --
+run_bwg "cp /wt/settings.json settings.json" "$BWG_MAIN"
+run_test "orchestrator: cp to root .json -> block (exit 2)" 2 $?
+
+run_bwg "mv build/foo.sh hooks/foo.sh" "$BWG_MAIN"
+run_test "orchestrator: mv to root .sh -> block (exit 2)" 2 $?
+
+run_bwg "cp -f src/ci.yaml .github/ci.yaml" "$BWG_MAIN"
+run_test "orchestrator: cp -f to root .yaml -> block (exit 2)" 2 $?
+
+run_bwg "cp settings.json /tmp/x.json" "$BWG_MAIN"
+run_test "orchestrator: cp to /tmp/*.json -> allow (exit 0)" 0 $?
+
+run_bwg "cp src/foo.txt dest/foo.txt" "$BWG_MAIN"
+run_test "orchestrator: cp of unprotected ext -> allow (exit 0)" 0 $?
+
+# cp INTO a worktree destination is allowed even from the main tree.
+run_bwg "cp src/settings.json /repo/.claude/worktrees/agent-x/settings.json" "$BWG_MAIN"
+run_test "orchestrator: cp into worktree dest -> allow (exit 0)" 0 $?
+
+# -- Hole 2: write_text()/write_bytes() (orchestrator PWD=main) --
+run_bwg "python3 -c \"from pathlib import Path; Path('hooks/foo.sh').write_text('x')\"" "$BWG_MAIN"
+run_test "orchestrator: write_text to .sh -> block (exit 2)" 2 $?
+
+run_bwg "python3 -c \"from pathlib import Path; Path('settings.json').write_text('{}')\"" "$BWG_MAIN"
+run_test "orchestrator: write_text to .json -> block (exit 2)" 2 $?
+
+run_bwg "python3 -c \"from pathlib import Path; Path('ci.yaml').write_bytes(b'x')\"" "$BWG_MAIN"
+run_test "orchestrator: write_bytes to .yaml -> block (exit 2)" 2 $?
+
+run_bwg "python3 -c \"from pathlib import Path; Path('/abs/learning/obs/x.jsonl').write_text('l')\"" "$BWG_MAIN"
+run_test "orchestrator: write_text to learning jsonl -> allow (exit 0)" 0 $?
+
+run_bwg "python3 -c \"from pathlib import Path; Path('notes.txt').write_text('x')\"" "$BWG_MAIN"
+run_test "orchestrator: write_text to .txt -> allow (exit 0)" 0 $?
+
+# -- Hole 3: .md scoping (orchestrator PWD=main) --
+run_bwg "echo content > ROLLOUT.md" "$BWG_MAIN"
+run_test "orchestrator: redirect to root .md -> block (exit 2)" 2 $?
+
+run_bwg "cp src/x.md templates/x.md" "$BWG_MAIN"
+run_test "orchestrator: cp to templates/.md -> block (exit 2)" 2 $?
+
+run_bwg "echo content > /repo/.claude/notes.md" "$BWG_MAIN"
+run_test "orchestrator: .md under .claude/ -> allow (exit 0)" 0 $?
+
+run_bwg "echo content > /repo/memory/MEMORY.md" "$BWG_MAIN"
+run_test "orchestrator: .md under memory/ -> allow (exit 0)" 0 $?
+
+run_bwg "echo content > /repo/.claude/worktrees/agent-x/ROLLOUT.md" "$BWG_MAIN"
+run_test "orchestrator: .md inside worktree -> allow (exit 0)" 0 $?
+
 echo ""
 
 # -- settings-path-lint.sh ---------------------------------------------------

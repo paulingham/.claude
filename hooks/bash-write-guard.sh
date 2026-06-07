@@ -110,7 +110,57 @@ matches_protected_redirect() {
     # `>` or `>>` immediately writing to settings.json or any *.sh file.
     # The redirect must target a protected path, not /tmp/* etc.
     [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?settings\.json([[:space:]]|$|\&) ]] && return 0
-    [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]/]+\.sh([[:space:]]|$|\&) ]]
+    [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]/]+\.sh([[:space:]]|$|\&) ]] && return 0
+    # Scoped .md (Hole 3): a redirect to a .md file is a protected write UNLESS
+    # the target is under .claude/, memory/, rules/, pipeline-state/, or a
+    # worktree (handled by the top-level scoping check) — see is_protected_md.
+    [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]]+\.md([[:space:]]|$|\&) ]] && is_protected_md "$1" && return 0
+    return 1
+}
+
+matches_python_pathlib_write() {
+    # Hole 2: Path(...).write_text(t) / write_bytes(t) are invisible to the
+    # `open(` keyed detector. Block when a write_text/write_bytes call appears
+    # alongside a protected-extension path. The learning-jsonl and evidence
+    # whitelists run earlier (caller order), so allowed targets never reach here.
+    [[ "$1" =~ write_text[[:space:]]*\( || "$1" =~ write_bytes[[:space:]]*\( ]] || return 1
+    [[ "$1" =~ \.(json|sh|yaml|yml)([^a-zA-Z0-9]|$) ]] && return 0
+    # Scoped .md: a write_text to a .md path blocks only outside allowed roots.
+    [[ "$1" =~ \.md([^a-zA-Z0-9]|$) ]] && is_protected_md "$1" && return 0
+    return 1
+}
+
+# Hole 3 helper: returns 0 when a .md token in the command is a PROTECTED
+# target (root-level or templates/) — i.e. NOT under an orchestrator-writable
+# root. Mirrors orchestrator-discipline.sh's tightened .md scope. Allowed roots:
+# .claude/, memory/, rules/, pipeline-state/, and .claude/worktrees/ (the
+# worktree case also satisfies /.claude/ so it is covered).
+is_protected_md() {
+    [[ "$1" =~ /\.claude/ || "$1" =~ /memory/ || "$1" =~ /rules/ || "$1" =~ /pipeline-state/ ]] && return 1
+    return 0
+}
+
+matches_cp_mv_to_protected() {
+    # Hole 1: `cp $WT/$f $f` / `mv ...` copied protected files into the main
+    # tree unblocked. cp/mv destination is, by convention, the LAST argument;
+    # we decide on that token. Heuristic limitation (fail-closed-ish): we do not
+    # parse `-t DIR` / `--target-directory` GNU forms, and a trailing flag would
+    # be misread as the dest — both are rare in orchestrator usage. If the final
+    # token bears a protected extension and is NOT under /tmp/ and NOT inside a
+    # worktree, block. /tmp and worktree destinations are legitimate (scratch
+    # output / agent-trusted writes) and pass.
+    [[ "$1" =~ (^|[[:space:]])(cp|mv)[[:space:]] ]] || return 1
+    _bwg_destination_is_protected "$1"
+}
+
+_bwg_destination_is_protected() {
+    # The destination is the last whitespace-separated token of a cp/mv command.
+    local dest
+    dest="${1##* }"
+    [[ "$dest" == /tmp/* || "$dest" == *"/.claude/worktrees/"* ]] && return 1
+    [[ "$dest" =~ \.(json|sh|yaml|yml)([^a-zA-Z0-9]|$) ]] && return 0
+    [[ "$dest" =~ \.md([^a-zA-Z0-9]|$) ]] && is_protected_md "$dest" && return 0
+    return 1
 }
 
 is_open_read_only() {
@@ -124,6 +174,12 @@ is_open_read_only() {
 }
 
 is_write_to_protected() {
+    # cp/mv and write_text/write_bytes are checked BEFORE the open-read-only
+    # short-circuit: that guard only governs the `open(` family. A command like
+    # `cp x.json y.json` contains no `open(`, so is_open_read_only would return
+    # 1 (read-only) and wrongly suppress these detectors if ordered after it.
+    matches_cp_mv_to_protected "$1" && return 0
+    matches_python_pathlib_write "$1" && return 0
     is_open_read_only "$1" && return 1
     matches_python_open_write "$1" && return 0
     matches_json_dump "$1" && return 0

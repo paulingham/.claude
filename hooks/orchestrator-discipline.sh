@@ -27,7 +27,19 @@ FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.subagent_type // empty')
 
 is_path_allow_listed() {
-    [[ -z "$1" || "$1" =~ \.md$ ]] && return 0
+    # Empty path is a no-op target — allow.
+    [[ -z "$1" ]] && return 0
+    # .md is NOT blanket-allowed. Documentation/state .md is only orchestrator-
+    # writable under .claude/, memory/, rules/, or pipeline-state/. Root-level
+    # docs (ROLLOUT.md, README.md, PORTING-NOTES.md) and templates/*.md are
+    # source and must fall through to the block path. The worktree clause below
+    # (line ~47) keeps .md inside .claude/worktrees/ allowed via the broader
+    # worktree allowance — checked after this, but worktree paths also satisfy
+    # the `.claude/` prefix here so they pass regardless.
+    if [[ "$1" =~ \.md$ ]]; then
+        [[ "$1" =~ /\.claude/ || "$1" =~ /memory/ || "$1" =~ /rules/ || "$1" =~ /pipeline-state/ ]] && return 0
+        return 1
+    fi
     [[ "$1" =~ \.claude/automation/ || "$1" =~ \.claude/hooks/ ]] && return 0
     # pipeline-state token files (e.g. approval.token) are orchestrator-state,
     # not source code. Both regular and workstream layouts are covered by the
