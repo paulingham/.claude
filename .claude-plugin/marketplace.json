@@ -1,6 +1,6 @@
 {
-  "name": "adviser-group",
-  "owner": { "name": "Adviser Group Platform Engineering", "email": "platform-eng@aberdeenplc.com" },
-  "metadata": { "description": "Adviser Group internal Claude Code marketplace.", "version": "1.0.0" },
-  "plugins": [ { "name": "harness", "source": "./", "description": "Adviser Group Claude Code harness: pipeline orchestration skills, specialized agents, and engineering-discipline hooks. Install: claude plugin install harness@adviser-group" } ]
+  "name": "paulingham",
+  "owner": { "name": "Paul Ingham", "email": "pauldavidingham@gmail.com" },
+  "metadata": { "description": "Paul Ingham personal Claude Code marketplace.", "version": "1.0.0" },
+  "plugins": [ { "name": "harness", "source": "./", "description": "Personal Claude Code harness: pipeline orchestration skills, specialized agents, and engineering-discipline hooks. Install: claude plugin install harness@paulingham" } ]
 }

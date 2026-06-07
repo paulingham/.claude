@@ -1,6 +1,6 @@
 {
   "enabledPlugins": [
-    "harness@adviser-group"
+    "harness@paulingham"
   ],
   "env": {
     "CLAUDE_HOOK_PROFILE": "standard",

@@ -1,11 +1,11 @@
 # repo-file-sync.yml
 #
-# Purpose: Sync canonical harness files from Adviser-Group/.claude (the source of truth)
-#          to every repo in the Adviser-Group org. When the source repo is updated, this
+# Purpose: Sync canonical harness files from paulingham/.claude (the source of truth)
+#          to every enrolled repo. When the source repo is updated, this
 #          workflow pushes the files to all enrolled target repos automatically.
 #
-# Destination (when promoted): Adviser-Group/org-defaults
-# Source: Adviser-Group/.claude (harness repo)
+# Destination (when promoted): paulingham/org-defaults
+# Source: paulingham/.claude (harness repo)
 #
 # Required secrets:
 #   ORG_SYNC_TOKEN - GitHub PAT with repo write access to target repos

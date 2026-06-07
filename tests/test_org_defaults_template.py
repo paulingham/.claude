@@ -37,12 +37,12 @@ def test_settings_template_valid_json():
 
 
 def test_settings_template_has_enabled_plugins():
-    """enabledPlugins field == ["harness@adviser-group"] (exact list form for settings.json)."""
+    """enabledPlugins field == ["harness@paulingham"] (exact list form for settings.json)."""
     data = json.loads(SETTINGS_FILE.read_text())
     assert "enabledPlugins" in data, "enabledPlugins must be present"
     enabled = data["enabledPlugins"]
-    assert enabled == ["harness@adviser-group"], (
-        f"settings.json enabledPlugins must be exactly [\"harness@adviser-group\"], got {enabled!r}"
+    assert enabled == ["harness@paulingham"], (
+        f"settings.json enabledPlugins must be exactly [\"harness@paulingham\"], got {enabled!r}"
     )
 
 
@@ -101,11 +101,11 @@ def test_managed_settings_has_local_directory_install():
             all_commands.append(cmd)
     combined = " ".join(all_commands)
     # Must reference the local marketplace directory path explicitly
-    assert "local-marketplaces/adviser-group" in combined, (
-        "SessionStart hook must reference local-marketplaces/adviser-group directory path"
+    assert "local-marketplaces/paulingham" in combined, (
+        "SessionStart hook must reference local-marketplaces/paulingham directory path"
     )
     # Confirm no bare 'github' source shorthand for marketplace add
-    assert "marketplace add Adviser-Group" not in combined, (
+    assert "marketplace add paulingham/.claude" not in combined, (
         "Must not use github shorthand for marketplace add"
     )
 
@@ -131,9 +131,9 @@ def test_nudge_message_contains_exact_strings():
     combined = " ".join(all_commands)
 
     required_substrings = [
-        "Adviser harness not detected",
+        "Personal harness not detected",
         "gh auth login",
-        "ADVISER_HARNESS_OPT_OUT=1",
+        "HARNESS_OPT_OUT=1",
     ]
     for substring in required_substrings:
         assert substring in combined, (
@@ -196,11 +196,11 @@ def test_managed_settings_bootstrap_log_perms():
 
 
 def test_readme_documents_promotion_path():
-    """README.md contains 'Adviser-Group/org-defaults'."""
+    """README.md contains 'paulingham/org-defaults'."""
     assert README_FILE.exists(), "templates/org-defaults/README.md must exist"
     content = README_FILE.read_text()
-    assert "Adviser-Group/org-defaults" in content, (
-        "README.md must document the promotion path to Adviser-Group/org-defaults"
+    assert "paulingham/org-defaults" in content, (
+        "README.md must document the promotion path to paulingham/org-defaults"
     )
 
 
@@ -307,8 +307,8 @@ def test_plugin_json_has_no_version_field():
 def test_managed_settings_bootstrap_contains_plugin_update_commands():
     """managed-settings.json SessionStart hook must contain both plugin update substrings.
 
-    AC-2: The bootstrap must call 'claude plugin marketplace update adviser-group' and
-    'claude plugin update harness@adviser-group' so each session syncs the plugin cache
+    AC-2: The bootstrap must call 'claude plugin marketplace update paulingham' and
+    'claude plugin update harness@paulingham' so each session syncs the plugin cache
     to the latest git SHA pulled by the preceding 'git pull'.
 
     Note: this test checks only the template copy; the repo-root copy is guarded by
@@ -324,12 +324,12 @@ def test_managed_settings_bootstrap_contains_plugin_update_commands():
             cmd = hook.get("command", "")
             all_commands.append(cmd)
     combined = " ".join(all_commands)
-    assert "plugin marketplace update adviser-group" in combined, (
-        "SessionStart bootstrap must contain 'plugin marketplace update adviser-group' "
+    assert "plugin marketplace update paulingham" in combined, (
+        "SessionStart bootstrap must contain 'plugin marketplace update paulingham' "
         "to sync marketplace metadata after git pull."
     )
-    assert "plugin update harness@adviser-group" in combined, (
-        "SessionStart bootstrap must contain 'plugin update harness@adviser-group' "
+    assert "plugin update harness@paulingham" in combined, (
+        "SessionStart bootstrap must contain 'plugin update harness@paulingham' "
         "to update the plugin cache to the new SHA."
     )
 

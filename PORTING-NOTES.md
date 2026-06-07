@@ -72,7 +72,7 @@ by the Claude Code host, typically inside `~/.claude/plugins/`).
 
 1. Confirm the plugin is installed:
    ```bash
-   claude plugin details harness@adviser-group
+   claude plugin details harness@paulingham
    ```
 2. Move the old overlay checkout out of the config directory:
    ```bash
@@ -84,7 +84,7 @@ by the Claude Code host, typically inside `~/.claude/plugins/`).
    overlay path:
    ```bash
    echo $CLAUDE_PLUGIN_ROOT
-   # Expected: something like ~/.claude/plugins/harness@adviser-group/
+   # Expected: something like ~/.claude/plugins/harness@paulingham/
    ```
 
 If both the overlay checkout and the plugin are present simultaneously,
@@ -110,7 +110,7 @@ on session start. This is the primary update path.
 **Bootstrap daily marketplace update** — the `SessionStart` hook runs a
 daily marketplace sync check:
 ```bash
-claude plugin marketplace update adviser-group
+claude plugin marketplace update paulingham
 ```
 This is throttled by a daily stamp so it does not add per-session latency.
 The env var `KEEP_MARKETPLACE_ON_FAILURE=1` preserves the existing plugin
@@ -130,8 +130,8 @@ canary rollout), each version writes to its own `$CLAUDE_PLUGIN_DATA`
 path:
 
 ```
-~/.claude/plugin-data/harness@adviser-group/1.2.0/
-~/.claude/plugin-data/harness@adviser-group/1.3.0-rc.1/
+~/.claude/plugin-data/harness@paulingham/1.2.0/
+~/.claude/plugin-data/harness@paulingham/1.3.0-rc.1/
 ```
 
 This isolation means:
@@ -197,8 +197,8 @@ executable harness code.
 If the plugin state is corrupt (missing files, broken hooks), reinstall:
 
 ```bash
-claude plugin uninstall harness@adviser-group
-claude plugin install harness@adviser-group
+claude plugin uninstall harness@paulingham
+claude plugin install harness@paulingham
 ```
 
 This performs a clean install without touching `$CLAUDE_PLUGIN_DATA`
