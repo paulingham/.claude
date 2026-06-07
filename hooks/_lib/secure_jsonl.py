@@ -7,9 +7,9 @@ Single source of truth for the `mkdir(parents=True, exist_ok=True)` +
 
 Two motivations carry forward from the original copies:
 
-1. The bash-write-guard hook blocks shell `>>` to `.jsonl` files; Python
-   `os.open`/`os.write` is the audited bypass.
-2. Mode `0o600` hardens the Story-1 security LOW (was `0o644`).
+1. Mode `0o600` hardens the Story-1 security LOW (was `0o644`).
+2. Parent directory created at 0o700 (world-unlistable) so session dirs
+   are not enumerable by other local users.
 """
 from __future__ import annotations
 
@@ -21,10 +21,10 @@ from pathlib import Path
 def append_secure_jsonl(path: Path, record: dict) -> None:
     """Append one JSON line to `path` with mode 0o600.
 
-    Creates parent directories as needed. The `finally` block guarantees
+    Creates parent directories at 0o700. The `finally` block guarantees
     the file descriptor closes even if `os.write` raises.
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     line = json.dumps(record).encode("utf-8") + b"\n"
     fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
     try:
