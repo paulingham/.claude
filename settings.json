@@ -1260,7 +1260,7 @@
       }
     }
   },
-  "alwaysThinkingEnabled": true,
+  "alwaysThinkingEnabled": false,
   "effortLevel": "medium",
   "skipDangerousModePermissionPrompt": true,
   "theme": "auto",
