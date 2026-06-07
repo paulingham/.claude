@@ -86,7 +86,7 @@ For each behavior on the changed lines, write the assertion at the **cheapest ti
 
 The full proof-of-correctness tier stack (Tier 0 contracts, Tier 1 unit, Tier 1.5 property-based, Tier 2 integration, Tier 3 mutation, Tier 4 E2E) is below — the *mix* is per-behavior, but the *gates* are absolute.
 
-The mutation gate (≥70% kill rate on changed lines) is the actual oracle for "are the tests strong enough" — not a tier ratio.
+The mutation gate (≥70% kill rate on changed lines) is the actual oracle for "are the tests strong enough" — not a tier ratio. The active, time-boxed path to reach this threshold is the Mutation Kill Loop defined in `protocols/atdd-procedure.md` step 4.
 
 ### Gates
 - 80% coverage on critical paths
@@ -105,7 +105,7 @@ Tests passing is necessary but not sufficient. For every feature, six tiers stac
 - **Tier 1 — Unit**: isolated, mocked deps, milliseconds.
 - **Tier 1.5 — Property-Based Tests** (Hypothesis / fast-check / PropEr / equivalent): for every public function on changed lines with typed signatures, ≥1 property covering idempotence / inverse / oracle / metamorphic relations, OR a documented justification why a property is impossible. Time-boxed at 60s per function. Frozen counterexamples promote into Tier 1 as deterministic regression tests. Procedure: `skills/qa-test-strategy/SKILL.md` § Property-Based Coverage. Source: A2.
 - **Tier 2 — Integration**: real boundaries, real DB, contract tests against LIVE collaborators (no mocks for critical paths), smoke tests that exercise the feature end-to-end.
-- **Tier 3 — Mutation**: targeted mutation testing on changed files (Stryker / Mutant / mutmut). HARD GATE at ≥70% kill rate per `protocols/atdd-procedure.md`.
+- **Tier 3 — Mutation**: targeted mutation testing on changed files (Stryker / Mutant / mutmut). HARD GATE at ≥70% kill rate, reached via the active per-slice atdd-procedure.md step 4 Mutation Kill Loop (see `protocols/atdd-procedure.md`).
 - **Tier 4 — E2E**: full user-journey tests (Maestro for mobile, Playwright/Cypress for web) for URL / auth / nav / WebView / cross-domain changes (conditional per `protocols/e2e-protocol.md` trigger matrix).
 
 Feature is VERIFIED when applicable tiers pass. Tiers 0-3 are always required. Tier 4 is conditional. Tier 0 is required only for changes touching public function signatures, schemas, or invariants — pure UI copy or log-format tweaks may skip with documented rationale. Tier 1.5 is required for changes touching public functions with typed signatures (same gate as the qa-engineer checklist).

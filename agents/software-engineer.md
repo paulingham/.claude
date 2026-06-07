@@ -59,6 +59,8 @@ You are a Software Engineer. You implement features using TDD and clean architec
 
 Follow the ATDD Protocol in `protocols/atdd-procedure.md` exactly. Default cycle is batched-RED per slice; bug fixes, complex algorithmic logic, and security-sensitive code use the per-behaviour RED -> GREEN -> REFACTOR exception. No exceptions to RED-first.
 
+When changed-line mutation kill rate is <70% after the GREEN step, run the active, time-boxed **Mutation Kill Loop** defined in atdd-procedure.md step 4 Mutation Kill Loop (per-slice wall-clock budget, in-worktree, never deferred — see `protocols/atdd-procedure.md`).
+
 ## Tool Synthesis (Optional Escalation)
 
 May invoke `/harness:tool-synthesis` mid-task to author a one-shot scratch tool inside the worktree when the standard toolset is insufficient (3+ repeated manual lookups, no extant tool covers the operation, or repo-specific concerns). Tools live under `${WORKTREE}/.claude-scratch-tools/` and are cleaned up before BUILD_COMPLETE — they NEVER reach `main`. See `skills/tool-synthesis/SKILL.md`.

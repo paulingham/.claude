@@ -78,7 +78,7 @@ Follow the ATDD Protocol in `protocols/atdd-procedure.md`:
 
 1. **BATCHED RED**: Write every AC test as one batch (the architect's stubs verbatim). Run the suite ONCE. Capture the RED output. Verify each test fails for the right reason — the named behavior is absent. The Tier-0 contract tests authored in Step 1c are also part of this batch (they are still RED unless the contract assertion was implementable in isolation in Step 1c).
 2. **IMPLEMENT CLEANLY**: Write production code that is correct AND well-shaped on the first pass. Cohesion rules (one-thing-per-function, CC ≤ 5, nesting ≤ 2, DRY on 2nd occurrence) apply *as you write*, not in a separate cleanup pass. Choose intent-revealing names from the start; extract duplication on the 2nd occurrence as it appears. Run the suite ONCE when done. Capture the GREEN output. After the suite run inside IMPLEMENT CLEANLY, on RED follow Step 4a–4c.
-3. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% required against the **union suite** (architect stubs + adversarials from Step 2b). If <70%, add tests targeting the surviving mutations and return to step 2 — the slice is NOT complete.
+3. **MUTATION GATE**: Run mutation testing on changed lines (Stryker / Mutant / mutmut, or the manual fallback in `skills/verify/SKILL.md`). Score >= 70% required against the **union suite** (architect stubs + adversarials from Step 2b). If <70%, run the active, time-boxed **Mutation Kill Loop** — see atdd-procedure.md step 4 Mutation Kill Loop for the full canonical spec (pointer only; do NOT re-specify here). The loop exits with OUTCOME `REACHED` (>= 70%, continue), `EXHAUSTED` (time budget spent), or `NO_PROGRESS` (two consecutive zero-kill rounds); non-REACHED outcomes fail the gate in-cycle per Iron Law 6.
 4. **COMMIT** with the three audit artifacts: batched RED output, GREEN output, mutation report.
 
 **Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN. See `protocols/atdd-procedure.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
@@ -275,6 +275,7 @@ Before declaring the build complete:
 - [ ] Functions > 30 lines or files > 150 lines: justified or refactored (advisory smell signals, not hard caps)
 - [ ] All tests pass
 - [ ] ATDD audit trail visible (batched RED + GREEN + mutation report ≥ 70%)
+- [ ] Mutation Kill Loop ran (per atdd-procedure.md step 4 Mutation Kill Loop); OUTCOME recorded as `REACHED`, `EXHAUSTED`, or `NO_PROGRESS` in the mutation report header; on non-`REACHED` the gate failed and kill-tests + residuals handed back in-cycle via `CLAUDE_MUTATION_KILL_BUDGET_SECONDS` (default 300)
 - [ ] Step 2b ran with the correct cap for the slice's task class (greenfield: default-on, cap=5; refactor: opt-in via `CLAUDE_ADVERSARIAL_TESTS_REFACTOR=1`, cap=3), OR was skipped per `CLAUDE_ADVERSARIAL_TESTS=0` (master kill-switch), OR is N/A for a bug-fix slice
 - [ ] Step 1d ran (PBT_AUTHORED or PBT_SKIPPED), OR was skipped per `CLAUDE_PBT=0`
 - [ ] Step 2c in-loop scan ran on each commit (BUILD_SCAN_PASSED/BUILD_SCAN_SKIPPED, never an unremediated BUILD_SCAN_BLOCKED), OR was bypassed per `CLAUDE_DISABLE_BUILD_LOOP_SCAN=1`
