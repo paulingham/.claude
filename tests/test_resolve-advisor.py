@@ -364,5 +364,84 @@ class RouterActiveModeDoesNotRewriteBindingInStory2(unittest.TestCase):
                          "active mode in Story 2 must NOT rewrite line-3 binding")
 
 
+class RouterAndReadActiveStateSelectSamePipeline(unittest.TestCase):
+    """Structural guarantee: _intake_budget and read_active_state select the SAME pipeline.
+
+    Regression for code-reviewer finding: the router must NOT have a separate
+    active-pipeline selection code path — both must go through active_pipeline_path().
+    Test creates two pipelines with different mtimes and asserts the budget the
+    router reads comes from the NEWER one (same as read_active_state would select).
+    """
+
+    def test_router_and_read_active_state_select_same_pipeline(self):
+        import importlib.util
+        import time
+
+        existing_pp = os.environ.get("PYTHONPATH", "")
+        merged_pp = ":".join(filter(None, [_SITE_PP, existing_pp]))
+        lib_dir = REPO_ROOT / "hooks" / "_lib"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "pipeline-state"
+
+            # Older pipeline: budget 4
+            old_dir = state_dir / "task-old"
+            old_dir.mkdir(parents=True)
+            (old_dir / "pipeline.md").write_text(
+                "---\ntask_id: task-old\nphase: build\n---\n")
+            (old_dir / "intake.md").write_text(
+                "---\ntask_id: task-old\ncomplexity_budget: 4\n---\n")
+            # Force old mtime
+            old_mtime = time.time() - 60
+            os.utime(old_dir / "pipeline.md", (old_mtime, old_mtime))
+
+            # Newer pipeline: budget 13
+            new_dir = state_dir / "task-new"
+            new_dir.mkdir(parents=True)
+            (new_dir / "pipeline.md").write_text(
+                "---\ntask_id: task-new\nphase: build\n---\n")
+            (new_dir / "intake.md").write_text(
+                "---\ntask_id: task-new\ncomplexity_budget: 13\n---\n")
+
+            proc_env = {
+                **os.environ,
+                "PYTHONPATH": merged_pp,
+                "ANTHROPIC_API_KEY": "sk-test",
+                "CLAUDE_AGENTS_DIR": str(REPO_ROOT / "agents"),
+                "CLAUDE_PLUGIN_ROOT": str(REPO_ROOT),
+                "CLAUDE_PIPELINE_STATE_DIR": str(state_dir),
+                "CLAUDE_MODEL_ROUTER": "shadow",
+            }
+            # 1. What does read_active_state / active_pipeline_path select?
+            spec = importlib.util.spec_from_file_location(
+                "pipeline_state", lib_dir / "pipeline_state.py")
+            sys.path.insert(0, str(lib_dir))
+            os.environ["CLAUDE_PIPELINE_STATE_DIR"] = str(state_dir)
+            ps_mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(ps_mod)
+            active_path = ps_mod.active_pipeline_path()
+            del os.environ["CLAUDE_PIPELINE_STATE_DIR"]
+
+            self.assertIsNotNone(active_path,
+                                 "active_pipeline_path() must find a pipeline")
+            self.assertIn("task-new", str(active_path),
+                          "active_pipeline_path() must select the NEWER pipeline")
+
+            # 2. What does the router (via _intake_budget) use?
+            result = subprocess.run(
+                ["python3", str(RESOLVER_SCRIPT)],
+                input=json.dumps(_SE_PAYLOAD),
+                capture_output=True, text=True, timeout=10, env=proc_env)
+            self.assertEqual(result.returncode, 0)
+            lines = result.stdout.splitlines()
+            resolved = json.loads(lines[1])
+            # Budget 13 => expensive; budget 4 => cheap.
+            # If router resolves the SAME (newer) pipeline, decision must be expensive.
+            self.assertEqual(resolved.get("router_decision"), "expensive",
+                             "router must use the SAME (newest) pipeline as read_active_state; "
+                             f"expected budget=13 (expensive) but got {resolved.get('router_decision')!r}. "
+                             "Divergent selection would route cheap (budget=4).")
+
+
 if __name__ == "__main__":
     unittest.main()

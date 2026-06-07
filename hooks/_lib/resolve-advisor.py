@@ -13,7 +13,6 @@ import json
 import os
 import re
 import sys
-from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 from advisor_resolver import (  # noqa: E402
@@ -21,9 +20,7 @@ from advisor_resolver import (  # noqa: E402
 )
 from agent_frontmatter_loader import load_agent_frontmatter  # noqa: E402
 from model_binding import should_emit_model, build_hook_output  # noqa: E402
-from pipeline_state import read_active_state  # noqa: E402
-from pipeline_state_paths import find_pipeline_files  # noqa: E402
-from harness_paths import harness_data  # noqa: E402
+from pipeline_state import active_pipeline_path, read_active_state  # noqa: E402
 
 
 def _payload():
@@ -74,22 +71,14 @@ def _intake_budget():
     """Read complexity_budget from the active pipeline's intake.md.
 
     Mirrors cost-helpers.sh:74-94 bash logic in Python.
-    Uses find_pipeline_files (same dual-path resolution as read_active_state)
-    to locate the active pipeline, then resolves intake.md sibling path,
-    then greps for complexity_budget flat or nested total:.
+    Delegates active-pipeline resolution to active_pipeline_path() so the
+    router and read_active_state share one selection code path by construction.
     Returns int or None (never raises — budget absence is not an error).
     """
     try:
-        state_dir_env = os.environ.get("CLAUDE_PIPELINE_STATE_DIR")
-        if state_dir_env:
-            state_dir = Path(state_dir_env)
-        else:
-            state_dir = harness_data() / "pipeline-state"
-        files = find_pipeline_files(state_dir)
-        if not files:
+        pipeline_path = active_pipeline_path()
+        if pipeline_path is None:
             return None
-        files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-        pipeline_path = files[0]
         intake_path = _resolve_intake_path(pipeline_path)
         if not intake_path.is_file():
             return None
