@@ -19,6 +19,17 @@ def _find_pipeline_file(directory):
     return str(files[0]) if files else None
 
 
+def active_pipeline_path(state_dir=None):
+    """Return Path to the mtime-newest pipeline file, or None if none found.
+
+    Single source of truth for active-pipeline resolution used by both
+    read_active_state and any caller that needs the same selection.
+    """
+    directory = _state_dir(state_dir)
+    result = _find_pipeline_file(directory)
+    return Path(result) if result else None
+
+
 def _debug_path(directory, task_id):
     return discover_state_path(Path(directory), task_id, "debug") if task_id else None
 

@@ -24,6 +24,12 @@ except ImportError:  # not yet implemented — RED phase
     resolve_model_conditional = None
     advisor_none_to_python_none = None
 
+try:
+    from advisor_resolver import route_model, extract_router_signals
+except ImportError:  # not yet implemented — RED phase
+    route_model = None
+    extract_router_signals = None
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RESOLVER_SCRIPT = REPO_ROOT / "hooks" / "_lib" / "resolve-advisor.py"
 HOOK = REPO_ROOT / "hooks" / "pre-agent-advisor.sh"
@@ -1016,6 +1022,195 @@ class MalformedAgentFrontmatterReturnsEmptyDict(unittest.TestCase):
         self.assertIsInstance(result, dict)
         # Diagnostic must have been emitted to stderr.
         self.assertIn("yaml parse failed", captured.getvalue())
+
+
+# ---------------------------------------------------------------------------
+# Slice A — route_model policy + extract_router_signals (Story 2)
+# ---------------------------------------------------------------------------
+
+class RouteModelLockedRoleRoutesExpensive(unittest.TestCase):
+    """AC1: locked roles (architect, security-engineer) always route expensive."""
+
+    def test_route_model_locked_role_routes_expensive(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        for role in ("architect", "security-engineer"):
+            signals = {"role": role, "complexity_budget": None,
+                       "prior_error_count": 0, "graph_depth": None}
+            self.assertEqual(route_model(signals), "expensive",
+                             f"locked role {role!r} must route expensive")
+
+
+class RouteModelCheapArmLowBudgetShallowClean(unittest.TestCase):
+    """AC1: budget=4, depth=1, errors=0 => cheap."""
+
+    def test_route_model_cheap_arm_low_budget_shallow_clean(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        signals = {"role": "software-engineer", "complexity_budget": 4,
+                   "prior_error_count": 0, "graph_depth": 1}
+        self.assertEqual(route_model(signals), "cheap")
+
+
+class RouteModelExpensiveHighBudget(unittest.TestCase):
+    """AC1: budget=13 => expensive (>= 10 threshold)."""
+
+    def test_route_model_expensive_high_budget(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        signals = {"role": "software-engineer", "complexity_budget": 13,
+                   "prior_error_count": 0, "graph_depth": None}
+        self.assertEqual(route_model(signals), "expensive")
+
+
+class RouteModelExpensiveDeepGraph(unittest.TestCase):
+    """AC1: depth=3 => expensive (tests exactly 3, kills >=→> mutant)."""
+
+    def test_route_model_expensive_deep_graph(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        signals = {"role": "software-engineer", "complexity_budget": None,
+                   "prior_error_count": 0, "graph_depth": 3}
+        self.assertEqual(route_model(signals), "expensive",
+                         "depth exactly 3 must route expensive (not standard)")
+        # Depth 2 must NOT route expensive via this rule
+        signals2 = {**signals, "graph_depth": 2}
+        self.assertNotEqual(route_model(signals2), "expensive",
+                            "depth 2 must not fire the depth>=3 rule")
+
+
+class RouteModelExpensivePriorErrors(unittest.TestCase):
+    """AC1: errors=2 => expensive (exactly 2, kills >= → > mutant)."""
+
+    def test_route_model_expensive_prior_errors(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        signals = {"role": "software-engineer", "complexity_budget": None,
+                   "prior_error_count": 2, "graph_depth": None}
+        self.assertEqual(route_model(signals), "expensive",
+                         "exactly 2 prior errors must route expensive")
+        # 1 error must NOT fire this rule
+        signals1 = {**signals, "prior_error_count": 1}
+        self.assertNotEqual(route_model(signals1), "expensive",
+                            "1 prior error must not fire the errors>=2 rule")
+
+
+class RouteModelStandardDefaultArm(unittest.TestCase):
+    """AC1: budget=6, depth=1, errors=0 => standard (falls through to default)."""
+
+    def test_route_model_standard_default_arm(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        signals = {"role": "software-engineer", "complexity_budget": 6,
+                   "prior_error_count": 0, "graph_depth": 1}
+        self.assertEqual(route_model(signals), "standard")
+
+
+class RouteModelDepthZeroIsShallowNotUnknown(unittest.TestCase):
+    """AC5b: depth=0 (int), budget=4 => cheap; 0 != deep."""
+
+    def test_route_model_depth_zero_is_shallow_not_unknown(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        signals = {"role": "software-engineer", "complexity_budget": 4,
+                   "prior_error_count": 0, "graph_depth": 0}
+        self.assertEqual(route_model(signals), "cheap",
+                         "depth=0 int must be treated as shallow, eligible for cheap arm")
+
+
+class RouteModelDepthNoneTreatedAsShallow(unittest.TestCase):
+    """AC5b: depth=None, budget=4 => cheap (None is top-level, treated as shallow)."""
+
+    def test_route_model_depth_none_treated_as_shallow(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        signals = {"role": "software-engineer", "complexity_budget": 4,
+                   "prior_error_count": 0, "graph_depth": None}
+        self.assertEqual(route_model(signals), "cheap",
+                         "depth=None must be treated as shallow, eligible for cheap arm")
+
+
+class RouteModelBudgetBoundaryAt10(unittest.TestCase):
+    """Mutation killer: budget=10 must route expensive; budget=9 must not (kills >=→>)."""
+
+    def test_route_model_budget_exactly_10_is_expensive(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        signals = {"role": "software-engineer", "complexity_budget": 10,
+                   "prior_error_count": 0, "graph_depth": None}
+        self.assertEqual(route_model(signals), "expensive",
+                         "budget=10 must route expensive (>= 10 boundary)")
+
+    def test_route_model_budget_9_is_not_expensive_via_budget_rule(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        signals = {"role": "software-engineer", "complexity_budget": 9,
+                   "prior_error_count": 0, "graph_depth": None}
+        # budget=9 < 10 must NOT fire the budget>=10 rule
+        result = route_model(signals)
+        self.assertNotEqual(result, "expensive",
+                            "budget=9 must not fire the budget>=10 expensive rule")
+
+
+class RouteModelBudgetBoundaryAt4(unittest.TestCase):
+    """Mutation killer: budget=4 => cheap; budget=5 => standard (kills <=→<)."""
+
+    def test_route_model_budget_exactly_5_is_not_cheap(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        signals = {"role": "software-engineer", "complexity_budget": 5,
+                   "prior_error_count": 0, "graph_depth": None}
+        result = route_model(signals)
+        self.assertNotEqual(result, "cheap",
+                            "budget=5 must NOT route cheap (>4 so cheap arm false)")
+
+
+class RouteModelRaisesOnMissingKey(unittest.TestCase):
+    """AC4: missing complexity_budget key => raises (KeyError)."""
+
+    def test_route_model_raises_on_missing_key(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        # Missing complexity_budget entirely
+        incomplete = {"role": "software-engineer",
+                      "prior_error_count": 0, "graph_depth": None}
+        with self.assertRaises((KeyError, TypeError, ValueError),
+                               msg="missing complexity_budget must raise"):
+            route_model(incomplete)
+
+
+class RouteModelRaisesOnNonIntBudget(unittest.TestCase):
+    """AC4: budget='lots' (non-int) => raises (TypeError/ValueError)."""
+
+    def test_route_model_raises_on_non_int_budget(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        signals = {"role": "software-engineer", "complexity_budget": "lots",
+                   "prior_error_count": 0, "graph_depth": None}
+        with self.assertRaises((TypeError, ValueError),
+                               msg="non-int complexity_budget must raise"):
+            route_model(signals)
+
+
+class RouteModelIsPure(unittest.TestCase):
+    """AC1: route_model source has no open(, subprocess, os.environ."""
+
+    def test_route_model_is_pure(self):
+        self.assertIsNotNone(route_model, "route_model not yet imported")
+        source = inspect.getsource(route_model)
+        self.assertNotIn("open(", source, "route_model must not call open()")
+        self.assertNotIn("subprocess", source, "route_model must not use subprocess")
+        self.assertNotIn("os.environ", source, "route_model must not read os.environ")
+
+
+class ExtractRouterSignalsAssemblesDict(unittest.TestCase):
+    """AC5: extract_router_signals returns 4-key dict; depth=0 preserved as int."""
+
+    def test_extract_router_signals_assembles_dict(self):
+        self.assertIsNotNone(extract_router_signals, "extract_router_signals not yet imported")
+        result = extract_router_signals(
+            role="software-engineer",
+            graph_depth=0,
+            complexity_budget=None,
+            prior_error_count=0)
+        self.assertIn("role", result)
+        self.assertIn("complexity_budget", result)
+        self.assertIn("prior_error_count", result)
+        self.assertIn("graph_depth", result)
+        self.assertEqual(len(result), 4, "must be exactly 4 keys")
+        # depth=0 is preserved as int 0 (not None, not False)
+        self.assertIs(result["graph_depth"], 0,
+                      "depth=0 must be preserved as int 0")
+        # budget=None is preserved
+        self.assertIsNone(result["complexity_budget"],
+                          "budget=None must be preserved as None")
 
 
 if __name__ == "__main__":
