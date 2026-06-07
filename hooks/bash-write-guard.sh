@@ -18,16 +18,25 @@
 # enforces: rules/core.md:Iron Laws
 # protects: build-implementation
 
+# Resolve this hook's own directory FIRST so library sourcing is anchored to
+# the install that shipped the hook — not to the CLAUDE_PLUGIN_ROOT env chain,
+# which may be unset (e.g. worktree-isolated test runs) and otherwise resolve
+# to a $HOME/.claude that lacks these libs. A security guard must never fail
+# OPEN because an env var was absent: if the profile lib cannot be sourced the
+# detectors never run and protected Bash writes slip through. Anchoring on
+# BASH_SOURCE keeps the guard fail-safe regardless of caller environment.
+_BWG_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # shellcheck source=/dev/null
-source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
-source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
+source "$_BWG_HOOK_DIR/_lib/harness-paths.sh"
+source "$_BWG_HOOK_DIR/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
 trap 'log_hook_event $?' EXIT
 
 set -uo pipefail
 
-source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/hook-profile.sh" && check_hook_profile "minimal" || exit 0
+source "$_BWG_HOOK_DIR/hook-profile.sh" && check_hook_profile "minimal" || exit 0
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
