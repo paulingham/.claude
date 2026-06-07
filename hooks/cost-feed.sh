@@ -51,5 +51,11 @@ PIPELINE_ID=$(_cf_pipeline_id)
 COST=$(_cf_compute_cost "$I_TOK" "$O_TOK" "$C_TOK")
 [ -z "$COST" ] && exit 0
 
-jq -nc --arg ts "$TIMESTAMP" --arg sid "$SESSION_ID" --arg pid "$PIPELINE_ID" --arg role "$AGENT_ROLE" --arg model "$MODEL" --argjson cost "$COST" --argjson i "$I_TOK" --argjson o "$O_TOK" --argjson c "$C_TOK" '{timestamp:$ts,session_id:$sid,pipeline_id:$pid,agent_role:$role,model:$model,total_cost_usd:$cost,input_tokens:$i,output_tokens:$o,cached_tokens:$c,rate_version:"opus-4-7-2026-04"}' >> "$METRICS_DIR/costs.jsonl" 2>/dev/null || true
+# Router-training signals (additive; fail-open sentinels from cost-helpers.sh).
+CB=$(_cf_complexity_budget)
+PEC=$(_cf_prior_error_count)
+GD=$(_cf_graph_depth)
+RD=$(_cf_router_decision)
+
+jq -nc --arg ts "$TIMESTAMP" --arg sid "$SESSION_ID" --arg pid "$PIPELINE_ID" --arg role "$AGENT_ROLE" --arg model "$MODEL" --argjson cost "$COST" --argjson i "$I_TOK" --argjson o "$O_TOK" --argjson c "$C_TOK" --argjson cb "$CB" --argjson pec "$PEC" --argjson gd "$GD" --arg rd "$RD" '{timestamp:$ts,session_id:$sid,pipeline_id:$pid,agent_role:$role,model:$model,total_cost_usd:$cost,input_tokens:$i,output_tokens:$o,cached_tokens:$c,rate_version:"opus-4-7-2026-04",complexity_budget:$cb,prior_error_count:$pec,graph_depth:$gd,router_decision:$rd}' >> "$METRICS_DIR/costs.jsonl" 2>/dev/null || true
 exit 0
