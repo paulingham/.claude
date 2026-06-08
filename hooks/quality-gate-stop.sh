@@ -15,6 +15,12 @@ set -uo pipefail
 INPUT=$(cat 2>/dev/null) || INPUT=""
 [ "$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null)" = "true" ] && exit 0
 
+# CLAUDE_QG_SKIP_CHECKS=1 skips the forensic re-check (which runs the project's
+# pytest suite via _qg_check_tests). Set by the test conftest so a test that
+# spawns this SubagentStop hook via subprocess does not recursively re-run the
+# whole suite. Never set in production. Mirrors the guard in quality-gate.sh.
+[[ "${CLAUDE_QG_SKIP_CHECKS:-0}" == "1" ]] && exit 0
+
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/quality-gate-checks.sh" 2>/dev/null
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/quality-gate-pairing.sh" 2>/dev/null
