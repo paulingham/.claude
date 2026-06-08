@@ -17,9 +17,19 @@ SESSION="${SESSION_RAW//[^A-Za-z0-9_-]/_}"
 DIR="$HARNESS_DATA/metrics/$SESSION"
 mkdir -p "$DIR" 2>/dev/null || exit 0
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-python3 -c "import json,sys
+# Pass INPUT via stdin, NOT argv — a pathological subagent_type (e.g. 1M chars)
+# exceeds ARG_MAX on Linux and silently fails the exec, dropping the log line.
+# TS/SOURCE/RESOLVED are small + bounded, so they stay on argv. agent_role is
+# capped at 64 chars regardless. RESOLVED defaults to {} when empty/invalid.
+printf '%s' "$INPUT" | python3 -c "import json,sys
+ts, source, raw_resolved = sys.argv[1], sys.argv[2], sys.argv[3]
+raw_input = sys.stdin.read()
+try:
+    resolved = json.loads(raw_resolved) if raw_resolved.strip() else {}
+except (ValueError, TypeError):
+    resolved = {}
 print(json.dumps({
-  'timestamp': sys.argv[1], 'source': sys.argv[2],
-  'agent_role': json.loads(sys.argv[3]).get('tool_input',{}).get('subagent_type','')[:64],
-  'resolved': json.loads(sys.argv[4])
-}))" "$TS" "$SOURCE" "$INPUT" "$RESOLVED" >> "$DIR/$FILENAME" 2>/dev/null
+  'timestamp': ts, 'source': source,
+  'agent_role': json.loads(raw_input).get('tool_input',{}).get('subagent_type','')[:64],
+  'resolved': resolved
+}))" "$TS" "$SOURCE" "$RESOLVED" >> "$DIR/$FILENAME" 2>/dev/null
