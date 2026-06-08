@@ -37,8 +37,8 @@ HOOK_OUTPUT=$(printf '%s\n' "$OUT" | sed -n '3p')
 SESSION_RAW="${CLAUDE_SESSION_ID:-local-$$}"
 SESSION="${SESSION_RAW//[^A-Za-z0-9_-]/_}"
 [[ -z "$SESSION" || "$SESSION" =~ ^_+$ ]] && SESSION="local-$$"
-CLAUDE_SESSION_ID="$SESSION" \
-  bash "${HOOK_DIR}/_lib/log-injection.sh" "$INPUT" "$RESOLVED" "logged" "advisor-dispatch.jsonl" 2>/dev/null
+printf '%s' "$INPUT" | CLAUDE_SESSION_ID="$SESSION" \
+  bash "${HOOK_DIR}/_lib/log-injection.sh" "$RESOLVED" "logged" "advisor-dispatch.jsonl" 2>/dev/null
 
 # Emit model binding to stdout when non-empty (CC reads hookSpecificOutput).
 [[ -n "$HOOK_OUTPUT" ]] && printf '%s\n' "$HOOK_OUTPUT"
@@ -52,8 +52,8 @@ if [[ "$SUBAGENT_TYPE" == "patch-critic" ]]; then
   MODE_DECISION=$(printf '%s\n' "$MODE_OUT" | sed -n '1p')
   MODE_RESOLVED=$(printf '%s\n' "$MODE_OUT" | sed -n '2p')
   if [[ "$MODE_DECISION" == "LOG" ]]; then
-    CLAUDE_SESSION_ID="$SESSION" \
-      bash "${HOOK_DIR}/_lib/log-injection.sh" "$INPUT" "$MODE_RESOLVED" "mode-ambiguous" "advisor-dispatch.jsonl" 2>/dev/null
+    printf '%s' "$INPUT" | CLAUDE_SESSION_ID="$SESSION" \
+      bash "${HOOK_DIR}/_lib/log-injection.sh" "$MODE_RESOLVED" "mode-ambiguous" "advisor-dispatch.jsonl" 2>/dev/null
   fi
 fi
 

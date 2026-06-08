@@ -28,7 +28,7 @@ DECISION=$(printf '%s\n' "$OUT" | sed -n '1p')
 RESOLVED=$(printf '%s\n' "$OUT" | sed -n '2p')
 
 [[ "$DECISION" == "LOG" ]] || exit 0
-bash "${HOOK_DIR}/_lib/log-injection.sh" "$INPUT" "$RESOLVED" "path-b-advisory" "freshness-guard.jsonl" 2>/dev/null
+printf '%s' "$INPUT" | bash "${HOOK_DIR}/_lib/log-injection.sh" "$RESOLVED" "path-b-advisory" "freshness-guard.jsonl" 2>/dev/null
 
 # TODO(v2.1.142): replace exit 0 below with exit 2 in the would_block branch after
 # permissionDecision ships and Promotion Criterion (see proposal) is met.

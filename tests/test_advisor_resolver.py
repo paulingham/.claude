@@ -677,13 +677,20 @@ def _run_resolver_with_budget(payload, budget, env=None):
             capture_output=True, text=True, timeout=60, env=proc_env)
 
 
-def _run_hook_with_budget(payload, budget, env=None):
-    """Run pre-agent-advisor.sh with a fake pipeline-state that has the given budget."""
+def _run_hook_with_budget(payload, budget, env=None, plugin_data=None):
+    """Run pre-agent-advisor.sh with a fake pipeline-state that has the given budget.
+
+    When `plugin_data` is given, CLAUDE_PLUGIN_DATA is set so the hook's metrics
+    writes land in that hermetic dir (independent of CLAUDE_CONFIG_DIR / $HOME) —
+    callers resolve the log path against it rather than Path.home().
+    """
     proc_env = {
         **os.environ, **(env or {}),
         "ANTHROPIC_API_KEY": "sk-test",
         "CLAUDE_AGENTS_DIR": str(REPO_ROOT / "agents"),
     }
+    if plugin_data is not None:
+        proc_env["CLAUDE_PLUGIN_DATA"] = str(plugin_data)
     with tempfile.TemporaryDirectory() as tmp:
         state_file = Path(tmp) / "test-pipeline.md"
         state_file.write_text(
@@ -785,26 +792,22 @@ class DisableGateShortCircuitsBeforeModelBinding(unittest.TestCase):
         """CLAUDE_DISABLE_ADVISOR_GATE=1 short-circuits at line 19 of the hook,
         BEFORE JSONL logging — so no advisor-dispatch.jsonl must be created."""
         session = f"test-b6-{uuid.uuid4()}"
-        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
-                result = _run_hook(
-                    _REVIEWER_PAYLOAD_BUDGET4,
-                    env={"CLAUDE_DISABLE_ADVISOR_GATE": "1",
-                         "ANTHROPIC_API_KEY": "sk-test",
-                         "CLAUDE_SESSION_ID": session,
-                         "CLAUDE_PIPELINE_STATE_DIR": tmp})
+        with tempfile.TemporaryDirectory() as pd, \
+                tempfile.TemporaryDirectory() as tmp:
+            # _run_hook(plugin_data=pd) sets CLAUDE_PLUGIN_DATA AND HOME to pd,
+            # so the (asserted-absent) write would land under pd, not the real
+            # home — robust regardless of an inherited CLAUDE_CONFIG_DIR.
+            log_path = Path(pd) / "metrics" / session / "advisor-dispatch.jsonl"
+            result = _run_hook(
+                _REVIEWER_PAYLOAD_BUDGET4,
+                env={"CLAUDE_DISABLE_ADVISOR_GATE": "1",
+                     "ANTHROPIC_API_KEY": "sk-test",
+                     "CLAUDE_SESSION_ID": session,
+                     "CLAUDE_PIPELINE_STATE_DIR": tmp},
+                plugin_data=pd)
             self.assertEqual(result.returncode, 0)
             self.assertFalse(log_path.exists(),
                              f"CLAUDE_DISABLE_ADVISOR_GATE=1 must NOT write JSONL at {log_path}")
-        finally:
-            if log_path.exists():
-                log_path.unlink()
-            if log_path.parent.exists():
-                try:
-                    log_path.parent.rmdir()
-                except OSError:
-                    pass
 
 
 class ExistingJsonlLoggingPreservedAlongsideBinding(unittest.TestCase):
@@ -812,23 +815,16 @@ class ExistingJsonlLoggingPreservedAlongsideBinding(unittest.TestCase):
 
     def test_jsonl_and_stdout_both_emitted(self):
         session = f"test-b7-{uuid.uuid4()}"
-        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
-        try:
+        with tempfile.TemporaryDirectory() as pd:
+            log_path = Path(pd) / "metrics" / session / "advisor-dispatch.jsonl"
             result = _run_hook_with_budget(
                 _REVIEWER_PAYLOAD_BUDGET4, budget=4,
-                env={"CLAUDE_SESSION_ID": session})
+                env={"CLAUDE_SESSION_ID": session}, plugin_data=pd)
             self.assertEqual(result.returncode, 0)
             self.assertTrue(log_path.exists(), f"JSONL not written at {log_path}")
             self.assertIn("hookSpecificOutput", result.stdout,
                           "hook stdout must emit binding when JSONL is written")
-        finally:
-            if log_path.exists():
-                log_path.unlink()
-            if log_path.parent.exists():
-                try:
-                    log_path.parent.rmdir()
-                except OSError:
-                    pass
+        # pd tempdir (and its metrics tree) is cleaned up by the with-block.
 
 
 class HookExitsZeroOnResolverCrash(unittest.TestCase):
@@ -887,25 +883,17 @@ class DisableModelBindingKeepsJsonlButSilencesStdout(unittest.TestCase):
 
     def test_disable_binding_env_var(self):
         session = f"test-b10-{uuid.uuid4()}"
-        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
-        try:
+        with tempfile.TemporaryDirectory() as pd:
+            log_path = Path(pd) / "metrics" / session / "advisor-dispatch.jsonl"
             result = _run_hook_with_budget(
                 _REVIEWER_PAYLOAD_BUDGET4, budget=4,
                 env={"CLAUDE_SESSION_ID": session,
-                     "CLAUDE_DISABLE_MODEL_BINDING": "1"})
+                     "CLAUDE_DISABLE_MODEL_BINDING": "1"}, plugin_data=pd)
             self.assertEqual(result.returncode, 0)
             self.assertEqual(result.stdout.strip(), "",
                              "CLAUDE_DISABLE_MODEL_BINDING=1 must silence stdout binding")
             self.assertTrue(log_path.exists(),
                             f"JSONL must still be written: {log_path}")
-        finally:
-            if log_path.exists():
-                log_path.unlink()
-            if log_path.parent.exists():
-                try:
-                    log_path.parent.rmdir()
-                except OSError:
-                    pass
 
 
 class FirstMatchingRuleWinsWhenTwoRulesBothMatch(unittest.TestCase):
