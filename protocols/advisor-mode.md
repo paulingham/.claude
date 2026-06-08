@@ -16,7 +16,7 @@ The `advisor:` field remains not yet schema-exposed. Full advisor pairing (Sonne
 
 Pending advisor-baseline measurement (see `eval/baselines/{latest}-advisor-baseline.md`):
 
-- Sonnet+Opus-advisor pairing is roughly ~40% cheaper per review than naive Opus-solo.
+- (PROVISIONAL) Sonnet+Opus-advisor pairing is roughly ~40% cheaper per review than naive Opus-solo.
 - Quality-equivalence target: ≥95% verdict-agreement on the regression suite. Not yet measured.
 
 ## Operator Controls

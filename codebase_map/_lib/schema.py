@@ -61,12 +61,26 @@ def ensure_cache(db_path: Path) -> bool:
 
 
 def _apply(con: sqlite3.Connection, existed: bool) -> bool:
-    rebuilt = existed and _read_version(con) < SCHEMA_VERSION
+    # Concurrency: another thread may have created the DB FILE but not yet run
+    # the schema script, so `existed` can be True while schema_version does not
+    # exist. _read_version() returns 0 in that case, which would trigger a
+    # "rebuild" whose DELETE FROM schema_version then errors on the missing
+    # table. Only treat it as a real version-drift rebuild when the table
+    # actually exists AND its version is behind.
+    rebuilt = existed and _has_version_table(con) and _read_version(con) < SCHEMA_VERSION
     if rebuilt:
         _drop_data_tables(con)
     con.executescript(_SCHEMA_SQL)
     con.commit()
     return rebuilt
+
+
+def _has_version_table(con: sqlite3.Connection) -> bool:
+    row = con.execute(
+        "SELECT name FROM sqlite_master "
+        "WHERE type='table' AND name='schema_version'"
+    ).fetchone()
+    return row is not None
 
 
 def _read_version(con: sqlite3.Connection) -> int:

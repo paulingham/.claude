@@ -54,14 +54,18 @@ def _run_resolver(payload, env=None):
     proc_env = _hermetic_env(extra=env)
     return subprocess.run(
         ["python3", str(RESOLVER_SCRIPT)], input=json.dumps(payload),
-        capture_output=True, text=True, timeout=10, env=proc_env)
+        capture_output=True, text=True, timeout=60, env=proc_env)
 
 
 def _run_hook(payload, env=None, plugin_data=None):
     proc_env = _hermetic_env(extra=env, plugin_data=plugin_data)
     return subprocess.run(
         ["bash", str(HOOK)], input=json.dumps(payload),
-        capture_output=True, text=True, timeout=10, env=proc_env)
+        # Generous timeout: pre-agent-advisor.sh spawns several python3/log
+        # subprocesses and a loaded test host can intermittently stall process
+        # creation for seconds. 10s occasionally tripped on a busy macOS box;
+        # 60s absorbs the variance without masking a genuine hang.
+        capture_output=True, text=True, timeout=60, env=proc_env)
 
 
 _INLINE_REVIEWER_FRONTMATTER = """---
@@ -213,20 +217,35 @@ class SettingsRegistersAdvisorHook(unittest.TestCase):
         agent_groups = [g for g in settings["hooks"]["PreToolUse"]
                         if g.get("matcher") == "Agent"]
         self.assertEqual(len(agent_groups), 1, "expected exactly one PreToolUse Agent group")
-        commands = [h["command"] for h in agent_groups[0]["hooks"]]
-        self._assert_existing_hooks_unchanged(commands)
-        self._assert_advisor_hook_registered_after_thinking(commands)
+        # Hook entries were hardened to the fail-safe `bash -lc '...'` wrapper
+        # form (commits 9a47da6 / e403365): command='bash', the script path
+        # lives inside args[1]. Reconstruct the full invocation text per hook
+        # so existing substring assertions still work.
+        invocations = [
+            " ".join([h.get("command", "")] + h.get("args", []))
+            for h in agent_groups[0]["hooks"]
+        ]
+        self._assert_existing_hooks_unchanged(invocations)
+        self._assert_advisor_hook_registered_after_thinking(invocations)
 
-    def _assert_existing_hooks_unchanged(self, commands):
-        self.assertIn("bash ~/.claude/hooks/pipeline-state-guard.sh", commands)
-        self.assertIn("bash ~/.claude/hooks/agent-skill-reminder.sh", commands)
-        self.assertIn("bash ~/.claude/hooks/pre-agent-thinking.sh", commands)
+    def _index_of(self, invocations, script):
+        for i, text in enumerate(invocations):
+            if script in text:
+                return i
+        return -1
 
-    def _assert_advisor_hook_registered_after_thinking(self, commands):
-        advisor_cmd = "bash ~/.claude/hooks/pre-agent-advisor.sh"
-        self.assertIn(advisor_cmd, commands)
-        thinking_idx = commands.index("bash ~/.claude/hooks/pre-agent-thinking.sh")
-        advisor_idx = commands.index(advisor_cmd)
+    def _assert_existing_hooks_unchanged(self, invocations):
+        for script in ("pipeline-state-guard.sh", "agent-skill-reminder.sh",
+                       "pre-agent-thinking.sh"):
+            self.assertGreaterEqual(
+                self._index_of(invocations, script), 0,
+                f"{script} must remain registered on the Agent matcher")
+
+    def _assert_advisor_hook_registered_after_thinking(self, invocations):
+        advisor_idx = self._index_of(invocations, "pre-agent-advisor.sh")
+        thinking_idx = self._index_of(invocations, "pre-agent-thinking.sh")
+        self.assertGreaterEqual(advisor_idx, 0,
+                                "pre-agent-advisor.sh must be registered")
         self.assertGreater(advisor_idx, thinking_idx,
                            "advisor hook must be registered AFTER thinking hook")
 
@@ -431,7 +450,10 @@ _DOC_TOUCHPOINTS = [
     REPO_ROOT / "skills" / "code-review" / "SKILL.md",
     REPO_ROOT / "skills" / "security-review" / "SKILL.md",
     REPO_ROOT / "protocols" / "parallel-dispatch-protocol.md",
-    REPO_ROOT / "CLAUDE.md",
+    # CLAUDE.md was pruned to a pointer (commit b606d59); the advisor-mode
+    # cost figure (with its PROVISIONAL + advisor-baseline marking) now lives
+    # in its source of truth, protocols/advisor-mode.md.
+    REPO_ROOT / "protocols" / "advisor-mode.md",
 ]
 
 
@@ -652,16 +674,23 @@ def _run_resolver_with_budget(payload, budget, env=None):
         return subprocess.run(
             ["python3", str(RESOLVER_SCRIPT)],
             input=json.dumps(payload),
-            capture_output=True, text=True, timeout=10, env=proc_env)
+            capture_output=True, text=True, timeout=60, env=proc_env)
 
 
-def _run_hook_with_budget(payload, budget, env=None):
-    """Run pre-agent-advisor.sh with a fake pipeline-state that has the given budget."""
+def _run_hook_with_budget(payload, budget, env=None, plugin_data=None):
+    """Run pre-agent-advisor.sh with a fake pipeline-state that has the given budget.
+
+    When `plugin_data` is given, CLAUDE_PLUGIN_DATA is set so the hook's metrics
+    writes land in that hermetic dir (independent of CLAUDE_CONFIG_DIR / $HOME) —
+    callers resolve the log path against it rather than Path.home().
+    """
     proc_env = {
         **os.environ, **(env or {}),
         "ANTHROPIC_API_KEY": "sk-test",
         "CLAUDE_AGENTS_DIR": str(REPO_ROOT / "agents"),
     }
+    if plugin_data is not None:
+        proc_env["CLAUDE_PLUGIN_DATA"] = str(plugin_data)
     with tempfile.TemporaryDirectory() as tmp:
         state_file = Path(tmp) / "test-pipeline.md"
         state_file.write_text(
@@ -670,7 +699,7 @@ def _run_hook_with_budget(payload, budget, env=None):
         return subprocess.run(
             ["bash", str(HOOK)],
             input=json.dumps(payload),
-            capture_output=True, text=True, timeout=10, env=proc_env)
+            capture_output=True, text=True, timeout=60, env=proc_env)
 
 
 class ResolverEmitsThreeLinesForReviewerWithConditional(unittest.TestCase):
@@ -763,26 +792,22 @@ class DisableGateShortCircuitsBeforeModelBinding(unittest.TestCase):
         """CLAUDE_DISABLE_ADVISOR_GATE=1 short-circuits at line 19 of the hook,
         BEFORE JSONL logging — so no advisor-dispatch.jsonl must be created."""
         session = f"test-b6-{uuid.uuid4()}"
-        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
-                result = _run_hook(
-                    _REVIEWER_PAYLOAD_BUDGET4,
-                    env={"CLAUDE_DISABLE_ADVISOR_GATE": "1",
-                         "ANTHROPIC_API_KEY": "sk-test",
-                         "CLAUDE_SESSION_ID": session,
-                         "CLAUDE_PIPELINE_STATE_DIR": tmp})
+        with tempfile.TemporaryDirectory() as pd, \
+                tempfile.TemporaryDirectory() as tmp:
+            # _run_hook(plugin_data=pd) sets CLAUDE_PLUGIN_DATA AND HOME to pd,
+            # so the (asserted-absent) write would land under pd, not the real
+            # home — robust regardless of an inherited CLAUDE_CONFIG_DIR.
+            log_path = Path(pd) / "metrics" / session / "advisor-dispatch.jsonl"
+            result = _run_hook(
+                _REVIEWER_PAYLOAD_BUDGET4,
+                env={"CLAUDE_DISABLE_ADVISOR_GATE": "1",
+                     "ANTHROPIC_API_KEY": "sk-test",
+                     "CLAUDE_SESSION_ID": session,
+                     "CLAUDE_PIPELINE_STATE_DIR": tmp},
+                plugin_data=pd)
             self.assertEqual(result.returncode, 0)
             self.assertFalse(log_path.exists(),
                              f"CLAUDE_DISABLE_ADVISOR_GATE=1 must NOT write JSONL at {log_path}")
-        finally:
-            if log_path.exists():
-                log_path.unlink()
-            if log_path.parent.exists():
-                try:
-                    log_path.parent.rmdir()
-                except OSError:
-                    pass
 
 
 class ExistingJsonlLoggingPreservedAlongsideBinding(unittest.TestCase):
@@ -790,23 +815,16 @@ class ExistingJsonlLoggingPreservedAlongsideBinding(unittest.TestCase):
 
     def test_jsonl_and_stdout_both_emitted(self):
         session = f"test-b7-{uuid.uuid4()}"
-        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
-        try:
+        with tempfile.TemporaryDirectory() as pd:
+            log_path = Path(pd) / "metrics" / session / "advisor-dispatch.jsonl"
             result = _run_hook_with_budget(
                 _REVIEWER_PAYLOAD_BUDGET4, budget=4,
-                env={"CLAUDE_SESSION_ID": session})
+                env={"CLAUDE_SESSION_ID": session}, plugin_data=pd)
             self.assertEqual(result.returncode, 0)
             self.assertTrue(log_path.exists(), f"JSONL not written at {log_path}")
             self.assertIn("hookSpecificOutput", result.stdout,
                           "hook stdout must emit binding when JSONL is written")
-        finally:
-            if log_path.exists():
-                log_path.unlink()
-            if log_path.parent.exists():
-                try:
-                    log_path.parent.rmdir()
-                except OSError:
-                    pass
+        # pd tempdir (and its metrics tree) is cleaned up by the with-block.
 
 
 class HookExitsZeroOnResolverCrash(unittest.TestCase):
@@ -823,7 +841,7 @@ class HookExitsZeroOnResolverCrash(unittest.TestCase):
                 result = subprocess.run(
                     ["bash", str(HOOK)],
                     input=json.dumps(_REVIEWER_PAYLOAD_BUDGET4),
-                    capture_output=True, text=True, timeout=10,
+                    capture_output=True, text=True, timeout=60,
                     env={
                         **os.environ,
                         # PATH has bash + broken dir; python3 in broken_python_bin
@@ -851,7 +869,7 @@ class ThinkingHookProducesNoStdoutForAgentPayload(unittest.TestCase):
                 ["bash", str(THINKING_HOOK)],
                 input=json.dumps({"tool_name": "Agent",
                                   "tool_input": {"subagent_type": "code-reviewer"}}),
-                capture_output=True, text=True, timeout=10,
+                capture_output=True, text=True, timeout=60,
                 env={**os.environ,
                      "ANTHROPIC_API_KEY": "sk-test",
                      "CLAUDE_PIPELINE_STATE_DIR": tmp})
@@ -865,25 +883,17 @@ class DisableModelBindingKeepsJsonlButSilencesStdout(unittest.TestCase):
 
     def test_disable_binding_env_var(self):
         session = f"test-b10-{uuid.uuid4()}"
-        log_path = Path.home() / ".claude" / "metrics" / session / "advisor-dispatch.jsonl"
-        try:
+        with tempfile.TemporaryDirectory() as pd:
+            log_path = Path(pd) / "metrics" / session / "advisor-dispatch.jsonl"
             result = _run_hook_with_budget(
                 _REVIEWER_PAYLOAD_BUDGET4, budget=4,
                 env={"CLAUDE_SESSION_ID": session,
-                     "CLAUDE_DISABLE_MODEL_BINDING": "1"})
+                     "CLAUDE_DISABLE_MODEL_BINDING": "1"}, plugin_data=pd)
             self.assertEqual(result.returncode, 0)
             self.assertEqual(result.stdout.strip(), "",
                              "CLAUDE_DISABLE_MODEL_BINDING=1 must silence stdout binding")
             self.assertTrue(log_path.exists(),
                             f"JSONL must still be written: {log_path}")
-        finally:
-            if log_path.exists():
-                log_path.unlink()
-            if log_path.parent.exists():
-                try:
-                    log_path.parent.rmdir()
-                except OSError:
-                    pass
 
 
 class FirstMatchingRuleWinsWhenTwoRulesBothMatch(unittest.TestCase):

@@ -10,6 +10,8 @@ tools:
   - Glob
   - NotebookEdit
   - ToolSearch
+  - mcp_lsp_diagnostics_ts
+  - mcp_lsp_diagnostics_py
 model: sonnet
 executor: claude-sonnet-4-6
 advisor: none

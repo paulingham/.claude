@@ -15,7 +15,7 @@ source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/hook-pr
 
 INPUT=$(cat)
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
-[ "$STOP_HOOK_ACTIVE" = "true" ] && exit 0
+[ "$STOP_HOOK_ACTIVE" = "true" ] && { trap - EXIT; exit 0; }  # nested stop: pure no-op (no forensic write)
 AGENT_TYPE=$(echo "$INPUT" | jq -r '.subagent_type // .agent_type // "unknown"' 2>/dev/null)
 
 # Write-capable agents may have worktree changes to merge

@@ -5,7 +5,7 @@
 # writes pv_outcome back into the most recent HIT/MISS line of this session.
 # NEVER blocks (exit 0 on every path); mirrors hooks/intake-fingerprint-audit.sh.
 #
-# enforces: pipeline-state/plan-cache-agentic/plan.md § Slice slice-e
+# enforces: protocols/pipeline-protocol.md § Plan cache (Slice slice-e)
 # protects: pipeline, forensics
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

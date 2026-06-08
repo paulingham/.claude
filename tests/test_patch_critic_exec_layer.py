@@ -323,14 +323,11 @@ class ExecutionEvidenceSubsectionIsPurelyAdditiveWhenFlagOff(
             self):
         text = DISPATCH_DOC.read_text()
 
-        # (1) Pre-#93 step headings / numbered steps still present.
-        # The #93 dispatch procedure's identifying anchors:
-        #   - "**Procedure (variant mode):**" intro
-        #   - "1. **Gate check**" first step
-        #   - "2. **Spawn three personas in a single message**"
-        #   - "3. **Aggregation rule (OR)**"
-        #   - "4. **Audit artifact**"
-        #   - "**Composition with C8 anti-pattern mining"
+        # (1) The dispatch procedure headings/steps are still present. The
+        # dispatch was rewritten to the uncertainty-escalated shape (persona-1
+        # by default, escalate on uncertainty); these are its identifying
+        # anchors. The Execution Evidence sub-section must remain purely
+        # additive on top of this procedure when the flag is off.
         section = _section(
             text,
             r"^## Multi-Persona Patch Critic Dispatch",
@@ -340,11 +337,12 @@ class ExecutionEvidenceSubsectionIsPurelyAdditiveWhenFlagOff(
             "Could not locate § Multi-Persona Patch Critic Dispatch")
 
         for anchor in (
-                "**Procedure (variant mode):**",
-                "1. **Gate check**",
-                "2. **Spawn three personas in a single message**",
-                "3. **Aggregation rule (OR)**",
-                "4. **Audit artifact**",
+                "**Procedure:**",
+                "1. **Spawn persona-1**",
+                "2. **Read persona-1 output**",
+                "3. **Escalate:",
+                "4. **Aggregation rule (majority-of-3",
+                "5. **Audit artifact**",
                 "**Composition with C8 anti-pattern mining",
         ):
             with self.subTest(anchor=anchor):

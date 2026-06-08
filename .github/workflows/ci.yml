@@ -1,0 +1,105 @@
+# Harness CI — runs the test suite + static checks on every push and PR.
+#
+# The harness ships as a tree of bash hooks + Python helpers + markdown docs
+# (it is not a published wheel). This workflow guards against the two failure
+# modes that have bitten the suite before:
+#   1. Doc / settings / agent-metadata drift vs. the tests that pin them.
+#   2. Shell-script regressions (hook entry-points, installer libs).
+#
+# Jobs are independent so a shell-lint failure does not mask a pytest failure
+# and vice-versa.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    name: Python test suite
+    runs-on: ubuntu-latest
+    env:
+      # Defence in depth: the test conftest already sets this, but exporting it
+      # here guarantees no test can recursively invoke the project's own pytest
+      # suite via the quality-gate hook even if conftest loading is bypassed.
+      CLAUDE_QG_SKIP_CHECKS: "1"
+      # NOTE: deliberately do NOT set CLAUDE_CONFIG_DIR here. It overrides
+      # HARNESS_DATA (where hooks write metrics), which conflicts with the many
+      # tests that assert against a hermetic per-test dir or $HOME/.claude. The
+      # runner's clean $HOME is the right harness-data root; the tests provide
+      # their own seed/state, so a bare environment is correct.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install runtime + test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # The harness is a flat tree of hooks/skills/agents/... — NOT an
+          # installable package, so `pip install -e .` fails on flat-layout
+          # auto-discovery. Install the declared runtime dep (pyyaml) + pytest
+          # directly instead.
+          pip install "pyyaml>=6.0" pytest
+          sudo apt-get update && sudo apt-get install -y jq
+      - name: Run pytest
+        run: python -m pytest tests/ -q -p no:cacheprovider
+
+  shell:
+    name: Shell (bats) test suite
+    runs-on: ubuntu-latest
+    # NON-BLOCKING for now: the bats suite carries pre-existing HARNESS_DATA-
+    # relocation drift (specs that write to $HOME/.claude/pipeline-state while
+    # the hooks now write to $HARNESS_DATA) — ~63 specs fail on a clean runner.
+    # That cleanup is a separate effort from greening the pytest suite; the job
+    # runs and reports so the drift stays visible, but does not gate the PR.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bats + jq
+        run: sudo apt-get update && sudo apt-get install -y bats jq
+      - name: Run bats specs
+        # --require-bats turns the "bats absent" SKIP into a hard failure so CI
+        # never silently passes without running the shell specs.
+        run: bash tests/shell/run.sh --require-bats
+
+  shellcheck:
+    name: ShellCheck (hooks + scripts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Lint installer scripts
+        # The install-tools entrypoint + its _lib are held shellcheck-clean by
+        # tests/test_install_tools.py; enforce the same in CI directly.
+        run: shellcheck scripts/install-tools.sh scripts/_lib/*.sh
+
+  settings-json:
+    name: settings.json validity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON + portability invariants
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          from pathlib import Path
+          p = Path("settings.json")
+          data = json.loads(p.read_text())  # raises on invalid JSON
+          text = p.read_text()
+          # No hardcoded absolute user paths — the harness must stay portable.
+          assert "/Users/" not in text and "/home/" not in text, \
+              "settings.json contains a hardcoded absolute user path"
+          assert "hooks" in data, "settings.json missing top-level hooks block"
+          print("settings.json OK:",
+                len(data.get("mcpServers", {})), "mcpServers,",
+                sum(len(m.get("hooks", [])) for hs in data["hooks"].values()
+                    for m in hs), "hook entries")
+          PY

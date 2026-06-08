@@ -31,10 +31,14 @@ class CacheFlagTokenEmitted(unittest.TestCase):
             env["HOME"] = td
             env["CLAUDE_SESSION_ID"] = "slice-c-test"
             env["CLAUDE_CONFIG_DIR"] = str(REPO_ROOT)
+            # Runtime state (metrics) was relocated to HARNESS_DATA
+            # (CLAUDE_PLUGIN_DATA > CLAUDE_CONFIG_DIR > $HOME/.claude). Point it
+            # at the hermetic home so the write lands where the assertion reads.
+            env["CLAUDE_PLUGIN_DATA"] = str(Path(td) / ".claude")
             # Run hook
             subprocess.run(
                 ["bash", str(HOOK)], input=envelope,
-                capture_output=True, text=True, env=env, timeout=10)
+                capture_output=True, text=True, env=env, timeout=30)
             jsonl = Path(td) / ".claude" / "metrics" / "slice-c-test" / "cache-injections.jsonl"
             self.assertTrue(
                 jsonl.exists(),

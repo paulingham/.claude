@@ -78,18 +78,19 @@ class SandboxVerifyRowExistsInFieldReference(unittest.TestCase):
 
 
 class PipelineSkillJsonTemplateMentionsSandboxVerify(unittest.TestCase):
-    """`skills/pipeline/SKILL.md` Step 7b-bis mentions phases.sandbox_verify."""
+    """`skills/pipeline/SKILL.md` Step 4d-i mentions phases.sandbox_verify."""
 
     def test_pipeline_step_7b_bis_mentions_sandbox_verify(self):
         doc = (REPO_ROOT / "skills" / "pipeline" / "SKILL.md").read_text()
-        # Step 7b-bis is the producer surface for the regular pipeline.
-        idx = doc.find("7b-bis")
-        self.assertGreater(idx, -1, "Step 7b-bis header must exist")
+        # The observation-capture producer surface was relocated from Step
+        # 7b-bis to Step 4d-i (Reflect-write, pre-Ship).
+        idx = doc.find("4d-i.")
+        self.assertGreater(idx, -1, "Step 4d-i header must exist")
         section = doc[idx:idx + 4000]
         self.assertIn(
             "sandbox_verify",
             section,
-            "Step 7b-bis must reference phases.sandbox_verify "
+            "Step 4d-i must reference phases.sandbox_verify "
             "so producer wiring is discoverable")
 
 

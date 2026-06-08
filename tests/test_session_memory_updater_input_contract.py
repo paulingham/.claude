@@ -38,9 +38,17 @@ class AgentDocumentsTargetFileAndTargetSection(unittest.TestCase):
 
 class DispatchHelperRefusesBlankFields(unittest.TestCase):
     def _run(self, *args):
+        # The helper seeds its target from
+        # $HARNESS_ROOT/session-memory/config/templates/<section>.md. Point
+        # HARNESS_ROOT at the repo (via CLAUDE_PLUGIN_ROOT) so the template
+        # resolves on a clean CI runner where $HOME/.claude is empty.
+        # CLAUDE_PLUGIN_ROOT affects only HARNESS_ROOT, not HARNESS_DATA, so it
+        # does not perturb other tests' metrics/state isolation.
+        import os
+        env = {**os.environ, "CLAUDE_PLUGIN_ROOT": str(ROOT)}
         return subprocess.run(
             ["bash", str(DISPATCH_HELPER), *args],
-            capture_output=True, text=True,
+            capture_output=True, text=True, env=env,
         )
 
     def test_dispatch_helper_exists_and_is_executable(self):

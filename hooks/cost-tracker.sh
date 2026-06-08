@@ -20,6 +20,7 @@ INPUT=$(cat)
 # Avoid loops
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
 if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
+    trap - EXIT  # nested stop: pure no-op (no forensic write)
     exit 0
 fi
 

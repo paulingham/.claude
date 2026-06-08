@@ -33,6 +33,7 @@ ALLOWLIST_PREFIXES = (
     ".claude-sessions/",
     ".claude/worktrees/",
     "protocols/autonomous-intelligence.md",  # historical migration doc
+    "protocols/_proposals/",  # design proposals may discuss notes.md by name
     "eval/cases/",  # frozen historical snapshots — never edit
 )
 

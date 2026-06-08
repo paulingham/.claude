@@ -25,8 +25,16 @@ class InstallOrtSurvivesTimeout(unittest.TestCase):
         timeout_exc = sp.TimeoutExpired(
             cmd=["brew", "install", "onnxruntime"], timeout=300)
         buf = io.StringIO()
-        with patch("embedder._lib.bootstrap_steps.shutil.which",
+        # Force the macOS (brew) install command so the timeout path is
+        # exercised regardless of the host OS — otherwise install_cmd_for_os()
+        # returns apt-get on a Linux CI runner and the test never reaches the
+        # mocked subprocess.run.
+        with patch("embedder._lib.bootstrap_steps.bootstrap_install.install_cmd_for_os",
+                   return_value=(["brew", "install", "onnxruntime"], "brew")), \
+             patch("embedder._lib.bootstrap_steps.shutil.which",
                    return_value="/opt/homebrew/bin/brew"), \
+             patch("embedder._lib.bootstrap_steps.bootstrap_consent.grants",
+                   return_value=True), \
              patch("embedder._lib.bootstrap_steps.subprocess.run",
                    side_effect=timeout_exc):
             with redirect_stdout(buf):

@@ -1,38 +1,46 @@
 #!/usr/bin/env bats
-# Slice 2: portable paths in settings.json + .claude/settings.json.
-# Every /Users/Paul.Ingham/ must be $HOME/ so the harness moves between
-# machines. HF_TOKEN value is an invariant — this slice must not touch it.
+# Portable paths in settings.json. Every absolute user path must be $HOME-
+# relative so the harness moves between machines.
+#
+# History: an earlier nested .claude/settings.json and several env keys
+# (HCOM, HF_TOKEN_PATH, PARRY_IGNORE_DIRS, HF_TOKEN) plus the `memory`
+# mcpServer were retired; the assertions below track the current single
+# root settings.json.
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   TOP="$REPO_ROOT/settings.json"
-  NESTED="$REPO_ROOT/.claude/settings.json"
-  PRE_TOKEN="/tmp/pre_hf_token"
 }
 
-@test "AC2.1 no /Users/Paul.Ingham/ in either settings file" {
+@test "AC2.1 no hardcoded user path in settings.json" {
   [ "$(grep -c '/Users/Paul.Ingham/' "$TOP")" = "0" ]
-  [ "$(grep -c '/Users/Paul.Ingham/' "$NESTED")" = "0" ]
 }
 
-@test "AC2.2 both settings files parse as JSON" {
+@test "AC2.2 settings.json parses as JSON" {
   python3 -m json.tool "$TOP" >/dev/null
-  python3 -m json.tool "$NESTED" >/dev/null
 }
 
-@test "AC2.3 13 additionalDirectories, all \$HOME/.claude/..." {
-  [ "$(jq -r '.permissions.additionalDirectories | length' "$TOP")" = "13" ]
+@test "AC2.3 every additionalDirectory is \$HOME/.claude/..." {
+  # The exact count is not pinned (it grows as the harness adds dirs); what
+  # matters is that none is a hardcoded/non-$HOME path.
+  [ "$(jq -r '.permissions.additionalDirectories | length' "$TOP")" -ge 1 ]
   bad="$(jq -r '.permissions.additionalDirectories[] | select(startswith("$HOME/.claude/") | not)' "$TOP")"
   [ -z "$bad" ]
 }
 
-@test "AC2.4 env and mcpServers paths start with \$HOME/" {
+@test "AC2.4 every \$HOME-style env/mcp path starts with \$HOME/" {
+  # Only assert on keys that are actually present; retired keys are skipped.
   for key in HCOM HF_TOKEN_PATH PARRY_IGNORE_DIRS; do
-    v="$(jq -r ".env.${key}" "$TOP")"
+    v="$(jq -r ".env.${key} // \"ABSENT\"" "$TOP")"
+    [ "$v" = "ABSENT" ] && continue
     [[ "$v" == \$HOME/* ]] || { echo "env.${key}=$v"; false; }
   done
-  v="$(jq -r '.mcpServers.memory.args[0]' "$TOP")"
-  [[ "$v" == \$HOME/* ]] || { echo "mcpServers.memory.args[0]=$v"; false; }
+  # Any mcpServer arg that looks like an absolute path must be $HOME-relative.
+  while IFS= read -r v; do
+    case "$v" in
+      /*) echo "absolute mcpServers arg: $v"; false ;;
+    esac
+  done < <(jq -r '.mcpServers // {} | to_entries[] | .value.args // [] | .[]' "$TOP")
 }
 
 @test "AC2.6 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = \"1\"" {
@@ -43,9 +51,4 @@ setup() {
   # Linux binaries use .so, macOS uses .dylib — no single literal path works
   # across OSes. Bootstrap must resolve the path at runtime per OS.
   [ "$(jq -r '.env.ORT_DYLIB_PATH // "absent"' "$TOP")" = "absent" ]
-}
-
-@test "AC2.7 HF_TOKEN value unchanged vs pre-edit capture" {
-  [ -f "$PRE_TOKEN" ] || skip "pre-edit HF_TOKEN capture missing at $PRE_TOKEN"
-  [ "$(jq -r '.env.HF_TOKEN' "$TOP")" = "$(cat "$PRE_TOKEN")" ]
 }

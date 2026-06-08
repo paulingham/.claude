@@ -15,15 +15,24 @@ sys.path.insert(0, str(REPO_ROOT / "skills"))
 class DoctorReportsFakeHealthy(unittest.TestCase):
     def test_doctor_prints_ok_when_fake_backend(self):
         os.environ["CLAUDE_EMBEDDER"] = "fake"
-        try:
-            from embedder import cli
-            buf = io.StringIO()
-            with redirect_stdout(buf):
-                rc = cli.main(["doctor"])
-            self.assertEqual(rc, 0)
-            self.assertIn("ok", buf.getvalue().lower())
-        finally:
-            os.environ.pop("CLAUDE_EMBEDDER", None)
+        # The doctor verdict is OK only when the live probe succeeds AND a
+        # prior success is recorded in the status file. The fake backend makes
+        # the probe succeed; seed a hermetic status file with last_success_at
+        # so the test does not depend on a pre-existing ~/.claude status DB.
+        with tempfile.TemporaryDirectory() as tmp:
+            status = Path(tmp) / "embedder-status.json"
+            status.write_text(json.dumps({"last_success_at": "2026-01-01T00:00:00Z"}))
+            os.environ["CLAUDE_EMBEDDER_STATUS"] = str(status)
+            try:
+                from embedder import cli
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    rc = cli.main(["doctor"])
+                self.assertEqual(rc, 0)
+                self.assertIn("ok", buf.getvalue().lower())
+            finally:
+                os.environ.pop("CLAUDE_EMBEDDER", None)
+                os.environ.pop("CLAUDE_EMBEDDER_STATUS", None)
 
 
 class StatusCommandWritesJSON(unittest.TestCase):

@@ -53,8 +53,8 @@ def _promotion_section():
 
 
 _PREFER_OPUS_CAVEAT = (
-    "Not yet implemented \u2014 `/learn` writer and orchestrator reader "
-    "deferred to the next learning slice.")
+    "Not yet implemented \u2014 `/harness:learn` writer and orchestrator "
+    "reader deferred to the next learning slice.")
 
 
 class PreferOpusContractDocumentedWithDeferralCaveat(unittest.TestCase):

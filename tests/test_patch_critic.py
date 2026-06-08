@@ -84,7 +84,7 @@ class FinalGateTeamWiring(unittest.TestCase):
         text = PARALLEL_PROTOCOL.read_text()
         final_gate_section = _slice_section(text, "### Final Gate Team")
         self.assertIn("patch-critic", final_gate_section)
-        self.assertIn("/patch-critique", final_gate_section)
+        self.assertIn("/harness:patch-critique", final_gate_section)
         self.assertIn("PATCH_APPROVED", final_gate_section)
 
     def test_final_gate_runs_four_phases_in_parallel(self):
@@ -98,9 +98,9 @@ class FinalGateTeamWiring(unittest.TestCase):
 
     def test_pipeline_protocol_includes_patch_critic_in_final_gate(self):
         text = PIPELINE_PROTOCOL.read_text()
-        # The phase checklist must list /patch-critique alongside the other
-        # Final Gate skills. PATCH_REJECTED is a hard gate on Ship.
-        self.assertIn("/patch-critique", text)
+        # The phase checklist must list /harness:patch-critique alongside the
+        # other Final Gate skills. PATCH_REJECTED is a hard gate on Ship.
+        self.assertIn("/harness:patch-critique", text)
         self.assertIn("PATCH_REJECTED", text)
 
     def test_runs_independently_no_shared_lock(self):
@@ -125,7 +125,7 @@ class DocumentationUpdates(unittest.TestCase):
     def test_readme_documents_patch_critic(self):
         text = README_MD.read_text()
         self.assertIn("patch-critic", text)
-        self.assertIn("/patch-critique", text)
+        self.assertIn("/harness:patch-critique", text)
 
 
 def _disallowed_block(frontmatter_text: str) -> str:

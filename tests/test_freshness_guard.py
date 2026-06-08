@@ -57,7 +57,11 @@ def _run_hook(payload, env=None, plugin_data=None):
         proc_env.update(env)
     return subprocess.run(
         ["bash", str(HOOK)], input=json.dumps(payload),
-        capture_output=True, text=True, timeout=15, env=proc_env)
+        # Generous timeout: the hook is fast in isolation, but a loaded test
+        # host (parallel suites, background indexers) can intermittently stall
+        # process spawns for several seconds. 15s occasionally tripped on a
+        # busy macOS box; 60s absorbs the variance without masking a real hang.
+        capture_output=True, text=True, timeout=60, env=proc_env)
 
 
 def _log_path(session, filename="freshness-guard.jsonl", base=None):
@@ -102,9 +106,24 @@ def _make_evidence_dir(repo, task_id):
     return evidence_dir
 
 
-def _write_evidence(evidence_dir, *, git_head, generated_at="2026-05-14T12:00:00Z",
+def _now_utc_iso():
+    """Current UTC time as an ISO-8601 'Z' string (the evidence format)."""
+    import datetime
+    return datetime.datetime.now(datetime.timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ")
+
+
+def _write_evidence(evidence_dir, *, git_head, generated_at=None,
                     verdict="VERIFIED", sandbox_status="SANDBOX_VERIFIED"):
-    """Write a verification-evidence.json file with the given fields."""
+    """Write a verification-evidence.json file with the given fields.
+
+    `generated_at` defaults to *now* so freshness tests get genuinely-fresh
+    evidence. A previous fixed-date default ("2026-05-14T...") silently aged
+    past the 24h HARD_TTL and turned every default-timestamp "fresh" case into
+    a hard_staleness would_block. Staleness tests pass an explicit old value.
+    """
+    if generated_at is None:
+        generated_at = _now_utc_iso()
     payload = {
         "schema_version": 1,
         "task_id": "test-task",

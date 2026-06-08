@@ -52,7 +52,9 @@ def _run_hook(payload, env=None):
     proc_env.update(env or {})
     return subprocess.run(
         ["bash", str(HOOK)], input=json.dumps(payload),
-        capture_output=True, text=True, timeout=10, env=proc_env)
+        # Generous timeout for loaded-host process-spawn stalls (see the same
+        # rationale in test_freshness_guard / test_advisor_resolver).
+        capture_output=True, text=True, timeout=60, env=proc_env)
 
 
 def _write_state(dirpath, task_id, body):
@@ -685,7 +687,7 @@ RESOLVER_SCRIPT = REPO_ROOT / "hooks" / "_lib" / "resolve-thinking.py"
 def _run_resolver(payload):
     return subprocess.run(
         ["python3", str(RESOLVER_SCRIPT)], input=json.dumps(payload),
-        capture_output=True, text=True, timeout=10)
+        capture_output=True, text=True, timeout=60)
 
 
 class ResolverEmitsDecisionLine(unittest.TestCase):
@@ -1203,22 +1205,23 @@ class ReadmeCountsMatchActualFiles(unittest.TestCase):
 
 
 class ClaudeMdCarriesOpus47PostmortemNote(unittest.TestCase):
-    """AC10: `~/.claude/CLAUDE.md` carries a one-line (or short adjacent)
-    postmortem note that cites BOTH `Apr 23 2026` and `Opus 4.7` within a
-    200-character span. Documents the cost/quality data motivating the
-    May 2026 unconditional promotion of build roles to xhigh.
+    """AC10: the harness carries a postmortem note citing BOTH `Apr 23 2026`
+    and `Opus 4.7` within a 200-character span, documenting the cost/quality
+    data motivating the thinking-promotion policy. CLAUDE.md was pruned to
+    pointers (commit b606d59), so the note now lives in its source of truth,
+    protocols/thinking-defaults.md.
     """
 
     def test_claude_md_cites_apr_23_and_opus_47_in_proximity(self):
-        path = REPO_ROOT / "CLAUDE.md"
+        path = REPO_ROOT / "protocols" / "thinking-defaults.md"
         body = path.read_text()
         match = re.search(
             r"Apr 23 2026.{0,200}Opus 4\.7|Opus 4\.7.{0,200}Apr 23 2026",
             body, re.DOTALL)
         self.assertIsNotNone(
             match,
-            "CLAUDE.md missing postmortem note: expected `Apr 23 2026` and "
-            "`Opus 4.7` within 200 characters of each other")
+            "protocols/thinking-defaults.md missing postmortem note: expected "
+            "`Apr 23 2026` and `Opus 4.7` within 200 characters of each other")
 
 
 # ---------------------------------------------------------------------------

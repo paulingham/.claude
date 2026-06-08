@@ -83,7 +83,7 @@ Per-session env vars short-circuit each gate to `exit 0`. Full table: `protocols
 | product-reviewer | Accept | No | sonnet | Yes |
 | patch-critic | Final Gate | No | sonnet | No |
 
-> `[1]` Sonnet-solo via `model_conditional` when `complexity_budget.total < 6`; Opus + advisor pairing otherwise. See `agents/code-reviewer.md` and `hooks/_lib/advisor_resolver.py`.
+> `[1]` Sonnet-solo via `model_conditional` when `complexity_budget.total < 6`; Opus + advisor pairing otherwise. See `agents/code-reviewer.md` and `hooks/_lib/advisor_resolver.py::resolve_model_conditional`.
 
 Model self-tuning, downgrade rules, and `architect`/`security-engineer` hard locks: `orchestrator/agent-orchestration.md` § Instinct Injection. Advisory recommendation report (`/harness:eval-model-effectiveness`): see skill SKILL.md.
 

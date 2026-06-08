@@ -47,10 +47,13 @@ def _resolve_hook_basenames(event: str) -> list[str]:
         for entry in group.get("hooks", []):
             if entry.get("type") != "command":
                 continue
-            command = entry.get("command", "")
-            if any(command.startswith(prefix) for prefix in EXTERNAL_PREFIXES):
+            # Entries were hardened to the fail-safe `bash -lc '...'` wrapper
+            # form (command='bash', script path inside args[1]). Scan the
+            # joined command + args so the script name is still discoverable.
+            text = " ".join([entry.get("command", "")] + entry.get("args", []))
+            if any(prefix in text for prefix in EXTERNAL_PREFIXES):
                 continue
-            match = re.search(r"hooks/([A-Za-z0-9_.-]+\.sh)", command)
+            match = re.search(r"hooks/([A-Za-z0-9_.-]+\.sh)", text)
             if match:
                 basenames.append(match.group(1))
     return basenames
@@ -79,6 +82,8 @@ class StopHookActiveShortCircuit(unittest.TestCase):
             "auto-pr.sh",
             "cost-tracker.sh",
             "auto-learn-gate.sh",
+            "codebase-map-poll.sh",
+            "stuck-guard.sh",
         })
         self.assertEqual(subagent_stop, {
             "subagent-validation.sh",
@@ -87,6 +92,7 @@ class StopHookActiveShortCircuit(unittest.TestCase):
             "cost-feed.sh",
             "quality-gate-stop.sh",
             "tdd-guard-stop.sh",
+            "bug-fixed-payload-validator.sh",
         })
 
     def test_every_stop_hook_short_circuits(self):

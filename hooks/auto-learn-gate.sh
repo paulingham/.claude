@@ -30,7 +30,7 @@ source "$LIB/learning-flock.sh"
 
 INPUT=$(cat)  # capture Stop event JSON
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
-[ "$STOP_HOOK_ACTIVE" = "true" ] && exit 0
+[ "$STOP_HOOK_ACTIVE" = "true" ] && { trap - EXIT; exit 0; }  # nested stop: pure no-op (no forensic write)
 HASH="${CLAUDE_LEARN_TEST_HASH:-$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")}"
 LD="$HARNESS_DATA/learning/$HASH"
 STATE="$LD/.learn-state.json"; OBS="$LD/observations.jsonl"; LOG="$LD/.learn-gate.log"; LOCK="$LD/.learn-state.lock"

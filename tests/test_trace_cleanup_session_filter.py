@@ -32,6 +32,10 @@ def _run(home: Path) -> subprocess.CompletedProcess:
     env["CLAUDE_CONFIG_DIR"] = str(REPO_ROOT)
     env["CLAUDE_SESSION_ID"] = f"tc-{os.getpid()}"
     env["CLAUDE_HOOK_LOG_DIR"] = str(home / ".claude" / "metrics")
+    # The hook prunes $HARNESS_DATA/metrics; runtime state was relocated there
+    # (commit 8decded). Point HARNESS_DATA at the hermetic home so the hook
+    # operates on the test's metrics tree, not the repo's (CLAUDE_CONFIG_DIR).
+    env["CLAUDE_PLUGIN_DATA"] = str(home / ".claude")
     return subprocess.run(
         ["bash", str(HOOK)],
         env=env,

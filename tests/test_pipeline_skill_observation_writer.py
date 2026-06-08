@@ -23,14 +23,17 @@ BATCH_SKILL = REPO_ROOT / "skills" / "batch-pipeline" / "SKILL.md"
 
 
 def _step_7b_bis_body() -> str:
-    """Return the body of Step 7b-bis from skills/pipeline/SKILL.md.
+    """Return the per-pipeline observation-capture step body.
 
-    Extracts the section starting at `#### 7b-bis.` (or equivalent
-    unique header containing `7b-bis`) up to the next `#### ` heading.
+    The observation-capture producer surface was RELOCATED from Step 7b-bis to
+    Step 4d-i (Reflect-write, pre-Ship) so the artifacts ship inside the
+    feature-branch PR. Step 7b-bis is now a pointer stub; the JSON template,
+    mode invariant, and severity threshold live under `#### 4d-i.`. Extract
+    that section (up to the next same-or-higher-level heading).
     """
     text = PIPELINE_SKILL.read_text()
     match = re.search(
-        r"####\s+7b-bis\.[^\n]*\n(.+?)(?=\n####\s+|\n###\s+|\Z)",
+        r"####\s+4d-i\.[^\n]*\n(.+?)(?=\n####\s+|\n###\s+|\n##\s+|\Z)",
         text, re.DOTALL)
     return match.group(0) if match else ""
 

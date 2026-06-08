@@ -26,16 +26,19 @@ class EnvVarsPresentInProtocolsAndClaudeMd(unittest.TestCase):
         self.assertIn("CLAUDE_DISABLE_ADVISOR_GATE",
                       _read("protocols/advisor-mode.md"))
 
-    def test_both_gates_named_in_claude_md(self):
-        claude_md = _read("CLAUDE.md")
-        self.assertIn("CLAUDE_DISABLE_THINKING_GATE", claude_md)
-        self.assertIn("CLAUDE_DISABLE_ADVISOR_GATE", claude_md)
+    def test_both_gates_named_in_reversibility_surface(self):
+        # CLAUDE.md was pruned to a pointer; the canonical Reversibility
+        # Escapes table now lives in protocols/agent-protocol.md.
+        agent_protocol = _read("protocols/agent-protocol.md")
+        self.assertIn("CLAUDE_DISABLE_THINKING_GATE", agent_protocol)
+        self.assertIn("CLAUDE_DISABLE_ADVISOR_GATE", agent_protocol)
 
-    def test_tool_allowlist_gate_named_in_claude_md(self):
-        # Allowlist's existing disable gate must also be documented
-        # alongside the new ones; the "Reversibility Escapes" surface is
-        # the canonical place to discover all four.
-        self.assertIn("CLAUDE_DISABLE_TOOL_ALLOWLIST", _read("CLAUDE.md"))
+    def test_tool_allowlist_gate_named_in_reversibility_surface(self):
+        # All four disable gates must be operator-discoverable in one place;
+        # the "Reversibility Escapes" surface in protocols/agent-protocol.md
+        # is that canonical list.
+        self.assertIn("CLAUDE_DISABLE_TOOL_ALLOWLIST",
+                      _read("protocols/agent-protocol.md"))
 
 
 if __name__ == "__main__":
