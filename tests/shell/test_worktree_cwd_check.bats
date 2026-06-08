@@ -110,7 +110,7 @@ _last_record() {
 }
 
 @test "AC3.7 subagent-stop-trajectory.sh records contain a subagent_id field" {
-  TRAJ_FILE="$HOME/.claude/pipeline-state/${CLAUDE_PIPELINE_TASK_ID}-trajectory.jsonl"
+  TRAJ_FILE="$HOME/.claude/pipeline-state/${CLAUDE_PIPELINE_TASK_ID}/trajectory.jsonl"  # new per-task subdir layout
   printf '{"subagent_type":"software-engineer","subagent_id":"explicit-id-42"}' \
     | bash "$REPO_ROOT/hooks/subagent-stop-trajectory.sh"
   [ -f "$TRAJ_FILE" ]
@@ -118,7 +118,7 @@ _last_record() {
 }
 
 @test "AC3.7b subagent_id falls back to a non-empty derived value when not provided" {
-  TRAJ_FILE="$HOME/.claude/pipeline-state/${CLAUDE_PIPELINE_TASK_ID}-trajectory.jsonl"
+  TRAJ_FILE="$HOME/.claude/pipeline-state/${CLAUDE_PIPELINE_TASK_ID}/trajectory.jsonl"  # new per-task subdir layout
   printf '{"subagent_type":"software-engineer"}' \
     | bash "$REPO_ROOT/hooks/subagent-stop-trajectory.sh"
   derived=$(_last_record "$TRAJ_FILE" | jq -r .subagent_id)
@@ -127,7 +127,7 @@ _last_record() {
 }
 
 @test "Multi-agent: two SubagentStop calls record distinct subagent_ids" {
-  TRAJ_FILE="$HOME/.claude/pipeline-state/${CLAUDE_PIPELINE_TASK_ID}-trajectory.jsonl"
+  TRAJ_FILE="$HOME/.claude/pipeline-state/${CLAUDE_PIPELINE_TASK_ID}/trajectory.jsonl"  # new per-task subdir layout
   printf '{"subagent_type":"software-engineer","subagent_id":"agent-A"}' \
     | bash "$REPO_ROOT/hooks/subagent-stop-trajectory.sh"
   printf '{"subagent_type":"code-reviewer","subagent_id":"agent-B"}' \

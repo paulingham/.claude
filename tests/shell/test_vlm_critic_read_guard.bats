@@ -17,7 +17,7 @@ setup() {
   export CLAUDE_SESSION_ID="vlmcr-test-$$"
   # Pin CLAUDE_CONFIG_DIR to the worktree so the hook sources the helpers
   # we ship rather than the live install.
-  export CLAUDE_CONFIG_DIR="$REPO_ROOT"
+  export CLAUDE_PLUGIN_ROOT="$REPO_ROOT"  # HARNESS_ROOT only; keep HARNESS_DATA at $HOME so the violation log lands where the test reads it
   export CLAUDE_HOOK_PROFILE="minimal"
   mkdir -p "$TMP/.claude"
 }

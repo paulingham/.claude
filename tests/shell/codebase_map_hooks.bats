@@ -11,7 +11,11 @@ setup() {
   TEST_HOME="$BATS_FILE_TMPDIR/home"; mkdir -p "$TEST_HOME"
   export HOME="$TEST_HOME"
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-  export CLAUDE_CONFIG_DIR="$REPO_ROOT"
+  # HARNESS_ROOT -> repo (so hooks find their _lib + the codebase_map package);
+  # HARNESS_DATA stays $HOME/.claude so state.json/db/metrics writes land in the
+  # hermetic TEST_HOME where STATE_FILE/METRICS_FILE are asserted. Setting
+  # CLAUDE_CONFIG_DIR would override BOTH and send writes into the repo.
+  export CLAUDE_PLUGIN_ROOT="$REPO_ROOT"
   export CLAUDE_SESSION_ID="bats-cbm-$RANDOM"
   export CLAUDE_PROJECT_HASH="batstest"
   export CLAUDE_HOOK_LOG_DIR="$TEST_HOME/.claude/metrics"
@@ -74,13 +78,13 @@ teardown() { rm -rf "$BATS_FILE_TMPDIR"; }
   [ "$status" -eq 0 ]
   # state.json exists and parseable as JSON
   [ -f "$STATE_FILE" ]
-  /opt/homebrew/bin/python3 -c "import json,sys; d=json.load(open('$STATE_FILE')); assert 'last_built_sha' in d, 'missing last_built_sha'"
+  python3 -c "import json,sys; d=json.load(open('$STATE_FILE')); assert 'last_built_sha' in d, 'missing last_built_sha'"
 }
 
 @test "AC17: poll hook no-ops when SHA unchanged" {
   # Pre-seed state.json with the current HEAD SHA.
   CURRENT_SHA=$(/usr/bin/git -C "$FAKE_REPO" rev-parse HEAD)
-  /opt/homebrew/bin/python3 -c "import json; open('$STATE_FILE','w').write(json.dumps({'last_built_sha':'$CURRENT_SHA','last_built_at':'2026-05-10T00:00:00Z'}))"
+  python3 -c "import json; open('$STATE_FILE','w').write(json.dumps({'last_built_sha':'$CURRENT_SHA','last_built_at':'2026-05-10T00:00:00Z'}))"
 
   run bash "$POLL"
   [ "$status" -eq 0 ]
@@ -93,7 +97,7 @@ teardown() { rm -rf "$BATS_FILE_TMPDIR"; }
 
 @test "AC17: poll hook DOES rebuild when SHA advances" {
   # Pre-seed state.json with a stale SHA; current SHA differs.
-  /opt/homebrew/bin/python3 -c "import json; open('$STATE_FILE','w').write(json.dumps({'last_built_sha':'staleshastaleshastalesha','last_built_at':'2026-01-01T00:00:00Z'}))"
+  python3 -c "import json; open('$STATE_FILE','w').write(json.dumps({'last_built_sha':'staleshastaleshastalesha','last_built_at':'2026-01-01T00:00:00Z'}))"
 
   run bash "$POLL"
   [ "$status" -eq 0 ]
@@ -120,7 +124,7 @@ teardown() { rm -rf "$BATS_FILE_TMPDIR"; }
   [ "$status" -eq 0 ]
   [ -f "$METRICS_FILE" ]
   line=$(tail -1 "$METRICS_FILE")
-  /opt/homebrew/bin/python3 - <<EOF
+  python3 - <<EOF
 import json
 d = json.loads(open("$METRICS_FILE").read().strip().split("\n")[-1])
 required = {"ts","file_count","time_ms","cache_hit_rate","sha_before","sha_after","hook"}
@@ -150,7 +154,7 @@ EOF
 @test "AC22-ter: warm cache rebuild completes under 500ms" {
   # Pre-seed cache + state.json with current SHA so the rebuild is a no-op fast path.
   CURRENT_SHA=$(/usr/bin/git -C "$FAKE_REPO" rev-parse HEAD)
-  /opt/homebrew/bin/python3 -c "import json; open('$STATE_FILE','w').write(json.dumps({'last_built_sha':'$CURRENT_SHA','last_built_at':'2026-05-10T00:00:00Z'}))"
+  python3 -c "import json; open('$STATE_FILE','w').write(json.dumps({'last_built_sha':'$CURRENT_SHA','last_built_at':'2026-05-10T00:00:00Z'}))"
 
   # First run to warm cache
   bash "$REBUILD" >/dev/null 2>&1 || true
@@ -158,7 +162,7 @@ EOF
   bash "$REBUILD" >/dev/null 2>&1
   [ -f "$METRICS_FILE" ]
   line=$(tail -1 "$METRICS_FILE")
-  TIME_MS=$(/opt/homebrew/bin/python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d['time_ms'])" "$line")
+  TIME_MS=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d['time_ms'])" "$line")
   # Allow 500ms budget
   [ "$TIME_MS" -lt 500 ]
 }

@@ -25,7 +25,7 @@ _aw_setup_fifo() { FIFO="$(mktemp -u "${TMPDIR:-/tmp}/aw.fifo.XXXXXX")"; mkfifo 
 _aw_cleanup() { exec 3<&- 2>/dev/null || true; { [ "$WD_PID" -gt 0 ] && kill -TERM "$WD_PID" 2>/dev/null; [ "$TAIL_PID" -gt 0 ] && kill -TERM "$TAIL_PID" 2>/dev/null; } || true; wait 2>/dev/null || true; [ -n "$FIFO" ] && rm -f "$FIFO"; return 0; }
 _aw_emit_to() { [ "$EMITTED" -eq 1 ] && return 0; EMITTED=1; local el=$(( $(date +%s) - START )); _aw_emit_timeout "$OUT" "$(_aw_now_ts)" "$SID" "$TID" "$LOG" "$RX" "$TO" "$el" "$SCANNED"; }
 _aw_emit_mt() { EMITTED=1; local el=$(( $(date +%s) - START )); _aw_emit_match "$OUT" "$(_aw_now_ts)" "$SID" "$TID" "$LOG" "$RX" "$TO" "$el" "$1"; }
-_aw_on_int() { _aw_emit_to; _aw_cleanup; exit 130; }
+_aw_on_int() { trap '' INT TERM; _aw_emit_to; _aw_cleanup; exit 130; }
 trap _aw_on_int INT TERM
 
 _aw_setup_fifo

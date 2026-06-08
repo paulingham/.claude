@@ -23,7 +23,8 @@ EOF
   chmod +x "$CLAUDE_CONFIG_DIR/hooks/dummy-safe.sh"
   run bash "${BATS_TEST_DIRNAME}/../../hooks/hook-self-test.sh"
   [ "$status" -eq 0 ]
-  [ -f "$HOME/.claude/metrics/test-$$/hook-health.jsonl" ]
+  # Runtime state (metrics) resolves to HARNESS_DATA = CLAUDE_CONFIG_DIR here.
+  [ -f "$CLAUDE_CONFIG_DIR/metrics/test-$$/hook-health.jsonl" ]
 }
 
 @test "self-test respects skip annotation" {
@@ -35,7 +36,7 @@ EOF
   chmod +x "$CLAUDE_CONFIG_DIR/hooks/dummy-skip.sh"
   run bash "${BATS_TEST_DIRNAME}/../../hooks/hook-self-test.sh"
   [ "$status" -eq 0 ]
-  grep -q '"hook": "dummy-skip.sh".*"mode": "registration"' "$HOME/.claude/metrics/test-$$/hook-health.jsonl"
+  grep -q '"hook": "dummy-skip.sh".*"mode": "registration"' "$CLAUDE_CONFIG_DIR/metrics/test-$$/hook-health.jsonl"
 }
 
 @test "self-test exits zero on assertion failure" {

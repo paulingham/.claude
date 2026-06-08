@@ -11,7 +11,15 @@
 # enforces: protocols/agent-protocol.md:Main-Branch Invariant
 # protects: build-implementation, pdr-rtv
 
-set -euo pipefail
+# NOTE: deliberately `set -uo pipefail` WITHOUT `-e`. This is a never-block
+# PostToolUse hook whose contract is "always exit 0" (see header). Every fallible
+# git/fs op below is already guarded (|| ERROR=..., || exit 0, || true) and the
+# failure state is tracked in $ERROR for the forensic record. Under `set -e` a
+# single unguarded non-zero return (observed only on fast Linux CI runners, not
+# macOS) aborted the hook before its final `exit 0`, breaking the never-block
+# invariant and the AC2.6/2.7/2.10/2.12 status==0 assertions. Dropping `-e`
+# restores the invariant; `-u`/`pipefail` still catch unset vars + pipe failures.
+set -uo pipefail
 
 # Sentinel string for the "clean worktree, nothing to checkpoint" path. Used
 # by both the error-state assignment and the downstream success-coercion so

@@ -42,7 +42,9 @@ def find_pipeline_files(state_dir: Path, now_unix: Optional[float] = None) -> li
             continue
         tid = task_id_of(path)
         winners[tid] = better(winners.get(tid), path, state_dir)
-    return list(winners.values())
+    # Newest-mtime first: consumers (e.g. cost-feed _cf_pipeline_id) take the
+    # active/most-recent pipeline via head -1.
+    return sorted(winners.values(), key=lambda x: x.stat().st_mtime, reverse=True)
 
 
 def discover_state_path(state_dir: Path, task_id: str, phase: str,

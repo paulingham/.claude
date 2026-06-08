@@ -82,7 +82,9 @@ _prefetch() {
 
 @test "H2: server prunes label objects to {name:...} (C1)" {
   _prefetch
-  view="$(cat "$CACHE_DIR/view.json")"
+  # json.dumps emits ": " separators; normalise to compact so the shape
+  # assertions are independent of the serializer's whitespace.
+  view="$(cat "$CACHE_DIR/view.json" | sed 's/": "/":"/g')"
   [[ "$view" == *'"labels"'* ]]
   [[ "$view" == *'"name":"bug"'* ]]
   [[ "$view" != *'"color"'* ]]
@@ -102,7 +104,7 @@ _prefetch() {
   _prefetch
   w4l_install_fail_gh
   source "$REPO_ROOT/hooks/_lib/eval-capture-worker-filters.sh"
-  view="$(ecw_fetch_view "$PR")"
+  view="$(ecw_fetch_view "$PR" | sed 's/": "/":"/g')"
   [ -n "$view" ]
   [[ "$view" == *'"mergedAt":"2026-04-15T12:34:56Z"'* ]]
   [[ "$view" == *'"mergeCommit"'* ]]

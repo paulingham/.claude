@@ -103,17 +103,19 @@ teardown() {
 @test "ensure_venv is idempotent: second call does not recreate venv" {
   local venv="$TMP_DIR/venv-idem"
   mkdir -p "$venv"  # simulate pre-existing venv
-  local mtime_before; mtime_before=$(stat -f %m "$venv" 2>/dev/null || stat -c %Y "$venv")
+  local mtime_before; mtime_before=$(stat -c %Y "$venv" 2>/dev/null || stat -f %m "$venv")
   run bash -c "export CLAUDE_VENV_PATH='$venv' PIP_CMD='echo PIP:'; source '$LIB_DIR/ensure-venv.sh'; ensure_venv numpy"
   [ "$status" -eq 0 ]
-  local mtime_after; mtime_after=$(stat -f %m "$venv" 2>/dev/null || stat -c %Y "$venv")
+  local mtime_after; mtime_after=$(stat -c %Y "$venv" 2>/dev/null || stat -f %m "$venv")
   [ "$mtime_before" = "$mtime_after" ]
 }
 
 # ---------- install-tools.sh orchestrator (AC3.2, AC3.3, AC3.4, AC3.5, AC3.6) ----------
 
 @test "install-tools.sh --dry-run on macos prints brew install lines" {
-  run bash -c "export CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
+  # Force the macOS detection path so the test is host-independent (on a Linux
+  # CI runner the unmocked uname=Linux would take the apt path).
+  run bash -c "uname() { echo Darwin; }; export -f uname; export CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
   [ "$status" -eq 0 ]
   [[ "$output" == *"brew install"* ]]
   [[ "$output" == *"jq"* ]]
@@ -167,11 +169,11 @@ teardown() {
   [[ "$output" == *"PIP: onnxruntime numpy tokenizers"* ]]
   # Venv path used must be the test path, not the real $HOME/.claude/.venv
   # Second invocation: no-op w.r.t. venv creation
-  local mtime_before; mtime_before=$(stat -f %m "$venv" 2>/dev/null || stat -c %Y "$venv")
+  local mtime_before; mtime_before=$(stat -c %Y "$venv" 2>/dev/null || stat -f %m "$venv")
   sleep 1
   run bash -c "export CLAUDE_VENV_PATH='$venv' PIP_CMD='echo PIP:'; bash '$REPO_ROOT/scripts/install-tools.sh' --yes"
   [ "$status" -eq 0 ]
-  local mtime_after; mtime_after=$(stat -f %m "$venv" 2>/dev/null || stat -c %Y "$venv")
+  local mtime_after; mtime_after=$(stat -c %Y "$venv" 2>/dev/null || stat -f %m "$venv")
   [ "$mtime_before" = "$mtime_after" ]
 }
 
@@ -194,7 +196,9 @@ teardown() {
 }
 
 @test "install-tools.sh --dry-run on macos does NOT include Linux build toolchain" {
-  run bash -c "export CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
+  # Force macOS detection so the test is host-independent (unmocked uname=Linux
+  # on CI would emit the apt toolchain and fail the negative assertions).
+  run bash -c "uname() { echo Darwin; }; export -f uname; export CLAUDE_VENV_PATH='$TMP_DIR/venv' PIP_CMD=echo; bash '$REPO_ROOT/scripts/install-tools.sh' --dry-run"
   [ "$status" -eq 0 ]
   [[ "$output" != *"build-essential"* ]]
   [[ "$output" != *"libssl-dev"* ]]

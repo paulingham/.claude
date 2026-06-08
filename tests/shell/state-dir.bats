@@ -68,7 +68,9 @@ teardown() {
 }
 
 _stat_mode() {
-  if stat -f %A "$1" 2>/dev/null; then :; else stat -c %a "$1"; fi
+  # Linux (stat -c) first; macOS (stat -f) fallback. `stat -f` on Linux does
+  # NOT fail cleanly (it means filesystem), so it must not be tried first.
+  stat -c %a "$1" 2>/dev/null || stat -f %A "$1"
 }
 
 @test "H3.4a _ensure_state_dir creates directory with mode 0700 (no TOCTOU window)" {

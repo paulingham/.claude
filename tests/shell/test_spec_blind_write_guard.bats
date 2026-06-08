@@ -14,7 +14,7 @@ setup() {
   TMP="$(mktemp -d -t sbw.XXXXXX)"
   export HOME="$TMP"
   export CLAUDE_SESSION_ID="sbw-test-$$"
-  export CLAUDE_CONFIG_DIR="$REPO_ROOT"
+  export CLAUDE_PLUGIN_ROOT="$REPO_ROOT"  # HARNESS_ROOT only; keep HARNESS_DATA at $HOME so the violation log lands where the test reads it
   export CLAUDE_HOOK_PROFILE="minimal"
   mkdir -p "$TMP/.claude"
   # SEC-HIGH-2: build a real git repo so the repo-root anchor in

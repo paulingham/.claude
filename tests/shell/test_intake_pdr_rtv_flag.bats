@@ -80,7 +80,7 @@ setup() {
 @test "skill_directory_pdr_rtv_row_uses_and_floor_10" {
   # The /pdr-rtv row in the skill-directory must reference the new
   # floor=10 and AND-clause trigger.
-  run grep -E "/pdr-rtv.*CLAUDE_PDR_RTV_BUDGET_FLOOR:-10\}.*AND\s+critical" "$SKILL_DIRECTORY"
+  run grep -E "/harness:pdr-rtv.*CLAUDE_PDR_RTV_BUDGET_FLOOR:-10\}.*AND\s+critical" "$SKILL_DIRECTORY"
   [ "$status" -eq 0 ]
   # And the pdr-rtv SKILL.md trigger sentence also updated.
   run grep -E "CLAUDE_PDR_RTV_BUDGET_FLOOR:-10\}\s+AND\s+critical" "$PDR_RTV_SKILL"

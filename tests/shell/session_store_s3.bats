@@ -18,6 +18,12 @@ setup() {
   unset _SESSION_STORE_RESOLVED_BACKEND
   source "$BATS_TEST_DIRNAME/_cli_shims.bash"
   install_aws_shim
+  # Symlink the few real binaries the resolve path needs into $BIN_DIR so the
+  # "aws absent" tests can run with PATH=$BIN_DIR — a clean dir with no aws,
+  # regardless of whether the host (CI) has a real aws elsewhere on PATH.
+  for _b in bash dirname env cat; do
+    _p="$(command -v "$_b")" && ln -sf "$_p" "$BIN_DIR/$_b"
+  done
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   source "$REPO_ROOT/hooks/_lib/session-store.sh"
 }
@@ -41,7 +47,8 @@ teardown() { rm -rf "$BATS_FILE_TMPDIR"; }
 @test "AC-2.3: BACKEND=s3 + missing aws → fall back to local + warn" {
   rm -f "$BIN_DIR/aws"
   unset _SESSION_STORE_RESOLVED_BACKEND
-  run bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend 2>/dev/null"
+  # PATH=$BIN_DIR only, so a real aws on the CI runner can't satisfy command -v.
+  run env PATH="$BIN_DIR" bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend 2>/dev/null"
   [ "$status" -eq 0 ]
   [ "$output" = "local" ]
 }
@@ -49,7 +56,7 @@ teardown() { rm -rf "$BATS_FILE_TMPDIR"; }
 @test "AC-2.3 stderr exact: missing aws warning matches contract" {
   rm -f "$BIN_DIR/aws"
   unset _SESSION_STORE_RESOLVED_BACKEND
-  run bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend 2>&1 1>/dev/null"
+  run env PATH="$BIN_DIR" bash -c "source '$REPO_ROOT/hooks/_lib/session-store.sh'; _resolve_backend 2>&1 1>/dev/null"
   [[ "$output" == *"[session-store] s3 backend selected but 'aws' CLI not found — falling back to local"* ]]
 }
 

@@ -49,6 +49,9 @@ def main(argv):
     if len(argv) < 8:
         return 0
     try:
+        # No cache activity at all (input/read/create all zero) → no record.
+        if int(argv[5]) == 0 and int(argv[6]) == 0 and int(argv[7]) == 0:
+            return 0
         record = _build_record(argv)
         out_dir = os.path.join(argv[1], "metrics", argv[2])
         os.makedirs(out_dir, exist_ok=True)

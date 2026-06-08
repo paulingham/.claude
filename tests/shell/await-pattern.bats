@@ -252,7 +252,12 @@ _jsonl_path() {
   echo "noise" > "$LOG"
   "$AWAIT" "$LOG" "MATCHME" 30 1000 >/dev/null 2>&1 &
   local pid=$!
-  sleep 0.4
+  # 1s settle: the process must reach the blocking read (past the fifo open at
+  # exec 3<) before the double TERM, or the handler races the read-loop setup
+  # and never writes the JSONL line. The tail child exists before that point,
+  # so polling for it (pgrep -P) fires too early — a fixed, generous sleep is
+  # the reliable signal here. 0.4s was too short on a cold CI runner.
+  sleep 1
   kill -TERM "$pid" 2>/dev/null
   kill -TERM "$pid" 2>/dev/null
   wait "$pid" 2>/dev/null || true

@@ -45,6 +45,36 @@ ALLOWLIST=(
   "skills/refactor/SKILL.md:73"
   # CC (cyclomatic complexity ≤ 5) — restated alongside the function-body cap.
   "scripts/README.md:88"
+  # --- Refreshed allowlist: non-function-shape "5" uses + genuine ≤5-line-per-
+  # function library contracts (enforced by their own bats LOC/shape tests, e.g.
+  # cost-feed T18). None is the legacy 8-line method rule mis-stated as 5. ---
+  "agents/fix-engineer.md:113"          # CC ≤ 5 restatement
+  "agents/pbt-engineer.md:71"           # "first 5-line excerpt" of a tool failure
+  "agents/security-engineer.md:76"      # "within ±5 lines of the finding"
+  "hooks/_lib/baseline_capture.sh:86"   # CC ≤ 5
+  "hooks/_lib/cost-helpers.sh:3"        # ≤5-line-per-function contract (cost-feed T18)
+  "hooks/_lib/cost-jsonl-emit.py:5"     # references that contract
+  "hooks/cost-feed.sh:5"                # references that contract
+  "hooks/_lib/eval-capture-worker-cache.sh:7"  # bodies ≤ 5 lines, file ≤ 50
+  "hooks/_lib/gh-cache-layout.sh:9"     # bodies ≤ 5 lines, file ≤ 50
+  "hooks/_lib/plan-cache-lookup.sh:76"  # CC ≤ 5
+  "hooks/_lib/sandbox_e2b_client.py:96" # incidental
+  "hooks/_lib/sast_triage_render.py:141" # incidental
+  "hooks/_lib/visual_diff.js:102"       # incidental
+  "rules/core.md:22"                    # "Cyclomatic complexity ≤ 5"
+  "scripts/README.md:128"              # CC ≤ 5
+  "scripts/test_best_of_n_skill_structure.sh:16"   # "50 lines" file-cap hit
+  "scripts/test_best_of_n_skill_structure.sh:110"
+  "scripts/test_pdr_rtv_skill_structure.sh:15"
+  "scripts/test_pdr_rtv_skill_structure.sh:105"
+  "skills/build-implementation/SKILL.md:71"
+  "skills/build-implementation/SKILL.md:80"
+  "skills/build-implementation/SKILL.md:248"
+  "skills/build-implementation/SKILL.md:273"
+  "skills/internal-eval/capture/lib/gh-pr-cache-source.sh:7"  # bodies ≤ 5
+  "skills/pipeline/SKILL.md:63"
+  "skills/property-based-test/SKILL.md:109"
+  "skills/tool-synthesis/SKILL.md:87"
 )
 
 @test "no function-shape '5 lines' assertions remain (non-allowlisted)" {

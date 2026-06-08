@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Cost feed — SubagentStop hook. Hybrid producer: writes global
-# metrics/costs.jsonl AND per-session metrics/{sid}/cache.jsonl (for
-# /cache-audit). SRP suspect but DRY-preferred over a separate cache-feed.sh;
-# rationale at pipeline-state/prompt-caching-breakpoints/plan-validation.md.
-# Fail-open on every error path (exit 0). POSIX O_APPEND atomic for <4096B records.
+# Cost feed — SubagentStop hook. Hybrid producer: global metrics/costs.jsonl +
+# per-session metrics/{sid}/cache.jsonl (for /cache-audit). Fail-open (exit 0).
+# Record assembly delegated to _lib/{cache,cost}-jsonl-emit.py so this stays
+# ≤50 LOC and cost-helpers.sh stays ≤5-lines-per-function.
 # enforces: protocols/operational-protocol.md:Complexity Budget
 # protects: pipeline
 
@@ -13,7 +12,6 @@ source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/lo
 _log_hook_start
 _log_hook_trigger "SubagentStop"
 trap 'log_hook_event $?' EXIT
-
 set -uo pipefail
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,7 +22,7 @@ INPUT=$(cat 2>/dev/null) || exit 0
 [ -z "$INPUT" ] && exit 0
 echo "$INPUT" | jq -e . >/dev/null 2>&1 || exit 0
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
-[ "$STOP_HOOK_ACTIVE" = "true" ] && { trap - EXIT; exit 0; }  # nested stop: pure no-op (no forensic write)
+[ "$STOP_HOOK_ACTIVE" = "true" ] && { trap - EXIT; exit 0; }  # nested stop: no-op
 
 I_TOK=$(_cf_token "$INPUT" "input_tokens")
 O_TOK=$(_cf_token "$INPUT" "output_tokens")
@@ -37,25 +35,14 @@ TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 METRICS_DIR="$HARNESS_DATA/metrics"
 mkdir -p "$METRICS_DIR" 2>/dev/null || true
 
-# Cache emit is independent of the cost-emit token gate: emit with whatever
-# token data is available (including zeros). This ensures cache.jsonl records
-# are written even when the SubagentStop envelope omits token fields entirely
-# (e.g. this Claude Code build), keeping /cache-audit and cache-flip-gate fed.
+# Cache emit runs regardless of token gate (zeros included) so /cache-audit stays fed.
 python3 "${HOOK_DIR}/_lib/cache-jsonl-emit.py" "$HARNESS_DATA" "$SESSION_ID" "$TIMESTAMP" "$AGENT_ROLE" "$I_TOK" "$C_TOK" "$CC_TOK" 2>/dev/null || true
 
-# Cost emit requires non-zero tokens to avoid polluting costs.jsonl.
+# Cost emit requires non-zero tokens (avoids polluting costs.jsonl).
 [ "$I_TOK" -eq 0 ] && [ "$O_TOK" -eq 0 ] && [ "$C_TOK" -eq 0 ] && [ "$CC_TOK" -eq 0 ] && exit 0
 
 MODEL=$(_cf_resolve_field "$INPUT" '.model' "${CLAUDE_SUBAGENT_MODEL:-unknown}")
-PIPELINE_ID=$(_cf_pipeline_id)
 COST=$(_cf_compute_cost "$I_TOK" "$O_TOK" "$C_TOK")
 [ -z "$COST" ] && exit 0
-
-# Router-training signals (additive; fail-open sentinels from cost-helpers.sh).
-CB=$(_cf_complexity_budget)
-PEC=$(_cf_prior_error_count)
-GD=$(_cf_graph_depth)
-RD=$(_cf_router_decision)
-
-jq -nc --arg ts "$TIMESTAMP" --arg sid "$SESSION_ID" --arg pid "$PIPELINE_ID" --arg role "$AGENT_ROLE" --arg model "$MODEL" --argjson cost "$COST" --argjson i "$I_TOK" --argjson o "$O_TOK" --argjson c "$C_TOK" --argjson cb "$CB" --argjson pec "$PEC" --argjson gd "$GD" --arg rd "$RD" '{timestamp:$ts,session_id:$sid,pipeline_id:$pid,agent_role:$role,model:$model,total_cost_usd:$cost,input_tokens:$i,output_tokens:$o,cached_tokens:$c,rate_version:"opus-4-7-2026-04",complexity_budget:$cb,prior_error_count:$pec,graph_depth:$gd,router_decision:$rd}' >> "$METRICS_DIR/costs.jsonl" 2>/dev/null || true
+python3 "${HOOK_DIR}/_lib/cost-jsonl-emit.py" "$METRICS_DIR" "$TIMESTAMP" "$SESSION_ID" "$(_cf_pipeline_id)" "$AGENT_ROLE" "$MODEL" "$COST" "$I_TOK" "$O_TOK" "$C_TOK" "$(_cf_complexity_budget)" "$(_cf_prior_error_count)" "$(_cf_graph_depth)" "$(_cf_router_decision)" 2>/dev/null || true
 exit 0
