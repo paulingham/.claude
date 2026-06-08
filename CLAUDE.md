@@ -72,16 +72,24 @@ Per-session env vars short-circuit each gate to `exit 0`. Full table: `protocols
 | Agent | Phase | Worktree | Default Model | Tunable |
 |-------|-------|----------|---------------|---------|
 | architect | Plan | No | opus | No |
-| software-engineer | Build | Yes | sonnet | Yes |
-| frontend-engineer | Build | Yes | sonnet | Yes |
-| database-engineer | Build | Yes | sonnet | Yes |
-| infrastructure-engineer | Build | Yes | opus | Yes |
-| planning-agent | Build (advisory) | No | haiku | No |
+| architect-context-recon | Plan (recon) | No | haiku | No |
 | code-reviewer | Review | No | opus [1] | Yes |
-| security-engineer | Review | No | opus | No |
-| qa-engineer | Test | Yes | sonnet | Yes |
-| product-reviewer | Accept | No | sonnet | Yes |
+| database-engineer | Build | Yes | sonnet | Yes |
+| fix-engineer | Build (in-cycle) | Yes | sonnet | Yes |
+| frontend-engineer | Build | Yes | sonnet | Yes |
+| infrastructure-engineer | Build | Yes | opus | Yes |
 | patch-critic | Final Gate | No | sonnet | No |
+| pbt-engineer | Build | Yes | sonnet | No |
+| plan-cache-adapter | Plan | No | haiku | No |
+| planning-agent | Build (advisory) | No | haiku | No |
+| product-reviewer | Accept | No | sonnet | Yes |
+| qa-engineer | Test | Yes | sonnet | Yes |
+| sandbox-verify-engineer | Build | No | sonnet | No |
+| security-engineer | Review | No | opus | No |
+| session-memory-updater | Post-phase | No | haiku | No |
+| software-engineer | Build | Yes | sonnet | Yes |
+| spec-blind-validator | Final Gate | No | sonnet | No |
+| vlm-critic | Final Gate | No | sonnet | No |
 
 > `[1]` Sonnet-solo via `model_conditional` when `complexity_budget.total < 6`; Opus + advisor pairing otherwise. See `agents/code-reviewer.md` and `hooks/_lib/advisor_resolver.py::resolve_model_conditional`.
 
