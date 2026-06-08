@@ -13,7 +13,8 @@ trap 'log_hook_event $?' EXIT
 set -uo pipefail
 
 INPUT=$(cat 2>/dev/null) || INPUT=""
-[ "$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null)" = "true" ] && exit 0
+# Nested SubagentStop must be a pure no-op — neutralise the EXIT-trap logger.
+[ "$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null)" = "true" ] && { trap - EXIT; exit 0; }
 
 # CLAUDE_QG_SKIP_CHECKS=1 skips the forensic re-check (which runs the project's
 # pytest suite via _qg_check_tests). Set by the test conftest so a test that

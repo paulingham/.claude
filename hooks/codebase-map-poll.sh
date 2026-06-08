@@ -15,6 +15,11 @@ _log_hook_start
 _log_hook_trigger "Stop"
 trap 'log_hook_event $?' EXIT    # MUST register BEFORE the disable check
 
+# Nested Stop firing (stop_hook_active) must be a pure no-op — neutralise the
+# EXIT-trap logger so no forensic JSONL / map rebuild fires recursively.
+INPUT=$(cat 2>/dev/null) || INPUT=""
+[ "$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null)" = "true" ] && { trap - EXIT; exit 0; }
+
 [[ "${CLAUDE_DISABLE_CODEBASE_MAP:-0}" == "1" ]] && exit 0
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 

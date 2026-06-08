@@ -21,7 +21,7 @@ source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/ap
 
 INPUT=$(cat)
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
-[ "$STOP_HOOK_ACTIVE" = "true" ] && exit 0
+[ "$STOP_HOOK_ACTIVE" = "true" ] && { trap - EXIT; exit 0; }  # nested stop: pure no-op (no forensic write)
 
 BRANCH="$(_apf_resolve_branch)"; [ -z "$BRANCH" ] && exit 0
 BASE_BRANCH="$(_apf_resolve_base)"; [ -z "$BASE_BRANCH" ] && exit 0

@@ -24,7 +24,7 @@ INPUT=$(cat 2>/dev/null) || exit 0
 [ -z "$INPUT" ] && exit 0
 echo "$INPUT" | jq -e . >/dev/null 2>&1 || exit 0
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo "false")
-[ "$STOP_HOOK_ACTIVE" = "true" ] && exit 0
+[ "$STOP_HOOK_ACTIVE" = "true" ] && { trap - EXIT; exit 0; }  # nested stop: pure no-op (no forensic write)
 
 I_TOK=$(_cf_token "$INPUT" "input_tokens")
 O_TOK=$(_cf_token "$INPUT" "output_tokens")
