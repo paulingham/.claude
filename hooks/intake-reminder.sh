@@ -71,7 +71,9 @@ fi
 
 # Check for single-task implementation keywords (advisory only)
 HAS_KEYWORD=false
-for keyword in "implement" "build" "fix" "refactor" "add feature" "create feature" "add endpoint" "new feature"; do
+for keyword in "implement" "build" "fix" "refactor" "add feature" "create feature" "add endpoint" "new feature" \
+               "stop" "make.*work" "make it" "broken" "not working" "failing" "why is" \
+               "change" "update" "remove" "delete" "migrate" "wire" "enable" "disable" "rename"; do
     if echo "$PROMPT_LOWER" | grep -qi "$keyword"; then
         HAS_KEYWORD=true
         break

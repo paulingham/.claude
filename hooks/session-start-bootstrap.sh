@@ -17,6 +17,16 @@ _log_hook_start
 _log_hook_trigger "SessionStart"
 trap 'log_hook_event $?' EXIT
 
+# Re-arm the intake-backstop gate for this session: clear the per-session
+# marker that intake-fingerprint-audit.sh drops on /intake. Without a marker
+# (and no active pipeline) the backstop blocks orchestrator work-bash and
+# specialized spawns until /intake runs. SID derivation MUST stay identical to
+# intake-fingerprint-audit.sh and intake-backstop.sh.
+SSB_SID_RAW="${CLAUDE_SESSION_ID:-local-$$}"
+SSB_SID="${SSB_SID_RAW//[^A-Za-z0-9_-]/}"
+[[ -z "$SSB_SID" ]] && SSB_SID="local-$$"
+rm -f "$HARNESS_DATA/intake-markers/$SSB_SID.marker" 2>/dev/null || true
+
 SUPERVISOR="$HARNESS_DATA/automation/supervisor.sh"
 SUPERVISOR_PID="$HARNESS_DATA/automation/supervisor.pid"
 REPOS_CONF="$HARNESS_DATA/automation/repos.conf"

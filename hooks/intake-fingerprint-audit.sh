@@ -30,4 +30,12 @@ INTAKE_MD="$HARNESS_DATA/pipeline-state/$TASK_ID/intake.md"
 
 python3 "${HOOK_DIR}/_lib/intake-fingerprint-emit.py" \
   "$METRICS_DIR" "$TS" "$TASK_ID" "$INTAKE_MD" 2>/dev/null || true
+
+# Arm the intake-backstop gate: drop a per-session marker so subsequent
+# orchestrator work-bash / specialized-spawn calls in THIS session pass the
+# backstop. session-start-bootstrap.sh clears it per session (re-arming the
+# gate). SID derivation MUST stay identical to intake-backstop.sh's reader.
+mkdir -p "$HARNESS_DATA/intake-markers" 2>/dev/null || true
+touch "$HARNESS_DATA/intake-markers/$SID.marker" 2>/dev/null || true
+
 exit 0

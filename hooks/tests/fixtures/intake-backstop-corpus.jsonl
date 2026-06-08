@@ -1,0 +1,64 @@
+{"command": "git diff README.md", "expected": "allow"}
+{"command": "sleep 45; echo waited", "expected": "allow"}
+{"command": "sleep 90; echo \"waited\"", "expected": "allow"}
+{"command": "sleep 20; echo \"done waiting\"", "expected": "allow"}
+{"command": "git diff settings.json | head -40", "expected": "allow"}
+{"command": "sed -n '54,80p' hooks/quality-gate.sh", "expected": "allow"}
+{"command": "sed -n '12,30p' hooks/hook-profile.sh", "expected": "allow"}
+{"command": "bash \"$CLAUDE_JOB_DIR/tmp/run_bats.sh\"", "expected": "allow"}
+{"command": "ls tests/shell/ | grep -iE \"await|wave4\"", "expected": "allow"}
+{"command": "sed -n '88,93p' hooks/build-loop-scan.sh", "expected": "allow"}
+{"command": "mkdir -p /tmp/tool-graph-spike && echo ok", "expected": "allow"}
+{"command": "cat \"$CLAUDE_JOB_DIR/tmp/bats_results.txt\"", "expected": "allow"}
+{"command": "cd /Users/Paul.Ingham/Projects/.claude && pwd", "expected": "allow"}
+{"command": "ls /Users/Paul.Ingham/Projects/.claude/agents/", "expected": "allow"}
+{"command": "git status && echo \"---REMOTES---\" && git remote -v", "expected": "allow"}
+{"command": "ls -la && echo \"--- git remote ---\" && git remote -v", "expected": "allow"}
+{"command": "cd /Users/Paul.Ingham/Projects/.claude; ls hooks/_lib/", "expected": "allow"}
+{"command": "ls -la /Users/Paul.Ingham/Projects/.claude/ | head -40", "expected": "allow"}
+{"command": "git remote -v && echo \"---BRANCHES---\" && git branch -vv", "expected": "allow"}
+{"command": "python3 /tmp/create_pr.py \"$(gh auth token -u paulingham)\"", "expected": "allow"}
+{"command": "command -v timeout; command -v gtimeout; echo \"rc-timeout=$?\"", "expected": "allow"}
+{"command": "git status --short; echo \"=== diff stat ===\"; git diff --stat", "expected": "allow"}
+{"command": "grep -n \"git commit\\|PreToolUse\\|\\\"Bash\\\"\" settings.json | head -40", "expected": "allow"}
+{"command": "grep -n \"sast-check\\|injection-scan\\|agentic-security\" settings.json", "expected": "allow"}
+{"command": "git log --oneline -3 && echo \"---STALE WORKTREES---\" && git worktree list", "expected": "allow"}
+{"command": "grep -n '\"matcher\"\\|\"PreToolUse\"\\|\"PostToolUse\"' settings.json | head -30", "expected": "allow"}
+{"command": "git stash list && echo \"--- current dirty files ---\" && git status --short", "expected": "allow"}
+{"command": "git log --oneline -15 && echo \"---STATUS---\" && git status --short | head -30", "expected": "allow"}
+{"command": "cd \"$(git rev-parse --show-toplevel)\"; sed -n '1,40p' scripts/await-pattern.sh", "expected": "allow"}
+{"command": "git status --porcelain && echo \"---branch---\" && git rev-parse --abbrev-ref HEAD", "expected": "allow"}
+{"command": "python3 -c \"import json;print(json.load(open('/tmp/prmeta/pr-33.json'))['body'])\"", "expected": "allow"}
+{"command": "cd \"$(git rev-parse --show-toplevel)\"; sed -n '1,60p' hooks/function-body-check.sh", "expected": "allow"}
+{"command": "cd \"$(git rev-parse --show-toplevel)\"; sed -n '110,140p' scripts/_lib/install-node.sh", "expected": "allow"}
+{"command": "cd \"$(git rev-parse --show-toplevel)\"; sed -n '1,45p' hooks/_lib/github-cache-server.py", "expected": "allow"}
+{"command": "git diff --stat settings.json && echo \"===DIFF===\" && git diff settings.json | head -60", "expected": "allow"}
+{"command": "grep -nE \"CLAUDE_DISABLE|exit 0|reversib|escape\" hooks/orchestrator-discipline.sh | head -20", "expected": "allow"}
+{"command": "grep 'NEW RED' /tmp/qg-validate3.log | sed 's/.*NEW RED: //; s/::.*//' | sort | uniq -c | sort -rn", "expected": "allow"}
+{"command": "grep -n \"mutation\\|Mutation\\|70%\\|kill rate\\|Tier 3\" protocols/engineering-invariants.md | head -20", "expected": "allow"}
+{"command": "echo \"PLUGIN_ROOT=$CLAUDE_PLUGIN_ROOT\"; echo \"PLUGIN_DATA=$CLAUDE_PLUGIN_DATA\"; echo \"CONFIG_DIR=$CLAUDE_CONFIG_DIR\"", "expected": "allow"}
+{"command": "cat /private/tmp/claude-502/-Users-Paul-Ingham-Projects--claude/14b2a936-fc67-4cc4-84c1-99778c453f2e/tasks/bigmyc85t.output", "expected": "allow"}
+{"command": "cat \"/private/tmp/claude-502/-Users-Paul-Ingham-Projects--claude/14b2a936-fc67-4cc4-84c1-99778c453f2e/tasks/bdr9f0fse.output\"", "expected": "allow"}
+{"command": "echo \"=== remotes ===\" && git remote -v && echo && echo \"=== local user ===\" && git config user.name && git config user.email", "expected": "allow"}
+{"command": "tail -3 /private/tmp/claude-502/-Users-Paul-Ingham-Projects--claude/14b2a936-fc67-4cc4-84c1-99778c453f2e/tasks/bu3e1xfw2.output", "expected": "allow"}
+{"command": "echo \"CLAUDE_PLUGIN_DATA=${CLAUDE_PLUGIN_DATA:-unset}\"; echo \"CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR:-unset}\"; echo \"HOME=$HOME\"", "expected": "allow"}
+{"command": "npm install lodash", "expected": "block"}
+{"command": "pip install requests", "expected": "block"}
+{"command": "bundle add rspec", "expected": "block"}
+{"command": "pytest tests/test_app.py", "expected": "block"}
+{"command": "npm test", "expected": "block"}
+{"command": "go test ./...", "expected": "block"}
+{"command": "npm run build", "expected": "block"}
+{"command": "cargo build --release", "expected": "block"}
+{"command": "tsc -p tsconfig.json", "expected": "block"}
+{"command": "fly deploy --remote-only", "expected": "block"}
+{"command": "kubectl apply -f deploy.yaml", "expected": "block"}
+{"command": "terraform apply -auto-approve", "expected": "block"}
+{"command": "sed -i 's/foo/bar/' src/app.py", "expected": "block"}
+{"command": "echo CONFIG > /etc/app.conf", "expected": "block"}
+{"command": "mkdir /opt/newservice", "expected": "block"}
+{"command": "rm src/legacy_module.py", "expected": "block"}
+{"command": "git commit -m 'feature'", "expected": "block"}
+{"command": "git push origin main", "expected": "block"}
+{"command": "alembic upgrade head", "expected": "block"}
+{"command": "psql -c 'DROP TABLE sessions'", "expected": "block"}
