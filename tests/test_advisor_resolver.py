@@ -213,20 +213,35 @@ class SettingsRegistersAdvisorHook(unittest.TestCase):
         agent_groups = [g for g in settings["hooks"]["PreToolUse"]
                         if g.get("matcher") == "Agent"]
         self.assertEqual(len(agent_groups), 1, "expected exactly one PreToolUse Agent group")
-        commands = [h["command"] for h in agent_groups[0]["hooks"]]
-        self._assert_existing_hooks_unchanged(commands)
-        self._assert_advisor_hook_registered_after_thinking(commands)
+        # Hook entries were hardened to the fail-safe `bash -lc '...'` wrapper
+        # form (commits 9a47da6 / e403365): command='bash', the script path
+        # lives inside args[1]. Reconstruct the full invocation text per hook
+        # so existing substring assertions still work.
+        invocations = [
+            " ".join([h.get("command", "")] + h.get("args", []))
+            for h in agent_groups[0]["hooks"]
+        ]
+        self._assert_existing_hooks_unchanged(invocations)
+        self._assert_advisor_hook_registered_after_thinking(invocations)
 
-    def _assert_existing_hooks_unchanged(self, commands):
-        self.assertIn("bash ~/.claude/hooks/pipeline-state-guard.sh", commands)
-        self.assertIn("bash ~/.claude/hooks/agent-skill-reminder.sh", commands)
-        self.assertIn("bash ~/.claude/hooks/pre-agent-thinking.sh", commands)
+    def _index_of(self, invocations, script):
+        for i, text in enumerate(invocations):
+            if script in text:
+                return i
+        return -1
 
-    def _assert_advisor_hook_registered_after_thinking(self, commands):
-        advisor_cmd = "bash ~/.claude/hooks/pre-agent-advisor.sh"
-        self.assertIn(advisor_cmd, commands)
-        thinking_idx = commands.index("bash ~/.claude/hooks/pre-agent-thinking.sh")
-        advisor_idx = commands.index(advisor_cmd)
+    def _assert_existing_hooks_unchanged(self, invocations):
+        for script in ("pipeline-state-guard.sh", "agent-skill-reminder.sh",
+                       "pre-agent-thinking.sh"):
+            self.assertGreaterEqual(
+                self._index_of(invocations, script), 0,
+                f"{script} must remain registered on the Agent matcher")
+
+    def _assert_advisor_hook_registered_after_thinking(self, invocations):
+        advisor_idx = self._index_of(invocations, "pre-agent-advisor.sh")
+        thinking_idx = self._index_of(invocations, "pre-agent-thinking.sh")
+        self.assertGreaterEqual(advisor_idx, 0,
+                                "pre-agent-advisor.sh must be registered")
         self.assertGreater(advisor_idx, thinking_idx,
                            "advisor hook must be registered AFTER thinking hook")
 

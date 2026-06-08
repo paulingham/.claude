@@ -85,13 +85,20 @@ class NoBashDashCStringFormSurvives(unittest.TestCase):
 
 
 class HcomSubcmdSplit(unittest.TestCase):
-    SUBCMD_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+    """hcom entries are now wrapped in the fail-safe `bash -lc` form (commits
+    9a47da6 / e403365): `command='bash'`, `args=['-lc', 'h="$HOME/.local/bin/
+    hcom"; [ -x "$h" ] && exec "$h" <subcmd> ...']`. The subcommand is the
+    first token after `exec "$h"`. The earlier split-binary form
+    (`command='.../hcom'`, args[0]=subcmd) was superseded by the hardening
+    that makes every hook entry a no-op when its target binary is absent."""
+
+    EXEC_SUBCMD_RE = re.compile(r'exec "\$h"\s+([a-z][a-z0-9-]*)')
 
     def test_hcom_entries_split_binary_and_subcmd(self):
         hcom_entries = [
             (event, m_idx, h_idx, hook)
             for event, m_idx, h_idx, hook in _command_type_entries()
-            if "/hcom" in hook["command"] or hook["command"].endswith("hcom")
+            if any("hcom" in str(a) for a in hook.get("args", []))
         ]
         self.assertGreater(
             len(hcom_entries), 0,
@@ -99,18 +106,27 @@ class HcomSubcmdSplit(unittest.TestCase):
         )
         for event, m_idx, h_idx, hook in hcom_entries:
             tag = _tag(event, m_idx, h_idx)
-            self.assertTrue(
-                hook["command"].endswith("/hcom") or hook["command"].endswith("hcom"),
-                f"{tag}: command must end with `hcom` (no trailing subcmd), got {hook['command']!r}"
+            self.assertEqual(
+                hook["command"], "bash",
+                f"{tag}: wrapped hcom entry must use command='bash', "
+                f"got {hook['command']!r}"
             )
             self.assertGreaterEqual(
-                len(hook["args"]), 1,
-                f"{tag}: hcom entry must have at least one arg (the subcommand)"
+                len(hook["args"]), 2,
+                f"{tag}: wrapped hcom entry must have [-lc, <pipeline>] args"
             )
-            sub = hook["args"][0]
-            self.assertTrue(
-                self.SUBCMD_RE.match(sub),
-                f"{tag}: args[0]={sub!r} must match {self.SUBCMD_RE.pattern}"
+            self.assertIn(hook["args"][0], ("-c", "-lc"))
+            pipeline = hook["args"][1]
+            self.assertIn(
+                '[ -x "$h" ]', pipeline,
+                f"{tag}: hcom entry must be fail-safe (guard the binary with "
+                f"`[ -x \"$h\" ]` before exec)"
+            )
+            m = self.EXEC_SUBCMD_RE.search(pipeline)
+            self.assertIsNotNone(
+                m,
+                f"{tag}: hcom pipeline must `exec \"$h\" <subcmd>`; got "
+                f"{pipeline!r}"
             )
 
 
@@ -143,12 +159,17 @@ class InlineShellEntriesUseBashDashC(unittest.TestCase):
             tag = _tag(event, m_idx, h_idx)
             self.assertGreaterEqual(
                 len(hook["args"]), 2,
-                f"{tag}: inline-shell entries must have at least 2 args (-c + pipeline)"
+                f"{tag}: inline-shell entries must have at least 2 args (-c/-lc + pipeline)"
             )
-            self.assertEqual(
-                hook["args"][0], "-c",
-                f"{tag}: inline-shell entry args[0] must be '-c' (got {hook['args'][0]!r}); "
-                f"otherwise bash treats args[1] as $0 and the pipeline silently no-ops"
+            # The fail-safe hardening (e403365) standardised on `-lc` (login
+            # shell) for the wrapped entries; a handful of legacy literal-echo
+            # entries still use `-c`. Both pass args[1] as the pipeline, so
+            # both are correct — only a non-flag args[0] would silently no-op.
+            self.assertIn(
+                hook["args"][0], ("-c", "-lc"),
+                f"{tag}: inline-shell entry args[0] must be '-c' or '-lc' "
+                f"(got {hook['args'][0]!r}); otherwise bash treats args[1] as "
+                f"$0 and the pipeline silently no-ops"
             )
             self.assertGreater(
                 len(hook["args"][1]), 0,
@@ -194,7 +215,9 @@ class TypedEntriesUnchanged(unittest.TestCase):
 
 
 class McpServersUntouched(unittest.TestCase):
-    EXPECTED_SERVERS = {"memory", "gh-cache", "lsp-typescript", "lsp-pyright"}
+    # `memory` was retired and `chrome-devtools` added to the mcpServers block.
+    EXPECTED_SERVERS = {"chrome-devtools", "gh-cache",
+                        "lsp-typescript", "lsp-pyright"}
 
     def test_mcpServers_block_unchanged(self):
         data = json.loads(SETTINGS_PATH.read_text())
@@ -209,13 +232,21 @@ class McpServersUntouched(unittest.TestCase):
             f"mcpServers keys changed; expected {self.EXPECTED_SERVERS}, got {set(servers.keys())}"
         )
         for name, server in servers.items():
-            self.assertEqual(
-                server.get("command"), "bash",
-                f"mcpServers[{name}] must already be exec-form (command='bash')"
+            # Exec-form = a string command plus an args list. The launcher
+            # binary differs per server (bash wrappers for the lsp/gh-cache
+            # servers; `npx` for chrome-devtools) — what matters is that no
+            # server uses the legacy single-string shell form.
+            self.assertIsInstance(
+                server.get("command"), str,
+                f"mcpServers[{name}] must be exec-form (command=str)"
+            )
+            self.assertTrue(
+                server.get("command"),
+                f"mcpServers[{name}] command must be non-empty"
             )
             self.assertIsInstance(
                 server.get("args"), list,
-                f"mcpServers[{name}] must already be exec-form (args=list)"
+                f"mcpServers[{name}] must be exec-form (args=list)"
             )
 
 

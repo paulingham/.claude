@@ -321,7 +321,13 @@ def test_ac31_settings_json_has_new_matcher() -> None:
         f"Expected exactly one Write|Edit|NotebookEdit block, got {len(matched)}"
     )
     block = matched[0]
-    cmds = [hk.get("command", "") for hk in block.get("hooks", []) if hk.get("type") == "command"]
+    # Hook entries were hardened to the fail-safe `bash -lc '...'` wrapper form
+    # (command='bash', script path inside args[1]). Join command + args so the
+    # script-name substring check still works.
+    cmds = [
+        " ".join([hk.get("command", "")] + hk.get("args", []))
+        for hk in block.get("hooks", []) if hk.get("type") == "command"
+    ]
     assert any("shadow-git-checkpoint.sh" in cmd for cmd in cmds), cmds
     timeouts = [hk.get("timeout") for hk in block.get("hooks", []) if hk.get("type") == "command"]
     assert 5000 in timeouts, timeouts
