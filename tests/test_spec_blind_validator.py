@@ -139,13 +139,21 @@ class SkillFrontmatterAndBodyComplete(unittest.TestCase):
 
 
 class ClaudeMdSkillDirectoryListsSpecBlindValidate(unittest.TestCase):
-    """AC4 — CLAUDE.md skill row exists with all four verdicts and key descriptors."""
+    """AC4 — skill row exists with all four verdicts and key descriptors.
+
+    CLAUDE.md was pruned to a pointer (commit b606d59); the canonical
+    /harness:-prefixed catalog row lives in protocols/skill-directory.md.
+    """
 
     def test_claude_md_skill_directory_lists_spec_blind_validate(self):
-        text = _read("CLAUDE.md")
+        text = _read("protocols/skill-directory.md")
         # Find a line that is the skill row
-        rows = [ln for ln in text.splitlines() if "`/spec-blind-validate`" in ln]
-        self.assertTrue(rows, "CLAUDE.md missing /spec-blind-validate skill row")
+        rows = [ln for ln in text.splitlines()
+                if "`/harness:spec-blind-validate`" in ln]
+        self.assertTrue(
+            rows,
+            "protocols/skill-directory.md missing /harness:spec-blind-validate "
+            "skill row")
         row = rows[0]
         for verdict in (
             "SPEC_BLIND_VALIDATED",
@@ -237,7 +245,7 @@ class ParallelDispatchProtocolListsSpecBlindInFinalGateTeam(unittest.TestCase):
         text = _read("protocols/parallel-dispatch-protocol.md")
         # Look for spec-blind-validator row + skill + verdict
         self.assertIn("spec-blind-validator", text)
-        self.assertIn("/spec-blind-validate", text)
+        self.assertIn("/harness:spec-blind-validate", text)
         self.assertIn("SPEC_BLIND_VALIDATED", text)
         # Narrative was "All four assess..." — must be updated to "All five"
         self.assertIn("All five assess the same final state independently.", text)
