@@ -38,6 +38,7 @@ EXPECTED_ORDER = [
     "pre-agent-swe-pruner",
     "depth-guard",
     "runtime-guard",
+    "intake-backstop",
 ]
 
 

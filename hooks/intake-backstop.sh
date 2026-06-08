@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Intake Backstop — PreToolUse hook for BOTH Bash and Agent matchers.
 #
+# enforces: protocols/work-class-routing.md:Intake gate
+# protects: intake, pipeline
+#
 # Closes the gap where the orchestrator starts doing work (installing deps,
 # running tests, building, deploying, mutating files/git, spawning specialized
 # build/review agents) WITHOUT first running /intake to classify and route the
@@ -52,9 +55,6 @@
 # work command is recoverable via the CLAUDE_INTAKE_BACKSTOP=off escape or by
 # re-running /intake, whereas an under-block (the old global-pipeline bug)
 # silently lets ungated work through.
-#
-# enforces: protocols/work-class-routing.md:Intake gate
-# protects: intake, pipeline
 
 _IBS_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
