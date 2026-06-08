@@ -18,6 +18,32 @@ Detects and resumes in-progress pipelines from structured state files in `pipeli
 
 ## Process
 
+### Step 0: Arm the intake-backstop marker (resume is a legitimate "intake ran" event)
+
+The intake-backstop gate (`hooks/intake-backstop.sh`) blocks orchestrator work
+when no per-session intake marker exists. Resuming an interrupted pipeline is a
+legitimate continuation that did NOT run `/harness:intake` in THIS session, so it must
+arm the marker itself — otherwise the first work-bash or specialized-agent
+spawn after resume is BLOCKED. The earlier global "any in_progress pipeline
+satisfies the gate" shortcut was REMOVED (it let one orphaned dead-session
+pipeline disable the gate for everyone — see `hooks/intake-backstop.sh` header
+and AC-12), so the marker is the only signal.
+
+Run this BEFORE any other resume work (idempotent; SID derivation matches the
+hook reader exactly):
+
+```bash
+HARNESS_DATA="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
+SID_RAW="${CLAUDE_SESSION_ID:-local-$$}"; SID="${SID_RAW//[^A-Za-z0-9_-]/}"
+[[ -z "$SID" ]] && SID="local-$$"
+mkdir -p "$HARNESS_DATA/intake-markers" && touch "$HARNESS_DATA/intake-markers/$SID.marker"
+```
+
+If `CLAUDE_SESSION_ID` is not injected for the shell event that runs this step,
+the marker SID may not match the backstop reader's SID; the failure mode is an
+OVER-block (recoverable via `CLAUDE_INTAKE_BACKSTOP=off` for the session), never
+an under-block.
+
 ### Step 1: Scan for Active Pipelines
 
 The DUAL_PATH soak (see `protocols/pipeline-protocol.md` § Structured Pipeline State) means readers MUST tolerate both the new per-task-subdir layout (`$state_dir/{task-id}/pipeline.md`, bare path: `pipeline-state/{task-id}/pipeline.md`) and the legacy flat form (`$state_dir/{task-id}-pipeline.md`). Use the canonical four-glob discovery sequence (encapsulated in `_psp_find_active_pipelines` from `hooks/_lib/pipeline-state-paths.sh`):
