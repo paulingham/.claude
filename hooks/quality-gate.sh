@@ -55,11 +55,18 @@ fi
 
 RT=$(_qg_detect_runtime)
 ANY_FAILED=0
-for check in tests lint audit shape contract; do
-  _qg_check_${check} "$RT"
-  rc=$?
-  [[ $rc -ne 0 ]] && ANY_FAILED=1
-done
+# CLAUDE_QG_SKIP_CHECKS=1 skips the heavy build-quality checks (tests, lint,
+# audit, shape, contract) while preserving the advisory + freshness logic.
+# Set by the test conftest so unit tests that invoke this hook via subprocess
+# do NOT recursively shell out to the project's own (multi-minute) test suite.
+# Never set in production; the production gate always runs the full checks.
+if [[ "${CLAUDE_QG_SKIP_CHECKS:-0}" != "1" ]]; then
+  for check in tests lint audit shape contract; do
+    _qg_check_${check} "$RT"
+    rc=$?
+    [[ $rc -ne 0 ]] && ANY_FAILED=1
+  done
+fi
 _qg_check_freshness "$COMMAND"
 rc=$?
 [[ $rc -ne 0 ]] && ANY_FAILED=1

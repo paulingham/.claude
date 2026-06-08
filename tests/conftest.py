@@ -27,6 +27,18 @@ if _HOOKS_LIB not in sys.path:
     sys.path.insert(0, _HOOKS_LIB)
 
 
+# --- Suite-wide speed guard ------------------------------------------------
+# Several tests invoke real hook scripts via subprocess. `hooks/quality-gate.sh`
+# runs the project's OWN pytest suite TWICE (_qg_check_tests_python →
+# _qg_pytest_runs) whenever it is triggered on a `gh pr create` command. Without
+# the guard below, a single quality-gate hook test recursively re-runs the whole
+# suite, turning a seconds-long run into a ~10-minute one. We export a
+# process-wide default at import time (before any test runs) so the many
+# `{**os.environ, ...}` env copies the tests build for subprocess.run inherit it.
+# Tests that genuinely exercise the heavy path can pop the var from their env.
+os.environ.setdefault("CLAUDE_QG_SKIP_CHECKS", "1")
+
+
 @pytest.fixture
 def make_git_worktree(tmp_path):
     """Create a tmp git repo with one commit; HEAD is controllable.
