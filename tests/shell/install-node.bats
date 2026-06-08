@@ -83,6 +83,7 @@ FNM
     export CLAUDE_NODE_HAS_NODE=0
     export CLAUDE_NODE_PRINTER=echo
     export CLAUDE_NODE_FORCE_FNM_PRESENT=1
+    export NVM_DIR=''
     export PATH='$TMP_DIR/bin:/usr/bin:/bin'
     source '$LIB_DIR/install-node.sh'
     install_node_via_manager macos
