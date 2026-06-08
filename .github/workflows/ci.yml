@@ -54,12 +54,11 @@ jobs:
   shell:
     name: Shell (bats) test suite
     runs-on: ubuntu-latest
-    # NON-BLOCKING for now: the bats suite carries pre-existing HARNESS_DATA-
-    # relocation drift (specs that write to $HOME/.claude/pipeline-state while
-    # the hooks now write to $HARNESS_DATA) — ~63 specs fail on a clean runner.
-    # That cleanup is a separate effort from greening the pytest suite; the job
-    # runs and reports so the drift stays visible, but does not gate the PR.
-    continue-on-error: true
+    # BLOCKING: the full bats suite is green on a clean Linux runner (the earlier
+    # HARNESS_DATA-relocation + macOS-only portability drift was fixed in #177:
+    # hardcoded homebrew python path, leaked NVM_DIR/aws on PATH, CLAUDE_PLUGIN_ROOT
+    # lib resolution, JSON-spacing assertions, the await-pattern double-SIGTERM
+    # signal race). Regressions now gate the PR.
     steps:
       - uses: actions/checkout@v4
       - name: Install bats + jq
