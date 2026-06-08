@@ -9,6 +9,7 @@
 # Usage: phase-boundary-compress.sh <phase_from> <phase_to> [handoff_file]
 #
 # enforces: protocols/pipeline-protocol.md (§ Next Phase Input enforcement stanza)
+# protects: pipeline
 # metrics:  metrics/{session}/phase-boundary.jsonl
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

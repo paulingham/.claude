@@ -3,7 +3,7 @@
 # Shipped ADVISORY (log-only): always exits 0, never blocks.
 # Disable escape: CLAUDE_DISABLE_STUCK_GUARD=1 → skip entirely.
 #
-# enforces: (advisory) semantic loop detection per OpenHands five-pattern algorithm
+# enforces: protocols/operational-protocol.md (advisory) semantic loop detection per OpenHands five-pattern algorithm
 # protects: pipeline (advisory only at current version)
 # if-broken-look-at: hooks/_lib/stuck-detector.py, hooks/_lib/stuck_patterns.py
 

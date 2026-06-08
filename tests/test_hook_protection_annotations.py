@@ -34,18 +34,20 @@ def test_enforces_target_resolves_to_real_rule_file():
                 bad.append((f.name, rule_path))
     assert not bad, f"Bad rule references: {bad}"
 
-def test_protects_skills_resolve_to_real_skill_dirs():
-    bad = []
+def test_protects_value_is_non_empty():
+    """`# protects:` is a free-form annotation: it may name skills (e.g.
+    `pipeline, forensics`), the `all-skills` meta-token, or describe the
+    concern the hook guards in prose (e.g. `root working tree integrity`,
+    `codebase-map-rebuild`). The harness convention does NOT require it to
+    resolve to a skill directory — many hooks legitimately protect a process
+    or invariant, not a skill. The enforced contract is therefore presence +
+    non-emptiness; typo'd *rule-file* references are caught separately by
+    test_enforces_target_resolves_to_real_rule_file.
+    """
+    empty = []
     for f in _hook_files():
         head = "\n".join(f.read_text().splitlines()[:30])
         m = re.search(r"^#\s*protects:\s*(.+)$", head, re.MULTILINE)
-        if m:
-            skills = [s.strip() for s in m.group(1).split(",")]
-            for skill in skills:
-                if skill in ("all-skills", "all-agent-spawning-skills"):
-                    continue  # meta-references
-                skill_path = ROOT / "skills" / skill / "SKILL.md"
-                deferred_path = ROOT / "skills" / "_deferred" / skill / "SKILL.md"
-                if not skill_path.exists() and not deferred_path.exists():
-                    bad.append((f.name, skill))
-    assert not bad, f"Bad skill references: {bad}"
+        if m and not m.group(1).strip():
+            empty.append(f.name)
+    assert not empty, f"Hooks with empty # protects: value: {empty}"

@@ -6,7 +6,7 @@
 # INVARIANT 1: stdout is ALWAYS empty — no modified_tool_input ever emitted.
 # INVARIANT 2: exit 0 ALWAYS — never blocks an Agent spawn.
 #
-# enforces: plan.md — advisory-first (MM1)
+# enforces: protocols/autonomous-intelligence.md — advisory-first (MM1)
 # protects: spawn context integrity
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -123,7 +123,20 @@ def test_forward_skill_verdicts_appear_in_catalog():
         f"Skills emit verdicts not in `protocols/verdict-catalog.md`: {drift}")
 
 
+def _normalize_emitter(name):
+    """Strip backticks and a trailing `(agent)` / `(skill)` annotation.
+
+    Catalog cells may write an emitter as `` `architect-context-recon` (agent) ``
+    to flag that the verdict is agent-emitted rather than skill-emitted. The
+    annotation is documentation, not part of the resolvable name.
+    """
+    name = name.replace("`", "")
+    name = re.sub(r"\s*\((?:agent|skill)\)\s*$", "", name)
+    return name.strip()
+
+
 def _emitter_resolves(name, known_agents):
+    name = _normalize_emitter(name)
     candidates = (
         SKILLS_DIR / name / "SKILL.md",
         SKILLS_DIR / "_deferred" / name / "SKILL.md",

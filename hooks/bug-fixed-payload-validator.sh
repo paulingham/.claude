@@ -5,6 +5,7 @@
 #
 # Mode = CLAUDE_BUGFIX_VALIDATOR_MODE ∈ {log (default), warn, strict}.
 # enforces: protocols/verdict-catalog.md (BUG_FIXED row)
+# protects: pipeline
 set -uo pipefail
 
 # shellcheck source=/dev/null

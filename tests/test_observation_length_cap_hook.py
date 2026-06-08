@@ -38,7 +38,13 @@ def _run_hook(stdin_payload, env_overrides=None, claude_home=None):
     home = claude_home or Path(tempfile.mkdtemp(prefix="obscap-"))
     env = os.environ.copy()
     env["HOME"] = str(home)
+    # CLAUDE_CONFIG_DIR -> repo so the hook resolves its libs (HARNESS_ROOT);
+    # CLAUDE_PLUGIN_DATA -> the hermetic home/.claude so runtime-state writes
+    # (HARNESS_DATA/metrics) land where the assertions read them. Without the
+    # data override the hook would write into the repo (CLAUDE_CONFIG_DIR)
+    # because runtime state was relocated to HARNESS_DATA (commit 8decded).
     env["CLAUDE_CONFIG_DIR"] = str(REPO_ROOT)
+    env["CLAUDE_PLUGIN_DATA"] = str(home / ".claude")
     env.pop("CLAUDE_SESSION_ID", None)
     if env_overrides:
         for k, v in env_overrides.items():
