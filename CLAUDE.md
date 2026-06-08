@@ -51,11 +51,11 @@ Global wins for quality standards; project wins for project-specific conventions
 
 ### Thinking Defaults (Opus 4.7)
 
-Every Agent spawn carries a `thinking` field (`effort`, `display`). Applied by `pre-agent-thinking.sh`. Full precedence table, role defaults, gated xhigh promotion, postmortem note, and v2.1.140 advisory status: `protocols/thinking-defaults.md`.
+Every Agent spawn carries a `thinking` field (`effort`, `display`). Applied by `pre-agent-thinking.sh` (ADVISORY — NOT ENFORCED — schema-gap). Full precedence table, role defaults, gated xhigh promotion, postmortem note, and v2.1.140 advisory status: `protocols/thinking-defaults.md`.
 
 ### Advisor-Mode Reviews (Opus 4.7)
 
-Sonnet-executor + Opus-advisor pairing for `code-reviewer` and `security-engineer`; advisory at v2.1.140. Full mechanism: `protocols/advisor-mode.md`.
+Sonnet-executor + Opus-advisor pairing for `code-reviewer` and `security-engineer`; advisory at v2.1.140 (ADVISORY — NOT ENFORCED — schema-gap). Full mechanism: `protocols/advisor-mode.md`.
 
 ### Cost Discipline
 
@@ -71,7 +71,7 @@ Per-session env vars short-circuit each gate to `exit 0`. Full table: `protocols
 
 ### Instinct Injection (Path B)
 
-`instinct_categories:` frontmatter selects instincts per spawn; `instinct-injector.sh` resolves and logs (advisory at v2.1.140). Full contract: `protocols/autonomous-intelligence.md` § Instinct Injection and `orchestrator/agent-orchestration.md` § Instinct Injection.
+`instinct_categories:` frontmatter selects instincts per spawn; `instinct-injector.sh` resolves and logs (advisory at v2.1.140) (ADVISORY — NOT ENFORCED — mutation-only). Full contract: `protocols/autonomous-intelligence.md` § Instinct Injection and `orchestrator/agent-orchestration.md` § Instinct Injection.
 
 ### Agent Team
 
