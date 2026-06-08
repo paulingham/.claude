@@ -39,13 +39,7 @@ Before starting ANY work in a repo:
 2. If missing: **automatically invoke `/harness:project-setup`** before any other work — do not ask
 3. If present: read it and confirm no conflicts with global rules
 
-| Layer | Controls | Example |
-|-------|----------|---------|
-| Global rules | How: engineering discipline | 8-line methods, TDD, SOLID |
-| Global CLAUDE.md | Why: philosophy + pipeline | Lean agile, collaboration protocol |
-| Project CLAUDE.md | What: project context | Rails 7, PostgreSQL, deploy via Heroku |
-
-Global wins for quality standards; project wins for project-specific conventions.
+Three layers: **Global rules** (how — engineering discipline: 8-line methods, TDD, SOLID), **Global CLAUDE.md** (why — lean-agile philosophy + pipeline), **Project CLAUDE.md** (what — e.g. Rails 7, deploy via Heroku). Global wins for quality standards; project wins for project-specific conventions.
 
 ## Quick Reference
 
@@ -103,18 +97,7 @@ Model self-tuning, downgrade rules, and `architect`/`security-engineer` hard loc
 
 ### Dispatch (parallel subagents by default; teams opt-in)
 
-Parallelizable phases dispatch as **parallel subagent calls in a single message**. Teams (`TeamCreate`) are opt-in via `CLAUDE_VISIBLE_TEAMS=1` or `/harness:pipeline --visible`.
-
-| Phase | Default Dispatch | Visible-mode (opt-in) |
-|-------|------------------|------------------------|
-| Plan | Subagent | Subagent |
-| Build (single) | Subagent + worktree | Subagent + worktree |
-| Build (multi) | Parallel subagents (1 message, N calls) | Team in tmux panes |
-| Review | Parallel subagents (1 message, 2 calls) | Team in tmux panes |
-| Final Gate | Parallel subagents (1 message, 4 calls) | Team in tmux panes |
-| Ship / Deploy | Subagent | Subagent |
-
-Every spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format." Full dispatch protocol: `protocols/parallel-dispatch-protocol.md`.
+Parallelizable phases (Build-multi, Review, Final Gate) dispatch as **parallel subagent calls in a single message**; teams (`TeamCreate`) are opt-in via `CLAUDE_VISIBLE_TEAMS=1` or `/harness:pipeline --visible`. Every spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your full role definition, checklist, and output format." Per-phase dispatch matrix and full protocol: `protocols/parallel-dispatch-protocol.md`.
 
 ### How the System Works
 
@@ -140,15 +123,7 @@ Phase order, gates, and skill mapping: `rules/core.md` § Pipeline Phase Order a
 
 ### Autonomous Intelligence
 
-Three systems make the pipeline self-improving (see `protocols/autonomous-intelligence.md`):
-
-| System | Scope | Purpose |
-|--------|-------|---------|
-| **Pipeline Scratchpad** | Within one pipeline | Agents share discoveries in real-time |
-| **Session Memory** | Across compaction | Engineering context survives context compression |
-| **Continuous Learning** | Across pipelines | Observations → instincts → better agents (auto-invokes `/harness:learn`) |
-
-Every agent spawn includes: instincts + agent memory + session memory + scratchpad findings. Tracing off by default; toggle per-session with `/harness:debug-trace on|off`. See `protocols/autonomous-intelligence.md` § Prompt Tracing.
+Three systems make the pipeline self-improving — **Pipeline Scratchpad** (real-time discovery-sharing within one pipeline), **Session Memory** (context survives compaction), **Continuous Learning** (observations → instincts across pipelines, auto-invokes `/harness:learn`). Every agent spawn includes instincts + agent memory + session memory + scratchpad findings. Tracing off by default; toggle with `/harness:debug-trace on|off`. Full mechanism + § Prompt Tracing: `protocols/autonomous-intelligence.md`.
 
 ### Skill Directory
 
