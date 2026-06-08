@@ -156,18 +156,37 @@ run_test "AC-7: CLAUDE_INTAKE_BACKSTOP=off + work bash -> allow (exit 0)" 0 $?
   | CLAUDE_INTAKE_BACKSTOP=off bash "$HOOKS_DIR/intake-backstop.sh" > /dev/null 2>&1)
 run_test "AC-7: CLAUDE_INTAKE_BACKSTOP=off + specialized spawn -> allow (exit 0)" 0 $?
 
-# AC-7b: active pipeline allows work bash (stub a pipeline-state dir).
-PSTATE="$CLAUDE_PLUGIN_DATA/pipeline-state/stub-task"
+# AC-12: an ORPHANED/FOREIGN in_progress pipeline (different task_id, NOT this
+# session, no intake marker) must NOT satisfy the gate. This reproduces the
+# real-environment false-allow: the active-pipeline scan was GLOBAL and
+# UNSCOPED, so one stale in_progress state file from a dead session disabled the
+# gate for every later session. The fix drops that satisfier entirely.
+#
+# This test drives the REAL predicate path — no _psp stub. CLAUDE_PLUGIN_DATA
+# (honoured by harness-paths.sh: CLAUDE_PLUGIN_DATA > CLAUDE_CONFIG_DIR >
+# $HOME/.claude) points HARNESS_DATA at the hermetic temp dir, which is exactly
+# the mechanism the hook reads, so the orphaned pipeline lands where
+# _psp_find_active_pipelines (had it remained) would scan. Frontmatter mirrors a
+# real pipeline.md (task_id/phase/verdict/timestamp/branch — no session id, the
+# fact that made SID-scoping impossible). Pre-fix this asserted exit 0
+# (false-allow); post-fix it asserts exit 2 (BLOCKED).
+PSTATE="$CLAUDE_PLUGIN_DATA/pipeline-state/foreign-dead-task"
 mkdir -p "$PSTATE"
 cat > "$PSTATE/pipeline.md" <<'EOF'
-# Pipeline: stub-task
-task_id: stub-task
-- Build: in_progress
+---
+task_id: foreign-dead-task
+phase: review
 verdict: in_progress
+timestamp: 2026-06-08T20:33:00Z
+branch: refactor/foreign-dead-task
+---
+
+## Pipeline: an orphaned pipeline from a different, dead session
+- Review: in_progress
 EOF
 clear_marker
 run_bash "pip install requests"
-run_test "AC-7b: active pipeline + work bash -> allow (exit 0)" 0 $?
+run_test "AC-12: orphaned_pipeline_does_not_disable_gate (block, exit 2)" 2 $?
 rm -rf "$CLAUDE_PLUGIN_DATA/pipeline-state"
 
 # Extra W-detector coverage (block when strict, allow read-only counterparts).

@@ -10,9 +10,9 @@
 #            architect + non-specialized.
 #
 # SHARED short-circuits (all fail-open / exit 0): wrong hook profile, escape
-# env, subagent caller, in-worktree caller, intake marker present, active
-# pipeline. Every error path defaults to ALLOW so a buggy detector or a missing
-# lib never wedges the session.
+# env, subagent caller, in-worktree caller, intake marker present. Every error
+# path defaults to ALLOW so a buggy detector or a missing lib never wedges the
+# session.
 #
 # SID DEPENDENCY (read this before trusting the marker): the marker
 # round-trip between intake-fingerprint-audit.sh (writer) and this reader
@@ -20,11 +20,33 @@
 # hook invocations. In this harness CLAUDE_SESSION_ID is NOT present in the
 # persistent shell env — it is injected per hook invocation by the harness. If
 # a future harness drops that injection, both sides fall back to `local-$$`
-# (distinct PIDs => SIDs diverge => marker never matches). For that reason the
-# ACTIVE-PIPELINE satisfier (step 5) is the robust primary fallback: once
-# /intake creates pipeline state, this gate opens regardless of SID. The marker
-# is the fast-path; the pipeline check is the durable path. AC-3 guards the
-# marker round-trip in a controlled (exported-SID) environment.
+# (distinct PIDs => SIDs diverge => marker never matches). The per-session
+# intake marker ($HARNESS_DATA/intake-markers/$SID.marker) is the SOLE
+# "intake ran this session" satisfier. It is written by
+# intake-fingerprint-audit.sh on every /intake and cleared per session by
+# session-start-bootstrap.sh, so it is inherently session-scoped. AC-3 guards
+# the marker round-trip in a controlled (exported-SID) environment.
+#
+# WHY NO GLOBAL ACTIVE-PIPELINE SATISFIER (removed — see AC-12): an earlier
+# revision opened the gate whenever _psp_find_active_pipelines reported ANY
+# pipeline-state file with `verdict: in_progress` anywhere under
+# $HARNESS_DATA/pipeline-state. That predicate is GLOBAL and UNSCOPED — real
+# pipeline.md frontmatter carries no session id (task_id / phase / verdict /
+# timestamp / branch only, verified against live state), so a SINGLE orphaned
+# in_progress pipeline left behind by a dead session disabled the gate for
+# EVERY subsequent session, permanently. On a box with many stale
+# pipeline-state dirs the false-allow condition is effectively always present,
+# making the gate dead-on-arrival. A resumed pipeline arms the marker
+# explicitly (skills/pipeline-resume Step 0 touches it) instead of relying on
+# the global scan, so dropping this satisfier does not block a legitimate
+# resume.
+#
+# FAILURE MODE = OVER-BLOCK (recoverable), NOT UNDER-BLOCK: if CLAUDE_SESSION_ID
+# injection is ever unreliable across the writer and reader hook events, the
+# marker may not be found after a real /intake and the gate over-blocks. That
+# is the SAFE direction — a blocked work command is recoverable via the
+# CLAUDE_INTAKE_BACKSTOP=off escape or by re-running /intake, whereas an
+# under-block (the old global-pipeline bug) silently lets ungated work through.
 #
 # enforces: protocols/work-class-routing.md:Intake gate
 # protects: intake, pipeline
@@ -44,7 +66,7 @@ set -uo pipefail
 # shellcheck source=/dev/null
 source "$_IBS_HOOK_DIR/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
-# ----- SHARED short-circuits (steps 1-5, all fail-open) ---------------------
+# ----- SHARED short-circuits (steps 1-4, all fail-open) ---------------------
 
 # Step 2: per-session escape hatch.
 [[ "${CLAUDE_INTAKE_BACKSTOP:-}" == "off" ]] && exit 0
@@ -73,22 +95,16 @@ SID="${SID_RAW//[^A-Za-z0-9_-]/}"
 [[ -z "$SID" ]] && SID="local-$$"
 [[ -f "$HARNESS_DATA/intake-markers/$SID.marker" ]] && exit 0
 
-# Step 5: an active pipeline already exists -> intake/pipeline has run.
-_ibs_active_pipeline() {
-    local dir="$HARNESS_DATA/pipeline-state"
-    [[ -d "$dir" ]] || return 1
-    # shellcheck source=/dev/null
-    source "$_IBS_HOOK_DIR/_lib/pipeline-state-paths.sh" 2>/dev/null || return 1
-    local active
-    active=$(_psp_find_active_pipelines "$dir" 2>/dev/null | head -1)
-    [[ -n "$active" ]]
-}
-_ibs_active_pipeline && exit 0
+# NOTE: there is deliberately NO global active-pipeline satisfier here. See the
+# "WHY NO GLOBAL ACTIVE-PIPELINE SATISFIER" block in the header — an unscoped
+# in_progress-pipeline scan let one orphaned state file disable the gate for
+# every session. The session-scoped marker above is the only "intake ran"
+# signal; pipeline-resume arms it explicitly (skills/pipeline-resume Step 0).
 
 # ----- Block message (shared) -----------------------------------------------
 _ibs_block() {
     cat >&2 <<'EOF'
-BLOCKED: This looks like work but /intake hasn't run and no pipeline is active. Invoke /harness:intake to classify and route, or set CLAUDE_INTAKE_BACKSTOP=off for this session if you're certain.
+BLOCKED: This looks like work but /intake hasn't run this session. Invoke /harness:intake to classify and route (or /harness:pipeline-resume to continue an interrupted pipeline), or set CLAUDE_INTAKE_BACKSTOP=off for this session if you're certain.
 EOF
     exit 2
 }
