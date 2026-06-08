@@ -5,9 +5,16 @@ advisory qualifier in the same sentence.
 Watch-list (exactly 5 advisory controls) and their first-mention docs:
   - verification-freshness-guard -> rules/core.md
   - pre-agent-thinking           -> CLAUDE.md, protocols/thinking-defaults.md
-  - pre-agent-advisor            -> CLAUDE.md, protocols/advisor-mode.md
+  - pre-agent-advisor            -> CLAUDE.md (token: "Opus-advisor pairing"),
+                                    protocols/advisor-mode.md
   - instinct-injector            -> CLAUDE.md, protocols/autonomous-intelligence.md
   - cache-breakpoint-injector    -> protocols/cost-discipline.md
+
+Each watch-list entry is a list of (search_token, doc_path) pairs.  The
+search_token is the literal string used to locate the first mention in that
+doc — it MAY differ from the control's display name when the doc uses a
+different identifying string (e.g. CLAUDE.md references pre-agent-advisor
+via "Opus-advisor pairing", not the bare hook name).
 
 Maintenance trade-off: the watch-list is a curated list of the 5 currently-
 advisory controls and MUST be updated if a control flips to enforcing (the
@@ -17,6 +24,10 @@ flips, remove it from the watch-list.
 The corpus test (test_all_watchlist_docs_clean) is a REGRESSION GUARD that is
 GREEN on the un-edited corpus and stays GREEN after edits. It proves no NEW
 false-enforcement claim was introduced. It is NOT a RED-first stub.
+
+A stale (search_token, doc) mapping — where the token is absent from the doc —
+causes an IMMEDIATE FAILURE (assertNotEqual) so drift is surfaced loudly rather
+than silently skipped.
 
 The RED-first proof for the violation-detection logic lives in the three
 matcher fixtures (test_violation_detected_without_qualifier,
@@ -125,27 +136,34 @@ def _enclosing_sentence(text: str, start: int) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Watch-list: control name -> list of doc paths relative to REPO_ROOT
+# Watch-list: control name -> list of (search_token, doc_path) pairs
+#
+# search_token: the literal string used to find the first mention in that doc.
+# It may differ from the control name when the doc uses a different identifier
+# (e.g. CLAUDE.md refers to pre-agent-advisor via "Opus-advisor pairing").
+# doc_path: path relative to REPO_ROOT.
 # ---------------------------------------------------------------------------
 
 _WATCH_LIST = {
     "verification-freshness-guard": [
-        "rules/core.md",
+        ("verification-freshness-guard", "rules/core.md"),
     ],
     "pre-agent-thinking": [
-        "CLAUDE.md",
-        "protocols/thinking-defaults.md",
+        ("pre-agent-thinking", "CLAUDE.md"),
+        ("pre-agent-thinking", "protocols/thinking-defaults.md"),
     ],
     "pre-agent-advisor": [
-        "CLAUDE.md",
-        "protocols/advisor-mode.md",
+        # CLAUDE.md references the advisor hook via the pairing description,
+        # not the bare hook name — use the token that actually appears there.
+        ("Opus-advisor pairing", "CLAUDE.md"),
+        ("pre-agent-advisor", "protocols/advisor-mode.md"),
     ],
     "instinct-injector": [
-        "CLAUDE.md",
-        "protocols/autonomous-intelligence.md",
+        ("instinct-injector", "CLAUDE.md"),
+        ("instinct-injector", "protocols/autonomous-intelligence.md"),
     ],
     "cache-breakpoint-injector": [
-        "protocols/cost-discipline.md",
+        ("cache-breakpoint-injector", "protocols/cost-discipline.md"),
     ],
 }
 
@@ -216,20 +234,30 @@ class CorpusRegressionGuard(unittest.TestCase):
     """
 
     def test_all_watchlist_docs_clean(self):
-        """No first-mention sentence violates the advisory-honesty invariant."""
+        """No first-mention sentence violates the advisory-honesty invariant.
+
+        Each (search_token, doc_path) pair in _WATCH_LIST MUST resolve: if
+        search_token is absent from the doc the mapping is stale and the test
+        fails loudly (assertNotEqual) rather than silently skipping.
+        """
         violations = []
-        for control, doc_paths in _WATCH_LIST.items():
-            for rel_path in doc_paths:
+        for control, token_doc_pairs in _WATCH_LIST.items():
+            for search_token, rel_path in token_doc_pairs:
                 full_path = REPO_ROOT / rel_path
                 text = full_path.read_text(encoding="utf-8")
-                idx = text.find(control)
-                if idx == -1:
-                    continue  # control not mentioned in this doc — skip
+                idx = text.find(search_token)
+                self.assertNotEqual(
+                    idx,
+                    -1,
+                    f"stale watch-list mapping: '{search_token}' not found in "
+                    f"{rel_path} — update the watch-list",
+                )
                 sentence = _enclosing_sentence(text, idx)
                 if _violates(sentence):
                     violations.append(
                         f"{rel_path}: first-mention sentence for "
-                        f"'{control}' violates advisory-honesty invariant.\n"
+                        f"'{control}' (token: '{search_token}') violates "
+                        f"advisory-honesty invariant.\n"
                         f"  sentence: {sentence!r}"
                     )
         self.assertEqual(
