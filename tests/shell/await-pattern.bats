@@ -252,7 +252,11 @@ _jsonl_path() {
   echo "noise" > "$LOG"
   "$AWAIT" "$LOG" "MATCHME" 30 1000 >/dev/null 2>&1 &
   local pid=$!
-  sleep 0.4
+  # Wait until the await process has spawned its tail child — proof it is past
+  # setup and blocked in the read loop with the TERM trap installed. A fixed
+  # sleep races on a cold CI runner (0.4s was not enough headroom).
+  local i=0
+  while [ $i -lt 100 ] && ! pgrep -P "$pid" >/dev/null 2>&1; do sleep 0.05; i=$((i+1)); done
   kill -TERM "$pid" 2>/dev/null
   kill -TERM "$pid" 2>/dev/null
   wait "$pid" 2>/dev/null || true
