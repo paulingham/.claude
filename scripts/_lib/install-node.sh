@@ -51,7 +51,7 @@ _node_install_via_nvm() {
     "$printer" "nvm use --lts"
     return 0
   fi
-  # shellcheck disable=SC1090
+  # shellcheck disable=SC1090,SC1091
   source "$NVM_DIR/nvm.sh" || return 1
   nvm install --lts || return 1
   nvm use --lts || return 1
@@ -105,8 +105,9 @@ _node_install_nvm_then_node() {
   curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/HEAD/install.sh | bash || return 1
   # Source the freshly-installed nvm.sh
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-  # shellcheck disable=SC1090
-  [[ -s "$NVM_DIR/nvm.sh" ]] && source "$NVM_DIR/nvm.sh" || return 1
+  [[ -s "$NVM_DIR/nvm.sh" ]] || return 1
+  # shellcheck disable=SC1090,SC1091
+  source "$NVM_DIR/nvm.sh" || return 1
   nvm install --lts || return 1
   nvm use --lts || return 1
   if [[ -z "${NVM_BIN:-}" ]]; then
@@ -117,6 +118,9 @@ _node_install_nvm_then_node() {
 }
 
 install_node_via_manager() {
+  # $1 (os) is accepted for call-site symmetry with the other installers but
+  # is not needed here — dispatch is by detected version-manager, not OS.
+  # shellcheck disable=SC2034
   local os="${1:-}"
   _node_has_node && return 0
   [[ "${CLAUDE_NODE_FORCE_INSTALL_FAIL:-}" == "1" ]] && return 1

@@ -61,7 +61,11 @@ def _run_hook(payload, env=None, plugin_data=None):
     proc_env = _hermetic_env(extra=env, plugin_data=plugin_data)
     return subprocess.run(
         ["bash", str(HOOK)], input=json.dumps(payload),
-        capture_output=True, text=True, timeout=10, env=proc_env)
+        # Generous timeout: pre-agent-advisor.sh spawns several python3/log
+        # subprocesses and a loaded test host can intermittently stall process
+        # creation for seconds. 10s occasionally tripped on a busy macOS box;
+        # 60s absorbs the variance without masking a genuine hang.
+        capture_output=True, text=True, timeout=60, env=proc_env)
 
 
 _INLINE_REVIEWER_FRONTMATTER = """---

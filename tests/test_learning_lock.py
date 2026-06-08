@@ -75,6 +75,11 @@ class LockSerialization(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
+    @unittest.skipUnless(
+        shutil.which("flock"),
+        "flock(1) not available (e.g. stock macOS) — with_learning_lock falls "
+        "back to no-op single-process semantics, so cross-process "
+        "serialization cannot be exercised here. Validated on Linux/CI.")
     def test_concurrent_with_same_hash_serializes(self):
         marker = self.tmp / "events"
         # Start a holder that takes the lock for ~1.5s and writes timestamps.

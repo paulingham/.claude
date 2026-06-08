@@ -85,11 +85,13 @@ def test_reflect_cleanup_removes_subdir_in_one_op(tmp_path):
     code, _, err = _run_cleanup(tmp_path, "t1")
     assert code == 0, err
     assert not sub.exists()
-    # Doc-grep: SKILL.md must document the new-layout subdir cleanup.
+    # Doc-grep: SKILL.md must document the new-layout subdir cleanup. The
+    # command is `find "$task_dir" -type f -delete` (NOT `rm -rf` — that is
+    # sandbox-denied on directories even on orchestrator-writable paths).
     skill_text = PIPELINE_SKILL.read_text()
-    assert "rm -rf pipeline-state/{task-id}/" in skill_text or \
-           "rm -rf pipeline-state/[feature-name]/" in skill_text, \
-        "skills/pipeline/SKILL.md Step 7 must document `rm -rf pipeline-state/{task-id}/`"
+    assert 'find "$task_dir" -type f -delete' in skill_text, \
+        ('skills/pipeline/SKILL.md Step 7 must document the per-task subdir '
+         'cleanup via `find "$task_dir" -type f -delete`')
 
 
 def test_reflect_cleanup_does_not_touch_other_tasks(tmp_path):
