@@ -12,20 +12,33 @@
 # Auto-start automation supervisor if repos are registered and it's not running
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/session-id.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "SessionStart"
 trap 'log_hook_event $?' EXIT
 
-# Re-arm the intake-backstop gate for this session: clear the per-session
-# marker that intake-fingerprint-audit.sh drops on /intake. Without a marker
-# (and no active pipeline) the backstop blocks orchestrator work-bash and
-# specialized spawns until /intake runs. SID derivation MUST stay identical to
-# intake-fingerprint-audit.sh and intake-backstop.sh.
-SSB_SID_RAW="${CLAUDE_SESSION_ID:-local-$$}"
-SSB_SID="${SSB_SID_RAW//[^A-Za-z0-9_-]/}"
-[[ -z "$SSB_SID" ]] && SSB_SID="local-$$"
+# Re-arm the intake-backstop gate for this session: clear the per-session marker
+# that intake-fingerprint-audit.sh drops on /intake. Without a marker (and no
+# active pipeline) the backstop blocks orchestrator work-bash and specialized
+# spawns until /intake runs. SID derives from the SessionStart stdin .session_id
+# via the shared resolve_session_id helper — IDENTICAL derivation to the writer
+# and reader, so this clears the marker the round-trip will use this session.
+# Read stdin only when it is a pipe (the harness always pipes the SessionStart
+# JSON); never block on a TTY so a bare `bash session-start-bootstrap.sh` and the
+# existing no-stdin tests still terminate.
+SSB_INPUT=""
+[[ ! -t 0 ]] && SSB_INPUT=$(cat 2>/dev/null)
+SSB_SID=$(resolve_session_id "$SSB_INPUT")
 rm -f "$HARNESS_DATA/intake-markers/$SSB_SID.marker" 2>/dev/null || true
+# Fallback: if no real .session_id was on stdin, resolve_session_id degraded to
+# local-$$ (the current PID — never a marker an earlier session wrote). A session
+# start legitimately re-arms the gate, so sweep every stale local-* marker too,
+# otherwise a marker keyed to a dead session's PID could linger and leak.
+if [[ "$SSB_SID" == local-* ]]; then
+    rm -f "$HARNESS_DATA"/intake-markers/local-*.marker 2>/dev/null || true
+fi
 
 SUPERVISOR="$HARNESS_DATA/automation/supervisor.sh"
 SUPERVISOR_PID="$HARNESS_DATA/automation/supervisor.pid"

@@ -14,18 +14,22 @@
 # path defaults to ALLOW so a buggy detector or a missing lib never wedges the
 # session.
 #
-# SID DEPENDENCY (read this before trusting the marker): the marker
-# round-trip between intake-fingerprint-audit.sh (writer) and this reader
-# requires CLAUDE_SESSION_ID to be the SAME, sanitised identically, in both
-# hook invocations. In this harness CLAUDE_SESSION_ID is NOT present in the
-# persistent shell env — it is injected per hook invocation by the harness. If
-# a future harness drops that injection, both sides fall back to `local-$$`
-# (distinct PIDs => SIDs diverge => marker never matches). The per-session
-# intake marker ($HARNESS_DATA/intake-markers/$SID.marker) is the SOLE
-# "intake ran this session" satisfier. It is written by
-# intake-fingerprint-audit.sh on every /intake and cleared per session by
-# session-start-bootstrap.sh, so it is inherently session-scoped. AC-3 guards
-# the marker round-trip in a controlled (exported-SID) environment.
+# SID DEPENDENCY (read this before trusting the marker): the marker round-trip
+# between intake-fingerprint-audit.sh (writer) and this reader requires the SAME
+# SID, sanitised identically, in both hook invocations. The SID comes from the
+# hook's STDIN .session_id (a stable per-session id the harness injects into
+# every hook payload) — NOT from the CLAUDE_SESSION_ID env, which is NOT set in
+# this harness's hook env. The old env-based derivation fell back to `local-$$`,
+# the hook subprocess PID, which differs on every invocation, so the writer's
+# marker (local-<PID_A>) never matched the reader's lookup (local-<PID_B>) and
+# the gate over-blocked every command after a real /intake. All three hooks now
+# call the shared resolve_session_id helper (_lib/session-id.sh): stdin
+# .session_id, then env, then local-$$. The per-session intake marker
+# ($HARNESS_DATA/intake-markers/$SID.marker) is the SOLE "intake ran this
+# session" satisfier; it is written by intake-fingerprint-audit.sh on every
+# /intake and cleared per session by session-start-bootstrap.sh, so it is
+# inherently session-scoped. AC-13 guards the round-trip via the real stdin
+# .session_id channel (no env crutch).
 #
 # WHY NO GLOBAL ACTIVE-PIPELINE SATISFIER (removed — see AC-12): an earlier
 # revision opened the gate whenever _psp_find_active_pipelines reported ANY
@@ -41,12 +45,13 @@
 # the global scan, so dropping this satisfier does not block a legitimate
 # resume.
 #
-# FAILURE MODE = OVER-BLOCK (recoverable), NOT UNDER-BLOCK: if CLAUDE_SESSION_ID
-# injection is ever unreliable across the writer and reader hook events, the
-# marker may not be found after a real /intake and the gate over-blocks. That
-# is the SAFE direction — a blocked work command is recoverable via the
-# CLAUDE_INTAKE_BACKSTOP=off escape or by re-running /intake, whereas an
-# under-block (the old global-pipeline bug) silently lets ungated work through.
+# FAILURE MODE = OVER-BLOCK (recoverable), NOT UNDER-BLOCK: if the stdin
+# .session_id is ever absent across the writer and reader hook events, both
+# sides fall back to local-$$ (distinct PIDs), the marker is not found after a
+# real /intake and the gate over-blocks. That is the SAFE direction — a blocked
+# work command is recoverable via the CLAUDE_INTAKE_BACKSTOP=off escape or by
+# re-running /intake, whereas an under-block (the old global-pipeline bug)
+# silently lets ungated work through.
 #
 # enforces: protocols/work-class-routing.md:Intake gate
 # protects: intake, pipeline
@@ -55,6 +60,8 @@ _IBS_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=/dev/null
 source "$_IBS_HOOK_DIR/_lib/harness-paths.sh"
+# shellcheck source=/dev/null
+source "$_IBS_HOOK_DIR/_lib/session-id.sh"
 # shellcheck source=/dev/null
 source "$_IBS_HOOK_DIR/_lib/log.sh"
 _log_hook_start
@@ -89,10 +96,11 @@ _ibs_caller_in_worktree() {
 }
 _ibs_caller_in_worktree && exit 0
 
-# Step 4: intake marker present (SID derivation IDENTICAL to the writer).
-SID_RAW="${CLAUDE_SESSION_ID:-local-$$}"
-SID="${SID_RAW//[^A-Za-z0-9_-]/}"
-[[ -z "$SID" ]] && SID="local-$$"
+# Step 4: intake marker present. SID derives from stdin .session_id via the
+# shared resolve_session_id helper — IDENTICAL to the writer
+# (intake-fingerprint-audit.sh) and the clearer (session-start-bootstrap.sh), so
+# the marker the writer dropped this session is the marker this reader looks up.
+SID=$(resolve_session_id "$INPUT")
 [[ -f "$HARNESS_DATA/intake-markers/$SID.marker" ]] && exit 0
 
 # NOTE: there is deliberately NO global active-pipeline satisfier here. See the

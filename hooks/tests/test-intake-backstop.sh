@@ -33,8 +33,13 @@ run_test() {
 IBS_TMP=$(mktemp -d)
 export CLAUDE_PLUGIN_DATA="$IBS_TMP/data"
 mkdir -p "$CLAUDE_PLUGIN_DATA"
-# Stable, sanitisable session id for the marker round-trip.
-export CLAUDE_SESSION_ID="ibs-test-session"
+# CRITICAL: CLAUDE_SESSION_ID is deliberately NOT exported. In the real harness
+# it is UNSET in the hook env, so the old `local-$$` fallback yields a fresh PID
+# per hook subprocess and the writer's marker never matches the reader's lookup.
+# The SID travels through the hook's stdin `.session_id` field instead. Every
+# helper below injects SID via stdin JSON; MARKER is computed from that same SID
+# so the assertions exercise the real round-trip channel. Re-exporting
+# CLAUDE_SESSION_ID here would re-mask the exact bug AC-13 guards — do not add it.
 SID="ibs-test-session"
 MARKER_DIR="$CLAUDE_PLUGIN_DATA/intake-markers"
 MARKER="$MARKER_DIR/$SID.marker"
@@ -56,17 +61,21 @@ echo ""
 echo "-- SLICE A: marker + advisory --"
 
 # AC-8: marker written on intake (audit hook with Skill [Intake] task_id response).
+# SID arrives via stdin .session_id (the real channel), NOT via env.
 clear_marker
 (cd "$IBS_MAIN" && \
-  jq -nc '{tool_name:"Skill",tool_response:"[Intake] task_id: foo\nrouted to T5",hook_event_name:"PostToolUse"}' \
+  jq -nc --arg s "$SID" '{tool_name:"Skill",tool_response:"[Intake] task_id: foo\nrouted to T5",session_id:$s,hook_event_name:"PostToolUse"}' \
     | bash "$HOOKS_DIR/intake-fingerprint-audit.sh" > /dev/null 2>&1)
 AUDIT_EXIT=$?
 run_test "AC-8: audit hook exits 0 on intake" 0 "$AUDIT_EXIT"
 if [[ -f "$MARKER" ]]; then pass "AC-8: marker_written_on_intake"; else fail "AC-8: marker_written_on_intake" "file" "missing"; fi
 
-# AC-9: marker cleared on session start.
+# AC-9: marker cleared on session start. SessionStart stdin carries .session_id;
+# the hook must derive SID from it to clear THIS session's marker.
 write_marker
-(cd "$IBS_MAIN" && bash "$HOOKS_DIR/session-start-bootstrap.sh" > /dev/null 2>&1)
+(cd "$IBS_MAIN" && \
+  jq -nc --arg s "$SID" '{session_id:$s,hook_event_name:"SessionStart"}' \
+    | bash "$HOOKS_DIR/session-start-bootstrap.sh" > /dev/null 2>&1)
 if [[ ! -f "$MARKER" ]]; then pass "AC-9: marker_cleared_on_session_start"; else fail "AC-9: marker_cleared_on_session_start" "removed" "present"; fi
 
 # AC-1: conversational prompt never blocks (advisory hook).
@@ -88,10 +97,11 @@ echo "-- SLICE B: backstop predicate --"
 # caller, no marker, no pipeline) unless overridden.
 run_bash() {
   # $1=command  $2=cwd(default IBS_MAIN)  $3=subagent_type(default empty)
-  local cmd="$1" cwd="${2:-$IBS_MAIN}" subtype="${3:-}"
+  #   $4=session_id(default $SID) — the marker-scoping channel.
+  local cmd="$1" cwd="${2:-$IBS_MAIN}" subtype="${3:-}" sess="${4:-$SID}"
   (cd "$cwd" && \
-    jq -nc --arg c "$cmd" --arg s "$subtype" \
-      '{tool_name:"Bash",tool_input:{command:$c},subagent_type:$s,hook_event_name:"PreToolUse"}' \
+    jq -nc --arg c "$cmd" --arg s "$subtype" --arg sid "$sess" \
+      '{tool_name:"Bash",tool_input:{command:$c},subagent_type:$s,session_id:$sid,hook_event_name:"PreToolUse"}' \
       | bash "$HOOKS_DIR/intake-backstop.sh" > /dev/null 2>&1)
 }
 
@@ -99,8 +109,8 @@ run_agent() {
   # $1=spawn target subagent_type
   local target="$1"
   (cd "$IBS_MAIN" && \
-    jq -nc --arg t "$target" \
-      '{tool_name:"Agent",tool_input:{subagent_type:$t},hook_event_name:"PreToolUse"}' \
+    jq -nc --arg t "$target" --arg sid "$SID" \
+      '{tool_name:"Agent",tool_input:{subagent_type:$t},session_id:$sid,hook_event_name:"PreToolUse"}' \
       | bash "$HOOKS_DIR/intake-backstop.sh" > /dev/null 2>&1)
 }
 
@@ -112,7 +122,7 @@ run_test "AC-2: pip install (no intake) -> block (exit 2)" 2 $?
 # Confirm BLOCKED stderr present.
 clear_marker
 BLK_ERR=$( (cd "$IBS_MAIN" && \
-  jq -nc '{tool_name:"Bash",tool_input:{command:"pip install requests"},hook_event_name:"PreToolUse"}' \
+  jq -nc --arg sid "$SID" '{tool_name:"Bash",tool_input:{command:"pip install requests"},session_id:$sid,hook_event_name:"PreToolUse"}' \
     | bash "$HOOKS_DIR/intake-backstop.sh" 2>&1 1>/dev/null) )
 if echo "$BLK_ERR" | grep -q "BLOCKED:"; then pass "AC-2: stderr has BLOCKED"; else fail "AC-2: stderr BLOCKED" "BLOCKED" "$BLK_ERR"; fi
 
@@ -146,13 +156,14 @@ run_test "AC-6b: software-engineer spawn (no intake) -> block (exit 2)" 2 $?
 run_agent "harness:code-reviewer"
 run_test "AC-6b: harness:code-reviewer spawn (no intake) -> block (exit 2)" 2 $?
 
-# AC-7: escape env allows work bash AND specialized spawn.
-(cd "$IBS_MAIN" && CLAUDE_INTAKE_BACKSTOP=off \
-  jq -nc '{tool_name:"Bash",tool_input:{command:"pip install requests"},hook_event_name:"PreToolUse"}' \
+# AC-7: escape env allows work bash AND specialized spawn (no marker for $SID).
+clear_marker
+(cd "$IBS_MAIN" && \
+  jq -nc --arg sid "$SID" '{tool_name:"Bash",tool_input:{command:"pip install requests"},session_id:$sid,hook_event_name:"PreToolUse"}' \
   | CLAUDE_INTAKE_BACKSTOP=off bash "$HOOKS_DIR/intake-backstop.sh" > /dev/null 2>&1)
 run_test "AC-7: CLAUDE_INTAKE_BACKSTOP=off + work bash -> allow (exit 0)" 0 $?
 (cd "$IBS_MAIN" && \
-  jq -nc '{tool_name:"Agent",tool_input:{subagent_type:"software-engineer"},hook_event_name:"PreToolUse"}' \
+  jq -nc --arg sid "$SID" '{tool_name:"Agent",tool_input:{subagent_type:"software-engineer"},session_id:$sid,hook_event_name:"PreToolUse"}' \
   | CLAUDE_INTAKE_BACKSTOP=off bash "$HOOKS_DIR/intake-backstop.sh" > /dev/null 2>&1)
 run_test "AC-7: CLAUDE_INTAKE_BACKSTOP=off + specialized spawn -> allow (exit 0)" 0 $?
 
@@ -188,6 +199,39 @@ clear_marker
 run_bash "pip install requests"
 run_test "AC-12: orphaned_pipeline_does_not_disable_gate (block, exit 2)" 2 $?
 rm -rf "$CLAUDE_PLUGIN_DATA/pipeline-state"
+
+# AC-13: marker round-trip via stdin .session_id — the REAL-harness channel.
+# Proves writer and reader agree on SID derived from stdin (NOT env CLAUDE_SESSION_ID,
+# which is unset in the real hook env and whose old `local-$$` fallback diverges per
+# subprocess). Drives the hooks exactly as the harness does: session_id IN the JSON.
+echo "  -- AC-13: marker round-trip via stdin .session_id --"
+rm -rf "$MARKER_DIR"
+
+# (1) WRITER: feed intake-fingerprint-audit.sh a /intake response with session_id=sess-ABC.
+(cd "$IBS_MAIN" && \
+  jq -nc '{tool_name:"Skill",tool_response:"[Intake] task_id: rt\nrouted to T5",session_id:"sess-ABC",hook_event_name:"PostToolUse"}' \
+    | bash "$HOOKS_DIR/intake-fingerprint-audit.sh" > /dev/null 2>&1)
+if [[ -f "$MARKER_DIR/sess-ABC.marker" ]]; then
+  pass "AC-13: writer creates intake-markers/sess-ABC.marker"
+else
+  fail "AC-13: writer creates sess-ABC.marker" "sess-ABC.marker" "$(ls "$MARKER_DIR" 2>/dev/null | tr '\n' ',')"
+fi
+# It must be SID-derived from stdin, NOT a local-$$ PID marker.
+LOCAL_MARKERS=$(find "$MARKER_DIR" -name 'local-*.marker' 2>/dev/null | wc -l | tr -d ' ')
+if [[ "$LOCAL_MARKERS" -eq 0 ]]; then
+  pass "AC-13: writer did NOT fall back to a local-PID marker"
+else
+  fail "AC-13: writer no local-PID marker" "0" "$LOCAL_MARKERS"
+fi
+
+# (2) READER same session sess-ABC, orchestrator caller, work command -> ALLOW (exit 0).
+run_bash "pip install x" "$IBS_MAIN" "" "sess-ABC"
+run_test "AC-13: reader (same session sess-ABC, marker found) -> allow (exit 0)" 0 $?
+
+# (3) READER different session sess-XYZ (no marker) -> BLOCK (exit 2). Proves SID scopes the marker.
+run_bash "pip install x" "$IBS_MAIN" "" "sess-XYZ"
+run_test "AC-13: reader (different session sess-XYZ, no marker) -> block (exit 2)" 2 $?
+rm -rf "$MARKER_DIR"
 
 # Extra W-detector coverage (block when strict, allow read-only counterparts).
 echo "  -- W1-W8 detectors --"
