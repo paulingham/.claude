@@ -33,6 +33,9 @@ EXPECTED_ORDER = [
     "cache-breakpoint-injector",
     "verification-freshness-guard",
     "scratchpad-bytes",
+    # swe-pruner advisory context-pruning filter (#172) sits after the
+    # scratchpad guard and before the resource-cap guards.
+    "pre-agent-swe-pruner",
     "depth-guard",
     "runtime-guard",
 ]

@@ -27,60 +27,22 @@ source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/qu
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/quality-gate-pairing.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/jsonl-emit.sh"
 
-# Log-only advisory: empty CLAUDE_PIPELINE_TASK_ID causes quality-gate EVENT
-# and SNAPSHOT writes to land in pipeline-state/unknown/ (see TASK_ID fallback
-# below), which corrupts cross-pipeline state when concurrent pipelines share
-# the same HARNESS_DATA. (Freshness reads are unaffected: _qg_check_freshness
-# uses a worktree glob and does not require this var.) Emit a would-block event
-# + actionable stderr; promote to exit 2 after 14d soak
-# (see plan: fix-freshness-gate-fallback-corruption slice A).
-if [[ -z "${CLAUDE_PIPELINE_TASK_ID:-}" ]]; then
-  ADV_EVENTS=$(_qg_events_path)
-  mkdir -p "$(dirname "$ADV_EVENTS")"
-  _jsonl_emit "$ADV_EVENTS" source would-block-task-id task_id ""
-  cat >&2 <<'ADVISORY'
-ADVISORY: CLAUDE_PIPELINE_TASK_ID is unset. Quality-gate event and snapshot
-writes will land in pipeline-state/unknown/, which can corrupt cross-pipeline
-state when concurrent pipelines share the same HARNESS_DATA directory.
-
-Fix options:
-  1. Set CLAUDE_PIPELINE_TASK_ID=<task-id> in your shell, OR
-  2. Re-run via /pipeline (Step 2c sets it automatically), OR
-  3. Refresh the stale stub yourself:
-     echo "{\"task_id\":\"unknown\",\"verdict\":\"VERIFIED\",\"git_head\":\"$(git rev-parse HEAD)\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"branch\":\"main\"}" > "$HARNESS_DATA/pipeline-state/unknown/verification-evidence.json"
-
-Soak: log-only for 14d (see feedback_freshness_gate_no_t1_carveout.md).
-ADVISORY
-fi
+# Log-only advisory when CLAUDE_PIPELINE_TASK_ID is empty (logic in _lib).
+_qg_taskid_advisory
 
 RT=$(_qg_detect_runtime)
 ANY_FAILED=0
-# CLAUDE_QG_SKIP_CHECKS=1 skips the heavy build-quality checks (tests, lint,
-# audit, shape, contract) while preserving the advisory + freshness logic.
-# Set by the test conftest so unit tests that invoke this hook via subprocess
-# do NOT recursively shell out to the project's own (multi-minute) test suite.
-# Never set in production; the production gate always runs the full checks.
+# CLAUDE_QG_SKIP_CHECKS=1 skips the heavy checks (tests/lint/audit/shape/
+# contract) while preserving advisory + freshness logic; set by the test
+# conftest so a test invoking this hook does NOT recursively re-run the suite.
 if [[ "${CLAUDE_QG_SKIP_CHECKS:-0}" != "1" ]]; then
   for check in tests lint audit shape contract; do
-    _qg_check_${check} "$RT"
-    rc=$?
+    _qg_check_${check} "$RT"; rc=$?
     [[ $rc -ne 0 ]] && ANY_FAILED=1
   done
 fi
-_qg_check_freshness "$COMMAND"
-rc=$?
+_qg_check_freshness "$COMMAND"; rc=$?
 [[ $rc -ne 0 ]] && ANY_FAILED=1
 
-TASK_ID="${CLAUDE_PIPELINE_TASK_ID:-unknown}"
-EVENTS=$(_qg_events_path)
-mkdir -p "$(dirname "$EVENTS")"
-if [[ $ANY_FAILED -eq 0 ]]; then
-  _qg_write_snapshot "$TASK_ID"
-  _jsonl_emit "$EVENTS" source passed task_id "$TASK_ID"
-  echo "QUALITY GATE PASSED" >&2
-  exit 0
-else
-  _jsonl_emit "$EVENTS" source prevented task_id "$TASK_ID"
-  echo "QUALITY GATE FAILED: Fix issues before creating PR" >&2
-  exit 2
-fi
+_qg_finalize "$ANY_FAILED"
+exit $?

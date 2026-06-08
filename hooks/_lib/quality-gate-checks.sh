@@ -10,6 +10,47 @@ _qg_detect_runtime() {
   echo unknown
 }
 
+# Emit the terminal pass/prevented event + snapshot, echo the verdict, and
+# return the exit code the hook should use (0 pass / 2 fail). Requires
+# _qg_events_path, _jsonl_emit, _qg_write_snapshot (sourced by the caller).
+_qg_finalize() {
+  local any_failed="$1" task events
+  task="${CLAUDE_PIPELINE_TASK_ID:-unknown}"
+  events=$(_qg_events_path); mkdir -p "$(dirname "$events")"
+  if [[ "$any_failed" -eq 0 ]]; then
+    _qg_write_snapshot "$task"
+    _jsonl_emit "$events" source passed task_id "$task"
+    echo "QUALITY GATE PASSED" >&2; return 0
+  fi
+  _jsonl_emit "$events" source prevented task_id "$task"
+  echo "QUALITY GATE FAILED: Fix issues before creating PR" >&2; return 2
+}
+
+# Log-only advisory: empty CLAUDE_PIPELINE_TASK_ID makes quality-gate event +
+# snapshot writes land in pipeline-state/unknown/, corrupting cross-pipeline
+# state when concurrent pipelines share HARNESS_DATA. Emit a would-block event
+# + actionable stderr. (Promote to exit 2 after the 14d soak.) Requires
+# _qg_events_path + _jsonl_emit, both sourced by the caller. Never exits.
+_qg_taskid_advisory() {
+  [[ -n "${CLAUDE_PIPELINE_TASK_ID:-}" ]] && return 0
+  local adv; adv=$(_qg_events_path)
+  mkdir -p "$(dirname "$adv")"
+  _jsonl_emit "$adv" source would-block-task-id task_id ""
+  cat >&2 <<'ADVISORY'
+ADVISORY: CLAUDE_PIPELINE_TASK_ID is unset. Quality-gate event and snapshot
+writes will land in pipeline-state/unknown/, which can corrupt cross-pipeline
+state when concurrent pipelines share the same HARNESS_DATA directory.
+
+Fix options:
+  1. Set CLAUDE_PIPELINE_TASK_ID=<task-id> in your shell, OR
+  2. Re-run via /pipeline (Step 2c sets it automatically), OR
+  3. Refresh the stale stub yourself:
+     echo "{\"task_id\":\"unknown\",\"verdict\":\"VERIFIED\",\"git_head\":\"$(git rev-parse HEAD)\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"branch\":\"main\"}" > "$HARNESS_DATA/pipeline-state/unknown/verification-evidence.json"
+
+Soak: log-only for 14d (see feedback_freshness_gate_no_t1_carveout.md).
+ADVISORY
+}
+
 # Skip-eligible (return 0) ONLY when the HEAD~1..HEAD diff was computed AND has
 # zero files matching $1. Returns 1 when the diff touches $1 OR is undeterminable
 # (no/failed diff) — conservative: run the suite on uncertainty.
