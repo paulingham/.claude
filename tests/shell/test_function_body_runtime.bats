@@ -3,8 +3,12 @@
 # Verifies the default cap (8) and CLAUDE_FUNCTION_LINE_LIMIT override.
 
 setup() {
-    HOOK="${BATS_TEST_DIRNAME}/../../hooks/function-body-check.sh"
-    TMPDIR_FIX="$(mktemp -d /tmp/fbcheck.XXXXXX)"
+    # Point the hook's _lib resolution at the repo so log.sh/hook-profile.sh/
+    # loop-guard.sh source cleanly on a bare CI runner (no $HOME/.claude tree).
+    CLAUDE_PLUGIN_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
+    export CLAUDE_PLUGIN_ROOT
+    HOOK="${CLAUDE_PLUGIN_ROOT}/hooks/function-body-check.sh"
+    TMPDIR_FIX="$(mktemp -d "${TMPDIR:-/tmp}/fbcheck.XXXXXX")"
     FIXTURE="${TMPDIR_FIX}/sample.py"
 }
 
