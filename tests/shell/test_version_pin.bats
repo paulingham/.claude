@@ -184,3 +184,49 @@ load_helper() {
   [ "$status" -eq 0 ]
   [[ "$output" =~ ^2\.1\.160$ ]]
 }
+
+# --- GP-05: v2.1. snapshot guard ---
+# The allowlist at tests/shell/version-allowlist.txt captures every unique
+# trimmed line in tracked .md files that contains 'v2.1.' at baseline.
+# These tests ensure no new un-allowlisted v2.1. reference is added to the
+# codebase without explicitly updating the allowlist.
+
+@test "version-allowlist.txt exists and is non-empty" {
+  local allowlist="${BATS_TEST_DIRNAME}/version-allowlist.txt"
+  [ -f "$allowlist" ]
+  [ -s "$allowlist" ]
+}
+
+@test "every tracked .md line containing v2.1. is in the allowlist" {
+  local repo_root
+  repo_root="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
+  local allowlist="${BATS_TEST_DIRNAME}/version-allowlist.txt"
+
+  # Build current set: same pipeline used to generate the allowlist
+  local current_set violations_file
+  current_set="$(git -C "$repo_root" grep -hF 'v2.1.' -- '*.md' \
+    | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' \
+    | sort -u)"
+
+  violations_file="$(mktemp)"
+  while IFS= read -r trimmed; do
+    # Use a temp file with the pattern to avoid grep treating leading dashes as flags
+    local pat_file
+    pat_file="$(mktemp)"
+    printf '%s\n' "$trimmed" > "$pat_file"
+    if ! grep -qxFf "$pat_file" "$allowlist"; then
+      printf '%s\n' "$trimmed" >> "$violations_file"
+    fi
+    rm -f "$pat_file"
+  done <<< "$current_set"
+
+  if [ -s "$violations_file" ]; then
+    echo "FAIL: the following v2.1. lines are not in tests/shell/version-allowlist.txt:"
+    while IFS= read -r v; do
+      echo "  >> $v"
+    done < "$violations_file"
+    rm -f "$violations_file"
+    return 1
+  fi
+  rm -f "$violations_file"
+}
