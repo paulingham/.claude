@@ -52,7 +52,9 @@ def _run_hook(payload, env=None):
     proc_env.update(env or {})
     return subprocess.run(
         ["bash", str(HOOK)], input=json.dumps(payload),
-        capture_output=True, text=True, timeout=10, env=proc_env)
+        # Generous timeout for loaded-host process-spawn stalls (see the same
+        # rationale in test_freshness_guard / test_advisor_resolver).
+        capture_output=True, text=True, timeout=60, env=proc_env)
 
 
 def _write_state(dirpath, task_id, body):
@@ -685,7 +687,7 @@ RESOLVER_SCRIPT = REPO_ROOT / "hooks" / "_lib" / "resolve-thinking.py"
 def _run_resolver(payload):
     return subprocess.run(
         ["python3", str(RESOLVER_SCRIPT)], input=json.dumps(payload),
-        capture_output=True, text=True, timeout=10)
+        capture_output=True, text=True, timeout=60)
 
 
 class ResolverEmitsDecisionLine(unittest.TestCase):

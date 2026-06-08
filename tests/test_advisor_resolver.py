@@ -54,7 +54,7 @@ def _run_resolver(payload, env=None):
     proc_env = _hermetic_env(extra=env)
     return subprocess.run(
         ["python3", str(RESOLVER_SCRIPT)], input=json.dumps(payload),
-        capture_output=True, text=True, timeout=10, env=proc_env)
+        capture_output=True, text=True, timeout=60, env=proc_env)
 
 
 def _run_hook(payload, env=None, plugin_data=None):
@@ -450,7 +450,10 @@ _DOC_TOUCHPOINTS = [
     REPO_ROOT / "skills" / "code-review" / "SKILL.md",
     REPO_ROOT / "skills" / "security-review" / "SKILL.md",
     REPO_ROOT / "protocols" / "parallel-dispatch-protocol.md",
-    REPO_ROOT / "CLAUDE.md",
+    # CLAUDE.md was pruned to a pointer (commit b606d59); the advisor-mode
+    # cost figure (with its PROVISIONAL + advisor-baseline marking) now lives
+    # in its source of truth, protocols/advisor-mode.md.
+    REPO_ROOT / "protocols" / "advisor-mode.md",
 ]
 
 
@@ -671,7 +674,7 @@ def _run_resolver_with_budget(payload, budget, env=None):
         return subprocess.run(
             ["python3", str(RESOLVER_SCRIPT)],
             input=json.dumps(payload),
-            capture_output=True, text=True, timeout=10, env=proc_env)
+            capture_output=True, text=True, timeout=60, env=proc_env)
 
 
 def _run_hook_with_budget(payload, budget, env=None):
@@ -689,7 +692,7 @@ def _run_hook_with_budget(payload, budget, env=None):
         return subprocess.run(
             ["bash", str(HOOK)],
             input=json.dumps(payload),
-            capture_output=True, text=True, timeout=10, env=proc_env)
+            capture_output=True, text=True, timeout=60, env=proc_env)
 
 
 class ResolverEmitsThreeLinesForReviewerWithConditional(unittest.TestCase):
@@ -842,7 +845,7 @@ class HookExitsZeroOnResolverCrash(unittest.TestCase):
                 result = subprocess.run(
                     ["bash", str(HOOK)],
                     input=json.dumps(_REVIEWER_PAYLOAD_BUDGET4),
-                    capture_output=True, text=True, timeout=10,
+                    capture_output=True, text=True, timeout=60,
                     env={
                         **os.environ,
                         # PATH has bash + broken dir; python3 in broken_python_bin
@@ -870,7 +873,7 @@ class ThinkingHookProducesNoStdoutForAgentPayload(unittest.TestCase):
                 ["bash", str(THINKING_HOOK)],
                 input=json.dumps({"tool_name": "Agent",
                                   "tool_input": {"subagent_type": "code-reviewer"}}),
-                capture_output=True, text=True, timeout=10,
+                capture_output=True, text=True, timeout=60,
                 env={**os.environ,
                      "ANTHROPIC_API_KEY": "sk-test",
                      "CLAUDE_PIPELINE_STATE_DIR": tmp})
