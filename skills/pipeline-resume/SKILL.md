@@ -22,7 +22,7 @@ Detects and resumes in-progress pipelines from structured state files in `pipeli
 
 The intake-backstop gate (`hooks/intake-backstop.sh`) blocks orchestrator work
 when no per-session intake marker exists. Resuming an interrupted pipeline is a
-legitimate continuation that did NOT run `/intake` in THIS session, so it must
+legitimate continuation that did NOT run `/harness:intake` in THIS session, so it must
 arm the marker itself — otherwise the first work-bash or specialized-agent
 spawn after resume is BLOCKED. The earlier global "any in_progress pipeline
 satisfies the gate" shortcut was REMOVED (it let one orphaned dead-session
