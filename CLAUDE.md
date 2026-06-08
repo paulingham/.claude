@@ -19,6 +19,12 @@ All runtime state (pipeline-state, session-memory, agent-memory session dirs, me
 
 Paths shown as `~/.claude/…` in agent and protocol files resolve at runtime via `HARNESS_ROOT` (shipped content) or `HARNESS_DATA` (runtime state) — see `hooks/_lib/harness-paths.sh`.
 
+## Version SSOT
+
+The harness version lives in exactly one file: `version-pin` (repo root). It is the **minimum-version floor** consumed by `hooks/_lib/session-start-version-check.sh` (`_ssvc_check_version` warns when the running Claude Code is below it). Any documentation that needs to state *the current harness version* MUST use the rendered token `{{HARNESS_VERSION}}` (resolves to the contents of `version-pin`) rather than hardcoding a `v2.1.x` literal.
+
+Existing `v2.1.x` mentions in tracked `.md` are **historical changelog markers** ("advisory at v2.1.140", "log-only at v2.1.141") — point-in-time facts about when a behaviour shipped, NOT the current version. They are intentionally preserved verbatim and enumerated in `tests/shell/version-allowlist.txt`. The snapshot guard `tests/shell/test_version_pin.bats` greps every tracked `.md` for the literal `v2.1.` and fails if any occurrence is absent from that allowlist — so a *new* divergent hardcode is caught, while history stays honest. Adding a genuinely new historical marker means appending its line to the allowlist in the same commit; a new current-version reference means using `{{HARNESS_VERSION}}` instead.
+
 ## Session Start (automatic)
 
 1. **In-progress pipeline check**: source `hooks/_lib/pipeline-state-paths.sh` and run `_psp_find_active_pipelines 2>/dev/null | head -1`. If found, auto-invoke `/harness:pipeline-resume` and inform: "Resuming [pipeline name] from [phase]."
