@@ -29,13 +29,11 @@ jobs:
       # here guarantees no test can recursively invoke the project's own pytest
       # suite via the quality-gate hook even if conftest loading is bypassed.
       CLAUDE_QG_SKIP_CHECKS: "1"
-      # Several tests resolve harness paths (seed templates, status DBs, the
-      # codebase-map sqlite) via the harness root/data dirs. On a dev machine
-      # these default to ~/.claude (which IS the harness); on a clean CI runner
-      # they must point at the checked-out repo, or those tests fail with
-      # missing-template / no-such-table / no-success-recorded errors.
-      CLAUDE_CONFIG_DIR: ${{ github.workspace }}
-      CLAUDE_PLUGIN_ROOT: ${{ github.workspace }}
+      # NOTE: deliberately do NOT set CLAUDE_CONFIG_DIR here. It overrides
+      # HARNESS_DATA (where hooks write metrics), which conflicts with the many
+      # tests that assert against a hermetic per-test dir or $HOME/.claude. The
+      # runner's clean $HOME is the right harness-data root; the tests provide
+      # their own seed/state, so a bare environment is correct.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -62,9 +60,6 @@ jobs:
     # That cleanup is a separate effort from greening the pytest suite; the job
     # runs and reports so the drift stays visible, but does not gate the PR.
     continue-on-error: true
-    env:
-      CLAUDE_CONFIG_DIR: ${{ github.workspace }}
-      CLAUDE_PLUGIN_ROOT: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
       - name: Install bats + jq
