@@ -10,11 +10,18 @@ set -uo pipefail
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 # shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/log.sh"
+_log_hook_start
+_log_hook_trigger "SubagentStop"
+trap 'log_hook_event $?' EXIT
+# shellcheck source=/dev/null
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/bug_fixed_payload_validator.sh"
 
 INPUT=$(cat)
 STOP_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo false)
-[[ "$STOP_ACTIVE" = "true" ]] && exit 0
+# Nested SubagentStop must be a pure no-op — neutralise the EXIT-trap logger
+# so no forensic JSONL is written on the short-circuit path.
+[[ "$STOP_ACTIVE" = "true" ]] && { trap - EXIT; exit 0; }
 
 TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript // .stop_transcript // ""' 2>/dev/null || echo "")
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null || echo unknown)

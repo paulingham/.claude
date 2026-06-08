@@ -41,8 +41,11 @@ class FixEngineerRouting(unittest.TestCase):
     def test_fix_engineer_frontmatter_contract(self):
         fm = _parse_frontmatter(FIX_ENGINEER_PATH)
         self.assertEqual(fm.get("name"), "fix-engineer")
-        self.assertEqual(fm.get("model"), "opus")
-        self.assertEqual(fm.get("executor"), "claude-opus-4-7")
+        # fix-engineer was demoted to Sonnet in the model-demotion pass
+        # (commit e0fc32d); the orchestrator still escalates it to Opus
+        # dynamically at higher budgets (see agents/fix-engineer.md § dispatch).
+        self.assertEqual(fm.get("model"), "sonnet")
+        self.assertEqual(fm.get("executor"), "claude-sonnet-4-6")
         self.assertEqual(fm.get("advisor"), "none")
         cats = fm.get("instinct_categories")
         self.assertIsInstance(cats, list, "instinct_categories must be a list")

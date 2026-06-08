@@ -121,8 +121,8 @@ class DocsRecordBackgroundSpawnContract(unittest.TestCase):
     def test_reflection_protocol_specifies_run_in_background(self):
         path = REPO_ROOT / "protocols" / "reflection-protocol.md"
         body = path.read_text()
-        # AC1: literal phrase OR substantive equivalent.
-        self.assertIn("Pipeline must NOT block on /learn completion", body)
+        # AC1: literal phrase (the skill's canonical name is /harness:learn).
+        self.assertIn("Pipeline must NOT block on /harness:learn completion", body)
         # AC1: background-spawn pattern named.
         self.assertIn("run_in_background: true", body)
 

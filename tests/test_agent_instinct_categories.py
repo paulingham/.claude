@@ -26,6 +26,7 @@ EXPECTED = {
                      "patch-critic-regression", "patch-critic-scope",
                      "code-reviewer"],
     "planning-agent": ["planning-agent", "architect"],
+    "plan-cache-adapter": ["architect"],
     "session-memory-updater": ["session-memory-updater"],
     "sandbox-verify-engineer": ["sandbox-verify-engineer", "qa-engineer"],
     "fix-engineer": ["fix-engineer", "software-engineer"],

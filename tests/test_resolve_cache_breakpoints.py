@@ -27,8 +27,10 @@ VALID_AGENT_INPUT = json.dumps({
     "tool_input": {"subagent_type": "software-engineer", "prompt": "x"},
 })
 
+# persona-tail was promoted deferred -> advisory in slice-c (2026-05-15); see
+# the resolver's _PERSONA_TAIL_ANCHOR (reason: promoted-slice-c-2026-05-15).
+# Only protocol-tail and tool-result-tail remain deferred.
 REQUIRED_DEFERRED = {
-    "persona-tail": "persona-marker-deferred",
     "protocol-tail": "protocol-splice-not-implemented",
     "tool-result-tail": "outside-hook-surface-v2.1.140",
 }
@@ -82,7 +84,12 @@ class ResolverEmitsTwoLineStdout(unittest.TestCase):
             rc_anchor["segment_hash"], r"^[0-9a-f]{64}$",
             "segment_hash must be hex SHA-256")
         self.assertIsInstance(rc_anchor["byte_position"], int)
-        # The three deferred anchors with matching reason enums.
+        # persona-tail: promoted to advisory in slice-c (2026-05-15).
+        persona = by_name.get("persona-tail")
+        self.assertIsNotNone(persona, "persona-tail anchor missing")
+        self.assertEqual(persona["status"], "advisory",
+                         "persona-tail was promoted to advisory in slice-c")
+        # The two still-deferred anchors with matching reason enums.
         for name, reason in REQUIRED_DEFERRED.items():
             self.assertIn(name, by_name, f"anchor {name} missing")
             self.assertEqual(by_name[name]["status"], "deferred",

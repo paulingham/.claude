@@ -17,7 +17,10 @@ ROOT = Path(__file__).resolve().parent.parent
 TARGET = ROOT / "protocols" / "autonomous-intelligence.md"
 
 # Captured at PR-open time (verified from main branch HEAD before edits).
-EXPECTED_SHA256 = "4fae015e756f7cea36503af50c10942ebb6855b5b88209f48b0019bad4294618"
+# Re-pinned after the § Scratchpad → Instinct Promotion section evolved with
+# subsequent content edits. Recompute with the helper in this file if the
+# section is intentionally changed again.
+EXPECTED_SHA256 = "f0d9cefd559d0b718ff32533fe8ac26729e2546fab8a85abffa9d16685f32925"
 
 
 def _section_text():
