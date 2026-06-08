@@ -28,5 +28,5 @@ DECISION=$(printf '%s\n' "$OUT" | sed -n '1p')
 RESOLVED=$(printf '%s\n' "$OUT" | sed -n '2p')
 
 [[ "$DECISION" == "LOG" ]] || exit 0
-printf '%s' "$INPUT" | bash "${HOOK_DIR}/_lib/log-injection.sh" "$RESOLVED" "logged" 2>/dev/null
+printf '%s' "$INPUT" | bash "${HOOK_DIR}/_lib/log-injection.sh" "" "$RESOLVED" "logged" 2>/dev/null
 exit 0
