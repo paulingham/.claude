@@ -31,7 +31,9 @@ _make_start() {
   local input='{"tool_name":"Agent","tool_input":{"subagent_type":"software-engineer"}}'
   run bash -c "echo '$input' | bash $HOOK"
   [ "$status" -eq 0 ]
-  [ "$(ls -1 "$RUNTIME_DIR" | wc -l | tr -d ' ')" = "1" ]
+  # Exactly one .start file (the hook also writes a sibling .count file, so
+  # count .start specifically rather than all directory entries).
+  [ "$(ls -1 "$RUNTIME_DIR"/*.start | wc -l | tr -d ' ')" = "1" ]
   local f; f="$(ls "$RUNTIME_DIR"/*.start | head -1)"
   grep -q ':subagent:software-engineer$' "$f"
 }

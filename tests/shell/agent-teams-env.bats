@@ -9,7 +9,12 @@ REPO_ROOT="${BATS_TEST_DIRNAME}/../.."
 }
 
 @test "AC4.2 .claude/settings.json does not override the env flag" {
-  run jq -r '.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS // empty' "$REPO_ROOT/.claude/settings.json"
+  # The nested .claude/settings.json was retired; a non-existent file cannot
+  # override the flag, which satisfies this contract. Only assert non-override
+  # when the file actually exists.
+  local nested="$REPO_ROOT/.claude/settings.json"
+  [ -f "$nested" ] || skip "no nested .claude/settings.json (cannot override)"
+  run jq -r '.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS // empty' "$nested"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }

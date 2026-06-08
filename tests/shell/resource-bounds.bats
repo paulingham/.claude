@@ -56,6 +56,8 @@ setup() {
 @test "T1.4b settings.json: existing env keys still present" {
   local f="$REPO_ROOT/settings.json"
   [ "$(jq -r '.env.CLAUDE_HOOK_PROFILE' "$f")" = "standard" ]
-  [ "$(jq -r '.env.CLAUDE_ENABLE_TRACE' "$f")" = "1" ]
-  [ "$(jq -r '.env.CLAUDE_CODE_SUBAGENT_MODEL' "$f")" = "opus" ]
+  # Prompt tracing now defaults OFF (toggle per-session with /debug-trace).
+  [ "$(jq -r '.env.CLAUDE_ENABLE_TRACE' "$f")" = "0" ]
+  # Default subagent model demoted opus -> sonnet (model-demotion pass).
+  [ "$(jq -r '.env.CLAUDE_CODE_SUBAGENT_MODEL' "$f")" = "sonnet" ]
 }

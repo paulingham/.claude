@@ -87,8 +87,10 @@ Active Work"
   rm -rf "$HOME/.claude/session-memory/$fresh_hash"
   printf 'data' | session_store_put "$fresh_hash" "$SESSION_ID" -
   local mode
-  mode=$(stat -f '%Lp' "$HOME/.claude/session-memory/$fresh_hash" 2>/dev/null \
-       || stat -c '%a' "$HOME/.claude/session-memory/$fresh_hash" 2>/dev/null)
+  # Linux (stat -c) first; macOS (stat -f) fallback. `stat -f` on Linux does not
+  # fail cleanly, so trying it first yields garbage on the CI runner.
+  mode=$(stat -c '%a' "$HOME/.claude/session-memory/$fresh_hash" 2>/dev/null \
+       || stat -f '%Lp' "$HOME/.claude/session-memory/$fresh_hash" 2>/dev/null)
   [ "$mode" = "700" ]
 }
 
@@ -98,7 +100,7 @@ Active Work"
   printf 'secret' | session_store_put "$fresh_hash" "$SESSION_ID" -
   local blob_path="$HOME/.claude/session-memory/$fresh_hash/$SESSION_ID.md"
   local mode
-  mode=$(stat -f '%Lp' "$blob_path" 2>/dev/null \
-       || stat -c '%a' "$blob_path" 2>/dev/null)
+  mode=$(stat -c '%a' "$blob_path" 2>/dev/null \
+       || stat -f '%Lp' "$blob_path" 2>/dev/null)
   [ "$mode" = "600" ]
 }

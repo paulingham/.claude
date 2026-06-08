@@ -9,6 +9,10 @@ setup() {
   TMP="$(mktemp -d -t cf.XXXXXX)"
   export HOME="$TMP"
   export CLAUDE_SESSION_ID="cf-test-$$"
+  # HARNESS_ROOT -> repo so the hook can source its _lib (log.sh, cost-helpers);
+  # HARNESS_DATA stays $HOME/.claude (where COSTS is asserted) since we do NOT
+  # set CLAUDE_CONFIG_DIR/CLAUDE_PLUGIN_DATA.
+  export CLAUDE_PLUGIN_ROOT="$REPO_ROOT"
   mkdir -p "$TMP/.claude/pipeline-state" "$TMP/.claude/metrics"
   COSTS="$TMP/.claude/metrics/costs.jsonl"
   unset CLAUDE_SUBAGENT_TYPE CLAUDE_SUBAGENT_MODEL CLAUDE_HOOK_PROFILE
@@ -133,8 +137,12 @@ _realistic_payload() {
 }
 
 @test "T16 hook is registered in settings.json under SubagentStop" {
+  # Hook entries were hardened to the fail-safe `bash -lc '...'` wrapper form,
+  # so the script name lives in args, not .command. Match across command+args.
   local settings="$REPO_ROOT/settings.json"
-  jq -e '.hooks.SubagentStop[].hooks[] | select(.command | test("cost-feed.sh"))' "$settings" >/dev/null
+  jq -e '.hooks.SubagentStop[].hooks[]
+         | select(([.command] + (.args // [])) | join(" ") | test("cost-feed.sh"))' \
+     "$settings" >/dev/null
 }
 
 @test "T17 hook file ≤50 LOC" {

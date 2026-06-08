@@ -13,8 +13,8 @@ _cf_pipeline_id_from_path() {
   esac
 }
 
-_cf_pipeline_id() {
-  # DUAL_PATH: helper finds new-layout {task}/pipeline.md AND legacy {task}-pipeline.md.
+_cf_pipeline_id() {  # DUAL_PATH: new {task}/pipeline.md + legacy {task}-pipeline.md
+  # shellcheck disable=SC1091
   source "$(dirname "${BASH_SOURCE[0]}")/pipeline-state-paths.sh"
   local newest; newest=$(_psp_find_active_pipelines | head -1)
   [ -z "$newest" ] && { echo "none"; return 0; }
@@ -71,8 +71,8 @@ _cf_intake_from_path() {
   esac
 }
 
-_cf_active_intake_path() {
-  # Resolve the active pipeline (same dual-path logic as _cf_pipeline_id) -> intake.md.
+_cf_active_intake_path() {  # active pipeline (dual-path) -> sibling intake.md
+  # shellcheck disable=SC1091
   source "$(dirname "${BASH_SOURCE[0]}")/pipeline-state-paths.sh"
   local newest; newest=$(_psp_find_active_pipelines | head -1)
   [ -z "$newest" ] && return 1

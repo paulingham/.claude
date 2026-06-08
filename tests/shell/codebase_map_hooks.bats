@@ -11,7 +11,11 @@ setup() {
   TEST_HOME="$BATS_FILE_TMPDIR/home"; mkdir -p "$TEST_HOME"
   export HOME="$TEST_HOME"
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-  export CLAUDE_CONFIG_DIR="$REPO_ROOT"
+  # HARNESS_ROOT -> repo (so hooks find their _lib + the codebase_map package);
+  # HARNESS_DATA stays $HOME/.claude so state.json/db/metrics writes land in the
+  # hermetic TEST_HOME where STATE_FILE/METRICS_FILE are asserted. Setting
+  # CLAUDE_CONFIG_DIR would override BOTH and send writes into the repo.
+  export CLAUDE_PLUGIN_ROOT="$REPO_ROOT"
   export CLAUDE_SESSION_ID="bats-cbm-$RANDOM"
   export CLAUDE_PROJECT_HASH="batstest"
   export CLAUDE_HOOK_LOG_DIR="$TEST_HOME/.claude/metrics"

@@ -11,7 +11,11 @@ setup() {
   TMP="$(mktemp -d -t sbb.XXXXXX)"
   export HOME="$TMP"
   export CLAUDE_SESSION_ID="sbb-test-$$"
-  export CLAUDE_CONFIG_DIR="$REPO_ROOT"
+  # CLAUDE_PLUGIN_ROOT (HARNESS_ROOT) so the guard finds its libs/runner file,
+  # WITHOUT redirecting HARNESS_DATA — the violation log must land under the
+  # test's $HOME/.claude/metrics where the assertions read it. (CLAUDE_CONFIG_DIR
+  # would override BOTH root and data, writing the log into the repo.)
+  export CLAUDE_PLUGIN_ROOT="$REPO_ROOT"
   export CLAUDE_HOOK_PROFILE="minimal"
   mkdir -p "$TMP/.claude"
 }

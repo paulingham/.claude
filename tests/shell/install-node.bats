@@ -62,6 +62,7 @@ FNM
 
 @test "install_node_via_manager: FORCE_NVM_PRESENT -> emits nvm install --lts (no brew token)" {
   run bash -c "
+    export CLAUDE_NODE_HAS_NODE=0
     export CLAUDE_NODE_PRINTER=echo
     export CLAUDE_NODE_FORCE_NVM_PRESENT=1
     export NVM_DIR='$NVM_STUB_DIR'
@@ -79,6 +80,7 @@ FNM
 @test "install_node_via_manager: FORCE_FNM_PRESENT -> emits fnm install (no brew token)" {
   _make_fnm_stub
   run bash -c "
+    export CLAUDE_NODE_HAS_NODE=0
     export CLAUDE_NODE_PRINTER=echo
     export CLAUDE_NODE_FORCE_FNM_PRESENT=1
     export PATH='$TMP_DIR/bin:/usr/bin:/bin'
