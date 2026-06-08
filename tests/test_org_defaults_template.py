@@ -247,6 +247,52 @@ def test_template_managed_settings_matches_repo_root_managed_settings():
 
 
 # ---------------------------------------------------------------------------
+# Self-heal: bootstrap portable-izes hardcoded abs marketplace path in settings.json
+# ---------------------------------------------------------------------------
+
+def test_managed_settings_bootstrap_self_heals_marketplace_path():
+    """managed-settings.json SessionStart bootstrap must include a self-heal step that
+    rewrites extraKnownMarketplaces.*.source.path from an absolute home-dir path to the
+    portable $HOME/... form.
+
+    Root cause: `claude plugin marketplace add "$D"` records the absolute clone path
+    (/Users|/home/<name>/.claude/...) into ~/.claude/settings.json, which trips
+    hooks/settings-path-lint.sh and blocks every git push/commit until hand-fixed.
+    The bootstrap must portable-ize it in place each session.
+
+    Markers: the command must reference 'extraKnownMarketplaces' (the key it rewrites)
+    and 'expanduser' (how it computes home at runtime). It must NOT contain a literal
+    '/Users/' or '/home/' substring, or the heal step would itself reintroduce the very
+    hardcoded path the lint forbids.
+    """
+    data = json.loads(MANAGED_SETTINGS_FILE.read_text())
+    hooks = data.get("hooks", {})
+    session_start = hooks.get("SessionStart", [])
+    all_commands = []
+    for hook_group in session_start:
+        for hook in hook_group.get("hooks", []):
+            all_commands.append(hook.get("command", ""))
+    combined = " ".join(all_commands)
+
+    assert "extraKnownMarketplaces" in combined, (
+        "SessionStart bootstrap must contain a self-heal step referencing "
+        "'extraKnownMarketplaces' (the settings.json key whose source.path it rewrites)."
+    )
+    assert "expanduser" in combined, (
+        "Self-heal step must compute the home dir at runtime via os.path.expanduser, "
+        "not embed a hardcoded /Users or /home prefix."
+    )
+    assert "/Users/" not in combined, (
+        "Bootstrap command must NOT contain a literal '/Users/' substring — that is the "
+        "exact pattern settings-path-lint forbids; compute home at runtime instead."
+    )
+    assert "/home/" not in combined, (
+        "Bootstrap command must NOT contain a literal '/home/' substring — that is the "
+        "exact pattern settings-path-lint forbids; compute home at runtime instead."
+    )
+
+
+# ---------------------------------------------------------------------------
 # Candidate 1 gap-fill: tightened bootstrap log hygiene — redirect on set-url line
 # ---------------------------------------------------------------------------
 
