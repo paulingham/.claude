@@ -522,3 +522,75 @@ STUB
   " 2>&1
   [ "$status" -eq 0 ]
 }
+
+# ---------------------------------------------------------------------------
+# AC3-hooks-tests: hooks/tests/*.sh change is NOT a hook body — gate no-ops.
+# The regex ^hooks/([^/]*|_lib/[^/]*)\.sh$ excludes paths with a subdir
+# under hooks/ that is not _lib (e.g. tests/).  Pin the exclusion explicitly
+# so a future regex change that accidentally includes hooks/tests/ is caught.
+# ---------------------------------------------------------------------------
+
+@test "AC3-hooks-tests: hooks/tests/*.sh change does NOT fire the gate (excluded)" {
+  local repo="$BATS_FILE_TMPDIR/repo"
+  local wt="$BATS_FILE_TMPDIR/wt"
+  _make_repo "$repo"
+  _make_worktree "$repo" "$wt" "feat/bats-fixture-change"
+
+  # Commit a change inside hooks/tests/ (bats fixture, not a hook body).
+  mkdir -p "$wt/hooks/tests"
+  printf '#!/usr/bin/env bats\n@test "noop" { true; }\n' > "$wt/hooks/tests/my-fixture.bats"
+  # Also add a plain .sh file under hooks/tests/ to hit the exact exclusion case.
+  printf '#!/usr/bin/env bash\necho "fixture helper"\n' > "$wt/hooks/tests/helper.sh"
+  git -C "$wt" add "hooks/tests/my-fixture.bats" "hooks/tests/helper.sh"
+  git -C "$wt" commit -q -m "add bats fixture in hooks/tests/"
+
+  _install_pytest_stub
+  _source_gate_lib
+
+  # Predicate must return 1 (no-op) — hooks/tests/* is excluded by the regex.
+  run _hpg_hook_body_changed "$wt"
+  [ "$status" -ne 0 ]
+
+  # Sentinel must NOT exist — pytest was not invoked.
+  [ ! -f "$PYTEST_SENTINEL" ]
+}
+
+# ---------------------------------------------------------------------------
+# FULL-opt-in: CLAUDE_HOOK_PYTEST_GATE_FULL=1 causes _hpg_run to invoke
+# pytest with the full-suite argv (tests/ -k ''), not the targeted subset.
+# Uses the PATH-stub pytest; verifies it was called with 'tests/' in the args.
+# ---------------------------------------------------------------------------
+
+@test "FULL-opt-in: CLAUDE_HOOK_PYTEST_GATE_FULL=1 invokes full-suite pytest" {
+  local repo="$BATS_FILE_TMPDIR/repo"
+  local wt="$BATS_FILE_TMPDIR/wt"
+  _make_repo "$repo"
+  _make_worktree "$repo" "$wt" "feat/hook-change"
+
+  mkdir -p "$wt/hooks" "$wt/tests"
+  printf '#!/usr/bin/env bash\necho "hook"\n' > "$wt/hooks/hook.sh"
+  git -C "$wt" add "hooks/hook.sh"
+  git -C "$wt" commit -q -m "add hook"
+  printf '# dummy\n' > "$wt/tests/test_dummy_invariants.py"
+  git -C "$wt" add "tests/test_dummy_invariants.py"
+  git -C "$wt" commit -q -m "add test"
+
+  _install_pytest_stub
+
+  run bash -c "
+    export CLAUDE_HOOK_PYTEST_GATE_FULL=1
+    export PYTEST_SENTINEL='$PYTEST_SENTINEL'
+    export PYTEST_STUB_RC=0
+    source '$WORKTREE_PATH/hooks/_lib/hook-pytest-gate.sh'
+    cd '$wt'
+    _hpg_run '$wt'
+  "
+  [ "$status" -eq 0 ]
+
+  # Sentinel must have been written — full suite was invoked.
+  [ -f "$PYTEST_SENTINEL" ]
+
+  # The argv recorded must contain 'tests/' (full-suite path) and '-k' (scope flag).
+  grep -q "tests/" "$PYTEST_SENTINEL"
+  grep -q -- "-k" "$PYTEST_SENTINEL"
+}
