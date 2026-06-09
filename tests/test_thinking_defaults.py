@@ -750,6 +750,7 @@ class HookLogsOnlyDoesNotBlock(unittest.TestCase):
                     {"tool_name": "Agent",
                      "tool_input": {"subagent_type": "architect"}},
                     env={"CLAUDE_SESSION_ID": session,
+                         "CLAUDE_AGENT_INJECTION_FORCE": "1",
                          "CLAUDE_PIPELINE_STATE_DIR": empty_state_dir})
             self.assertEqual(result.returncode, 0)
             self.assertTrue(log_path.exists(),
@@ -771,7 +772,8 @@ class HookLogsDowngradeRole(unittest.TestCase):
             result = _run_hook(
                 {"tool_name": "Agent",
                  "tool_input": {"subagent_type": "code-reviewer"}},
-                env={"CLAUDE_SESSION_ID": session})
+                env={"CLAUDE_SESSION_ID": session,
+                     "CLAUDE_AGENT_INJECTION_FORCE": "1"})
             self.assertEqual(result.returncode, 0)
             self.assertTrue(log_path.exists(),
                             f"expected log at {log_path}")
@@ -1106,6 +1108,7 @@ class HookLogsClaudeEffortEnvSourceToJsonl(unittest.TestCase):
                 {"tool_name": "Agent",
                  "tool_input": {"subagent_type": "architect"}},
                 env={"CLAUDE_SESSION_ID": session,
+                     "CLAUDE_AGENT_INJECTION_FORCE": "1",
                      "CLAUDE_EFFORT": "low"},
             )
             self.assertEqual(result.returncode, 0)

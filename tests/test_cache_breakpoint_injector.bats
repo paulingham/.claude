@@ -14,6 +14,10 @@ setup() {
   LOG_DIR="$TMP/.claude/metrics/$CLAUDE_SESSION_ID"
   LOG="$LOG_DIR/cache-injections.jsonl"
   unset CLAUDE_HOOK_PROFILE
+  # GP-P1-01: resolvers short-circuit by default; force the python path so the
+  # record-emitting test still exercises it. minimal-profile / non-Agent tests
+  # short-circuit before the probe so this export does not affect them.
+  export CLAUDE_AGENT_INJECTION_FORCE=1
   export CLAUDE_CONFIG_DIR="$TMP/.claude"
 }
 

@@ -119,6 +119,8 @@ class HookEmitsForensicJsonlOnAmbiguous(unittest.TestCase):
             "CLAUDE_SESSION_ID": self.session,
             "PATH": os.environ["PATH"],
             "CLAUDE_HOOK_PROFILE": "standard",
+            # GP-P1-01: force the resolver python path (default-OFF short-circuit).
+            "CLAUDE_AGENT_INJECTION_FORCE": "1",
         }
         # Mirror $HOME → metrics dir layout.
         Path(self.tmp_metrics.name, ".claude", "metrics", self.session).mkdir(

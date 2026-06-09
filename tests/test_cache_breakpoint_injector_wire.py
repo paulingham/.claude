@@ -29,6 +29,8 @@ class CacheFlagTokenEmitted(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             env = dict(os.environ)
             env["HOME"] = td
+            # GP-P1-01: force the resolver python path (default-OFF short-circuit).
+            env["CLAUDE_AGENT_INJECTION_FORCE"] = "1"
             env["CLAUDE_SESSION_ID"] = "slice-c-test"
             env["CLAUDE_CONFIG_DIR"] = str(REPO_ROOT)
             # Runtime state (metrics) was relocated to HARNESS_DATA

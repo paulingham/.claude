@@ -23,6 +23,8 @@ source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 INPUT=$(cat)
 SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // empty' 2>/dev/null)
+source "${HOOK_DIR}/_lib/agent-injection-capability.sh"
+agent_injection_supported || exit 0
 OUT=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/resolve-cache-breakpoints.py" 2>/dev/null) || exit 0
 DECISION=$(printf '%s\n' "$OUT" | sed -n '1p')
 RESOLVED=$(printf '%s\n' "$OUT" | sed -n '2p')
