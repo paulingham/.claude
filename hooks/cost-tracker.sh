@@ -75,6 +75,9 @@ else
     EVAL_FIELDS=""
 fi
 
+PREAMBLE_TOKENS=$("$HARNESS_ROOT/hooks/_lib/preamble-tokens-emit.py" 2>/dev/null || echo 0)
+[[ "$PREAMBLE_TOKENS" =~ ^[0-9]+$ ]] || PREAMBLE_TOKENS=0
+
 # Build enriched metrics record
 jq -c -n \
     --arg ts "$TIMESTAMP" \
@@ -83,6 +86,7 @@ jq -c -n \
     --arg hash "$PROJECT_HASH" \
     --argjson duration "$DURATION_S" \
     --argjson tools "$TOOL_CALLS" \
+    --argjson preamble "$PREAMBLE_TOKENS" \
     "${EVAL_ARGS[@]}" \
     "{
         \"timestamp\": \$ts,
@@ -91,7 +95,8 @@ jq -c -n \
         \"project_hash\": \$hash,
         \"event\": \"session_end\",
         \"duration_s\": \$duration,
-        \"tool_calls\": \$tools
+        \"tool_calls\": \$tools,
+        \"preamble_tokens\": \$preamble
         ${EVAL_FIELDS}
     }" >> "$METRICS_DIR/costs.jsonl" 2>/dev/null || true
 
