@@ -134,14 +134,23 @@ def _shared_subject(a_terms: set, b_terms: set) -> list:
     return sorted(a_terms & b_terms)
 
 
+def _ac_is_toggle(token_set: set, pair: frozenset) -> bool:
+    """True when token_set contains BOTH poles of pair (the AC describes a toggle)."""
+    items = list(pair)
+    return items[0] in token_set and items[1] in token_set
+
+
 def _antonym_hit(a_tokens: list, b_tokens: list) -> Optional[tuple]:
     """Return (a_tok, b_tok) if a firing antonym pair spans the two token lists.
 
-    Returns None when no antonym pair fires.
+    Skips any pair where either AC contains both poles — that AC is describing a
+    toggle, not asserting one side. Returns None when no antonym pair fires.
     """
     a_set = set(a_tokens)
     b_set = set(b_tokens)
     for pair in _ANTONYM_PAIRS:
+        if _ac_is_toggle(a_set, pair) or _ac_is_toggle(b_set, pair):
+            continue
         items = list(pair)
         if items[0] in a_set and items[1] in b_set:
             return (items[0], items[1])

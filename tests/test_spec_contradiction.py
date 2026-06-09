@@ -59,17 +59,63 @@ def test_deterministic_same_input_same_output():
 
 
 def test_oversized_input_bounded():
-    """_MAX_ACS+50 ACs → bounded, never raises."""
-    from spec_grounding._lib.contradiction import detect_contradictions, _MAX_ACS
-    big = [f"feature {i} should work correctly" for i in range(_MAX_ACS + 50)]
-    result = detect_contradictions(big)
-    # Must not raise; result must be a list
+    """Cap observable: contradictory pair beyond _MAX_ACS is NOT flagged."""
+    from spec_grounding._lib.contradiction import detect_contradictions, _coerce, _MAX_ACS
+    # Pad with _MAX_ACS benign unique ACs (no antonyms, no shared subjects)
+    benign = [f"widget_{i} loads immediately" for i in range(_MAX_ACS)]
+    # Append a contradictory pair BEYOND the cap — should be truncated
+    contradictory_pair = [
+        "telemetry enabled by default",
+        "telemetry disabled by default",
+    ]
+    big_list = benign + contradictory_pair
+    assert len(big_list) == _MAX_ACS + 2
+    # _coerce must truncate to exactly _MAX_ACS
+    assert len(_coerce(big_list)) == _MAX_ACS
+    # detect_contradictions must NOT flag the out-of-range pair
+    result = detect_contradictions(big_list)
     assert isinstance(result, list)
+    flagged_pairs = {(c.ac_a_index, c.ac_b_index) for c in result}
+    # The contradictory pair was at original indices _MAX_ACS and _MAX_ACS+1 — must be absent
+    assert (_MAX_ACS, _MAX_ACS + 1) not in flagged_pairs
 
 
 # ---------------------------------------------------------------------------
 # AC1 — antonym detection
 # ---------------------------------------------------------------------------
+
+def test_antonym_self_toggle_not_flagged():
+    """Single AC describing a toggle ('enabled or disabled') must NOT fire against another AC.
+
+    Repro from Finding 1: when ONE AC contains both poles of an antonym pair (a toggle
+    description), _antonym_hit must NOT flag a contradiction with a second AC that
+    mentions only one pole.
+    """
+    from spec_grounding._lib.contradiction import detect_contradictions
+    acs = [
+        "telemetry can be enabled or disabled by the operator",
+        "telemetry is enabled in staging",
+    ]
+    result = detect_contradictions(acs)
+    assert result == [], (
+        f"Antonym-self false positive: expected [], got {result}"
+    )
+
+
+def test_cross_ac_antonym_still_fires():
+    """True cross-AC antonym opposition still fires after the guard.
+
+    'X enabled by default' vs 'X disabled by default' — each AC contains only
+    one pole, so the contradiction is genuine and must be flagged.
+    """
+    from spec_grounding._lib.contradiction import detect_contradictions
+    acs = ["telemetry enabled by default", "telemetry disabled by default"]
+    result = detect_contradictions(acs)
+    assert len(result) == 1, (
+        f"Over-correction guard: expected 1 contradiction, got {result}"
+    )
+    assert result[0].category == "antonym"
+
 
 def test_antonym_pair_flagged_with_indices_and_reason():
     """'telemetry enabled by default'+'telemetry disabled by default' → 1 Contradiction.
