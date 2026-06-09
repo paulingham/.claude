@@ -82,12 +82,58 @@ _hpg_hook_body_changed() {
 }
 
 # ---------------------------------------------------------------------------
+# _hpg_deleted_guarding_tests <worktree>
+#
+# Returns 0 if the diff (main...HEAD) DELETED or RENAMED any file that was
+# previously a guarding test: tests/test_*_invariants.py or any tests/test_*.py
+# that contained the string 'hooks/'.  Returns 1 otherwise.
+#
+# Used to distinguish "benign empty subset — no tests ever existed" from
+# "empty subset because the branch deleted the guarding tests" (attack vector).
+# ---------------------------------------------------------------------------
+_hpg_deleted_guarding_tests() {
+  local wt="${1:-$(pwd)}"
+
+  # Get deleted/renamed paths in tests/ from this branch.
+  local deleted
+  deleted=$(git -C "$wt" diff --name-only --diff-filter=DR "main...HEAD" 2>/dev/null \
+    | grep '^tests/test_.*\.py$' || true)
+
+  [ -z "$deleted" ] && return 1
+
+  # Check each deleted path: is it an invariants file?
+  local p
+  while IFS= read -r p; do
+    case "$p" in
+      tests/test_*_invariants.py) return 0 ;;
+    esac
+  done <<EOF
+$deleted
+EOF
+
+  # Check each deleted path: did it reference 'hooks/' in the version that was
+  # on main (use git show main:<path> to retrieve the old content)?
+  while IFS= read -r p; do
+    if git -C "$wt" show "main:$p" 2>/dev/null | grep -qE 'hooks/'; then
+      return 0
+    fi
+  done <<EOF
+$deleted
+EOF
+
+  return 1
+}
+
+# ---------------------------------------------------------------------------
 # _hpg_targeted_nodes <worktree>
 #
 # Echoes the subset of test files to run:
 #   tests/test_*_invariants.py  UNION  grep -lE 'hooks/' tests/test_*.py
 #
-# If both resolve empty while a hook changed, emits a loud WARN (not silent pass).
+# If both resolve empty while a hook changed:
+#   - If the branch DELETED/RENAMED a guarding test: emits PR_BLOCKED message
+#     to stderr and returns exit-code 2 (fail-closed).
+#   - Otherwise: emits a loud WARN to stderr and returns 0 (benign empty).
 # ---------------------------------------------------------------------------
 _hpg_targeted_nodes() {
   local wt="${1:-$(pwd)}"
@@ -100,6 +146,10 @@ _hpg_targeted_nodes() {
   subset=$(printf '%s\n%s\n' "$invariants" "$hook_tests" | grep -v '^$' | sort -u) || true
 
   if [ -z "$subset" ]; then
+    if _hpg_deleted_guarding_tests "$wt"; then
+      echo "[hpg] PR_BLOCKED — hook body changed AND the targeted test(s) were deleted/renamed; cannot verify. Restore the test or set CLAUDE_DISABLE_HOOK_PYTEST_GATE=1." >&2
+      return 2
+    fi
     echo "[hpg] WARN: no targeted test nodes found while a hook body changed — check test layout." >&2
     return 0
   fi
@@ -124,8 +174,14 @@ _hpg_run() {
     return $?
   fi
 
-  local nodes
+  local nodes rc_nodes
   nodes=$(_hpg_targeted_nodes "$wt")
+  rc_nodes=$?
+
+  # rc_nodes=2 means fail-closed (deleted guarding tests) — propagate immediately.
+  if [ "$rc_nodes" -eq 2 ]; then
+    return 2
+  fi
 
   if [ -z "$nodes" ]; then
     echo "[hpg] WARN: empty targeted subset; skipping pytest run." >&2

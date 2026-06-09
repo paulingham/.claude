@@ -424,6 +424,72 @@ STUB
 }
 
 # ---------------------------------------------------------------------------
+# AC-empty-subset-deleted: hook body changed AND the diff deletes a
+# tests/test_*_invariants.py → gate BLOCKS (exit 2) with PR_BLOCKED.
+# This is the fail-closed escalation for the test-deletion attack vector.
+# ---------------------------------------------------------------------------
+
+@test "AC-empty-subset-deleted: hook changed + deleted guarding test -> exit 2, PR_BLOCKED" {
+  local repo="$BATS_FILE_TMPDIR/repo"
+  local wt="$BATS_FILE_TMPDIR/wt"
+  _make_repo "$repo"
+
+  # Seed main with a guarding invariants test so there is something to delete.
+  mkdir -p "$repo/tests"
+  printf '# invariants test\nimport hooks  # noqa\n' > "$repo/tests/test_foo_invariants.py"
+  git -C "$repo" add "tests/test_foo_invariants.py"
+  git -C "$repo" commit -q -m "add guarding test on main"
+
+  _make_worktree "$repo" "$wt" "feat/delete-guarding-test"
+
+  # On the feature branch: add a hook body change AND delete the invariants test.
+  mkdir -p "$wt/hooks"
+  printf '#!/usr/bin/env bash\necho "hook body"\n' > "$wt/hooks/my-hook.sh"
+  git -C "$wt" add "hooks/my-hook.sh"
+  git -C "$wt" rm -q "tests/test_foo_invariants.py"
+  git -C "$wt" commit -q -m "add hook + delete guarding test"
+
+  _install_pytest_stub
+
+  # Run the Ship wrapper — must exit 2 with PR_BLOCKED.
+  run bash -c "
+    export PYTEST_SENTINEL='$PYTEST_SENTINEL'
+    cd '$wt'
+    WORKTREE='$wt' bash '$WORKTREE_PATH/skills/pr-creation/lib/check-hook-pytest-gate.sh'
+  " 2>&1
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"PR_BLOCKED"* ]]
+
+  # Pytest must NOT have been invoked — we blocked before running.
+  [ ! -f "$PYTEST_SENTINEL" ]
+}
+
+# ---------------------------------------------------------------------------
+# AC-degenerate-worktree: $WORKTREE HEAD is main → gate emits WARN to stdout.
+# Gate must NOT hard-block (exit 0 for a no-hook-change scenario).
+# ---------------------------------------------------------------------------
+
+@test "AC-degenerate-worktree: WORKTREE HEAD is main -> WARN emitted, no hard block" {
+  local repo="$BATS_FILE_TMPDIR/repo"
+  _make_repo "$repo"
+
+  # No hook changes on main — just the init commit.
+  _install_pytest_stub
+
+  # Run the wrapper with WORKTREE pointing at the repo whose HEAD is main.
+  run bash -c "
+    export PYTEST_SENTINEL='$PYTEST_SENTINEL'
+    cd '$repo'
+    WORKTREE='$repo' bash '$WORKTREE_PATH/skills/pr-creation/lib/check-hook-pytest-gate.sh'
+  " 2>&1
+  # Must NOT hard-block.
+  [ "$status" -eq 0 ]
+  # Must emit the degenerate-worktree WARN.
+  [[ "$output" == *"HOOK-PYTEST GATE: WARN"* ]]
+  [[ "$output" == *"HEAD is main"* ]]
+}
+
+# ---------------------------------------------------------------------------
 # Bypass: CLAUDE_DISABLE_HOOK_PYTEST_GATE=1 skips the gate entirely
 # ---------------------------------------------------------------------------
 

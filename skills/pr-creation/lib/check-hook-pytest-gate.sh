@@ -22,6 +22,18 @@ fi
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/../../../hooks/_lib/hook-pytest-gate.sh"
 
+# Guard: if WORKTREE HEAD is main/master the diff base is degenerate (empty),
+# and the gate cannot see any hook changes — emit a loud WARN (GP-19 trap).
+_hpg_check_degenerate_worktree() {
+  local wt="$1"
+  local head_branch
+  head_branch=$(git -C "$wt" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+  if [ "$head_branch" = "main" ] || [ "$head_branch" = "master" ]; then
+    echo "HOOK-PYTEST GATE: WARN — \$WORKTREE HEAD is $head_branch; diff base main...HEAD is degenerate (empty), gate cannot see hook changes. Are you running from the worktree?"
+  fi
+}
+_hpg_check_degenerate_worktree "$WORKTREE"
+
 # Honour bypass gate — must come AFTER sourcing the lib (which sources check-bypass-gate.sh).
 if check_bypass_gate "CLAUDE_DISABLE_HOOK_PYTEST_GATE"; then
   echo "[hook-pytest-gate] CLAUDE_DISABLE_HOOK_PYTEST_GATE=1 — gate skipped."
@@ -36,8 +48,18 @@ fi
 
 echo "[hook-pytest-gate] Hook body change detected — running targeted pytest subset from worktree..." >&2
 
-# Check for empty subset before running — surface the WARN to the operator.
+# Check for empty subset before running — surface the WARN/block to the operator.
 _HPG_NODES=$(_hpg_targeted_nodes "$WORKTREE")
+_HPG_NODES_RC=$?
+
+if [ "$_HPG_NODES_RC" -eq 2 ]; then
+  echo ""
+  echo "PR_BLOCKED — hook body changed AND the targeted test(s) were deleted/renamed; cannot verify."
+  echo "Restore the deleted/renamed test(s), or set CLAUDE_DISABLE_HOOK_PYTEST_GATE=1 to bypass."
+  echo ""
+  exit 2
+fi
+
 if [ -z "$_HPG_NODES" ]; then
   echo "HOOK-PYTEST GATE: WARN — hook body changed but NO targeted tests resolved; nothing ran"
   exit 0
