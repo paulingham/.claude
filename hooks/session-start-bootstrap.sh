@@ -229,7 +229,7 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
     STALE_WORKTREES=$(git worktree list --porcelain 2>/dev/null | grep "^worktree " | grep -c "\.claude/worktrees/" 2>/dev/null || echo "0")
     if [[ "$STALE_WORKTREES" -gt 0 ]]; then
         echo ""
-        echo "STALE WORKTREES: $STALE_WORKTREES orphaned worktree(s) in .claude/worktrees/ — clean up with: git worktree remove .claude/worktrees/<name> --force"
+        echo "STALE WORKTREES: $STALE_WORKTREES worktree(s) in .claude/worktrees/. Provably-safe ones (merged + clean + 0-ahead) are auto-reaped by worktree-reaper.sh on SessionStart (disable: CLAUDE_DISABLE_WORKTREE_REAPER=1). Any RETAINED worktree holds unshipped work — inspect with: git -C .claude/worktrees/<name> status  before any manual 'git worktree remove ... --force' (--force destroys uncommitted/untracked work)."
     fi
 fi
 
