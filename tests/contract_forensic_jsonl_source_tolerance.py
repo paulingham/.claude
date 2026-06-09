@@ -23,6 +23,7 @@ shape (e.g., `if ... not in {...}`, `assert ... in {...}`, `allowed_sources
 = {...}`). A discovered allowlist must include `"claude-effort-env"`; a bare
 absence-of-allowlist passes by construction.
 """
+import os
 import re
 import unittest
 from pathlib import Path
@@ -197,6 +198,105 @@ class EvalModelEffectivenessAggregatesNewSource(unittest.TestCase):
                 + "\n    ".join(all_findings)
             ),
         )
+
+
+class CostTrackerPreambleTokensAdvisoryContract(unittest.TestCase):
+    """Tier 0 contract: costs.jsonl preamble_tokens field is advisory/fail-open.
+
+    Two assertions:
+    1. cost-tracker.sh always exits 0 (no early-exit added for preamble capture).
+    2. The preamble_tokens capture in cost-tracker.sh is numeric-guarded
+       (bash ^[0-9]+$ regex guard present), encoding that any non-numeric
+       output from the helper is discarded — the field defaults to 0.
+
+    These assertions encode the advisory/fail-open semantics. If a future edit
+    makes the hook exit non-zero on preamble failure, or drops the guard, this
+    contract fires and the regression is caught at PR time.
+
+    Note: this file historically asserts contracts about hook-injections.jsonl
+    `source` field. This class adds a parallel costs.jsonl-specific assertion
+    since the two files and their consumers are distinct.
+    """
+
+    HOOK_PATH = REPO_ROOT / "hooks" / "cost-tracker.sh"
+    HELPER_PATH = REPO_ROOT / "hooks" / "_lib" / "preamble-tokens-emit.py"
+
+    def test_helper_file_exists(self):
+        """preamble-tokens-emit.py must be present (revert surface guard)."""
+        self.assertTrue(
+            self.HELPER_PATH.exists(),
+            f"Helper {self.HELPER_PATH} is missing — was it accidentally deleted?",
+        )
+
+    def test_hook_always_exits_zero(self):
+        """cost-tracker.sh must end with 'exit 0' (no early non-zero exit added)."""
+        body = self.HOOK_PATH.read_text()
+        lines = body.splitlines()
+        last_code_line = ""
+        for line in reversed(lines):
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                last_code_line = stripped
+                break
+        self.assertEqual(
+            last_code_line,
+            "exit 0",
+            "cost-tracker.sh must end with 'exit 0' — preamble capture must not "
+            "add a non-zero early exit path.",
+        )
+
+    def test_preamble_capture_has_numeric_guard(self):
+        """The bash ^[0-9]+$ regex guard must be present in cost-tracker.sh.
+
+        This guard is load-bearing: without it, a non-integer from the helper
+        would fail the entire jq block and || true would silently drop the
+        whole session_end record.
+        """
+        body = self.HOOK_PATH.read_text()
+        self.assertIn(
+            "^[0-9]+$",
+            body,
+            "cost-tracker.sh must contain the ^[0-9]+$ numeric guard for "
+            "PREAMBLE_TOKENS — drop it and a bad helper output silently drops "
+            "the entire session_end record.",
+        )
+
+    def test_preamble_tokens_field_referenced_in_jq_block(self):
+        """The jq block must reference $preamble for preamble_tokens."""
+        body = self.HOOK_PATH.read_text()
+        self.assertIn(
+            "$preamble",
+            body,
+            "cost-tracker.sh jq block must reference $preamble for the "
+            "preamble_tokens field.",
+        )
+
+    def test_helper_is_fail_open_on_top_level_exception(self):
+        """Helper's main() must not raise — any exception → prints 0."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "preamble_tokens_emit", self.HELPER_PATH
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        import io
+        import contextlib
+        # Simulate bad env: point harness_root at a path that cannot resolve
+        old_env = os.environ.copy()
+        os.environ["CLAUDE_PLUGIN_ROOT"] = "/tmp/definitely_does_not_exist_xyz"
+        try:
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                mod.main()
+            output = buf.getvalue().strip()
+            self.assertRegex(
+                output,
+                r"^[0-9]+$",
+                "Helper must print an integer even when root is unresolvable.",
+            )
+        finally:
+            os.environ.clear()
+            os.environ.update(old_env)
 
 
 if __name__ == "__main__":
