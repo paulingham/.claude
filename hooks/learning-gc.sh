@@ -8,7 +8,10 @@
 
 set -uo pipefail
 
-[[ "${CLAUDE_DISABLE_LEARNING_GC:-0}" == "1" ]] && exit 0
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/check-bypass-gate.sh"
+
+check_bypass_gate "CLAUDE_DISABLE_LEARNING_GC" && exit 0
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"

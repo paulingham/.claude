@@ -8,13 +8,15 @@
 # protects: build-implementation
 
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/check-bypass-gate.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Bash"
 trap 'log_hook_event $?' EXIT
 
 set -uo pipefail
 
-[[ "${CLAUDE_DISABLE_NO_SHELL_READ:-}" == "1" ]] && exit 0
+check_bypass_gate "CLAUDE_DISABLE_NO_SHELL_READ" && exit 0
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/no-shell-read-helpers.sh"

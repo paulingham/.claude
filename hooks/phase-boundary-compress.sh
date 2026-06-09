@@ -18,8 +18,10 @@ HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${HOOK_DIR}/_lib/harness-paths.sh"
 # shellcheck source=_lib/state-dir.sh
 source "${HOOK_DIR}/_lib/state-dir.sh"
+# shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/check-bypass-gate.sh"
 
-[[ "${CLAUDE_DISABLE_PHASE_BOUNDARY_COMPRESS:-0}" == "1" ]] && exit 0
+check_bypass_gate "CLAUDE_DISABLE_PHASE_BOUNDARY_COMPRESS" && exit 0
 
 PHASE_FROM="${1:-unknown}"
 PHASE_TO="${2:-unknown}"

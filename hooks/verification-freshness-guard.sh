@@ -11,12 +11,14 @@
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/log.sh"
+# shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/check-bypass-gate.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Agent"
 SUBAGENT_TYPE=""
 trap 'log_hook_event $? "$SUBAGENT_TYPE"' EXIT
 
-[[ "${CLAUDE_DISABLE_FRESHNESS_GUARD:-0}" == "1" ]] && exit 0
+check_bypass_gate "CLAUDE_DISABLE_FRESHNESS_GUARD" && exit 0
 
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "standard" || exit 0

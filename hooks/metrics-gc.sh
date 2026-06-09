@@ -18,13 +18,15 @@
 
 # shellcheck source=/dev/null
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/check-bypass-gate.sh"
 _log_hook_start
 _log_hook_trigger "SessionStart"
 trap 'log_hook_event $?' EXIT
 
 set -uo pipefail
 
-[[ "${CLAUDE_DISABLE_METRICS_GC:-0}" == "1" ]] && exit 0
+check_bypass_gate "CLAUDE_DISABLE_METRICS_GC" && exit 0
 
 METRICS_DIR="${CLAUDE_HOOK_LOG_DIR:-$HARNESS_DATA/metrics}"
 [[ -d "$METRICS_DIR" ]] || exit 0

@@ -13,11 +13,13 @@
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/log.sh"
+# shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/check-bypass-gate.sh"
 _log_hook_start
 _log_hook_trigger "PostToolUse"
 trap 'log_hook_event $?' EXIT
 
-[[ "${CLAUDE_DISABLE_TOOL_OUTPUT_BYTES:-0}" == "1" ]] && exit 0
+check_bypass_gate "CLAUDE_DISABLE_TOOL_OUTPUT_BYTES" && exit 0
 
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "standard" || exit 0
