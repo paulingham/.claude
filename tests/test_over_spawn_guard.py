@@ -246,5 +246,78 @@ class TestCounterPath(unittest.TestCase):
         self.assertNotEqual(p1, p2)
 
 
+class TestSafeComponent(unittest.TestCase):
+    """Security: _safe_component strips path-traversal characters."""
+
+    def test_safe_component_strips_dots_and_slashes(self):
+        """../../../etc/passwd → '' (all unsafe chars removed, mirrors session-id.sh)."""
+        from over_spawn_guard import _safe_component
+        self.assertEqual(_safe_component("../../etc/passwd"), "etcpasswd")
+
+    def test_safe_component_keeps_alphanum_underscore_hyphen(self):
+        """[A-Za-z0-9_-] characters are preserved unchanged."""
+        from over_spawn_guard import _safe_component
+        self.assertEqual(_safe_component("abc-123_XYZ"), "abc-123_XYZ")
+
+    def test_safe_component_none_returns_empty(self):
+        """None input returns empty string (no crash)."""
+        from over_spawn_guard import _safe_component
+        self.assertEqual(_safe_component(None), "")
+
+    def test_counter_path_traversal_stays_inside_metrics_dir(self):
+        """Crafted session_id with ../ cannot escape the metrics base dir."""
+        import over_spawn_guard
+        metrics_dir = "/metrics"
+        crafted_session = "../../../tmp/evil"
+        crafted_task = "task-x"
+        path = over_spawn_guard.counter_path(
+            metrics_dir,
+            over_spawn_guard._safe_component(crafted_session),
+            over_spawn_guard._safe_component(crafted_task),
+            "build",
+        )
+        self.assertTrue(
+            path.startswith(metrics_dir),
+            f"Path '{path}' escapes metrics dir '{metrics_dir}'",
+        )
+
+
+class TestActivePipelineDeterminism(unittest.TestCase):
+    """FINDING 2: _active_task_id returns sorted(lines)[0] for determinism."""
+
+    def setUp(self):
+        import tempfile
+        self._tmpdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self._tmpdir, ignore_errors=True)
+
+    def _write_plan(self, task_id: str) -> None:
+        task_dir = os.path.join(self._tmpdir, task_id)
+        os.makedirs(task_dir, exist_ok=True)
+        Path(os.path.join(task_dir, "plan.md")).write_text(
+            f"---\ntask_id: {task_id}\nphase: plan\nverdict: in_progress\n---\n\n# Plan\n"
+        )
+
+    def test_deterministic_with_multiple_in_progress_pipelines(self):
+        """With two in-progress pipelines, resolve_slice_count returns sorted-first task."""
+        from over_spawn_guard import resolve_slice_count
+        self._write_plan("zzz-task")
+        self._write_plan("aaa-task")
+        task_id, _ = resolve_slice_count(self._tmpdir)
+        self.assertEqual(task_id, "aaa-task",
+                         "Expected sorted-first task; got non-deterministic result")
+
+    def test_deterministic_ordering_stable_across_calls(self):
+        """Repeated calls with same state dir yield the same task_id."""
+        from over_spawn_guard import resolve_slice_count
+        self._write_plan("beta-task")
+        self._write_plan("alpha-task")
+        result1, _ = resolve_slice_count(self._tmpdir)
+        result2, _ = resolve_slice_count(self._tmpdir)
+        self.assertEqual(result1, result2, "resolve_slice_count must be deterministic")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -167,8 +167,21 @@ def main() -> None:
 # ----------------------------------------------------------------- internals
 
 
+def _safe_component(s: str | None) -> str:
+    """Strip all chars except [A-Za-z0-9_-] — mirrors session-id.sh:34.
+
+    Removes dots and slashes, so `../../x` → `x` (cannot escape a metrics dir).
+    Returns empty string for None or all-unsafe input.
+    """
+    return re.sub(r"[^A-Za-z0-9_-]", "", s or "")
+
+
 def _active_task_id(state_dir: str) -> str | None:
-    """Find the active task_id by grepping for `verdict: in_progress`."""
+    """Find the active task_id by grepping for `verdict: in_progress`.
+
+    Returns the task_id from the sorted-first matching file so that the result
+    is deterministic when more than one in-progress pipeline exists.
+    """
     if not os.path.isdir(state_dir):
         return None
     try:
@@ -182,11 +195,11 @@ def _active_task_id(state_dir: str) -> str | None:
         return None
     if not lines:
         return None
-    matched_file = lines[0]
+    matched_file = sorted(lines)[0]
     try:
         for line in Path(matched_file).read_text().splitlines():
             if line.startswith("task_id:"):
-                return line.split(":", 1)[1].strip()
+                return _safe_component(line.split(":", 1)[1].strip())
     except Exception:
         pass
     return None
@@ -197,7 +210,7 @@ def _score(payload: dict) -> None:
     tool_input = (payload or {}).get("tool_input") or {}
     prompt = str(tool_input.get("prompt") or "")
     subagent_type = str(tool_input.get("subagent_type") or "")
-    session_id = str((payload or {}).get("session_id") or "")
+    session_id = _safe_component((payload or {}).get("session_id"))
 
     phase = infer_phase(prompt, subagent_type)
     if phase is None:
