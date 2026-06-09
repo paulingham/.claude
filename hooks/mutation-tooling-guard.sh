@@ -27,6 +27,8 @@
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/check-bypass-gate.sh"
 # log.sh sourced from deployed location; fails open when not available (e.g. test env)
 # shellcheck source=/dev/null
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh" 2>/dev/null || {
@@ -40,7 +42,7 @@ set -uo pipefail
 
 # Escape hatch (per-session) — writes audit record before exiting so forensics
 # can identify sessions that bypassed this advisory guard (Gap 5).
-if [[ "${CLAUDE_DISABLE_MUTATION_TOOLING_GUARD:-0}" == "1" ]]; then
+if check_bypass_gate "CLAUDE_DISABLE_MUTATION_TOOLING_GUARD"; then
     _sid="${CLAUDE_SESSION_ID:-local-$$}"; _sid="${_sid//[^a-zA-Z0-9_.-]/}"
     _dir="${HARNESS_DATA:-${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}}/metrics/${_sid}"
     mkdir -p "$_dir" 2>/dev/null && \
