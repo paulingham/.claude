@@ -36,6 +36,13 @@ fi
 
 echo "[hook-pytest-gate] Hook body change detected — running targeted pytest subset from worktree..." >&2
 
+# Check for empty subset before running — surface the WARN to the operator.
+_HPG_NODES=$(_hpg_targeted_nodes "$WORKTREE")
+if [ -z "$_HPG_NODES" ]; then
+  echo "HOOK-PYTEST GATE: WARN — hook body changed but NO targeted tests resolved; nothing ran"
+  exit 0
+fi
+
 # Run the targeted subset.
 if _hpg_run "$WORKTREE"; then
   echo "[hook-pytest-gate] Targeted subset GREEN — proceeding to PR creation."

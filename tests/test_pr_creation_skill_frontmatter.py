@@ -106,30 +106,43 @@ class PrCreationStep2InvokesHookPytestGate(unittest.TestCase):
         return match.group(1)
 
     def test_pr_creation_step2_invokes_hook_pytest_gate(self):
-        """Step 2 must name check-hook-pytest-gate.sh before the gh pr create example."""
-        block = self._step2_block()
+        """Step 2 must name check-hook-pytest-gate.sh before Step 5 (PR creation).
 
-        gate_pos = block.find("check-hook-pytest-gate.sh")
+        Uses the '### 5. Create Pull Request' section header as the landmark —
+        shape-independent; covers both 'gh pr create' and 'gh api' paths.
+        """
+        body = SKILL.read_text()
+
+        gate_pos = body.find("check-hook-pytest-gate.sh")
         self.assertGreater(
             gate_pos,
             -1,
             msg=(
-                "skills/pr-creation/SKILL.md Step 2 must invoke "
-                "'check-hook-pytest-gate.sh' before any 'gh pr create' call. "
+                "skills/pr-creation/SKILL.md must invoke "
+                "'check-hook-pytest-gate.sh'. "
                 "This pins the GP-19 bypass-proof call-site (AC5)."
             ),
         )
 
-        gh_pos = block.find("gh pr create")
-        if gh_pos != -1:
-            self.assertLess(
-                gate_pos,
-                gh_pos,
-                msg=(
-                    "check-hook-pytest-gate.sh must appear BEFORE 'gh pr create' "
-                    "in Step 2 of SKILL.md."
-                ),
-            )
+        step5_pos = body.find("### 5. Create Pull Request")
+        self.assertGreater(
+            step5_pos,
+            -1,
+            msg=(
+                "skills/pr-creation/SKILL.md must contain a "
+                "'### 5. Create Pull Request' section header."
+            ),
+        )
+
+        self.assertLess(
+            gate_pos,
+            step5_pos,
+            msg=(
+                "check-hook-pytest-gate.sh must appear BEFORE "
+                "'### 5. Create Pull Request' in SKILL.md — "
+                "covers both 'gh pr create' and 'gh api' PR-creation shapes."
+            ),
+        )
 
 
 if __name__ == "__main__":

@@ -384,6 +384,46 @@ STUB
 }
 
 # ---------------------------------------------------------------------------
+# AC-empty-subset: hook body changed but resolver finds zero matching tests
+# Gate must exit 0, emit the WARN on stdout, and never invoke pytest.
+# ---------------------------------------------------------------------------
+
+@test "AC-empty-subset: hook changed, empty test subset -> exit 0, WARN surfaced, pytest never ran" {
+  local repo="$BATS_FILE_TMPDIR/repo"
+  local wt="$BATS_FILE_TMPDIR/wt"
+  _make_repo "$repo"
+  _make_worktree "$repo" "$wt" "feat/hook-change-no-tests"
+
+  # Add a hook body change so the gate fires.
+  mkdir -p "$wt/hooks"
+  printf '#!/usr/bin/env bash\necho "hook body"\n' > "$wt/hooks/my-hook.sh"
+  git -C "$wt" add "hooks/my-hook.sh"
+  git -C "$wt" commit -q -m "add hook body"
+
+  # Create a tests/ dir but with NO files matching test_*_invariants.py
+  # and NO files containing 'hooks/' — so the resolver returns empty.
+  mkdir -p "$wt/tests"
+  printf '# unrelated\n' > "$wt/tests/test_unrelated.py"
+  git -C "$wt" add "tests/test_unrelated.py"
+  git -C "$wt" commit -q -m "add unrelated test (no hooks/ ref)"
+
+  _install_pytest_stub
+
+  # Run the wrapper — must exit 0 and surface the WARN string.
+  run bash -c "
+    export PYTEST_SENTINEL='$PYTEST_SENTINEL'
+    cd '$wt'
+    WORKTREE='$wt' bash '$WORKTREE_PATH/skills/pr-creation/lib/check-hook-pytest-gate.sh'
+  " 2>&1
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"HOOK-PYTEST GATE: WARN"* ]]
+  [[ "$output" == *"NO targeted tests resolved"* ]]
+
+  # Sentinel must NOT exist — pytest was never invoked.
+  [ ! -f "$PYTEST_SENTINEL" ]
+}
+
+# ---------------------------------------------------------------------------
 # Bypass: CLAUDE_DISABLE_HOOK_PYTEST_GATE=1 skips the gate entirely
 # ---------------------------------------------------------------------------
 
