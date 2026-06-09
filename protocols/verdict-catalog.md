@@ -27,6 +27,8 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `PLAN_CACHE_HIT` | info | `plan-cache-lookup` | plan | HIT path: Haiku adapter rewrote cached template; structural validator passed; skip Stage 1 (recon) and Stage 2 (architect) — Architect plan ready at `$state_dir/{task-id}/plan.md` with `cache_hit: true` marker (Plan Validation challengers skip citation-alignment per `parallel-dispatch-details.md:134`) |
 | `GROUNDED` | success | `spec-grounding` | plan | All ACs grounded against codebase evidence; `$state_dir/{task-id}/spec-grounding.md` written with inline citations; architect reads it at Pre-Drafting Recon |
 | `GROUNDING_GAPS` | info | `spec-grounding` | plan | One or more ACs have no codebase match or recall hit; gap ACs listed in `spec-grounding.md` § Gaps with `[grounded: gap]` markers; architect must supply evidence for gap ACs; pipeline continues (non-blocking) |
+| `SPEC_CONTRADICTIONS_FOUND` | info | `spec-grounding` | plan | One or more AC pairs are structurally opposed (antonym or negation asymmetry on a shared subject); pairs listed in `spec-grounding.md` § Contradictions with indices + reason; architect reviews at Pre-Drafting Recon; **non-blocking** — Plan proceeds |
+| `SPEC_CONTRADICTIONS_NONE` | info | `spec-grounding` | plan | No structurally-opposed AC pairs detected; advisory check clean; **non-blocking** |
 | `SPIKE_COMPLETE` | info | `tech-spike` | utility | Findings feed back into planning |
 | `PLAN_APPROVED` | success | `plan-self-validation` | plan-validation | `/harness:build-implementation` |
 | `PLAN_HOLES` | failure | `plan-self-validation` | plan-validation | Architect re-plans (max 1 revision, then escalate to heavy challengers) |
