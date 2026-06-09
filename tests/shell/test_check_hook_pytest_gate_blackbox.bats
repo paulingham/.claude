@@ -348,8 +348,8 @@ helper_fn() { echo "lib body"; }
   # Commit a change to hooks/tests/*.sh (a bats test file under hooks/tests/).
   _bb_commit "$wt" "hooks/tests/test_my_hook.sh" \
     '#!/usr/bin/env bash
-# bats test file for hooks
-@test "something" { true; }
+# fixture hook-tests file (content irrelevant to the gate)
+echo placeholder
 ' \
     "add hooks/tests bats file"
 
@@ -373,7 +373,8 @@ helper_fn() { echo "lib body"; }
 
   _bb_commit "$wt" "hooks/tests/test_hook.sh" \
     '#!/usr/bin/env bash
-@test "x" { true; }
+# fixture hook-tests file (content irrelevant to the gate)
+echo placeholder
 ' \
     "add hooks/tests bats file"
 
@@ -737,7 +738,8 @@ util_fn() { echo "util body"; }
 
   _bb_commit "$wt" "hooks/tests/test_hook.sh" \
     '#!/usr/bin/env bash
-@test "x" { true; }
+# fixture hook-tests file (content irrelevant to the gate)
+echo placeholder
 ' \
     "add hooks/tests bats file"
 
