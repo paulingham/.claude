@@ -301,13 +301,56 @@ class TestActivePipelineDeterminism(unittest.TestCase):
         )
 
     def test_deterministic_with_multiple_in_progress_pipelines(self):
-        """With two in-progress pipelines, resolve_slice_count returns sorted-first task."""
+        """Hardened: 3-task fixture (middle written first) always returns sorted-first.
+
+        Write order: mmm-task, aaa-task, zzz-task.  The middle-sorted task is
+        written first so that on any filesystem ordering grep might return
+        mmm-task or zzz-task first.  The correct implementation (sorted(lines)[0])
+        must return aaa-task regardless of grep output order.  The mutant
+        (lines[0]) would return whichever path grep happens to emit first —
+        which is NEVER aaa-task when grep returns mmm-task or zzz-task first,
+        so the test deterministically kills the mutant.
+        """
         from over_spawn_guard import resolve_slice_count
-        self._write_plan("zzz-task")
-        self._write_plan("aaa-task")
+        self._write_plan("mmm-task")   # written first (middle-sorted)
+        self._write_plan("aaa-task")   # written second (sorted-first)
+        self._write_plan("zzz-task")   # written last (sorted-last)
         task_id, _ = resolve_slice_count(self._tmpdir)
         self.assertEqual(task_id, "aaa-task",
                          "Expected sorted-first task; got non-deterministic result")
+
+    def test_sorted_first_kills_lines0_mutant(self):
+        """Directly proves sorted(lines)[0] != lines[0] for non-sorted grep output.
+
+        Patches subprocess.run to return paths in mmm/zzz/aaa order (i.e. the
+        grep-first entry is NOT the alphabetically-first task).  With the real
+        implementation (sorted(lines)[0]) the result is aaa-task.  With the
+        mutant (lines[0]) the result would be mmm-task.  This test is immune to
+        filesystem ordering because grep output is fully controlled by the mock.
+        """
+        import unittest.mock as mock
+        self._write_plan("mmm-task")
+        self._write_plan("aaa-task")
+        self._write_plan("zzz-task")
+
+        mmm_path = os.path.join(self._tmpdir, "mmm-task", "plan.md")
+        zzz_path = os.path.join(self._tmpdir, "zzz-task", "plan.md")
+        aaa_path = os.path.join(self._tmpdir, "aaa-task", "plan.md")
+        # grep output: mmm first, then zzz, then aaa — intentionally NOT sorted
+        fake_stdout = "\n".join([mmm_path, zzz_path, aaa_path]) + "\n"
+
+        fake_result = mock.MagicMock()
+        fake_result.stdout = fake_stdout
+
+        import over_spawn_guard
+        with mock.patch("subprocess.run", return_value=fake_result):
+            task_id = over_spawn_guard._active_task_id(self._tmpdir)
+
+        self.assertEqual(
+            task_id, "aaa-task",
+            "sorted(lines)[0] must return aaa-task regardless of grep output order; "
+            "lines[0] would have returned mmm-task (mutant survival proof)"
+        )
 
     def test_deterministic_ordering_stable_across_calls(self):
         """Repeated calls with same state dir yield the same task_id."""
