@@ -11,12 +11,14 @@
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/log.sh"
+# shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/check-bypass-gate.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:Agent"
 SUBAGENT_TYPE=""
 trap 'log_hook_event $? "$SUBAGENT_TYPE"' EXIT
 
-[[ "${CLAUDE_DISABLE_ADVISOR_GATE:-0}" == "1" ]] && exit 0
+check_bypass_gate "CLAUDE_DISABLE_ADVISOR_GATE" && exit 0
 
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "standard" || exit 0
@@ -30,7 +32,7 @@ HOOK_OUTPUT=$(printf '%s\n' "$OUT" | sed -n '3p')
 
 # Reversibility escape: CLAUDE_DISABLE_MODEL_BINDING=1 suppresses binding
 # stdout emission but does NOT skip JSONL logging.
-[[ "${CLAUDE_DISABLE_MODEL_BINDING:-0}" == "1" ]] && HOOK_OUTPUT=""
+check_bypass_gate "CLAUDE_DISABLE_MODEL_BINDING" && HOOK_OUTPUT=""
 
 [[ "$DECISION" == "LOG" ]] || exit 0
 

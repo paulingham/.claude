@@ -10,8 +10,10 @@
 # protects: spawn context integrity
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/check-bypass-gate.sh"
 
-[[ "${CLAUDE_DISABLE_SWE_PRUNER:-0}" == "1" ]] && exit 0
+check_bypass_gate "CLAUDE_DISABLE_SWE_PRUNER" && exit 0
 
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/hook-profile.sh" && check_hook_profile "standard" || exit 0

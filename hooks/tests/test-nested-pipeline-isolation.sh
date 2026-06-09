@@ -154,12 +154,16 @@ echo ""
 # ---------------------------------------------------------------------------
 echo "-- auto-learn-gate.sh (disable flag lock-in) --"
 
-# Confirm fast-exit behavior: first line of the hook must be the env check.
-FIRST_EXEC_LINE=$(grep -n -v '^\s*#' "$HOOKS_DIR/auto-learn-gate.sh" | grep -v '^[0-9]*:\s*$' | head -1)
-if echo "$FIRST_EXEC_LINE" | grep -q 'CLAUDE_DISABLE_AUTO_LEARN'; then
-  pass "auto-learn-gate: first executable line checks CLAUDE_DISABLE_AUTO_LEARN"
+# Confirm fast-exit behavior: the hook must delegate to check_bypass_gate for the disable flag.
+# (Updated from raw-literal grep: GP-19 migrated inline [[ "${CLAUDE_DISABLE_AUTO_LEARN:-0}" == "1" ]]
+# to check_bypass_gate "CLAUDE_DISABLE_AUTO_LEARN" && exit 0, grouped with sources lines 10-11.
+# The structural invariant is that the bypass check still short-circuits early — the sourced helper
+# call is the new shape. Do NOT revert to the raw env literal — that would re-introduce the dup.)
+if grep -q 'check_bypass_gate "CLAUDE_DISABLE_AUTO_LEARN"' "$HOOKS_DIR/auto-learn-gate.sh"; then
+  pass "auto-learn-gate: bypass check delegates to check_bypass_gate CLAUDE_DISABLE_AUTO_LEARN"
 else
-  fail "auto-learn-gate: first executable line checks CLAUDE_DISABLE_AUTO_LEARN" "env check" "$FIRST_EXEC_LINE"
+  fail "auto-learn-gate: bypass check delegates to check_bypass_gate CLAUDE_DISABLE_AUTO_LEARN" \
+    "check_bypass_gate call present" "not found"
 fi
 
 # Runtime check: with flag set, no trigger banner is emitted even with full state setup.

@@ -19,6 +19,8 @@ HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${HOOK_DIR}/_lib/harness-paths.sh"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/log.sh"
+# shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/check-bypass-gate.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
 trap 'log_hook_event $?' EXIT
@@ -135,7 +137,7 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 is_git_commit "$COMMAND" || exit 0
 is_caller_in_worktree || exit 0
 
-if [[ "${CLAUDE_DISABLE_BUILD_LOOP_SCAN:-0}" == "1" ]]; then
+if check_bypass_gate "CLAUDE_DISABLE_BUILD_LOOP_SCAN"; then
     echo "BUILD-LOOP-SCAN BYPASSED via CLAUDE_DISABLE_BUILD_LOOP_SCAN=1 — security-review (second-pass) still gates." >&2
     printf '%s' "$INPUT" | python3 "${HOOK_DIR}/_lib/build_loop_scan_cli.py" >/dev/null 2>&1 || true
     write_artifact "BYPASSED" "" 0 0 "" "$(staged_file_count)"

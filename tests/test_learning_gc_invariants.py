@@ -64,11 +64,31 @@ class DisableEscapeHatchFastExits(unittest.TestCase):
     """AC8 — CLAUDE_DISABLE_LEARNING_GC=1 short-circuits the bash hook."""
 
     def test_first_executable_line_checks_disable_var(self):
+        # GP-19 migrated the inline `[[ "$CLAUDE_DISABLE_LEARNING_GC" == "1" ]] && exit 0`
+        # to `check_bypass_gate "CLAUDE_DISABLE_LEARNING_GC" && exit 0`, preceded by a
+        # `source .../check-bypass-gate.sh` line.  The assertion now verifies that the
+        # delegate call (which carries the env-var name) appears early in the executable
+        # lines — before any substantive GC work — rather than checking `executable[0]`
+        # literally (which is now the source line for the helper).
         executable = [
             line for line in HOOK.read_text().splitlines()
             if line.strip() and not line.strip().startswith("#")
             and not line.strip().startswith("set ")]
-        self.assertIn("CLAUDE_DISABLE_LEARNING_GC", executable[0])
+        # Find the index of the bypass-gate call and verify it is within the first
+        # three executable lines (source helper, delegate call, next source).
+        bypass_indices = [
+            i for i, line in enumerate(executable)
+            if 'check_bypass_gate "CLAUDE_DISABLE_LEARNING_GC"' in line
+        ]
+        self.assertTrue(
+            bypass_indices,
+            "No check_bypass_gate call for CLAUDE_DISABLE_LEARNING_GC found in hook",
+        )
+        self.assertLess(
+            bypass_indices[0], 3,
+            f"check_bypass_gate call is at executable line {bypass_indices[0]} "
+            f"(expected within first 3); hook may have moved the bypass check too late",
+        )
 
     def test_disable_flag_prevents_archive_creation(self):
         with tempfile.TemporaryDirectory() as tmp:

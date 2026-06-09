@@ -11,6 +11,8 @@
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/check-bypass-gate.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
 # Inline emitter — matches _lib/jsonl-emit.sh contract. Inlined because
 # hook-self-test.sh runs at SessionStart before _lib/ is guaranteed loaded.
@@ -29,7 +31,7 @@ _log_hook_trigger "SessionStart"
 trap 'log_hook_event $?' EXIT
 
 # Escape hatch — fast-exit before any work.
-[[ "${CLAUDE_DISABLE_HOOK_SELF_TEST:-0}" == "1" ]] && exit 0
+check_bypass_gate "CLAUDE_DISABLE_HOOK_SELF_TEST" && exit 0
 
 # Rate-limit gate. Sentinel: $HARNESS_DATA/.hook-self-test-state.json
 # {"last_run": <epoch_seconds>}. Skip when within the configured interval.

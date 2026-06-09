@@ -29,12 +29,14 @@ readonly _SGC_NO_CHANGES="no-changes-to-capture"
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/log.sh"
+# shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/check-bypass-gate.sh"
 _log_hook_start
 _log_hook_trigger "PostToolUse"
 trap 'log_hook_event $?' EXIT
 
 # AC2.2 — escape-hatch BEFORE any work, but AFTER trap registration (F3 instinct).
-[[ "${CLAUDE_DISABLE_SHADOW_CHECKPOINT:-}" == "1" ]] && exit 0
+check_bypass_gate "CLAUDE_DISABLE_SHADOW_CHECKPOINT" && exit 0
 [[ "${CLAUDE_HOOK_PROFILE:-}" == "minimal" ]] && exit 0
 
 # AC2.3 — tool input via stdin+jq (F7 instinct: env vars are not populated for hook events).

@@ -9,11 +9,13 @@
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/check-bypass-gate.sh"
 _log_hook_start
 _log_hook_trigger "Stop"
 trap 'log_hook_event $?' EXIT    # set BEFORE any early exits so they get logged
 
-[[ "${CLAUDE_DISABLE_AUTO_LEARN:-0}" == "1" ]] && exit 0
+check_bypass_gate "CLAUDE_DISABLE_AUTO_LEARN" && exit 0
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/hook-profile.sh" && check_hook_profile "standard" || exit 0
 
 LIB="$(dirname "${BASH_SOURCE[0]}")/_lib"
