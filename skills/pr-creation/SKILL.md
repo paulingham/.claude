@@ -124,6 +124,29 @@ git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" -b feature/add-notification-sy
 
 ### 2. Run Pre-Push Validation
 
+#### Hook-Change Pytest Gate (HARD GATE)
+
+Run the gate BEFORE calling any PR-creation command (step 5 below):
+
+```bash
+# $WORKTREE is already resolved and validated by the Worktree Precondition above.
+bash "$WORKTREE/skills/pr-creation/lib/check-hook-pytest-gate.sh"
+GATE_EXIT=$?
+if [ "$GATE_EXIT" -ne 0 ]; then
+  echo "PR_BLOCKED — hook-change pytest gate failed. See output above."
+  exit 2
+fi
+```
+
+This gate fires when `main...HEAD` touches a `hooks/*.sh` or `hooks/_lib/*.sh` body
+line, and runs the targeted pytest subset from the worktree. Any red blocks the PR
+(exit 2). It is bypass-proof vs `gh api` because it is a SKILL STEP — see GP-19.
+
+- **No hook body change**: gate no-ops, exits 0, no pytest invoked.
+- **Hook body changed + subset green**: exits 0, proceed.
+- **Hook body changed + subset red**: exits 2 (`PR_BLOCKED`). Fix the failing tests, then retry Ship.
+- **Bypass** (pre-existing, unrelated failures confirmed): `CLAUDE_DISABLE_HOOK_PYTEST_GATE=1` then re-run Ship.
+
 Run all quality checks before pushing:
 - Linting (language-appropriate linter)
 - Security scanning
