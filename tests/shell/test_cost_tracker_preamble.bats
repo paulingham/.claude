@@ -49,13 +49,16 @@ teardown() {
 }
 
 @test "T4 helper forced failure exits 0 and emits record with preamble_tokens=0" {
-  # Point at a non-existent helper by temporarily renaming; the bash fallback (|| echo 0) must keep the hook alive
-  local helper="$REPO_ROOT/hooks/_lib/preamble-tokens-emit.py"
-  local backup="$TMP/preamble-tokens-emit.py.bak"
-  cp "$helper" "$backup"
-  chmod -x "$helper"
+  # Build an isolated root with the preamble helper non-executable in the COPY.
+  # This proves the bash-level (|| echo 0) fallback fires without ever touching
+  # the tracked $REPO_ROOT/hooks/_lib/preamble-tokens-emit.py.
+  local isolated_root="$TMP/isolated_t4"
+  mkdir -p "$isolated_root/hooks"
+  cp -r "$REPO_ROOT/hooks/_lib" "$isolated_root/hooks/"
+  cp "$REPO_ROOT/hooks/hook-profile.sh" "$isolated_root/hooks/"
+  chmod -x "$isolated_root/hooks/_lib/preamble-tokens-emit.py"
+  export CLAUDE_PLUGIN_ROOT="$isolated_root"
   run bash -c "printf '{\"stop_hook_active\":false}' | bash '$HOOK'"
-  chmod +x "$helper"
   [ "$status" -eq 0 ]
   grep -qE '"preamble_tokens":0' "$COSTS"
 }
