@@ -97,7 +97,7 @@ Per-session env vars short-circuit each gate to `exit 0`. Full table: `protocols
 | spec-blind-validator | Final Gate | No | sonnet | No |
 | vlm-critic | Final Gate | No | sonnet | No |
 
-> `[1]` Sonnet-solo via `model_conditional` when `complexity_budget.total < 6`; Opus + advisor pairing otherwise. See `agents/code-reviewer.md` and `hooks/_lib/advisor_resolver.py::resolve_model_conditional`.
+> `[1]` Default Model `opus` is the frontmatter `model:` contract (mirrored by `tests/test_claude_md_agent_table.py`). The live executor differs: `code-reviewer` and `security-engineer` ship `executor: claude-sonnet-4-6` + `advisor: claude-opus-4-7`, but the Opus-advisor pairing is **ADVISORY — NOT ENFORCED** (the `advisor:` field is not schema-exposed; `resolve_model_conditional` is log-only) — so review work **runs Sonnet-solo today**. `code-reviewer` additionally drops to `model: sonnet` via `model_conditional` when `complexity_budget.total < 6`. See `agents/code-reviewer.md`, `protocols/advisor-mode.md`, and `hooks/_lib/advisor_resolver.py::resolve_model_conditional`.
 
 Model self-tuning, downgrade rules, and `architect`/`security-engineer` hard locks: `orchestrator/agent-orchestration.md` § Instinct Injection. Advisory recommendation report (`/harness:eval-model-effectiveness`): see skill SKILL.md.
 
