@@ -132,6 +132,7 @@ def test_antonym_pair_flagged_with_indices_and_reason():
     assert c.ac_a_index == 0
     assert c.ac_b_index == 1
     assert c.category == "antonym"
+    assert c.shared_subject == "telemetry"
     assert c.reason  # non-empty
     assert "AC1" in c.reason
     assert "AC2" in c.reason
@@ -176,7 +177,13 @@ def test_non_blocking_tokenises_whole():
 # ---------------------------------------------------------------------------
 
 def test_contradictory_fixture_is_flagged():
-    """4-AC fixture with one opposed pair → len≥1, opposed indices present."""
+    """4-AC fixture with one opposed pair → len≥1, opposed indices present.
+
+    The shared subject for the (1,3) pair is 'production telemetry' — two terms
+    in sorted (alphabetical) order. This assertion kills the list()-instead-of-sorted()
+    mutant: list(set) order is non-deterministic across PYTHONHASHSEED values, so
+    replacing sorted() with list() would yield 'telemetry production' on some runs.
+    """
     from spec_grounding._lib.contradiction import detect_contradictions
     acs = [
         "The system should support batch processing",
@@ -189,6 +196,12 @@ def test_contradictory_fixture_is_flagged():
     # The opposed pair is (index 1, index 3)
     pairs = {(c.ac_a_index, c.ac_b_index) for c in result}
     assert (1, 3) in pairs
+    # Pin the shared_subject value: 'production telemetry' (alphabetical/sorted order).
+    # Both ACs share 'telemetry' and 'production' as salient terms (len≥4, not stopword).
+    # The list() mutant produces non-deterministic order across PYTHONHASHSEED values,
+    # so this assertion kills it.
+    contradiction_1_3 = next(c for c in result if (c.ac_a_index, c.ac_b_index) == (1, 3))
+    assert contradiction_1_3.shared_subject == "production telemetry"
 
 
 def test_compatible_fixture_not_flagged():
