@@ -41,7 +41,13 @@ def _hermetic_env(extra=None, plugin_data=None):
     existing_pp = os.environ.get("PYTHONPATH", "")
     merged_pp = ":".join(filter(None, [_SITE_PP, existing_pp]))
     env = {**os.environ, "PYTHONPATH": merged_pp,
-           "CLAUDE_PLUGIN_ROOT": str(REPO_ROOT)}
+           "CLAUDE_PLUGIN_ROOT": str(REPO_ROOT),
+           # GP-P1-01: hook resolvers short-circuit before python by default;
+           # force the resolver path so the advisor-dispatch.jsonl assertions
+           # still exercise it. The DISABLE-gate short-circuit (line 21 of the
+           # hook) runs ABOVE the probe, so negative cases that set
+           # CLAUDE_DISABLE_ADVISOR_GATE still behave correctly.
+           "CLAUDE_AGENT_INJECTION_FORCE": "1"}
     if plugin_data is not None:
         env["CLAUDE_PLUGIN_DATA"] = str(plugin_data)
         env["HOME"] = str(plugin_data)
@@ -688,6 +694,8 @@ def _run_hook_with_budget(payload, budget, env=None, plugin_data=None):
         **os.environ, **(env or {}),
         "ANTHROPIC_API_KEY": "sk-test",
         "CLAUDE_AGENTS_DIR": str(REPO_ROOT / "agents"),
+        # GP-P1-01: force the resolver python path (default-OFF short-circuit).
+        "CLAUDE_AGENT_INJECTION_FORCE": "1",
     }
     if plugin_data is not None:
         proc_env["CLAUDE_PLUGIN_DATA"] = str(plugin_data)

@@ -41,6 +41,9 @@ def _run_hook(payload, env=None, plugin_data=None):
     existing_pp = proc_env.get("PYTHONPATH", "")
     proc_env["PYTHONPATH"] = ":".join(filter(None, [_SITE_PP, existing_pp]))
     proc_env["CLAUDE_PLUGIN_ROOT"] = str(REPO_ROOT)
+    # GP-P1-01: resolvers short-circuit by default; force the python path so the
+    # resolver-jsonl assertions below still exercise it.
+    proc_env["CLAUDE_AGENT_INJECTION_FORCE"] = "1"
     if plugin_data is not None:
         proc_env["CLAUDE_PLUGIN_DATA"] = str(plugin_data)
         proc_env["HOME"] = str(plugin_data)
