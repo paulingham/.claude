@@ -83,5 +83,67 @@ class PrCreationDocumentsKnownMisfireMode(unittest.TestCase):
         )
 
 
+class PrCreationStep2InvokesHookPytestGate(unittest.TestCase):
+    """Pin that Step 2 wires the hook-change pytest gate before any gh call.
+
+    The gate is bypass-proof vs `gh api` because it is a SKILL STEP, not a
+    gh-keyed PreToolUse hook. This test locks the call-site so this invariant
+    cannot silently regress (GP-19 closure, AC5).
+    """
+
+    def _step2_block(self) -> str:
+        """Extract the Step 2 block from SKILL.md body."""
+        body = SKILL.read_text()
+        match = re.search(
+            r"(### 2\. Run Pre-Push Validation.*?)(?=\n### [0-9]+\.|\Z)",
+            body,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(
+            match,
+            "Could not find '### 2. Run Pre-Push Validation' block in SKILL.md",
+        )
+        return match.group(1)
+
+    def test_pr_creation_step2_invokes_hook_pytest_gate(self):
+        """Step 2 must name check-hook-pytest-gate.sh before Step 5 (PR creation).
+
+        Uses the '### 5. Create Pull Request' section header as the landmark —
+        shape-independent; covers both 'gh pr create' and 'gh api' paths.
+        """
+        body = SKILL.read_text()
+
+        gate_pos = body.find("check-hook-pytest-gate.sh")
+        self.assertGreater(
+            gate_pos,
+            -1,
+            msg=(
+                "skills/pr-creation/SKILL.md must invoke "
+                "'check-hook-pytest-gate.sh'. "
+                "This pins the GP-19 bypass-proof call-site (AC5)."
+            ),
+        )
+
+        step5_pos = body.find("### 5. Create Pull Request")
+        self.assertGreater(
+            step5_pos,
+            -1,
+            msg=(
+                "skills/pr-creation/SKILL.md must contain a "
+                "'### 5. Create Pull Request' section header."
+            ),
+        )
+
+        self.assertLess(
+            gate_pos,
+            step5_pos,
+            msg=(
+                "check-hook-pytest-gate.sh must appear BEFORE "
+                "'### 5. Create Pull Request' in SKILL.md — "
+                "covers both 'gh pr create' and 'gh api' PR-creation shapes."
+            ),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
