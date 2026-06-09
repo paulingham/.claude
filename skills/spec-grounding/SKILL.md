@@ -1,7 +1,7 @@
 ---
 name: spec-grounding
 description: Ground raw acceptance criteria against codebase evidence and recall. Invoked as Step 2c-ter (Stage 0 of Plan Phase) before the architect runs. Emits EARS-tagged ACs with per-AC citations to $state_dir/{task-id}/spec-grounding.md.
-verdict: GROUNDED|GROUNDING_GAPS
+verdict: GROUNDED|GROUNDING_GAPS|SPEC_CONTRADICTIONS_FOUND|SPEC_CONTRADICTIONS_NONE
 phase: plan
 dispatch: subagent
 ---
@@ -52,6 +52,16 @@ The helper:
 2. Calls `recall.search()` if `CLAUDE_RECALL_DB_PATH` is set to a valid path; degrades gracefully (returns `[]`) on missing DB or import failure.
 3. Returns one `GroundedAC` per input, never raises.
 
+### Step 2.5: Detect AC contradictions (advisory, non-blocking)
+
+```python
+from spec_grounding._lib.contradiction import detect_contradictions
+contradictions = detect_contradictions(raw_acs)
+```
+
+Deterministic, no I/O, never raises. Flags structurally-opposed AC pairs (antonym or
+negation asymmetry on a shared subject). NEVER gates Plan — annotates output for the architect.
+
 ### Step 3: Write $state_dir/{task-id}/spec-grounding.md
 
 Write the output file per the Data Model in `$state_dir/ws-g-spec-grounding/plan.md`:
@@ -82,6 +92,10 @@ grounding_gaps: []   # list of AC ids with no resolved citation
 
 ## Gaps (GROUNDING_GAPS only)
 - AC2: no codebase match or recall hit — architect must supply evidence.
+
+## Contradictions (advisory)
+<!-- empty when none; one entry per opposed pair when found -->
+- AC2 and AC4 oppose on "telemetry": "enabled" vs "disabled"
 ```
 
 ### Step 4: Emit verdict line
@@ -90,6 +104,10 @@ Emit to stdout: `GROUNDED` or `GROUNDING_GAPS`.
 
 - **GROUNDED**: All ACs have a resolved citation (`resolved=True` for every `GroundedAC`).
 - **GROUNDING_GAPS**: One or more ACs have `citation="gap"` (`resolved=False`). The gaps are listed in `spec-grounding.md` § Gaps and flagged in frontmatter `grounding_gaps:` list.
+
+Additionally emit a second independent info line (non-blocking, does not gate Plan):
+- **SPEC_CONTRADICTIONS_FOUND**: when `len(contradictions) > 0` — pairs listed in `spec-grounding.md` § Contradictions.
+- **SPEC_CONTRADICTIONS_NONE**: when `len(contradictions) == 0` — advisory check clean.
 
 ## Output
 
@@ -104,6 +122,8 @@ The exact set of verdicts this skill emits. Both must appear in `protocols/verdi
 |---------|---------|------------|
 | `GROUNDED` | All ACs resolved against codebase or recall evidence. | Architect reads `spec-grounding.md` at Pre-Drafting Recon. Plan proceeds normally. |
 | `GROUNDING_GAPS` | One or more ACs have no codebase or recall match. Gaps listed in `spec-grounding.md` § Gaps. | **Non-blocking.** Architect proceeds — gap ACs appear with `[grounded: gap]` suffix. Architect must supply evidence for gap ACs in Artifact 2 (Codebase Ground-Truth Citations). |
+| `SPEC_CONTRADICTIONS_FOUND` | One or more AC pairs are structurally opposed (antonym/negation on a shared subject). | **Non-blocking.** Pairs in `spec-grounding.md` § Contradictions; architect reviews at Pre-Drafting Recon; Plan proceeds. |
+| `SPEC_CONTRADICTIONS_NONE` | No structurally-opposed AC pairs detected. | **Non-blocking.** Advisory check clean; Plan proceeds. |
 
 **User-facing copy (Persona 2):**
 - `GROUNDED`: "All acceptance criteria grounded against codebase evidence."
