@@ -112,12 +112,12 @@ instinct — a backward feedback loop from review into build. Details:
   rules/core.md      Always-loaded invariants: iron laws, code-shape rules, phase order
   settings.json      Hook registration, permissions, env vars
 
-  agents/            19 agent definitions (role, checklist, model)
-  skills/            71 skills — the procedural workflows the orchestrator invokes
-  hooks/             87 enforcement scripts (the mechanical guardrails)
-  protocols/         19 deep-dive protocol docs, loaded on demand
-  orchestrator/      Orchestrator-only dispatch procedures
-  knowledge/         41 domain pattern references (auth, caching, payments, …)
+  agents/            # 19 specialized agent definitions (role, checklist, model)
+  skills/            # 68 skills — the procedural workflows the orchestrator invokes
+  hooks/             # 87 enforcement scripts (the mechanical guardrails)
+  protocols/         # 19 deep-dive protocol docs, loaded on demand
+  orchestrator/      # orchestrator-only dispatch procedures
+  knowledge/         # 41 domain pattern references (auth, caching, payments, …)
 
   learning/          Observations + learned instincts (per project)
   session-memory/    Engineering context that survives compaction
@@ -201,6 +201,13 @@ Deploy runs post-deploy verification with automatic rollback.
 
 ---
 
+## Skills (68)
+
+Skills are the procedural workflows the orchestrator invokes per phase — `/harness:intake`,
+`/harness:build-implementation`, `/harness:code-review`, `/harness:patch-critique`, and the
+rest. The full catalogue, grouped by phase with entry conditions and verdicts, lives in
+[`protocols/skill-directory.md`](protocols/skill-directory.md).
+
 ## Mechanical Enforcement (Hooks)
 
 The hooks are the harness's guardrails — they enforce the iron laws so the rules don't rely
@@ -217,6 +224,11 @@ subagent spawns. The full hook registry lives in [`settings.json`](settings.json
 behaviour, levels, env overrides, and the Resource Bounds caps are documented in
 [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) and
 [`protocols/agent-protocol.md`](protocols/agent-protocol.md) § Resource Bounds.
+
+One hook is external tooling: **rtk** (a token-optimisation proxy) is installed best-effort by `setup.sh`.
+It compresses dev-tool output before it reaches the model and defaults on for
+mac+linux; set `CLAUDE_REQUIRE_RTK=0` to skip it or `CLAUDE_REQUIRE_RTK=1` to force it. If
+absent, the harness proceeds without it — no hard failure.
 
 ## Omnichannel Support
 
