@@ -249,7 +249,7 @@ After completing or modifying ANY file, verify the cohesion-based shape rules in
 - DRY on 2nd occurrence
 - Single public entry point per class
 
-Soft warnings (function > 30 lines, file > 150 lines) are smell signals — refactor when extraction has a real seam, leave alone when the unit is genuinely cohesive. The hook's 300-line safety net catches runaway output only.
+Hard limits for new/changed code: Ruby functions > 5 lines, TS/JS functions > 12 lines (see `protocols/engineering-invariants.md` § Code Shape for per-language table). Soft advisory smells: file > 150 lines — refactor when extraction has a real seam, leave alone when the unit is genuinely cohesive. The hook's 300-line safety net catches runaway output only.
 
 If any hard rule is violated, refactor BEFORE moving to the next test case.
 
@@ -272,7 +272,7 @@ Before declaring the build complete:
 - [ ] Every function does one thing (name has no conjunction)
 - [ ] Cyclomatic complexity ≤ 5; nesting ≤ 2
 - [ ] No DRY violations (no logic duplicated 2+ times)
-- [ ] Functions > 30 lines or files > 150 lines: justified or refactored (advisory smell signals, not hard caps)
+- [ ] New/changed functions within per-language limits (Ruby ≤ 5, TS/JS ≤ 12 — `protocols/engineering-invariants.md` § Code Shape); files > 150 lines: justified or refactored
 - [ ] All tests pass
 - [ ] ATDD audit trail visible (batched RED + GREEN + mutation report ≥ 70%)
 - [ ] Mutation Kill Loop ran (per atdd-procedure.md step 4 Mutation Kill Loop); OUTCOME recorded as `REACHED`, `EXHAUSTED`, or `NO_PROGRESS` in the mutation report header; on non-`REACHED` the gate failed and kill-tests + residuals handed back in-cycle via `CLAUDE_MUTATION_KILL_BUDGET_SECONDS` (default 300)

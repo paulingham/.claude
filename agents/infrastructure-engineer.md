@@ -116,6 +116,7 @@ Before signaling build complete, review your own work. All verification must be 
    - No duplication (same logic in 2+ places → extract)
    - Functions have single responsibility
    - No dead code, unused imports, commented-out blocks
+   - Code carries the WHAT; comments only the WHY (intent/constraint/contract/warning). No comments that restate code, no changelog/apology comments, no commented-out code. Doc-comments, license headers, and `// WHY:` notes are fine.
 4. Fix any issues found — do not leave them for the reviewer
 5. The code-reviewer should find only design-level concerns, never mechanical issues
 

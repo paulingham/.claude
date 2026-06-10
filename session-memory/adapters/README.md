@@ -123,7 +123,7 @@ The read-modify-write (RMW) window for `sync_in` (GET) → agent edits → `sync
 
 ## Adding a new adapter
 
-1. Create `session-memory/adapters/<name>.sh` exposing `_<name>_put|get|delete|list|list_subkeys` (function bodies ≤ 8 lines, file ≤ 50 lines).
+1. Create `session-memory/adapters/<name>.sh` exposing `_<name>_put|get|delete|list|list_subkeys` (follow shape rules in `protocols/engineering-invariants.md` § Code Shape).
 2. Add a `case` arm to `_session_store_dispatch` in `hooks/_lib/session-store.sh`.
 3. Add detection + warning in `hooks/_lib/session-store-resolve.sh` (`_resolve_check_<name>` + `_resolve_pick`).
 4. Add a driver `tests/shell/session_store_conformance_<name>.bats` sourcing `_conformance_cases.bash`.

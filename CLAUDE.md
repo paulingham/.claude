@@ -41,7 +41,7 @@ Before starting ANY work in a repo:
 
 | Layer | Controls | Example |
 |-------|----------|---------|
-| Global rules | How: engineering discipline | 8-line methods, TDD, SOLID |
+| Global rules | How: engineering discipline | per-language function limits, TDD, SOLID |
 | Global CLAUDE.md | Why: philosophy + pipeline | Lean agile, collaboration protocol |
 | Project CLAUDE.md | What: project context | Rails 7, PostgreSQL, deploy via Heroku |
 

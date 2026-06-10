@@ -95,6 +95,7 @@ Shape compliance is enforced by build hooks. Do not re-measure. If shape violati
 ### Code Quality
 - [ ] Intention-revealing names, no abbreviations
 - [ ] Guard clauses over nested conditionals
+- [ ] Comments carry only WHY (intent/constraint/contract/warning) — flag any comment that restates what the code does as a code-clarity defect, not a comment fix; the code, not the comment, needs improving
 
 ### Security
 - [ ] Security baseline rule followed (see security-baseline rule)
@@ -106,7 +107,7 @@ Shape compliance is enforced by build hooks. Do not re-measure. If shape violati
 - [ ] One test written at a time (no bulk test-then-implement pattern)
 - [ ] Tests test behavior, not implementation
 - [ ] Edge cases and error paths covered
-- [ ] Test code follows shape rules (helpers <= 8 lines, test files <= 100 lines)
+- [ ] Test code follows shape rules (per-language limits in `protocols/engineering-invariants.md` § Code Shape; test files <= 100 lines)
 
 ### Performance
 - [ ] No N+1 queries (eager loading used)

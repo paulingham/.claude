@@ -57,6 +57,15 @@ For each file, check and fix:
 - **Naming clarity**: single-letter variables (except loop counters), abbreviations, misleading names
 - **Inconsistent formatting**: mixed quote styles, trailing whitespace, inconsistent semicolons
 
+For comments, **FLAG but do NOT auto-delete**:
+- Explanatory WHAT comments (comments that restate what the code does) — report these in the output as code-clarity smells; the code, not the comment, needs improving
+- Changelog/apology comments ("fixed by X", "temporary hack")
+
+**NEVER touch**:
+- Doc-comments (`/** */`, `///`, `"""…"""`), license/copyright headers — preserve exactly
+- `# WHY:` / `# SAFETY:` / `# NOTE:` prefixed comments — these are legitimate WHY notes
+- Any comment the polish agent cannot confidently classify as a WHAT restatement
+
 ### 3. Do NOT Touch
 
 - Design decisions or architecture

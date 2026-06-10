@@ -155,7 +155,7 @@ Examples:
 When in a recovery loop (CHANGES_REQUESTED, GAPS_FOUND, etc.):
 
 ```
-[Review] RE-REVIEW 2/2 -- fixing: function body > 8 lines in useNavigationHandler.ts
+[Review] RE-REVIEW 2/2 -- fixing: function body exceeds per-language limit in useNavigationHandler.ts
 [Review] RE-DISPATCHING -- targeted re-review of raising reviewer(s) after fix...
 ```
 
