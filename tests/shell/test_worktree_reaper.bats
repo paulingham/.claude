@@ -103,7 +103,10 @@ _merge_branch() {
 @test "AC6 non-git cwd (no .claude/worktrees) → exit 0, no error" {
   NONGIT="$BATS_TEST_TMPDIR/nongit"
   mkdir -p "$NONGIT"
-  run bash -c "cd '$NONGIT' && bash '$HOOK'"
+  # GIT_CEILING_DIRECTORIES stops git's upward walk at $BATS_TEST_TMPDIR so
+  # the hook's `git rev-parse --git-dir` fails even when $BATS_TEST_TMPDIR is
+  # nested inside a git repo (e.g. the GitHub Actions checkout).
+  run bash -c "cd '$NONGIT' && GIT_CEILING_DIRECTORIES='$BATS_TEST_TMPDIR' bash '$HOOK'"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
