@@ -103,18 +103,9 @@ _merge_branch() {
 @test "AC6 non-git cwd (no .claude/worktrees) → exit 0, no error" {
   NONGIT="$BATS_TEST_TMPDIR/nongit"
   mkdir -p "$NONGIT"
-  # Force git to discover NO repository regardless of where bats places its
-  # tmpdir: GIT_CEILING_DIRECTORIES is symlink-fragile on CI runners (the
-  # ceiling string must match git's normalized path, but runner tmpdirs are
-  # symlinked), so it was ignored and git still found the CI checkout. Instead
-  # pin GIT_DIR to a non-existent path + GIT_WORK_TREE + GIT_DISCOVERY_ACROSS_
-  # FILESYSTEM=0 so `git rev-parse` fails fast and the hook takes its non-git
-  # early-exit (silent, exit 0). The env is inherited (setup() exports the
-  # CLAUDE_PLUGIN_* vars the hook's _lib needs).
-  run bash -c "cd '$NONGIT' && GIT_DIR='$NONGIT/.nonexistent-git-dir' GIT_WORK_TREE='$NONGIT' GIT_DISCOVERY_ACROSS_FILESYSTEM=0 bash '$HOOK'"
-  if [ -n "$output" ]; then
-    echo "AC6 LEAK (status=$status): >>>$output<<<" >&3
-  fi
+  # GIT_CEILING_DIRECTORIES stops git walking up into the CI checkout when bats'
+  # tmpdir is nested inside it, so the hook takes its non-git early-exit.
+  run bash -c "cd '$NONGIT' && GIT_CEILING_DIRECTORIES='$BATS_TEST_TMPDIR' bash '$HOOK'"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
