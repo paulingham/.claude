@@ -104,6 +104,6 @@ with open(path, "w") as fh:
     json.dump({"last_run": int(time.time())}, fh)
 PY
 
-echo "worktree-reaper: reaped $REAPED safe worktree(s), $RETAINED retained (unshipped work)" >&2
+(( REAPED + RETAINED > 0 )) && echo "worktree-reaper: reaped $REAPED safe worktree(s), $RETAINED retained (unshipped work)" >&2 || true
 
 exit 0
