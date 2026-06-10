@@ -243,7 +243,7 @@ fline_in_ranges() {
 }
 
 BLOCKING=0
-if ! git -C "$REPO_ROOT" ls-files --error-unmatch "$FILE_PATH" >/dev/null 2>&1; then
+if ! git -C "$REPO_ROOT" ls-files --error-unmatch -- "$FILE_PATH" >/dev/null 2>&1; then
     # Untracked/new file: every violation is new code → block.
     BLOCKING=1
 else

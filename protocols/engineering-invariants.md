@@ -52,6 +52,8 @@ Simplicity is a prerequisite for reliability (Dijkstra/Hickey): you can only mak
 
 If a name needs a comment, rename it. If a *constraint* is not obvious from the code, comment the WHY.
 
+The comment-smell hook blocks only high-confidence narration (bare lowercase-verb prose that restates adjacent code); intent, contract, warning, and rationale comments — ideally prefixed `WHY:`/`WARNING:`/`CONTRACT:`/`FIXME:` etc. — always pass.
+
 ## When to Use a Class vs Standalone Function
 
 **Use a class (service object) when ANY of these are true:**

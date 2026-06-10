@@ -70,7 +70,7 @@ fi
 REPO_ROOT=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/null) || exit 0
 [[ -z "$REPO_ROOT" ]] && exit 0
 
-if git -C "$REPO_ROOT" ls-files --error-unmatch "$FILE_PATH" >/dev/null 2>&1; then
+if git -C "$REPO_ROOT" ls-files --error-unmatch -- "$FILE_PATH" >/dev/null 2>&1; then
     # Tracked file: inspect only lines added in the working-tree diff vs HEAD.
     DIFF=$(git -C "$REPO_ROOT" diff HEAD -- "$FILE_PATH" 2>/dev/null) || exit 0
     [[ -z "$DIFF" ]] && exit 0
@@ -106,8 +106,9 @@ is_what_comment() {
     if printf '%s' "$trimmed" | grep -qE 'SPDX|Copyright|License|@license'; then
         return 1
     fi
-    # WHY-prefixed intent comments (case-insensitive).
-    if printf '%s' "$trimmed" | grep -qiE '^(#|//)[[:space:]]*(WHY|SAFETY|NOTE|HACK|TODO):'; then
+    # WHY-prefixed intent/contract/warning comments (case-insensitive).
+    # Includes SSOT-endorsed categories: contract, warning of consequences, rationale.
+    if printf '%s' "$trimmed" | grep -qiE '^(#|//)[[:space:]]*(WHY|SAFETY|NOTE|HACK|TODO|FIXME|WARNING|IMPORTANT|XXX|REVIEW|CONTRACT|RETURNS|RAISES|THROWS|PRECONDITION|POSTCONDITION):'; then
         return 1
     fi
     # Doc-comment param/return/type annotations.
@@ -115,13 +116,21 @@ is_what_comment() {
         return 1
     fi
     # Directive / pragma comments (frozen literal, rubocop, type, noqa, pylint,
-    # eslint, ts-pragmas, prettier/biome ignore).
-    if printf '%s' "$trimmed" | grep -qE 'frozen_string_literal:|rubocop:|^#[[:space:]]*type:|noqa|pylint:|eslint-disable|@ts-|prettier-ignore|biome-ignore'; then
+    # eslint, ts-pragmas, prettier/biome ignore, Python encoding, vim modelines).
+    if printf '%s' "$trimmed" | grep -qE 'frozen_string_literal:|rubocop:|^#[[:space:]]*type:|noqa|pylint:|eslint-disable|@ts-|prettier-ignore|biome-ignore|^#[[:space:]]*-\*-|^#[[:space:]]*coding:|^#[[:space:]]*vim:|^#[[:space:]]*-!-'; then
         return 1
     fi
 
-    # Bare prose comment on a new source line => blocking WHAT comment.
-    printf '1'
+    # Only block HIGH-CONFIDENCE narration: a bare prose comment whose first word is
+    # a lowercase imperative verb that restates adjacent code. When in doubt, exempt.
+    local text
+    text="${trimmed#'#'}"
+    text="${text#'//'}"
+    text="${text#'/*'}"
+    text="${text#"${text%%[![:space:]]*}"}"
+    if printf '%s' "$text" | grep -qiE '^(increment|loop|iterate|set|get|check|call|return|create|initialize|fetch|update|delete|remove|add|build|send|open|close|read|write|load|save|parse|format|convert|handle|process|compute|calculate|run|start|stop|reset|clear|sort|filter|map|find|count|print|log|show|hide|enable|disable|append|insert|push|pop|shift|unshift)[[:space:]]'; then
+        printf '1'
+    fi
 }
 
 VIOLATION=0

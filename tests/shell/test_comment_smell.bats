@@ -114,6 +114,32 @@ EOF
   [ "$count" -ge 2 ]
 }
 
+@test "C9: SSOT-endorsed categories (contract, warning, rationale, FIXME) are exempt (exit 0)" {
+  # Public-API contract comment
+  commit_baseline auth.rb $'def find_user(id)\n  User.find(id)\nend\n'
+  printf 'def find_user(id)\n  # Returns nil when the user is unverified\n  User.find(id)\nend\n' > "$WORK/auth.rb"
+  run_hook auth.rb
+  [ "$status" -eq 0 ]
+
+  # Warning of consequences
+  commit_baseline state.rb $'def reset\n  @store = {}\nend\n'
+  printf 'def reset\n  # WARNING: this mutates global state\n  @store = {}\nend\n' > "$WORK/state.rb"
+  run_hook state.rb
+  [ "$status" -eq 0 ]
+
+  # Rationale / reference
+  commit_baseline oauth.rb $'def exchange_token(code)\n  client.exchange(code)\nend\n'
+  printf 'def exchange_token(code)\n  # See RFC 6749 section 4.1 for the flow\n  client.exchange(code)\nend\n' > "$WORK/oauth.rb"
+  run_hook oauth.rb
+  [ "$status" -eq 0 ]
+
+  # FIXME (todo-family)
+  commit_baseline svc.rb $'def call\n  legacy_api()\nend\n'
+  printf 'def call\n  # FIXME: refactor once API v2 ships\n  legacy_api()\nend\n' > "$WORK/svc.rb"
+  run_hook svc.rb
+  [ "$status" -eq 0 ]
+}
+
 @test "C8: directive/pragma comments on added lines are exempt (exit 0)" {
   # frozen_string_literal magic comment
   commit_baseline app.rb $'class A\nend\n'
