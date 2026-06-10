@@ -91,3 +91,43 @@ _run_helper() {
   out=$(bash -c "set -uo pipefail; source '$HELPER'; is_protected_path '/tmp/x'; echo OK" 2>&1)
   echo "$out" | grep -q "OK"
 }
+
+# FIX 2: symlink directory whose git-repo resolution diverges from path string.
+# Exploit: LINK_DIR is a symlink to a subdir inside the git repo.
+#   parent("$LINK_DIR/core.md") = $LINK_DIR
+#   git -C "$LINK_DIR" rev-parse --show-toplevel = $PROJECT_DIR (follows symlink)
+#   relpath="${path#"$repo"/}" leaves path unchanged (not a prefix of $LINK_DIR/...)
+#   ls-files probes on the non-relative path return empty → ALLOW (rc=1, bug).
+# Fix must add [[ "$path" == "$repo"/* ]] || return 0 after repo resolution.
+# Ubuntu trap: NO literal 'at-sign-test' substring inside any heredoc or string.
+@test "A9_symlink_dir_path_diverges_from_repo_root_blocks" {
+  # Add a tracked file so there is something to reach via symlink
+  mkdir -p "$PROJECT_DIR/rules"
+  echo "# core" > "$PROJECT_DIR/rules/core.md"
+  git -C "$PROJECT_DIR" add rules/core.md
+  git -C "$PROJECT_DIR" commit -q -m "rules seed"
+  # LINK_DIR is a symlink pointing INTO the repo's rules/ directory.
+  # Absolute path: $TMPDIR_BASE/link-to-rules (not under $PROJECT_DIR)
+  # Resolved path: $PROJECT_DIR/rules
+  ln -s "$PROJECT_DIR/rules" "$TMPDIR_BASE/link-to-rules"
+  SYMLINK_PATH="$TMPDIR_BASE/link-to-rules/core.md"
+  # git -C "$TMPDIR_BASE/link-to-rules" rev-parse --show-toplevel
+  # follows the symlink and returns $PROJECT_DIR.
+  # relpath = "$SYMLINK_PATH"#"$PROJECT_DIR/" = no change (different prefix).
+  # Bug: ls-files on an absolute relpath returns empty → falls through to ALLOW.
+  result=$(bash -c "source '$HELPER'; is_protected_path '$SYMLINK_PATH'; echo \$?")
+  [ "$result" = "0" ]
+}
+
+# FIX 3: leading-dash path must BLOCK (fail-closed on dirname error).
+# dirname treats a leading-dash argument as a flag and errors — this must not
+# silently fall through to ALLOW.
+@test "A10_leading_dash_path_blocks" {
+  result=$(bash -c "source '$HELPER'; is_protected_path '-README.md'; echo \$?")
+  [ "$result" = "0" ]
+}
+
+@test "A11_double_leading_dash_path_blocks" {
+  result=$(bash -c "source '$HELPER'; is_protected_path '--version'; echo \$?")
+  [ "$result" = "0" ]
+}

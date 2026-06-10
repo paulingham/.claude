@@ -168,5 +168,63 @@ class WorktreeCallerAllowed(unittest.TestCase):
                          f"worktree caller must pass; stderr={r.stderr}")
 
 
+class SourceMdDoesNotTrickRedirectDetector(unittest.TestCase):
+    """FIX 1 regression tests: the .md token fed to is_protected_path must be
+    the redirect DESTINATION, not the first .md token in the command string.
+
+    Exploit: `cat /some/pipeline-state/notes.md > <repo>/rules/core.md`
+    Previously, grep extracted `/some/pipeline-state/notes.md` (the source)
+    as the first .md token. is_protected_path allows it (pipeline-state allowlist)
+    and returns 1 (ALLOW), so the tracked destination is never checked → rc=0.
+
+    The src uses the pipeline-state allowlist path so is_protected_path(src)
+    explicitly returns ALLOW — proving only the destination check matters.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls._tmpdir = tempfile.mkdtemp()
+        cls._repo = _make_git_repo(cls._tmpdir)
+        # Source is a pipeline-state path — is_protected_path returns ALLOW (rc=1)
+        # via the explicit allowlist. If the guard checks this token, it allows
+        # the entire command. If it correctly checks the DESTINATION, it blocks.
+        cls._src = "/some/pipeline-state/notes.md"
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        shutil.rmtree(cls._tmpdir, ignore_errors=True)
+
+    def test_cat_pipeline_state_src_redirect_to_tracked_core_blocks(self):
+        """cat /some/pipeline-state/notes.md > <repo>/rules/core.md must BLOCK.
+
+        Source is pipeline-state (ALLOW by allowlist). Destination is tracked.
+        Bug: grep-first-token extracts the source (ALLOW) and skips the dest.
+        Fix: extract only the token after the > operator.
+        """
+        dest = os.path.join(self._repo, "rules", "core.md")
+        r = _run(f"cat {self._src} > {dest}", self._repo)
+        self.assertEqual(r.returncode, 2,
+                         f"cat pipeline-state-src.md > tracked/core.md must block; "
+                         f"bug was: first .md token (src, allowlisted) was checked "
+                         f"and allowed, destination never inspected; stderr={r.stderr}")
+
+    def test_compound_redirect_second_target_tracked_blocks(self):
+        """echo x > pipeline-state/a.md; echo y > <repo>/README.md — second must BLOCK.
+
+        First redirect target (pipeline-state path) is allowlisted → ALLOW.
+        Second redirect target (<repo>/README.md) IS tracked → must BLOCK.
+        Bug: only the first .md token is checked; second write slips through.
+        Fix: loop over ALL redirect-destination tokens, block if ANY is protected.
+        """
+        ps_dest = "/some/pipeline-state/scratch.md"
+        readme = os.path.join(self._repo, "README.md")
+        r = _run(f"echo x > {ps_dest}; echo y > {readme}", self._repo)
+        self.assertEqual(r.returncode, 2,
+                         f"compound cmd: second redirect to tracked README must block; "
+                         f"bug was: only first .md token (pipeline-state, ALLOW) "
+                         f"was checked; stderr={r.stderr}")
+
+
 if __name__ == "__main__":
     unittest.main()

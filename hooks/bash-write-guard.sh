@@ -113,12 +113,26 @@ matches_protected_redirect() {
     # The redirect must target a protected path, not /tmp/* etc.
     [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?settings\.json([[:space:]]|$|\&) ]] && return 0
     [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]/]+\.sh([[:space:]]|$|\&) ]] && return 0
-    # .md (Hole 3): extract the .md token and delegate to is_protected_path,
-    # which consults the git index rather than a substring allowlist.
+    # .md (Hole 3): extract every redirect DESTINATION that ends in .md and
+    # delegate each to is_protected_path (git-index based decision).
+    # FIX: grep the token IMMEDIATELY AFTER the redirect operator (>/>>) only,
+    # not the first .md anywhere in the command string.  A source file that
+    # appears before the > (e.g. `cat src.md > tracked.md`) must NOT be checked.
+    # Strategy: extract each ">> token" or "> token" match, then strip the
+    # leading >> or > and whitespace to isolate the destination path.
     if [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]]+\.md([[:space:]]|$|\&) ]]; then
-        local _md_token=""
-        _md_token="$(grep -oE '[^[:space:]]+\.md' <<<"$1" | head -1)"
-        is_protected_path "$_md_token" && return 0
+        local _dest="" _match=""
+        while IFS= read -r _match; do
+            # Strip the leading > or >> (and any trailing spaces) to get the path.
+            _dest="${_match#>>}"
+            _dest="${_dest#>}"
+            _dest="${_dest#"${_dest%%[! ]*}"}"   # strip leading spaces
+            # Strip any trailing whitespace or & that the regex included.
+            _dest="${_dest%%[[:space:]]*}"
+            _dest="${_dest%%&*}"
+            [[ -z "$_dest" ]] && continue
+            is_protected_path "$_dest" && return 0
+        done < <(grep -oE '>>[[:space:]]*[^[:space:]]+\.md([[:space:]]|$)|>[^>][[:space:]]*[^[:space:]]+\.md([[:space:]]|$)' <<<"$1")
     fi
     return 1
 }
