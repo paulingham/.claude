@@ -14,16 +14,21 @@ These are absolutes. No exceptions. No "just this once."
 6. [ASPIRATIONAL] **FINDINGS SURFACED DURING REVIEW ARE FIXED IN THIS PIPELINE.** Never filed as follow-ups. Never surfaced as questions to the user. The pipeline does not ship known-incomplete fixes. Escalate ONLY when the required fix is architecturally large (>~100 LOC, cross-service) or outside the current task's layer. (Detail: `protocols/pipeline-protocol.md` § In-Cycle Fix Rule.)
 7. [ASPIRATIONAL] **EVERY PIPELINE PRODUCES AN OBSERVATION.** No exceptions — successes and failures both. The continuous learning loop depends on data volume. (Format and pipeline: `protocols/reflection-protocol.md` § Capture Pipeline Observation, `protocols/autonomous-intelligence.md` § Observation Capture.)
 
-## Code Shape Rules (cohesion, not line count)
+## Code Shape Rules
 
-Every code-touching agent enforces continuously. Cohesion is the design rule; line counts are advisory smell signals only.
+Every code-touching agent enforces continuously.
 
+- **Naming is the primary cohesion gate:** can't name a unit without "and" → split; can't give an extract an honest name → do NOT extract.
+- **Per-language hard block on new/changed code:** Ruby methods > 5 lines blocked (exit 2); TypeScript/JS functions > 12 lines blocked; Python/Go fallback cap retained. Legacy is advisory.
 - **One thing per function.** If you cannot name it without a conjunction ("X and Y"), split.
 - **Cyclomatic complexity ≤ 5.** Nesting ≤ 2 — guard clauses or extraction, not deeper if/else.
 - **DRY on 2nd occurrence.** Extract immediately when logic recurs.
+- **≤ 4 params** per function. More signals a missing abstraction.
 - **Single public entry point** per class (`.call`/`.run`/`.execute`).
-
-Soft warnings (advisory, surface in review but don't block): function bodies > 30 lines, files > 150 lines. The shape hook enforces a generous safety-net cap (`CLAUDE_FILE_LINE_LIMIT`, default 300) for clearly runaway output. Per-glob overrides via `.claude/shape-overrides.json` still apply.
+- **Entanglement escape valve:** if understanding unit A requires reading unit B, bring them together — this is HOW to fix a flagged function, not a bypass.
+- **Comments carry WHY only.** New/changed WHAT-comments in source are blocked (exit 2) by hook; doc-comments, license headers, and `# WHY:`/`# SAFETY:` prefixes are always allowed.
+- **Don't complect** (Hickey): one concern per unit; complected code defeats reasoning and breaks reliability.
+- **Classes/files:** one responsibility, no hard size number — size is a smell that triggers the naming check. Safety-net cap: `CLAUDE_FILE_LINE_LIMIT` (default 300). Per-glob overrides via `.claude/shape-overrides.json` still apply.
 
 Full standards (naming, SOLID, error handling, dependency resolution, security baseline, test mix): `protocols/engineering-invariants.md`.
 

@@ -4,22 +4,53 @@ Always-loaded engineering baseline: code shape, naming, error handling, dependen
 
 ## Code Shape
 
-Code shape is judged by **cohesion**, not by line count. AI agents can hold and reason about much larger units than humans can; mechanical line caps fragmented logic across many call sites with weak names and hurt review-time comprehension.
+The goal: small single-responsibility units composed together — tiny by default (Ruby small-object tradition).
+
+**Naming is the primary cohesion gate** — it cuts both ways:
+- Cannot name a unit without "and" → it is too big, split it.
+- Cannot give an extracted piece an honest name → do NOT extract. A fragment named `handlePart2` is worse than the longer cohesive function.
+
+**Per-language length limits — HARD BLOCK on new/changed code; advisory on legacy:**
+- Ruby methods: **> 5 lines** blocked (exit 2) by hook on new/changed code; advisory on pre-existing.
+- TypeScript/JavaScript functions: **> 12 lines** blocked on new/changed code; advisory on pre-existing.
+- Python/Go: existing cap (`CLAUDE_FUNCTION_LINE_LIMIT`, default 8) retained.
+
+**Entanglement escape valve (Ousterhout):** if understanding unit A requires reading unit B (you flip between them), do NOT split — bring them together. This is guidance on HOW to fix a flagged function, not an escape hatch from the block.
+
+**Deep modules, not many shallow ones (Ousterhout):** prefer one deep unit with a simple interface hiding substantial implementation over several shallow ones whose combined interface costs more than they hide.
 
 Hard rules (every code-touching agent enforces continuously):
 
-- **One thing per function.** If you can describe a function as "X *and* Y", split it. The name is the test — if you cannot name it without a conjunction, it does not have a single responsibility.
+- **One thing per function.** Naming is the test — if you cannot name it without a conjunction, split.
 - **Cyclomatic complexity ≤ 5.** Branching past this point obscures intent regardless of length.
 - **Nesting ≤ 2.** Use guard clauses, polymorphism, or extraction instead of nesting deeper.
 - **DRY on 2nd occurrence.** Extract immediately when logic recurs — duplication propagates bugs in any codebase.
+- **≤ 4 params** per function. More signals a missing abstraction or a god-function.
 - **Single public entry point per class** (`.call`/`.run`/`.execute`). Internal helpers stay private.
 
-Soft warnings (advisory, surface in review but do not block):
+**Classes/files:** one responsibility per class/module — size is a smell that triggers the naming check, not a hard rule. There is no 100-line class cap (folklore; refuted). The hook enforces a generous safety-net cap (`CLAUDE_FILE_LINE_LIMIT`, default 300) for genuinely runaway files only. Project overrides via `.claude/shape-overrides.json` still apply.
 
-- Function bodies past **30 lines** — usually a smell, sometimes legitimate (e.g., a large switch with no extractable cohesion).
-- Files past **150 lines** — usually a smell, sometimes legitimate (e.g., a self-contained module with no fan-out).
+## Simplicity
 
-The hook layer enforces a generous cap to catch genuinely runaway files (`CLAUDE_FILE_LINE_LIMIT`, default 300) — this is a safety net for clearly-broken output, not the design rule. The design rule is cohesion. Project overrides via `.claude/shape-overrides.json` still apply.
+Simple means **don't complect** (Hickey): one concern per unit, not braided or interleaved with others. The check is concrete — does this unit interleave concerns that could stand alone?
+
+Simplicity is a prerequisite for reliability (Dijkstra/Hickey): you can only make reliable what you can reason about; complected code defeats reasoning combinatorially.
+
+## Comments
+
+**Code carries the WHAT. Comments carry only the WHY** — intent, rationale, non-obvious constraints, public-API contracts, and warnings of consequences.
+
+**Banned (a new explanatory WHAT comment in changed source is blocked by hook):**
+- Restating what the code does (`# Increment counter` next to `counter += 1`)
+- Changelog/apology comments (`# Changed because reviewer said X`)
+- Commented-out code
+
+**Always allowed:** public-API doc-comments (`/** */`, `# @param`, `"""…"""`), legal/license headers, and WHY-prefix notes (`# WHY:`, `# SAFETY:`, `# NOTE:`) for genuinely non-obvious constraints.
+
+- Banned: `# Iterate over users and send email` (restates the loop below it).
+- Allowed: `# WHY: Stripe requires idempotency key on retries — removing this causes duplicate charges.`
+
+If a name needs a comment, rename it. If a *constraint* is not obvious from the code, comment the WHY.
 
 ## When to Use a Class vs Standalone Function
 
