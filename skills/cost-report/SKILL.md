@@ -24,6 +24,10 @@ argument-hint: "Optional: --since YYYY-MM-DD or --out <path>"
     Each record has at least `model`, `input_tokens`, `output_tokens`,
     optionally `cache_creation_input_tokens`, `cache_read_input_tokens`,
     `agent_role`, `task_id`.
+  - `~/.claude/metrics/costs.jsonl` — per-session `session_end` records
+    written by `hooks/cost-tracker.sh`. Each `session_end` record carries
+    a `preamble_tokens` field (MEASURED by `hooks/_lib/preamble-tokens-emit.py`
+    at session close). Used by Step 5-bis.
   - `hooks/_lib/cost_estimator.py` — `estimate_cost_usd` and
     `estimate_cost_usd_per_pipeline` (single source of truth for pricing).
 - **External (optional)**: GitHub merged-PR list — used to attach a
@@ -121,7 +125,38 @@ Sections (in order):
 
    When `total_invocations == 0`, render the header with a single line `_No sandbox-verify invocations found in scanned metrics._` — the section is not omitted; an empty fleet is itself informative. When `dropped_lines > 0`, surface the dropped count so operators can investigate JSONL corruption.
 
-6. `## Notes` — any unknown-model warnings (collected from `cost_estimator` stderr) and dropped-record counts (malformed JSONL lines, records without `task_id`).
+6. `## Preamble Tokens (MEASURED)` — MEASURED per-session preamble token counts
+   read from `metrics/costs.jsonl` `session_end` records. These are recorded
+   values (not estimates), written by `hooks/cost-tracker.sh` via
+   `hooks/_lib/preamble-tokens-emit.py`. Aggregated via the shared helper:
+
+   ```python
+   import sys
+   sys.path.insert(0, f"{os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ.get('CLAUDE_CONFIG_DIR') or os.path.join(os.path.expanduser('~'), '.claude')}/hooks/_lib")
+   from preamble_tokens_aggregate import aggregate_preamble_tokens
+   from pathlib import Path
+   result = aggregate_preamble_tokens(Path(os.environ.get('CLAUDE_PLUGIN_DATA') or os.environ.get('CLAUDE_CONFIG_DIR') or os.path.join(os.path.expanduser('~'), '.claude')) / "metrics")
+   # {"total_preamble_tokens": int, "session_count": int, "dropped_lines": int}
+   ```
+
+   Render as:
+
+   ```markdown
+   ## Preamble Tokens (MEASURED)
+   - Total preamble tokens: 142,857
+   - Sessions recorded: 23
+   - Avg preamble tokens per session: 6,211
+   - Dropped lines (malformed JSONL): 0
+   ```
+
+   `avg_per_session = total_preamble_tokens / session_count` (guard: when
+   `session_count == 0` render `0`). When `session_count == 0`, render the
+   header with a single line
+   `_No session_end preamble records found in scanned metrics._` — the
+   section is not omitted. Values are MEASURED (per-session recorded), not
+   derived from the cost_estimator estimate basis.
+
+7. `## Notes` — any unknown-model warnings (collected from `cost_estimator` stderr) and dropped-record counts (malformed JSONL lines, records without `task_id`).
 
 ### Step 6: Emit verdict
 
@@ -165,6 +200,12 @@ Range: last 30 days. Files scanned: 47. Records processed: 12,394.
 | 1 | architect | $74.10 | 21 |
 | 2 | software-engineer | $58.32 | 23 |
 | 3 | code-reviewer | $22.04 | 23 |
+
+## Preamble Tokens (MEASURED)
+- Total preamble tokens: 142,857
+- Sessions recorded: 23
+- Avg preamble tokens per session: 6,211
+- Dropped lines (malformed JSONL): 0
 
 ## Notes
 - 2 records had unknown model `claude-experiment-x` (billed at $0.00).
