@@ -50,7 +50,7 @@ ALLOWLIST=(
   # cost-feed T18). None is the legacy 8-line method rule mis-stated as 5. ---
   "agents/fix-engineer.md:113"          # CC ≤ 5 restatement
   "agents/pbt-engineer.md:71"           # "first 5-line excerpt" of a tool failure
-  "agents/security-engineer.md:76"      # "within ±5 lines of the finding"
+  "agents/security-engineer.md:77"      # "within ±5 lines of the finding" (line shifted +1 by GP-P4-2 skill-security-lint When-to-Invoke bullet)
   "hooks/_lib/baseline_capture.sh:86"   # CC ≤ 5
   "hooks/_lib/cost-helpers.sh:3"        # ≤5-line-per-function contract (cost-feed T18)
   "hooks/_lib/cost-jsonl-emit.py:5"     # references that contract
