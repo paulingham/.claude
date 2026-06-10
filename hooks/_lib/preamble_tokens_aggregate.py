@@ -19,11 +19,12 @@ Return shape:
 
 Identity invariant:
     session_count = count of lines where event=="session_end" AND
-                    preamble_tokens is a non-negative int.
-    dropped_lines = count of lines that are malformed JSON or that parse
-                    as non-session_end AND preamble_tokens is absent/invalid.
-    (Non-session_end lines with valid preamble_tokens are silently skipped;
-     they are not counted in dropped_lines as they are structurally valid.)
+                    preamble_tokens is a non-negative int (bool excluded).
+    dropped_lines = count of lines that are (a) malformed JSON, OR
+                    (b) parse as event=="session_end" but preamble_tokens
+                    is absent, negative, not an int, or a bool.
+    (Non-session_end lines are silently skipped regardless of whether they
+     carry preamble_tokens — structural skip, NOT dropped.)
 
 NOTE on file location: `cost-tracker.sh` writes a single flat file at
 `metrics/costs.jsonl` (not per-session subdirectories). This helper reads
@@ -58,10 +59,12 @@ def aggregate_preamble_tokens(metrics_root: Path) -> dict:
         if record is _DROPPED:
             dropped_lines += 1
             continue
-        if not _is_valid_session_end(record):
-            continue
-        total_preamble_tokens += record["preamble_tokens"]
-        session_count += 1
+        tag = _classify_record(record)
+        if tag == "valid_session_end":
+            total_preamble_tokens += record["preamble_tokens"]
+            session_count += 1
+        elif tag == "corrupt_session_end":
+            dropped_lines += 1
 
     return {
         "total_preamble_tokens": total_preamble_tokens,
@@ -78,14 +81,18 @@ def _empty_result() -> dict:
     }
 
 
-def _is_valid_session_end(record: dict) -> bool:
-    """Return True when record is a session_end with a non-negative int preamble_tokens."""
-    if not isinstance(record, dict):
-        return False
-    if record.get("event") != "session_end":
-        return False
-    pt = record.get("preamble_tokens")
-    return isinstance(pt, int) and pt >= 0
+def _classify_record(record: dict) -> str:
+    """Classify a parsed record into 'valid_session_end', 'corrupt_session_end', or 'skip'."""
+    if not isinstance(record, dict) or record.get("event") != "session_end":
+        return "skip"
+    if _is_valid_preamble_tokens(record.get("preamble_tokens")):
+        return "valid_session_end"
+    return "corrupt_session_end"
+
+
+def _is_valid_preamble_tokens(pt: object) -> bool:
+    """Return True for a non-negative int that is not a bool."""
+    return isinstance(pt, int) and not isinstance(pt, bool) and pt >= 0
 
 
 # Sentinel distinguishing "line malformed" from "valid JSON dict".
