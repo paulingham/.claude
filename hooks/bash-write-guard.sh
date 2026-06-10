@@ -30,6 +30,8 @@ _BWG_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "$_BWG_HOOK_DIR/_lib/harness-paths.sh"
 source "$_BWG_HOOK_DIR/_lib/log.sh"
+# is_protected_path: block-by-protected-location helper (consults git index)
+source "$_BWG_HOOK_DIR/_lib/is-protected-path.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
 trap 'log_hook_event $?' EXIT
@@ -111,10 +113,13 @@ matches_protected_redirect() {
     # The redirect must target a protected path, not /tmp/* etc.
     [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?settings\.json([[:space:]]|$|\&) ]] && return 0
     [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]/]+\.sh([[:space:]]|$|\&) ]] && return 0
-    # Scoped .md (Hole 3): a redirect to a .md file is a protected write UNLESS
-    # the target is under .claude/, memory/, rules/, pipeline-state/, or a
-    # worktree (handled by the top-level scoping check) — see is_protected_md.
-    [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]]+\.md([[:space:]]|$|\&) ]] && is_protected_md "$1" && return 0
+    # .md (Hole 3): extract the .md token and delegate to is_protected_path,
+    # which consults the git index rather than a substring allowlist.
+    if [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]]+\.md([[:space:]]|$|\&) ]]; then
+        local _md_token=""
+        _md_token="$(grep -oE '[^[:space:]]+\.md' <<<"$1" | head -1)"
+        is_protected_path "$_md_token" && return 0
+    fi
     return 1
 }
 
@@ -125,19 +130,13 @@ matches_python_pathlib_write() {
     # whitelists run earlier (caller order), so allowed targets never reach here.
     [[ "$1" =~ write_text[[:space:]]*\( || "$1" =~ write_bytes[[:space:]]*\( ]] || return 1
     [[ "$1" =~ \.(json|sh|yaml|yml)([^a-zA-Z0-9]|$) ]] && return 0
-    # Scoped .md: a write_text to a .md path blocks only outside allowed roots.
-    [[ "$1" =~ \.md([^a-zA-Z0-9]|$) ]] && is_protected_md "$1" && return 0
+    # .md: extract the first .md token and delegate to is_protected_path.
+    if [[ "$1" =~ \.md([^a-zA-Z0-9]|$) ]]; then
+        local _md_token=""
+        _md_token="$(grep -oE '[^[:space:]]+\.md' <<<"$1" | head -1)"
+        is_protected_path "$_md_token" && return 0
+    fi
     return 1
-}
-
-# Hole 3 helper: returns 0 when a .md token in the command is a PROTECTED
-# target (root-level or templates/) — i.e. NOT under an orchestrator-writable
-# root. Mirrors orchestrator-discipline.sh's tightened .md scope. Allowed roots:
-# .claude/, memory/, rules/, pipeline-state/, and .claude/worktrees/ (the
-# worktree case also satisfies /.claude/ so it is covered).
-is_protected_md() {
-    [[ "$1" =~ /\.claude/ || "$1" =~ /memory/ || "$1" =~ /rules/ || "$1" =~ /pipeline-state/ ]] && return 1
-    return 0
 }
 
 matches_cp_mv_to_protected() {
@@ -155,11 +154,12 @@ matches_cp_mv_to_protected() {
 
 _bwg_destination_is_protected() {
     # The destination is the last whitespace-separated token of a cp/mv command.
-    local dest
+    local dest=""
     dest="${1##* }"
     [[ "$dest" == /tmp/* || "$dest" == *"/.claude/worktrees/"* ]] && return 1
     [[ "$dest" =~ \.(json|sh|yaml|yml)([^a-zA-Z0-9]|$) ]] && return 0
-    [[ "$dest" =~ \.md([^a-zA-Z0-9]|$) ]] && is_protected_md "$dest" && return 0
+    # .md: delegate to is_protected_path (git-index based decision).
+    [[ "$dest" =~ \.md([^a-zA-Z0-9]|$) ]] && is_protected_path "$dest" && return 0
     return 1
 }
 

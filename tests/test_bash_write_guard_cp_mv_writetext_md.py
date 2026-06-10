@@ -6,9 +6,10 @@ Background: this session bypassed bash-write-guard.sh through three holes:
     from a worktree into the main tree unblocked.
   Hole 2 — write_text()/write_bytes() not matched: matches_python_open_write
     keys on the literal `open(`, so `Path(...).write_text(t)` was invisible.
-  Hole 3 — all .md treated as orchestrator-writable: .md at repo root /
-    templates/ slipped through. Only .md under .claude/, memory/, rules/,
-    pipeline-state/, and .claude/worktrees/ should be allowed.
+  Hole 3 — .md protection now uses block-by-protected-location: the old
+    substring allowlist (/rules/, /memory/, etc.) matched every path in a
+    repo whose root IS .claude.  The guard now calls is_protected_path which
+    consults the git index.  Hole3 tests use a REAL .claude-named git fixture.
 
 These tests pin the new detectors. Run from /tmp so is_caller_in_worktree
 returns false — this exercises the protected-path detectors + allowlist.
@@ -16,6 +17,7 @@ returns false — this exercises the protected-path detectors + allowlist.
 import json
 import os
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -35,6 +37,28 @@ def _run(command):
         env=proc_env,
         cwd="/tmp",
     )
+
+
+def _make_h3_git_repo(base: str) -> str:
+    """Create a minimal .claude-named git repo for Hole3 fixtures."""
+    repo = os.path.join(base, "proj.claude")
+    os.makedirs(repo)
+    subprocess.run(["git", "init", "-q", repo], check=True)
+    subprocess.run(["git", "-C", repo, "config", "user.email", "t@t"], check=True)
+    subprocess.run(["git", "-C", repo, "config", "user.name", "T"], check=True)
+    # Commit a templates/ file so parent-probe in templates/ finds a sibling
+    tmpl_dir = os.path.join(repo, "templates")
+    os.makedirs(tmpl_dir)
+    Path(os.path.join(tmpl_dir, "agent.md")).write_text("# tmpl\n")
+    subprocess.run(["git", "-C", repo, "add", "templates/agent.md"], check=True)
+    # Commit ROLLOUT.md at root
+    Path(os.path.join(repo, "ROLLOUT.md")).write_text("# rollout\n")
+    subprocess.run(["git", "-C", repo, "add", "ROLLOUT.md"], check=True)
+    subprocess.run(["git", "-C", repo, "commit", "-q", "-m", "seed"], check=True)
+    # Create untracked pipeline-state dir (no tracked siblings)
+    ps_dir = os.path.join(repo, "pipeline-state", "task")
+    os.makedirs(ps_dir)
+    return repo
 
 
 class Hole1CpMvDetection(unittest.TestCase):
@@ -121,44 +145,44 @@ class Hole2WriteTextWriteBytes(unittest.TestCase):
                          f"write_text to evidence json must pass; stderr={r.stderr}")
 
 
-class Hole3MdRootBlockedScopedAllowed(unittest.TestCase):
-    """.md at repo root / templates/ blocks; .md under allowed roots passes."""
+class Hole3MdBlockedByGitIndex(unittest.TestCase):
+    """.md writes block when git-tracked (or in tracked dir); untracked
+    orchestrator-state paths pass.  Uses a REAL .claude-named git repo so
+    the is_protected_path helper can consult the git index — synthetic
+    /repo/.claude paths no longer test the invariant after the fix."""
 
-    def test_md_at_repo_root_blocks(self):
-        r = _run("echo content > ROLLOUT.md")
+    @classmethod
+    def setUpClass(cls):
+        cls._tmpdir = tempfile.mkdtemp()
+        cls._repo = _make_h3_git_repo(cls._tmpdir)
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        shutil.rmtree(cls._tmpdir, ignore_errors=True)
+
+    def test_redirect_to_tracked_rollout_md_blocks(self):
+        rollout = os.path.join(self._repo, "ROLLOUT.md")
+        r = _run(f"echo content > {rollout}")
         self.assertEqual(r.returncode, 2,
-                         f"redirect to root .md must block; stderr={r.stderr}")
+                         f"redirect to tracked ROLLOUT.md must block; stderr={r.stderr}")
 
-    def test_md_under_templates_blocks(self):
-        r = _run("cp src/x.md templates/x.md")
+    def test_cp_to_tracked_templates_blocks(self):
+        dest = os.path.join(self._repo, "templates", "new.md")
+        r = _run(f"cp /tmp/x.md {dest}")
         self.assertEqual(r.returncode, 2,
-                         f"cp to templates .md must block; stderr={r.stderr}")
+                         f"cp to templates .md (tracked dir) must block; stderr={r.stderr}")
 
-    def test_md_under_dotclaude_allowed(self):
-        r = _run("echo content > /repo/.claude/notes.md")
-        self.assertEqual(r.returncode, 0,
-                         f".md under .claude/ must pass; stderr={r.stderr}")
-
-    def test_md_under_memory_allowed(self):
-        r = _run("echo content > /repo/memory/MEMORY.md")
-        self.assertEqual(r.returncode, 0,
-                         f".md under memory/ must pass; stderr={r.stderr}")
-
-    def test_md_under_rules_allowed(self):
-        r = _run("echo content > /repo/rules/core.md")
-        self.assertEqual(r.returncode, 0,
-                         f".md under rules/ must pass; stderr={r.stderr}")
-
-    def test_md_under_pipeline_state_allowed(self):
-        r = _run("echo content > /repo/pipeline-state/task/plan.md")
-        self.assertEqual(r.returncode, 0,
-                         f".md under pipeline-state/ must pass; stderr={r.stderr}")
-
-    def test_md_inside_worktree_allowed(self):
-        r = _run("echo content > "
-                 "/repo/.claude/worktrees/agent-abc/ROLLOUT.md")
+    def test_worktree_md_allowed(self):
+        r = _run("echo content > /repo/.claude/worktrees/agent-abc/ROLLOUT.md")
         self.assertEqual(r.returncode, 0,
                          f".md inside worktree must pass; stderr={r.stderr}")
+
+    def test_pipeline_state_md_allowed(self):
+        plan = os.path.join(self._repo, "pipeline-state", "task", "plan.md")
+        r = _run(f"echo content > {plan}")
+        self.assertEqual(r.returncode, 0,
+                         f".md under pipeline-state/ must pass; stderr={r.stderr}")
 
 
 if __name__ == "__main__":
