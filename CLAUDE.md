@@ -10,7 +10,7 @@
 - Zero waste: every output line is a test result or a real error
 - Proven correct: tests passing is necessary but not sufficient — verify it actually works
 
-> **Default Opus model**: `claude-opus-4-7` (GA 2026-04-16). Pricing unchanged from 4.6 ($5/$25 per-M tokens).
+> **Default Opus model**: `claude-opus-4-8` (GA). Pricing unchanged from 4.6/4.7 ($5/$25 per-M tokens).
 > **80% claim**: measured on `eval/baselines/{latest}-opus-4-7.md`, not SWE-bench Verified. See `skills/internal-eval/SKILL.md`.
 
 ## Runtime State Location
