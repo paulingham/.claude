@@ -128,7 +128,7 @@ Catches the failure mode: user says "tidy up the docs" but architect's plan actu
 | Surface inside `rules/core.md` | Tier floor |
 |---|---|
 | Iron Laws (numbered 1-7) | **T6** (Best-of-N + adversarial review mandatory) |
-| Code Shape Rules (8-line method, CC≤5, nesting≤2) | **T6** |
+| Code Shape Rules (per-language function limits, CC≤5, nesting≤2 — `protocols/engineering-invariants.md` § Code Shape) | **T6** |
 | Worktree + Commit Protocol section | **T5** |
 | Pipeline Phase Order text | **T5** |
 | "Where to Look Next" index (just redirectors) | **T1** allowed |

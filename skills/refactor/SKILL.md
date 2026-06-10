@@ -33,8 +33,8 @@ If the refactoring is rejected, the worktree is discarded — no cleanup needed.
 ### 1. Identify the Smell
 
 Common smells:
-- Long method (> 8 lines)
-- Large class (> 50 lines)
+- Long method (> 5 lines Ruby / > 12 lines TS/JS — see `protocols/engineering-invariants.md` § Code Shape)
+- Large class (name reveals a conjunction — does too many things)
 - Feature envy (method uses another object's data more than its own)
 - Duplicated logic (3+ occurrences)
 - Primitive obsession (raw types instead of value objects)
@@ -70,7 +70,7 @@ One transformation at a time. Run tests after each step.
 
 - All tests green
 - No behavior changes (characterization tests unchanged)
-- Code meets engineering standards (8-line methods, CC <= 5)
+- Code meets engineering standards (per-language function limits, CC <= 5 — `protocols/engineering-invariants.md` § Code Shape)
 - Commit with clear message describing the refactoring
 
 ## Safety Rules

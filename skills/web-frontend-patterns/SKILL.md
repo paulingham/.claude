@@ -71,7 +71,7 @@ src/
 ```
 
 ### Component Rules
-- **50-line limit** applies to components (enforced by `code-shape-check.sh`)
+- Component functions follow TS/JS shape rules (≤ 12 lines per function; see `protocols/engineering-invariants.md` § Code Shape)
 - Extract custom hooks for any logic beyond simple state
 - UI components are pure functions of props — no side effects, no data fetching
 - Feature components compose UI components and connect to data via hooks

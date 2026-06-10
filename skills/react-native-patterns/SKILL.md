@@ -66,7 +66,7 @@ Documents and enforces React Native/Expo patterns for mobile development.
 
 ## Code Shape (Mandatory)
 
-All React Native code MUST comply with `protocols/engineering-invariants.md` (8-line functions, 50-line files, CC <= 5, nesting <= 2, DRY).
+All React Native code MUST comply with `protocols/engineering-invariants.md` § Code Shape (TS/JS functions ≤ 12 lines, CC <= 5, nesting <= 2, DRY).
 
 ### React Native Decomposition Patterns
 

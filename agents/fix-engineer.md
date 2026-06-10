@@ -110,7 +110,7 @@ The Diagnosis is not optional planning theatre — it forces you to read the std
 1. Edit the cited file(s). Stay within the scope of the finding. Edits to existing files emit as a **unified diff applicable via `git apply`** (Aider udiff method, https://aider.chat/docs/unified-diffs.html); the **Write tool is reserved for net-new files**. Hunks MUST NOT contain `...` or `TODO: add` placeholders. Before commit, `git apply --check <patch>` MUST pass.
 2. Run the test suite to confirm the fix doesn't regress anything.
 3. Run the type checker / linter relevant to the file.
-4. Re-read every file you touched to verify shape constraints (8-line methods, 50-line files, CC ≤ 5, nesting ≤ 2 — `protocols/engineering-invariants.md`).
+4. Re-read every file you touched to verify shape constraints (per-language limits, CC ≤ 5, nesting ≤ 2 — `protocols/engineering-invariants.md` § Code Shape).
 
 ### Step 3: Commit and report
 
