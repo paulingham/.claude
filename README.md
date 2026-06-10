@@ -45,7 +45,7 @@ You describe what you want. The system:
     verdict-catalog.md         #   Harness-audit verdict registry (on-demand audit source)
   orchestrator/                # Orchestrator-only detailed procedures (4 files)
   agents/                      # 19 specialized agent definitions
-  skills/                      # 67 skills (procedural workflows)
+  skills/                      # 68 skills (procedural workflows)
   knowledge/                   # 41 domain pattern references
   hooks/                       # 78 enforcement scripts
     _lib/                      #   Shared helpers, including:
@@ -128,7 +128,7 @@ Next pipeline → Instinct injected into agent prompt → Better build → Fewer
 
 Review findings classified as "preventable by build agent" become build-targeted instincts — a backward feedback loop from review to build.
 
-## Skills (67)
+## Skills (68)
 
 ### Pipeline & Orchestration
 | Skill | Purpose |

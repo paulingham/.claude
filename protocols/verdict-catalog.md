@@ -84,6 +84,8 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `NO_CHANGES_NEEDED` | info | `polish` | utility | Continue to Review |
 | `SCREENSHOTS_CAPTURED` | info | `design-qc` | utility | Product-reviewer consumes screenshots |
 | `CAPTURE_FAILED` | failure | `design-qc` | utility | Product-reviewer warned; falls back to text review |
+| `SKILL_LINT_CLEAN` | info | `skill-security-lint` | utility | No injection patterns, secrets, or over-broad tool grants found in scanned skill files; advisory — security-engineer folds result into assessment |
+| `SKILL_LINT_FLAGGED` | info | `skill-security-lint` | utility | One or more findings detected (injection / secret / over_broad_tool); advisory — security-engineer folds findings into OWASP AA02/AA03 items; never a hard block |
 | `PR_CREATED` | success | `pr-creation` | ship | `/harness:deploy` (if CD configured) |
 | `PR_BLOCKED` | failure | `pr-creation` | ship | Halt; missing approval token or quality-gate failure |
 | `DEPLOYED` | success | `deploy` | deploy | `/harness:deployment-verification` |

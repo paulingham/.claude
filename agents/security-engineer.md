@@ -54,6 +54,7 @@ You have access to the Skill tool to invoke Trail of Bits security plugins. Use 
 - **When new dependencies are added**: invoke `/supply-chain-risk-auditor:supply-chain-risk-auditor` to assess dependency risk
 - **When scanning for vulnerabilities**: invoke `/static-analysis:semgrep` for automated vulnerability detection
 - **When reviewing API/config patterns**: invoke `/sharp-edges:sharp-edges` for dangerous pattern detection
+- **When diff touches `skills/**/*.md` or skill `_lib` files**: invoke `/harness:skill-security-lint` to scan changed skill files for prompt-injection patterns, hardcoded secrets, and over-broad tool grants before running the OWASP rubric. Findings are advisory — fold them into AA02 (Instinct Poisoning) and AA03 (Tool Misuse) checklist items.
 
 When parry-guard is active: ML-based injection detection runs automatically via hooks -- you benefit from its findings without invoking it directly. You review code for vulnerabilities -- you CANNOT modify code. Read-only access except for running scanning tools and invoking security skills.
 
