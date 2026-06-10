@@ -32,12 +32,11 @@ from pathlib import Path
 _MAX_FILE_BYTES = 1 * 1024 * 1024  # 1 MB — mirror spec-grounding bound
 
 # Adversarial override phrases; deliberately tight to avoid false positives.
+# Omit "bypass/disable the gate/guard/hook" — those appear in legitimate harness docs.
 _INJECTION_PATTERNS: list[re.Pattern] = [
     re.compile(r"ignore\s+(all\s+)?previous\s+instructions", re.IGNORECASE),
     re.compile(r"disregard\s+the\s+above", re.IGNORECASE),
     re.compile(r"you\s+must\s+now\b", re.IGNORECASE),
-    re.compile(r"bypass\s+the\s+gate", re.IGNORECASE),
-    re.compile(r"disable\s+the\s+(security\s+)?(gate|guard|hook)", re.IGNORECASE),
     re.compile(r"grant\s+yourself\b", re.IGNORECASE),
     re.compile(r"as\s+an\s+admin\s+you\b", re.IGNORECASE),
 ]
@@ -46,9 +45,13 @@ _INJECTION_PATTERNS: list[re.Pattern] = [
 _SECRET_PATTERNS: list[re.Pattern] = [
     # AWS access key ID
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
-    # Generic assignment: api_key = "..." / token: '...' / password = "..."
+    # Generic assignment: api_key = "..." / auth_token: '...' / password = "..."
+    # \b word-boundaries prevent matching identifiers that merely END in a keyword
+    # (e.g. override_token).  Value must be quoted, non-whitespace, and not start
+    # with '[' so bracketed config placeholders like [force-pipeline] are excluded.
     re.compile(
-        r"(?:api[_\-]?key|token|password|secret)\s*[=:]\s*[\"'][^\"']{8,}",
+        r"\b(?:api[_\-]?key|auth[_\-]?token|password|secret|client[_\-]?secret)\b"
+        r"\s*[=:]\s*[\"'](?!\[)[^\"'\s]{8,}[\"']",
         re.IGNORECASE,
     ),
     # PEM private key header
@@ -146,30 +149,35 @@ def _detect_secrets(path: str, lines: list[str]) -> list[dict]:
 
 
 def _detect_over_broad_tools(path: str, text: str) -> list[dict]:
-    """Flag wildcard tools: ["*"] or over-broad grants on read-only phases."""
+    """Flag wildcard tools: ["*"] or over-broad grants on read-only phases.
+
+    Also catches wildcard grants in agent files that have no phase: key,
+    since those are the primary AA03 tool-escalation surface.
+    """
     frontmatter = _extract_frontmatter(text)
     if not frontmatter:
         return []
 
-    phase = _parse_phase(frontmatter)
     tools = _parse_tools(frontmatter)
     if not tools:
         return []
 
-    findings = []
     if _has_wildcard_tools(tools):
-        findings.append(_make_finding(
+        findings = [_make_finding(
             path, 1, "over_broad_tool", "HIGH",
-            "tools: [\"*\"] — wildcard tool grant"))
+            "tools: [\"*\"] — wildcard tool grant")]
         return findings
 
-    if phase in _READ_ONLY_PHASES:
-        for tool in tools:
-            if tool in _OVER_BROAD_TOOLS:
-                findings.append(_make_finding(
-                    path, 1, "over_broad_tool", "HIGH",
-                    f"tool `{tool}` granted on read-only phase `{phase}`"))
+    phase = _parse_phase(frontmatter)
+    if phase not in _READ_ONLY_PHASES:
+        return []
 
+    findings = []
+    for tool in tools:
+        if tool in _OVER_BROAD_TOOLS:
+            findings.append(_make_finding(
+                path, 1, "over_broad_tool", "HIGH",
+                f"tool `{tool}` granted on read-only phase `{phase}`"))
     return findings
 
 
@@ -189,8 +197,15 @@ def _parse_phase(frontmatter: str) -> str:
     return match.group(1).strip() if match else ""
 
 
+_BARE_WILDCARD_RE = re.compile(r"^tools:\s*['\"]?\*['\"]?\s*$", re.MULTILINE)
+
+
 def _parse_tools(frontmatter: str) -> list[str]:
-    """Parse `tools:` from frontmatter — handles both list and inline forms."""
+    """Parse `tools:` from frontmatter — handles scalar, inline, and block forms."""
+    # Bare scalar: tools: '*' / tools: * / tools: "*"
+    if _BARE_WILDCARD_RE.search(frontmatter):
+        return ["*"]
+
     # Inline form: tools: ["Write", "Read"] or tools: [Write, Read]
     inline = re.search(r"^tools:\s*\[([^\]]*)\]", frontmatter, re.MULTILINE)
     if inline:
@@ -212,8 +227,8 @@ def _parse_tools(frontmatter: str) -> list[str]:
 
 
 def _has_wildcard_tools(tools: list[str]) -> bool:
-    """Return True if tools contains a wildcard '*' entry."""
-    return any(t.strip() in ("*", '"*"', "'*'") for t in tools)
+    """Return True if tools contains a bare wildcard '*' entry."""
+    return any(t.strip() == "*" for t in tools)
 
 
 # ---------------------------------------------------------------------------
