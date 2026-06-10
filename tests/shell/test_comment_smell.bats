@@ -14,6 +14,12 @@ setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   HOOK="$REPO_ROOT/hooks/comment-smell-check.sh"
   export CLAUDE_PLUGIN_ROOT="$REPO_ROOT"
+  # Hermetic loop-guard state per test run: back-to-back suite runs accumulate
+  # >10 timestamps in 60s in the shared state dir, tripping the re-entrancy guard
+  # and causing the hook to exit 0 before its block logic. A per-run temp dir keeps
+  # the guard counter fresh. Mirrors the pattern in test_function_body_runtime.bats.
+  CLAUDE_STATE_DIR="$BATS_FILE_TMPDIR/.state"
+  export CLAUDE_STATE_DIR
 
   # A real git repo so the hook's git-based new/legacy discrimination runs for real.
   WORK="$BATS_FILE_TMPDIR/repo"
