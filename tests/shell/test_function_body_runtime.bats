@@ -144,3 +144,109 @@ write_ts_func() {
     [ "$status" -eq 2 ]
     [[ "$output" == *"BLOCKED"* ]]
 }
+
+@test "D1a: new 7-body-line Ruby method with inline do-block is counted correctly and blocks (exit 2)" {
+    # A method whose body contains an items.each do |x| ... end iterator.
+    # Body lines (excluding the def/end of the method itself): 7.
+    # The do...end block's end was previously miscounted as closing the method,
+    # causing the body to be under-counted; this test pins the fix.
+    local f="$REPO_FIX/iter.rb"
+    {
+        echo "def process_items"
+        echo "  result = []"
+        echo "  items.each do |x|"
+        echo "    val = x * 2"
+        echo "    result << val"
+        echo "  end"
+        echo "  log_result"
+        echo "  result"
+        echo "end"
+    } > "$f"
+    run_hook "$f"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"BLOCKED"* ]]
+}
+
+@test "D1b: new Ruby method with inline do-block that is genuinely small (<=5 body lines) passes (exit 0)" {
+    # Guard against D1 over-correction: a method that uses a do-block but stays
+    # within the 5-line limit must NOT be blocked.
+    local f="$REPO_FIX/small_iter.rb"
+    {
+        echo "def compact"
+        echo "  items.each do |x|"
+        echo "    x.save"
+        echo "  end"
+        echo "  true"
+        echo "end"
+    } > "$f"
+    run_hook "$f"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"BLOCKED"* ]]
+}
+
+@test "D2a: edit inside pre-existing over-limit Ruby function is advisory (exit 0) — legacy must stay editable" {
+    # Commit an over-limit function to baseline. Then change a variable name INSIDE
+    # its body (not the def line). The hook must NOT block: the def line is not in
+    # the added-lines set, so this is a legacy edit, not a new function.
+    local f="$REPO_FIX/legacy_edit.rb"
+    {
+        echo "def big_legacy"
+        echo "  a = 1"
+        echo "  b = 2"
+        echo "  c = 3"
+        echo "  d = 4"
+        echo "  e = 5"
+        echo "  f = 6"
+        echo "  g = 7"
+        echo "end"
+    } > "$f"
+    git -C "$REPO_FIX" add legacy_edit.rb
+    git -C "$REPO_FIX" commit -q -m "add legacy over-limit function"
+    # Edit a line inside the body: change variable name a → alpha.
+    # The def line (line 1) is NOT a + line; only line 2 changes.
+    local tmp
+    tmp="$(mktemp)"
+    {
+        echo "def big_legacy"
+        echo "  alpha = 1"
+        echo "  b = 2"
+        echo "  c = 3"
+        echo "  d = 4"
+        echo "  e = 5"
+        echo "  f = 6"
+        echo "  g = 7"
+        echo "end"
+    } > "$tmp"
+    cp "$tmp" "$f"
+    rm "$tmp"
+    run_hook "$f"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"BLOCKED"* ]]
+}
+
+@test "D2b: new over-limit function appended to tracked file blocks (exit 2) — guard against D2 over-correction" {
+    # The def line of the appended function IS in the added-lines set.
+    # This must still block, confirming the D2 fix did not break new-function detection.
+    local f="$REPO_FIX/existing_file.rb"
+    {
+        echo "def existing_small"
+        echo "  1"
+        echo "end"
+    } > "$f"
+    git -C "$REPO_FIX" add existing_file.rb
+    git -C "$REPO_FIX" commit -q -m "add small existing function"
+    {
+        echo ""
+        echo "def newly_added_big"
+        echo "  a = 1"
+        echo "  b = 2"
+        echo "  c = 3"
+        echo "  d = 4"
+        echo "  e = 5"
+        echo "  f = 6"
+        echo "end"
+    } >> "$f"
+    run_hook "$f"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"BLOCKED"* ]]
+}

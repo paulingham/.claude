@@ -121,6 +121,7 @@ BEGIN { fname=""; fline=0; body=0; depth=0; violations="" }
     fname=$0; sub(/^[[:space:]]+/, "", fname); fline=NR; body=0; depth=1; next
 }
 fname != "" && /^[[:space:]]*(if|unless|case|begin|do|class|module|def|while|until|for)[[:space:]]/ { depth++ }
+fname != "" && / do( |\||$)/ && !/^[[:space:]]*do[[:space:]]/ { depth++ }
 fname != "" && /^[[:space:]]*end[[:space:]]*$/ {
     depth--
     if (depth <= 0) {
@@ -219,26 +220,31 @@ if [[ -z "$REPO_ROOT" ]]; then
     exit 0
 fi
 
-# Changed-line ranges from the unified diff's "@@ -x,y +N,M @@" hunk headers,
-# one "start end" pair per line. Empty when the file is untracked or unchanged.
-changed_line_ranges() {
+# Actual added line numbers (new-file positions of + lines) from a unified diff.
+# Only genuine additions — not context, not removals.
+added_line_numbers() {
     local diff="$1"
     echo "$diff" | awk '
 /^@@ / {
     h=$0; sub(/^@@ -[0-9,]+ \+/, "", h); sub(/ @@.*/, "", h)
-    n=h; m=1
-    if (index(h, ",") > 0) { split(h, a, ","); n=a[1]; m=a[2] }
-    if (m > 0) print n, n + m - 1
-}'
+    n=h
+    if (index(h, ",") > 0) { split(h, a, ","); n=a[1] }
+    newline = n; next
+}
+/^\+\+\+/ { next }
+/^\+/ { print newline; newline++ }
+/^-/ { next }
+/^ / { newline++ }
+'
 }
 
-# True when a violation line falls inside any changed hunk range.
-fline_in_ranges() {
-    local fline="$1" ranges="$2" start end
-    while read -r start end; do
-        [[ -z "$start" ]] && continue
-        if (( fline >= start && fline <= end )); then return 0; fi
-    done <<< "$ranges"
+# True when a violation fline is among the genuinely-added line numbers.
+fline_is_added() {
+    local fline="$1" added="$2"
+    while read -r n; do
+        [[ -z "$n" ]] && continue
+        if (( n == fline )); then return 0; fi
+    done <<< "$added"
     return 1
 }
 
@@ -249,10 +255,10 @@ if ! git -C "$REPO_ROOT" ls-files --error-unmatch -- "$FILE_PATH" >/dev/null 2>&
 else
     DIFF=$(git -C "$REPO_ROOT" diff HEAD -- "$FILE_PATH" 2>/dev/null)
     if [[ -n "$DIFF" ]]; then
-        RANGES=$(changed_line_ranges "$DIFF")
+        ADDED=$(added_line_numbers "$DIFF")
         while IFS= read -r line; do
             [[ "$line" =~ Line\ ([0-9]+): ]] || continue
-            if fline_in_ranges "${BASH_REMATCH[1]}" "$RANGES"; then
+            if fline_is_added "${BASH_REMATCH[1]}" "$ADDED"; then
                 BLOCKING=1
                 break
             fi
