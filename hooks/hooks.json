@@ -100,6 +100,15 @@
             "command": "bash",
             "args": [
               "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/comment-smell-check.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/cc-check.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 10000
@@ -133,6 +142,15 @@
             "args": [
               "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/function-body-check.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/comment-smell-check.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 10000
           },
