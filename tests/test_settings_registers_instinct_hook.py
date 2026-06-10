@@ -39,6 +39,9 @@ EXPECTED_ORDER = [
     "depth-guard",
     "runtime-guard",
     "intake-backstop",
+    # over-spawn advisory guard (GP-P2-04) — appended last, after intake-backstop.
+    # Advisory exit-0 Agent hook at the tail of the decision/guard chain.
+    "pre-agent-over-spawn-guard",
 ]
 
 
