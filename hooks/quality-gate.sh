@@ -36,10 +36,7 @@ ANY_FAILED=0
 # contract) while preserving advisory + freshness logic; set by the test
 # conftest so a test invoking this hook does NOT recursively re-run the suite.
 #
-# WHY: this check loop MUST stay identical to
-# skills/pr-creation/lib/check-quality-gate.sh (the skill-step mirror of this
-# hook). If you add a new check here, add it there too — the skill step is the
-# path-independent gate for gh api / MCP PR creation. GP-C1, issue #33106.
+# WHY: keep identical to skills/pr-creation/lib/check-quality-gate.sh — skill-step gate for gh api/MCP. GP-C1 #33106.
 if [[ "${CLAUDE_QG_SKIP_CHECKS:-0}" != "1" ]]; then
   for check in tests lint audit shape contract; do
     _qg_check_${check} "$RT"; rc=$?
