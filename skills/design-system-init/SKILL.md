@@ -125,7 +125,7 @@ Using `cva` (class-variance-authority) for type-safe variants:
 Each component:
 - Uses design tokens exclusively (no hardcoded values)
 - Has a `className` prop for composition (via `cn()` utility)
-- Follows the 50-line file limit
+- Follows per-language shape rules (`protocols/engineering-invariants.md` § Code Shape)
 - Is accessible (proper ARIA, keyboard support, focus management)
 - Supports dark mode via token layer
 

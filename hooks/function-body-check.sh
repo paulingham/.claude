@@ -3,9 +3,10 @@
 # Checks source files for function bodies exceeding the line limit.
 # Uses language-specific heuristics to detect function boundaries.
 # Supports: .ts/.tsx/.js/.jsx/.rb/.py/.go
-# ADVISORY mode (exit 0) — warns but does not block. Pre-existing violations exist
-# in the codebase (documented in project CLAUDE.md Known Limitations) so this hook
-# surfaces shape drift as a warning rather than a hard block.
+# Per-language smell limits: Ruby 5, TS/JS 12, Python/Go 8.
+# BLOCKS (exit 2) on a new/changed function over the limit; ADVISORY (exit 0) on
+# pre-existing legacy violations. New vs legacy is decided by diffing the file
+# against HEAD; any git failure fails open to advisory.
 #
 # enforces: rules/core.md:Code Shape Limits
 # protects: build-implementation, code-review
@@ -21,7 +22,6 @@ source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/loop-gu
 
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
-FUNC_LIMIT="${CLAUDE_FUNCTION_LINE_LIMIT:-8}"
 
 # Only check if we have a file path
 if [[ -z "$FILE_PATH" ]]; then
@@ -68,6 +68,18 @@ if [[ ! -f "$FILE_PATH" ]]; then
     exit 0
 fi
 
+# Per-language smell limit: Ruby is tightest (5), TS/JS more permissive (12),
+# Python/Go keep the historical 8-line fallback. Resolved before the awk parsers
+# so each language is measured against its own cap.
+case "$FILE_PATH" in
+    *.rb)
+        FUNC_LIMIT="${CLAUDE_FUNCTION_LINE_LIMIT_RB:-5}" ;;
+    *.ts|*.tsx|*.js|*.jsx)
+        FUNC_LIMIT="${CLAUDE_FUNCTION_LINE_LIMIT_TS:-12}" ;;
+    *)
+        FUNC_LIMIT="${CLAUDE_FUNCTION_LINE_LIMIT:-8}" ;;
+esac
+
 # Select parser based on file extension
 VIOLATIONS=""
 
@@ -109,6 +121,7 @@ BEGIN { fname=""; fline=0; body=0; depth=0; violations="" }
     fname=$0; sub(/^[[:space:]]+/, "", fname); fline=NR; body=0; depth=1; next
 }
 fname != "" && /^[[:space:]]*(if|unless|case|begin|do|class|module|def|while|until|for)[[:space:]]/ { depth++ }
+fname != "" && / do( |\||$)/ && !/^[[:space:]]*do[[:space:]]/ { depth++ }
 fname != "" && /^[[:space:]]*end[[:space:]]*$/ {
     depth--
     if (depth <= 0) {
@@ -185,14 +198,79 @@ END { printf "%s", violations }
         ;;
 esac
 
-if [[ -n "$VIOLATIONS" ]]; then
+if [[ -z "$VIOLATIONS" ]]; then
+    exit 0
+fi
+
+# Emit the advisory warning body shared by both the block and advisory paths.
+print_violation_warning() {
     echo "" >&2
     echo "WARNING: Function body exceeds $FUNC_LIMIT lines in $FILE_PATH. Shape constraint: functions <= $FUNC_LIMIT lines." >&2
     echo "$VIOLATIONS" >&2
     echo "Consider extracting helper functions or decomposing." >&2
     echo "" >&2
-    # Exit 0 = ADVISORY WARNING (does not block, pre-existing violations acknowledged)
+}
+
+# WHY: PostToolUse fires after the write, so the file is on disk and can be
+# diffed against HEAD to separate new/changed violations (block) from
+# pre-existing legacy ones (advisory). Any git failure fails open to advisory.
+REPO_ROOT=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/null)
+if [[ -z "$REPO_ROOT" ]]; then
+    print_violation_warning
     exit 0
+fi
+
+# Actual added line numbers (new-file positions of + lines) from a unified diff.
+# Only genuine additions — not context, not removals.
+added_line_numbers() {
+    local diff="$1"
+    echo "$diff" | awk '
+/^@@ / {
+    h=$0; sub(/^@@ -[0-9,]+ \+/, "", h); sub(/ @@.*/, "", h)
+    n=h
+    if (index(h, ",") > 0) { split(h, a, ","); n=a[1] }
+    newline = n; next
+}
+/^\+\+\+/ { next }
+/^\+/ { print newline; newline++ }
+/^-/ { next }
+/^ / { newline++ }
+'
+}
+
+# True when a violation fline is among the genuinely-added line numbers.
+fline_is_added() {
+    local fline="$1" added="$2"
+    while read -r n; do
+        [[ -z "$n" ]] && continue
+        if (( n == fline )); then return 0; fi
+    done <<< "$added"
+    return 1
+}
+
+BLOCKING=0
+if ! git -C "$REPO_ROOT" ls-files --error-unmatch -- "$FILE_PATH" >/dev/null 2>&1; then
+    # Untracked/new file: every violation is new code → block.
+    BLOCKING=1
+else
+    DIFF=$(git -C "$REPO_ROOT" diff HEAD -- "$FILE_PATH" 2>/dev/null)
+    if [[ -n "$DIFF" ]]; then
+        ADDED=$(added_line_numbers "$DIFF")
+        while IFS= read -r line; do
+            [[ "$line" =~ Line\ ([0-9]+): ]] || continue
+            if fline_is_added "${BASH_REMATCH[1]}" "$ADDED"; then
+                BLOCKING=1
+                break
+            fi
+        done <<< "$VIOLATIONS"
+    fi
+    # Empty DIFF → no tracked changes → all violations legacy → advisory.
+fi
+
+print_violation_warning
+if (( BLOCKING )); then
+    echo "BLOCKED: new/changed function exceeds the per-language limit (Ruby 5 / TS 12). Split it, or if the pieces would be entangled, keep them together — see protocols/engineering-invariants.md § Code Shape." >&2
+    exit 2
 fi
 
 exit 0
