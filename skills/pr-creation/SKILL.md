@@ -291,6 +291,21 @@ Every PR includes a non-technical decision narrative section:
    - **Verified**: Verification report summary in plain language
 3. Must be readable by non-technical stakeholders (product owners, designers)
 
+## Changelog & PR Narrative
+
+Before assembling the PR body (Step 5), invoke `/harness:changelog` to derive the
+`## Summary` narrative and append a Keep-a-Changelog entry under `Unreleased`:
+
+1. Run `/harness:changelog` against `main...HEAD` + the task ACs.
+2. Use its returned PR narrative as the `## Summary` block of the PR body.
+3. The skill stages the project `CHANGELOG.md` edit; commit it with the change so
+   every merged PR carries a human-readable changelog line.
+4. **CHANGELOG_SKIPPED** (docs/test-only diff) is non-blocking — use the returned
+   narrative for the body and proceed without a changelog edit.
+
+This closes the technical-writing gap: a production-grade PR ships a record a
+non-author can read, not just a green diff. See `~/.claude/skills/changelog/SKILL.md`.
+
 ## Multi-Repo PRs (When Manifest Exists)
 
 When the pipeline provides a manifest path, this skill creates linked PRs:
