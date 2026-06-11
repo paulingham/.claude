@@ -96,8 +96,6 @@ ALLOWLIST_5=(
 # "8-line method" design law (slice E repointed those to the SSOT).
 ALLOWLIST_8=(
   # Real ≤8-line-per-function shell contracts (enforced by their own tests).
-  "hooks/_lib/auto-learn-gate-core.sh:2"
-  "hooks/_lib/auto-learn-state.sh:2"
   "hooks/_lib/quality-gate-checks.sh:4"
   "hooks/_lib/quality-gate-checks.sh:215"
   "hooks/_lib/session-store.sh:3"
