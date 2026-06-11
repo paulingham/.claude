@@ -191,6 +191,16 @@ def test_run_preserves_last_learn_started(tmp_path):
     assert after["last_learn_started"] == "2026-05-04T10:00:00Z"
 
 
+# --- malformed-line parity (jq 2>/dev/null silent-skip) --------------------
+
+def test_count_new_pipeline_ids_skips_malformed_lines(tmp_path):
+    obs = tmp_path / "observations.jsonl"
+    obs.write_text(_pipeline_record("p1") + "\n"
+                   + "{not json at all\n"
+                   + _pipeline_record("p2") + "\n")
+    assert auto_learn_gate.count_new_pipeline_ids(str(obs), 0) == ["p1", "p2"]
+
+
 # --- concurrent run serialization (fcntl) ----------------------------------
 
 def _slow_lock_hold(barrier_dir):

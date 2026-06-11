@@ -89,9 +89,19 @@ def count_new_pipeline_ids(obs: str, offset: int) -> list[str]:
 
 
 def _records_after(obs: str, offset: int) -> list[dict]:
-    """JSON records decoded from the bytes of `obs` after `offset`."""
+    """JSON records decoded from `obs` after `offset`; bad lines skipped."""
     raw = _read_bytes(obs)[offset:]
-    return [json.loads(line) for line in raw.splitlines() if line.strip()]
+    parsed = (_parse_line(line) for line in raw.splitlines() if line.strip())
+    return [rec for rec in parsed if rec is not None]
+
+
+def _parse_line(line: bytes) -> dict | None:
+    # WHY: jq 2>/dev/null in the bash predecessor silently dropped malformed
+    # lines — one corrupt observation must not abort the whole gate count.
+    try:
+        return json.loads(line)
+    except (json.JSONDecodeError, ValueError):
+        return None
 
 
 def _read_bytes(obs: str) -> bytes:
