@@ -88,6 +88,8 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `SKILL_LINT_FLAGGED` | info | `skill-security-lint` | utility | One or more findings detected (injection / secret / over_broad_tool); advisory — security-engineer folds findings into OWASP AA02/AA03 items; never a hard block |
 | `PR_CREATED` | success | `pr-creation` | ship | `/harness:deploy` (if CD configured) |
 | `PR_BLOCKED` | failure | `pr-creation` | ship | Halt; missing approval token or quality-gate failure |
+| `CHANGELOG_WRITTEN` | success | `changelog` | ship | PR narrative returned for `pr-creation` `## Summary`; `CHANGELOG.md` updated under `Unreleased` |
+| `CHANGELOG_SKIPPED` | info | `changelog` | ship | No functional change in diff (docs/test-only); narrative returned, no changelog edit; non-blocking |
 | `DEPLOYED` | success | `deploy` | deploy | `/harness:deployment-verification` |
 | `DEPLOY_FAILED` | failure | `deploy` | deploy | Auto-rollback path |
 | `ROLLED_BACK` | failure | `deploy` | deploy | Halt; user notified |
