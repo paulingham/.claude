@@ -14,6 +14,9 @@
 #   Step 3 — if target is git-tracked → BLOCK
 #   Step 4 — if target is untracked but its parent dir contains tracked siblings → BLOCK
 #             (blocks net-new source files such as agents/new.md, hooks/new.sh)
+#             When relpath was re-derived via --show-prefix (macOS alias or symlinked
+#             ancestor), Step 4 also uses the canonical repo-relative path to probe
+#             siblings — preventing a fail-open via symlink ancestor net-new writes.
 #   fallback → ALLOW (genuine scratch directory with no tracked files)
 #
 # Known residual: the /pipeline-state/ check is a simple substring match.
@@ -71,6 +74,12 @@ is_protected_path() {
     # Distinguish: try to re-strip using $parent as the repo prefix anchor.
     # $path is always "$parent/<name>" by construction (dirname inverse), so if
     # the repo root is the ancestor of $parent (textually), the strip will work.
+    # _relpath_via_prefix is set when relpath is re-derived via --show-prefix.
+    # Covers two cases: (a) macOS /var→/private/var aliasing and (b) symlinked
+    # ancestor (where $parent is a real dir reached via a symlink higher up).
+    # When set, Step 4 uses dirname(relpath) for parent_rel so the sibling probe
+    # uses the canonical repo-relative path rather than the textually-diverged $parent.
+    local _relpath_via_prefix=0
     if [[ "$relpath" == /* ]]; then
         # relpath is still absolute: the path's textual prefix does not match
         # $repo.  Two cases:
@@ -94,6 +103,7 @@ is_protected_path() {
         relpath="${_prefix}${path##*/}"
         # If relpath is still absolute after this (should be impossible), block.
         [[ "$relpath" == /* ]] && return 0
+        _relpath_via_prefix=1
     fi
     if git -C "$repo" ls-files --error-unmatch -- "$relpath" >/dev/null 2>&1; then
         return 0
@@ -101,9 +111,16 @@ is_protected_path() {
 
     # Step 4: target is untracked — probe the parent directory for tracked
     # siblings. If any exist, this is a tracked-directory net-new write → BLOCK.
+    # When relpath was re-derived via --show-prefix (macOS alias or symlinked
+    # ancestor), derive parent_rel from relpath so the sibling probe uses the
+    # canonical repo-relative path rather than the symlink-diverged $parent.
+    if [[ $_relpath_via_prefix -eq 1 ]]; then
+        parent_rel="$(dirname -- "$relpath")"
+    else
+        parent_rel="${parent#"$repo"/}"
+        [[ "$parent" == "$repo" ]] && parent_rel="."
+    fi
     # capture THEN test (pipefail-safe — avoids the subshell-pipefail trap)
-    parent_rel="${parent#"$repo"/}"
-    [[ "$parent" == "$repo" ]] && parent_rel="."
     tracked="$(git -C "$repo" ls-files -- "$parent_rel/" 2>/dev/null | head -1)"
     [[ -n "$tracked" ]] && return 0
 

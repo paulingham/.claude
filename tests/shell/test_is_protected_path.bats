@@ -131,3 +131,16 @@ _run_helper() {
   result=$(bash -c "source '$HELPER'; is_protected_path '--version'; echo \$?")
   [ "$result" = "0" ]
 }
+
+# FIX: symlink ANCESTOR net-new case — parent is a real directory reached via a
+# symlink higher in the path.  Without the _relpath_via_prefix fix, Step 4 would
+# compute parent_rel from the textual $parent (which diverges from $repo), the
+# git ls-files probe returns empty, and the file incorrectly gets ALLOW.
+@test "A12_symlink_ancestor_net_new_blocks" {
+  # agents/ is tracked; create a symlink to the repo one level up
+  ln -s "$PROJECT_DIR" "$TMPDIR_BASE/link-to-proj"
+  # Net-new path via the symlinked ancestor: link-to-proj/agents/brand-new.md
+  SYMLINK_PATH="$TMPDIR_BASE/link-to-proj/agents/brand-new.md"
+  result=$(bash -c "source '$HELPER'; is_protected_path '$SYMLINK_PATH'; echo \$?")
+  [ "$result" = "0" ]
+}
