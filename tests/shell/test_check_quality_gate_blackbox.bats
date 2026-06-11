@@ -541,3 +541,67 @@ RUNNER
   [ "$status" -eq 2 ]
   [[ "$output" == *"CLAUDE_DISABLE_QUALITY_GATE=1"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# AC12: invalid WORKTREE fails closed — decoy cwd must NOT cause false-pass
+# ---------------------------------------------------------------------------
+
+@test "AC12 INVALID WORKTREE: stale/nonexistent WORKTREE path fails closed even with decoy passing cwd" {
+  # Build a decoy worktree with valid passing evidence.
+  # This is the tree that the gate would evaluate if cd fails silently.
+  local decoy_repo="$BATS_FILE_TMPDIR/decoy-repo"
+  local decoy_wt="$BATS_FILE_TMPDIR/decoy-wt"
+  _bb_make_pass_fixture "$decoy_repo" "$decoy_wt"
+
+  local task="qg-ac12"
+  _bb_seed_evidence "$decoy_wt" "$task"
+
+  local stub_dir
+  stub_dir="$(_bb_install_red_pytest_stub)"  # not invoked (unknown runtime)
+
+  # WORKTREE points to a nonexistent path; cwd is the decoy (passing evidence)
+  local runner="$BATS_FILE_TMPDIR/run-invalid-wt-$$.sh"
+  cat > "$runner" <<RUNNER
+#!/usr/bin/env bash
+export PATH="${stub_dir}:${PATH}"
+export WORKTREE="/nonexistent/path/ac12xyz"
+export CLAUDE_PIPELINE_TASK_ID="${task}"
+cd "${decoy_wt}"
+bash "${GATE_SCRIPT}"
+RUNNER
+  chmod +x "$runner"
+  run bash "$runner" 2>&1
+
+  # Must BLOCK (fail closed) — must NOT evaluate the decoy cwd
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"PR_BLOCKED"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# AC13: empty WORKTREE fails closed — non-repo cwd must NOT cause false-pass
+# ---------------------------------------------------------------------------
+
+@test "AC13 EMPTY WORKTREE: unset WORKTREE in non-repo cwd fails closed" {
+  # cwd is a plain tmpdir (not a git repo), so git rev-parse --show-toplevel yields empty.
+  # cd "" is a POSIX no-op returning 0 — the gate must catch this explicitly.
+  local non_repo_cwd="$BATS_FILE_TMPDIR/non-repo-cwd"
+  mkdir -p "$non_repo_cwd"
+
+  local stub_dir
+  stub_dir="$(_bb_install_red_pytest_stub)"
+
+  local runner="$BATS_FILE_TMPDIR/run-empty-wt-$$.sh"
+  cat > "$runner" <<RUNNER
+#!/usr/bin/env bash
+export PATH="${stub_dir}:${PATH}"
+unset WORKTREE
+cd "${non_repo_cwd}"
+bash "${GATE_SCRIPT}"
+RUNNER
+  chmod +x "$runner"
+  run bash "$runner" 2>&1
+
+  # Must BLOCK — empty WORKTREE is a fatal configuration error
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"PR_BLOCKED"* ]]
+}

@@ -30,8 +30,19 @@ _cqg_resolve_worktree() {
 }
 WORKTREE="$(_cqg_resolve_worktree)"
 
+# WHY: cd "" is a POSIX no-op (returns 0) so an empty WORKTREE must be
+# rejected before the || guard below can help.
+if [ -z "$WORKTREE" ]; then
+  echo "PR_BLOCKED — could not resolve worktree."
+  echo ""
+  echo "To bypass (use only when failures are demonstrably pre-existing and unrelated):"
+  echo "  CLAUDE_DISABLE_QUALITY_GATE=1 <re-run Ship>"
+  exit 2
+fi
+
 # cd to the worktree so _qg_check_freshness "" resolves evidence via base="."
-cd "$WORKTREE"
+# || guard: fail CLOSED so a stale/missing path does not evaluate a decoy cwd.
+cd "$WORKTREE" || { echo "PR_BLOCKED — cannot cd to worktree: $WORKTREE"; exit 2; }
 
 # Source check libs (no pairing.sh, no jsonl-emit.sh — no _qg_finalize).
 # shellcheck source=/dev/null
