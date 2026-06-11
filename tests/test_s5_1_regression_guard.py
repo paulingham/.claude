@@ -13,7 +13,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 _SCRIPT = REPO_ROOT / "skills" / "embedder" / "download-model.sh"
-_SKILL_MD = REPO_ROOT / "skills" / "embedder" / "SKILL.md"
+_SKILL_MD = REPO_ROOT / "skills" / "embedder" / "README.md"
 _REAL_PY = REPO_ROOT / "skills" / "embedder" / "_lib" / "real.py"
 
 
