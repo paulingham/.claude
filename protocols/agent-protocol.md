@@ -11,6 +11,25 @@ You (the agent) are spawned into one of two modes — the orchestrator's spawn p
 
 Read-only roles (`code-reviewer`, `security-engineer`, `product-reviewer`, `architect`) work without a worktree.
 
+## T1 Worktree Delegation (Tracked-Doc Edits)
+
+Iron Law 3 forbids the orchestrator from writing to protected locations — any
+git-tracked file or net-new file in a tracked directory (enforcement:
+`hooks/_lib/is-protected-path.sh`). This means even documentation edits
+(README.md, rules/core.md, protocols/*.md, etc.) CANNOT be done directly by
+the orchestrator's Write/Edit tools.
+
+**T1 (Doc-only) dispatch** routes to a lightweight worktree subagent:
+
+1. Orchestrator spawns a `software-engineer` (or equivalent write-capable agent)
+   in a worktree with `isolation: "worktree"`.
+2. The subagent makes the tracked-doc edit in its worktree branch.
+3. The subagent commits the change before completing.
+4. The orchestrator merges the branch via the normal worktree-merge path.
+
+This preserves the full audit trail (commit, diff, review) for tracked-doc
+edits while keeping the orchestrator's write surface empty.
+
 ## Commit Protocol
 
 All agents (subagents in worktrees AND teammates on branches) MUST commit before completing:

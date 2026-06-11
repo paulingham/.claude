@@ -15,12 +15,17 @@
 # enforces: rules/core.md:Iron Laws
 # protects: build-implementation, all-skills
 
-source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/log.sh"
+_OD_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=/dev/null
+source "$_OD_HOOK_DIR/_lib/log.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:${TOOL_NAME:-Write}"
 trap 'log_hook_event $?' EXIT
 
-source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/hook-profile.sh" && check_hook_profile "minimal" || exit 0
+source "$_OD_HOOK_DIR/hook-profile.sh" && check_hook_profile "minimal" || exit 0
+# is_protected_path: block-by-protected-location helper (consults git index)
+source "$_OD_HOOK_DIR/_lib/is-protected-path.sh"
 
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
@@ -29,17 +34,6 @@ SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.subagent_type // empty')
 is_path_allow_listed() {
     # Empty path is a no-op target — allow.
     [[ -z "$1" ]] && return 0
-    # .md is NOT blanket-allowed. Documentation/state .md is only orchestrator-
-    # writable under .claude/, memory/, rules/, or pipeline-state/. Root-level
-    # docs (ROLLOUT.md, README.md, PORTING-NOTES.md) and templates/*.md are
-    # source and must fall through to the block path. The worktree clause below
-    # (line ~47) keeps .md inside .claude/worktrees/ allowed via the broader
-    # worktree allowance — checked after this, but worktree paths also satisfy
-    # the `.claude/` prefix here so they pass regardless.
-    if [[ "$1" =~ \.md$ ]]; then
-        [[ "$1" =~ /\.claude/ || "$1" =~ /memory/ || "$1" =~ /rules/ || "$1" =~ /pipeline-state/ ]] && return 0
-        return 1
-    fi
     [[ "$1" =~ \.claude/automation/ || "$1" =~ \.claude/hooks/ ]] && return 0
     # pipeline-state token files (e.g. approval.token) are orchestrator-state,
     # not source code. Both regular and workstream layouts are covered by the
@@ -50,13 +44,21 @@ is_path_allow_listed() {
     # workstream layouts both match via the `.*` between pipeline-state
     # and the filename). `$` anchor prevents `.json.bak` from sneaking in.
     [[ "$1" =~ /pipeline-state/.*/verification-evidence\.json$ ]] && return 0
-    # Subagent worktrees: only spawned agents write here. The harness does not
-    # reliably populate subagent_type on PreToolUse stdin in every flow, and
-    # the CWD fallback below fires from the main session CWD — so without this
-    # path-based allowance every agent Write/Edit inside its worktree gets
-    # misclassified as an orchestrator write. Treat ".claude/worktrees/" the
-    # same way ".claude/hooks/" is treated: ownership is implied by the path.
-    [[ "$1" =~ /\.claude/worktrees/ ]] || [[ "$1" =~ /\.claude-sessions/ ]]
+    # Subagent worktrees: only spawned agents write here. Treat ".claude/worktrees/"
+    # as implicitly trusted (ownership implied by path), same as ".claude/hooks/".
+    [[ "$1" =~ /\.claude/worktrees/ ]] && return 0
+    [[ "$1" =~ /\.claude-sessions/ ]] && return 0
+    # For .md paths: replace the old substring allowlist (/.claude/|/memory/|/rules/|
+    # /pipeline-state/) with is_protected_path which consults the git index.
+    # is_protected_path exit 0 = BLOCK; exit 1 = ALLOW.
+    # The old allowlist matched every file in a repo whose root IS .claude —
+    # this fix blocks git-tracked files regardless of their containing directory.
+    if [[ "$1" =~ \.md$ ]]; then
+        ! is_protected_path "$1"
+        return
+    fi
+    # All other non-allowlisted paths — block.
+    return 1
 }
 
 is_caller_a_subagent() {

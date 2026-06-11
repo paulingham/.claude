@@ -127,7 +127,7 @@ Orchestrator coordinates; never writes code/tests. Flow, dispatch mechanisms, or
 | Tier | Class | Dispatch target |
 |---|---|---|
 | **T0** | Question / Spike | Direct answer or `/harness:tech-spike` |
-| **T1** | Doc-only | Orchestrator direct edit (Iron Law 3 exception) |
+| **T1** | Doc-only | Lightweight worktree subagent (tracked-doc edits) |
 | **T2** | Config-only | `/harness:harness-config` |
 | **T3** | Mechanical sweep | `/harness:batch-pipeline` |
 | **T4** | Bug fix | `/harness:pipeline` (lightweight) |

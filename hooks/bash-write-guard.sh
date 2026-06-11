@@ -30,6 +30,8 @@ _BWG_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "$_BWG_HOOK_DIR/_lib/harness-paths.sh"
 source "$_BWG_HOOK_DIR/_lib/log.sh"
+# is_protected_path: block-by-protected-location helper (consults git index)
+source "$_BWG_HOOK_DIR/_lib/is-protected-path.sh"
 _log_hook_start
 _log_hook_trigger "PreToolUse:${TOOL_NAME:-Bash}"
 trap 'log_hook_event $?' EXIT
@@ -111,10 +113,27 @@ matches_protected_redirect() {
     # The redirect must target a protected path, not /tmp/* etc.
     [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?settings\.json([[:space:]]|$|\&) ]] && return 0
     [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]/]+\.sh([[:space:]]|$|\&) ]] && return 0
-    # Scoped .md (Hole 3): a redirect to a .md file is a protected write UNLESS
-    # the target is under .claude/, memory/, rules/, pipeline-state/, or a
-    # worktree (handled by the top-level scoping check) — see is_protected_md.
-    [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]]+\.md([[:space:]]|$|\&) ]] && is_protected_md "$1" && return 0
+    # .md (Hole 3): extract every redirect DESTINATION that ends in .md and
+    # delegate each to is_protected_path (git-index based decision).
+    # FIX: grep the token IMMEDIATELY AFTER the redirect operator (>/>>) only,
+    # not the first .md anywhere in the command string.  A source file that
+    # appears before the > (e.g. `cat src.md > tracked.md`) must NOT be checked.
+    # Strategy: extract each ">> token" or "> token" match, then strip the
+    # leading >> or > and whitespace to isolate the destination path.
+    if [[ "$1" =~ \>\>?[[:space:]]*([^[:space:]]*/)?[^[:space:]]+\.md([[:space:]]|$|\&) ]]; then
+        local _dest="" _match=""
+        while IFS= read -r _match; do
+            # Strip the leading > or >> (and any trailing spaces) to get the path.
+            _dest="${_match#>>}"
+            _dest="${_dest#>}"
+            _dest="${_dest#"${_dest%%[! ]*}"}"   # strip leading spaces
+            # Strip any trailing whitespace or & that the regex included.
+            _dest="${_dest%%[[:space:]]*}"
+            _dest="${_dest%%&*}"
+            [[ -z "$_dest" ]] && continue
+            is_protected_path "$_dest" && return 0
+        done < <(grep -oE '>>[[:space:]]*[^[:space:]]+\.md([[:space:]]|$)|>[^>][[:space:]]*[^[:space:]]+\.md([[:space:]]|$)' <<<"$1")
+    fi
     return 1
 }
 
@@ -125,19 +144,27 @@ matches_python_pathlib_write() {
     # whitelists run earlier (caller order), so allowed targets never reach here.
     [[ "$1" =~ write_text[[:space:]]*\( || "$1" =~ write_bytes[[:space:]]*\( ]] || return 1
     [[ "$1" =~ \.(json|sh|yaml|yml)([^a-zA-Z0-9]|$) ]] && return 0
-    # Scoped .md: a write_text to a .md path blocks only outside allowed roots.
-    [[ "$1" =~ \.md([^a-zA-Z0-9]|$) ]] && is_protected_md "$1" && return 0
+    # .md: check-every-token strategy (mirrors matches_protected_redirect fix).
+    # Extracting only the first .md token is a fail-open: a benign source token
+    # appearing before the write-target (e.g. a pipeline-state path passed to
+    # read_text()) causes the guard to ALLOW without ever inspecting the destination.
+    # Safe direction: loop over ALL .md tokens; block if ANY is protected.
+    # NOTE: /tmp/* skip intentionally removed — on Linux CI, mkdtemp() returns
+    # /tmp/... paths, so fixture git repos live under /tmp.  Skipping /tmp tokens
+    # caused a fail-open (ALLOW) for tracked files inside those repos.
+    # is_protected_path now returns ALLOW for genuinely non-repo /tmp paths
+    # (git "not a git repository" → ALLOW), so the skip is no longer needed.
+    if [[ "$1" =~ \.md([^a-zA-Z0-9]|$) ]]; then
+        local _md_token=""
+        while IFS= read -r _md_token; do
+            [[ -z "$_md_token" ]] && continue
+            # Strip any surrounding quote characters that grep may have included.
+            _md_token="${_md_token//\'/}"
+            _md_token="${_md_token//\"/}"
+            is_protected_path "$_md_token" && return 0
+        done < <(grep -oE "['\"]?[^'\"[:space:]]+\.md['\"]?" <<<"$1")
+    fi
     return 1
-}
-
-# Hole 3 helper: returns 0 when a .md token in the command is a PROTECTED
-# target (root-level or templates/) — i.e. NOT under an orchestrator-writable
-# root. Mirrors orchestrator-discipline.sh's tightened .md scope. Allowed roots:
-# .claude/, memory/, rules/, pipeline-state/, and .claude/worktrees/ (the
-# worktree case also satisfies /.claude/ so it is covered).
-is_protected_md() {
-    [[ "$1" =~ /\.claude/ || "$1" =~ /memory/ || "$1" =~ /rules/ || "$1" =~ /pipeline-state/ ]] && return 1
-    return 0
 }
 
 matches_cp_mv_to_protected() {
@@ -145,21 +172,30 @@ matches_cp_mv_to_protected() {
     # tree unblocked. cp/mv destination is, by convention, the LAST argument;
     # we decide on that token. Heuristic limitation (fail-closed-ish): we do not
     # parse `-t DIR` / `--target-directory` GNU forms, and a trailing flag would
-    # be misread as the dest — both are rare in orchestrator usage. If the final
-    # token bears a protected extension and is NOT under /tmp/ and NOT inside a
-    # worktree, block. /tmp and worktree destinations are legitimate (scratch
-    # output / agent-trusted writes) and pass.
+    # be misread as the dest — both are rare in orchestrator usage. Worktree
+    # destinations are trusted; for .md files is_protected_path decides
+    # (handles repos under /tmp on Linux CI); for other exts /tmp is skipped.
     [[ "$1" =~ (^|[[:space:]])(cp|mv)[[:space:]] ]] || return 1
     _bwg_destination_is_protected "$1"
 }
 
 _bwg_destination_is_protected() {
     # The destination is the last whitespace-separated token of a cp/mv command.
-    local dest
+    local dest=""
     dest="${1##* }"
-    [[ "$dest" == /tmp/* || "$dest" == *"/.claude/worktrees/"* ]] && return 1
+    # Worktree destinations are always trusted (subagent writes).
+    [[ "$dest" == *"/.claude/worktrees/"* ]] && return 1
+    # .md: delegate to is_protected_path (git-index based decision).
+    # NOTE: /tmp/* guard intentionally NOT applied here — on Linux CI, mkdtemp()
+    # returns /tmp/... paths, so fixture git repos live under /tmp.  A /tmp/*
+    # early-return would ALLOW writes to tracked files inside those repos (fail-open).
+    # is_protected_path now distinguishes "no repo" (ALLOW) from "tracked file" (BLOCK),
+    # so genuine /tmp scratch paths pass correctly without the early-return guard.
+    [[ "$dest" =~ \.md([^a-zA-Z0-9]|$) ]] && is_protected_path "$dest" && return 0
+    # For non-.md extensions, use the /tmp guard before extension matching since
+    # there is no git-index fallback — extension matching alone is over-broad.
+    [[ "$dest" == /tmp/* ]] && return 1
     [[ "$dest" =~ \.(json|sh|yaml|yml)([^a-zA-Z0-9]|$) ]] && return 0
-    [[ "$dest" =~ \.md([^a-zA-Z0-9]|$) ]] && is_protected_md "$dest" && return 0
     return 1
 }
 

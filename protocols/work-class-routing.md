@@ -23,7 +23,7 @@ Three rules govern routing:
 | Tier | Class | Examples | Dispatch target |
 |---|---|---|---|
 | **T0** | Question / Spike | "How does X work?", "Investigate Y" | Direct answer or `/harness:tech-spike` |
-| **T1** | Doc-only | README/CLAUDE.md edits, protocol updates, comments | **Orchestrator direct edit** (Iron Law 3 exception) |
+| **T1** | Doc-only | README/CLAUDE.md edits, protocol updates, comments | **Lightweight worktree subagent** (tracked-doc edits) |
 | **T2** | Config-only | settings.json keys, agent frontmatter, hook entry syntax (NOT hook script bodies) | **`/harness:harness-config`** |
 | **T3** | Mechanical sweep | rename, find/replace, lint-fix, import-sort, dependency bump | **`/harness:batch-pipeline`** |
 | **T4** | Bug fix | Failing test + targeted fix | `/harness:pipeline` (lightweight) |
@@ -96,7 +96,7 @@ Average fingerprint cost: ~$0.0002 per intake. Compared to ~$0.15 wasted on misc
 |---|---|---|---|---|---|---|---|
 | Plan (architect) | — | — | — | — | light | full | full |
 | Plan Validation | — | — | — | — | `/harness:plan-self-validation` | heavy if `budget≥7` | heavy always |
-| Build | — | direct .md edit | `/harness:harness-config` | `/harness:batch-pipeline` parallel | single agent | single or multi-slice | Best-of-N or PDR-RTV |
+| Build | — | lightweight worktree subagent | `/harness:harness-config` | `/harness:batch-pipeline` parallel | single agent | single or multi-slice | Best-of-N or PDR-RTV |
 | Polish | — | — | — | — | — | if `budget≥7` | yes |
 | Code Review | — | — | reviewer reads diff only | code-reviewer (diff-only) | code-reviewer | code-reviewer | code-reviewer + adversarial |
 | Security Review | — | — | only if hooks touched | only if security-sensitive | yes | yes | yes |
@@ -187,7 +187,7 @@ Read by `/harness:forensics` to detect:
 ## Interaction with existing protocols
 
 - **Iron Law 5** ("NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.") applies to **T4-T6**. T0-T3 dispatch outside `/harness:pipeline` and are governed by their own skill's verdict catalog entry. This is not an exception to the Iron Law — it is a clarification that the Iron Law's scope is the pipeline, not all work.
-- **Iron Law 3** (orchestrator never writes source code; `.md` exception in `.claude/`, `memory/`, `rules/`) is the legal basis for T1 direct edits. The orchestrator commits the change with full audit trail.
+- **Iron Law 3** (orchestrator never writes source code; protected-location enforcement via `hooks/_lib/is-protected-path.sh`) governs T1. Tracked-doc edits route to a lightweight worktree subagent which commits the change with full audit trail.
 - **Complexity Budget** still computes (`/harness:intake` Step 2). It controls *intra-tier* dispatch shape (multi-slice Build at T5, Best-of-N vs PDR-RTV at T6). It no longer controls *which* tier.
 - **`critical` flag** still computes but is **fingerprint-filtered**. If fingerprint = T1/T2 and no safety-override file in scope, `critical: true` from user phrasing is rejected and logged.
 - **`bestofn` and `pdr_rtv` flags** only fire at T6 AND budget>=7. T4/T5 force both false regardless of critical or budget. `bestofn` also requires `critical==true`; the `[best-of-n]` override token bypasses the tier+budget gate. SSOT: `hooks/_lib/bestofn_gate.py`.
@@ -202,4 +202,4 @@ Read by `/harness:forensics` to detect:
 | Verdicts emitted by intake | `protocols/verdict-catalog.md` § fingerprint + routing entries |
 | Hook implementation | `hooks/intake-fingerprint-audit.sh` |
 | Orchestrator dispatch on tier | `skills/pipeline/SKILL.md` Step 3 |
-| Direct-edit (T1) protocol | Iron Law 3 in `rules/core.md` |
+| T1 worktree-subagent dispatch | Iron Law 3 in `rules/core.md`; `hooks/_lib/is-protected-path.sh` |

@@ -42,8 +42,8 @@ setup() {
   grep -E 'T0.*tech-spike|T0.*direct answer|tech-spike.*T0|direct answer.*T0' "$PIPELINE_SKILL"
 }
 
-@test "test_step_1_0_routes_T1_to_orchestrator_md_edit" {
-  grep -E 'T1.*orchestrator|orchestrator.*T1|T1.*direct.*\.md|direct \.md edit' "$PIPELINE_SKILL"
+@test "test_step_1_0_routes_T1_to_worktree_subagent" {
+  grep -E 'T1.*worktree|worktree.*T1' "$PIPELINE_SKILL"
 }
 
 @test "test_step_1_0_routes_T2_to_harness_config" {
