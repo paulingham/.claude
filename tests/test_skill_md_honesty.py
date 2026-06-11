@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-_SKILL_MD = REPO_ROOT / "skills" / "embedder" / "SKILL.md"
+_SKILL_MD = REPO_ROOT / "skills" / "embedder" / "README.md"
 
 
 class SkillMarkdownHonesty(unittest.TestCase):

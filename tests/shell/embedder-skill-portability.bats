@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# L3: skills/embedder/SKILL.md documents both macOS and Linux install paths
+# L3: skills/embedder/README.md documents both macOS and Linux install paths
 # for ONNX Runtime. Guards against future edits that reintroduce an
 # unbalanced, brew-only install hint.
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-  SKILL="$REPO_ROOT/skills/embedder/SKILL.md"
+  SKILL="$REPO_ROOT/skills/embedder/README.md"
 }
 
 @test "L3.4 embedder SKILL has a Linux setup subsection" {
