@@ -147,6 +147,35 @@ line, and runs the targeted pytest subset from the worktree. Any red blocks the 
 - **Hook body changed + subset red**: exits 2 (`PR_BLOCKED`). Fix the failing tests, then retry Ship.
 - **Bypass** (pre-existing, unrelated failures confirmed): `CLAUDE_DISABLE_HOOK_PYTEST_GATE=1` then re-run Ship.
 
+#### Quality Gate (HARD GATE — path-independent)
+
+Run AFTER the hook-pytest gate and BEFORE any PR-creation command (step 5 below).
+This gate runs `_qg_check_tests|lint|audit|shape|contract|freshness` regardless of
+which tool creates the PR (`gh pr create`, `gh api`, or MCP `create_pull_request`).
+A Bash hook matcher fires only for `gh pr create` — this skill step is bypass-proof.
+
+WHY: `hooks/quality-gate.sh:23` exits 0 for any non-`gh pr create` tool, so MCP and
+`gh api` skip the hook entirely. This step closes that gap. GP-C1, issue #33106
+(`permissionDecision:deny` is not enforced for MCP tools).
+
+Cross-references: §Verification Freshness Dependency (evidence must be fresh before
+this gate can pass).
+
+```bash
+# $WORKTREE is already resolved and validated by the Worktree Precondition above.
+bash "$WORKTREE/skills/pr-creation/lib/check-quality-gate.sh"
+GATE_EXIT=$?
+if [ "$GATE_EXIT" -ne 0 ]; then
+  echo "PR_BLOCKED — quality gate failed. See output above."
+  exit 2
+fi
+```
+
+- **All checks pass**: exits 0, proceed to commit + push + PR creation.
+- **Any check fails**: exits 2 (`PR_BLOCKED`). Fix the failing check, then retry Ship.
+- **Bypass** (pre-existing, unrelated failures confirmed): `CLAUDE_DISABLE_QUALITY_GATE=1` then re-run Ship.
+- **Skip heavy checks only** (test-suite isolation): `CLAUDE_QG_SKIP_CHECKS=1` — freshness still evaluated.
+
 Run all quality checks before pushing:
 - Linting (language-appropriate linter)
 - Security scanning
@@ -190,7 +219,18 @@ git push
 
 ### 5. Create Pull Request
 
-Before calling `gh pr create`, append the eval-baseline stamp to the body:
+Before calling `gh pr create` (or `gh api .../pulls`, or MCP `create_pull_request`),
+run `check-quality-gate.sh` to gate ALL PR creation paths (see §Step 2 Quality Gate
+above). `gh api .../pulls` bypasses the Bash hook — this step is the path-independent
+gate. GP-C1, issue #33106.
+
+```bash
+bash "$WORKTREE/skills/pr-creation/lib/check-quality-gate.sh"
+GATE_EXIT=$?
+[ "$GATE_EXIT" -ne 0 ] && { echo "PR_BLOCKED — quality gate failed."; exit 2; }
+```
+
+Then append the eval-baseline stamp to the body:
 
 ```bash
 # Capture the stamp (harness repo only; no-op in other projects)
@@ -246,9 +286,17 @@ When user says "create PR", execute autonomously:
 1. Run validation checks (MUST pass)
 2. Verify feature branch or create
 3. Stage and commit all changes
-4. Push to remote with `-u` flag
-5. Create GitHub PR via `(cd "$WORKTREE" && gh pr create ...)` — the `cd "$WORKTREE"` prefix is required by the main-branch invariant guard
-6. Return PR URL to user
+4. **Run `check-quality-gate.sh` BEFORE creating the PR** (HARD GATE — path-independent):
+   ```bash
+   bash "$WORKTREE/skills/pr-creation/lib/check-quality-gate.sh"
+   GATE_EXIT=$?
+   [ "$GATE_EXIT" -ne 0 ] && { echo "PR_BLOCKED — quality gate failed."; exit 2; }
+   ```
+   WHY: `gh api .../pulls` bypasses the Bash hook at `hooks/quality-gate.sh:23`; this
+   step gates ALL PR paths (gh pr create, gh api, MCP). GP-C1, issue #33106.
+5. Push to remote with `-u` flag
+6. Create GitHub PR via `(cd "$WORKTREE" && gh pr create ...)` — the `cd "$WORKTREE"` prefix is required by the main-branch invariant guard
+7. Return PR URL to user
 
 **Don't ask** -- just do it with reasonable defaults based on commit messages, files changed, and tests added.
 
