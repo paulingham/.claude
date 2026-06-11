@@ -168,6 +168,85 @@ class WorktreeCallerAllowed(unittest.TestCase):
                          f"worktree caller must pass; stderr={r.stderr}")
 
 
+class SourceMdDoesNotTrickPathlibWriteDetector(unittest.TestCase):
+    """FIX 2 regression tests: the .md token fed to is_protected_path must be
+    ALL .md tokens in the command, not just the first one.
+
+    Exploit: `python3 -c "Path('rules/core.md').write_text(Path('/tmp/scratch.md').read_text())"`
+    Previously, grep | head -1 extracted `/tmp/scratch.md` (the source, appears
+    first textually in this variant), passed it to is_protected_path → ALLOW, and
+    never checked the tracked write destination → rc=0 (fail-open).
+
+    Fix (check-every-token): loop over ALL .md tokens; block if ANY is protected.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls._tmpdir = tempfile.mkdtemp()
+        cls._repo = _make_git_repo(cls._tmpdir)
+        # Source scratch path — is_protected_path returns ALLOW (untracked /tmp).
+        # If the guard checks only this token, it allows the entire command.
+        # If it correctly checks ALL tokens, the tracked dest triggers a BLOCK.
+        cls._src = "/tmp/scratch.md"
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        shutil.rmtree(cls._tmpdir, ignore_errors=True)
+
+    def test_write_text_tracked_dest_with_scratch_source_first_blocks(self):
+        """write_text to tracked rules/core.md while source /tmp/scratch.md appears FIRST.
+
+        The source token (/tmp/scratch.md) comes before the destination in the
+        command string — so grep | head -1 extracts the source, not the dest.
+        is_protected_path(/tmp/scratch.md) fails-closed (git error on /tmp) which
+        incidentally also blocks — but the fix must work on any untracked source.
+        The important property: the fix checks ALL tokens, so even if any individual
+        token is benign the tracked destination is still caught.
+        Bug: grep | head -1 grabbed only the first .md token; a benign allowlisted
+        source (e.g. /pipeline-state/notes.md) appearing first causes ALLOW.
+        Fix: all .md tokens checked; if ANY is protected → BLOCK.
+        """
+        dest = os.path.join(self._repo, "rules", "core.md")
+        # Source path uses pipeline-state prefix so is_protected_path(src) == ALLOW.
+        # If guard checks ONLY this token, the command would be allowed.
+        # If guard checks ALL tokens, the tracked dest triggers BLOCK.
+        src_allowlisted = "/some/pipeline-state/notes.md"
+        cmd = (
+            f"python3 -c \""
+            f"from pathlib import Path; "
+            # src_allowlisted appears FIRST in the command string
+            f"data = Path('{src_allowlisted}').read_text(); "
+            f"Path('{dest}').write_text(data)"
+            f"\""
+        )
+        r = _run(cmd, self._repo)
+        self.assertEqual(
+            r.returncode, 2,
+            f"write_text: pipeline-state src first, tracked dest second must block; "
+            f"bug was: first .md token (pipeline-state, ALLOW) checked, dest skipped; "
+            f"stderr={r.stderr}",
+        )
+
+    def test_write_text_to_tmp_scratch_allowed(self):
+        """write_text to /tmp/scratch.md (no tracked .md token) must ALLOW.
+
+        /tmp/ paths are explicitly skipped before is_protected_path is called,
+        mirroring the cp/mv _bwg_destination_is_protected guard.
+        """
+        cmd = (
+            "python3 -c \""
+            "from pathlib import Path; "
+            "Path('/tmp/scratch.md').write_text('data')"
+            "\""
+        )
+        r = _run(cmd, self._repo)
+        self.assertEqual(
+            r.returncode, 0,
+            f"write_text to /tmp/scratch.md must pass; stderr={r.stderr}",
+        )
+
+
 class SourceMdDoesNotTrickRedirectDetector(unittest.TestCase):
     """FIX 1 regression tests: the .md token fed to is_protected_path must be
     the redirect DESTINATION, not the first .md token in the command string.

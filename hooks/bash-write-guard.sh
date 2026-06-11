@@ -144,11 +144,24 @@ matches_python_pathlib_write() {
     # whitelists run earlier (caller order), so allowed targets never reach here.
     [[ "$1" =~ write_text[[:space:]]*\( || "$1" =~ write_bytes[[:space:]]*\( ]] || return 1
     [[ "$1" =~ \.(json|sh|yaml|yml)([^a-zA-Z0-9]|$) ]] && return 0
-    # .md: extract the first .md token and delegate to is_protected_path.
+    # .md: check-every-token strategy (mirrors matches_protected_redirect fix).
+    # Extracting only the first .md token is a fail-open: a benign source token
+    # appearing before the write-target (e.g. a pipeline-state path passed to
+    # read_text()) causes the guard to ALLOW without ever inspecting the destination.
+    # Safe direction: loop over ALL .md tokens; block if ANY is protected.
+    # /tmp/ tokens are explicitly skipped (mirroring _bwg_destination_is_protected).
     if [[ "$1" =~ \.md([^a-zA-Z0-9]|$) ]]; then
         local _md_token=""
-        _md_token="$(grep -oE '[^[:space:]]+\.md' <<<"$1" | head -1)"
-        is_protected_path "$_md_token" && return 0
+        while IFS= read -r _md_token; do
+            [[ -z "$_md_token" ]] && continue
+            # Strip any surrounding quote characters that grep may have included.
+            _md_token="${_md_token//\'/}"
+            _md_token="${_md_token//\"/}"
+            # /tmp/ paths are scratch; skip rather than delegating to is_protected_path
+            # (git fails on /tmp → fail-closed would over-block legitimate scratch writes).
+            [[ "$_md_token" == /tmp/* ]] && continue
+            is_protected_path "$_md_token" && return 0
+        done < <(grep -oE "['\"]?[^'\"[:space:]]+\.md['\"]?" <<<"$1")
     fi
     return 1
 }
