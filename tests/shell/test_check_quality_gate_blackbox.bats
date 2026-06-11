@@ -578,14 +578,47 @@ RUNNER
 }
 
 # ---------------------------------------------------------------------------
-# AC13: empty WORKTREE fails closed — non-repo cwd must NOT cause false-pass
+# AC13: empty WORKTREE fails closed — passing cwd must NOT cause false-pass
+#
+# DISCRIMINATING: the test uses a passing cwd (valid git worktree + seeded
+# evidence).  If the [ -z "$WORKTREE" ] guard were removed, _cqg_resolve_worktree
+# would fall through to `git rev-parse --show-toplevel`, but the git stub on PATH
+# returns empty for that call, so WORKTREE would still be empty — and the gate
+# would then cd "" (POSIX no-op) and evaluate the passing cwd, exiting 0 (FALSE
+# PASS).  The message assertion `"could not resolve worktree"` is emitted ONLY by
+# the empty-WORKTREE guard; no other code path produces it.  Removing the guard
+# turns this test RED on both exit-code and message assertions.
+#
+# AC12 is the load-bearing test for the cd-failure (stale path) guard; AC13 is
+# the load-bearing test for the empty-WORKTREE guard.
 # ---------------------------------------------------------------------------
 
-@test "AC13 EMPTY WORKTREE: unset WORKTREE in non-repo cwd fails closed" {
-  # cwd is a plain tmpdir (not a git repo), so git rev-parse --show-toplevel yields empty.
-  # cd "" is a POSIX no-op returning 0 — the gate must catch this explicitly.
-  local non_repo_cwd="$BATS_FILE_TMPDIR/non-repo-cwd"
-  mkdir -p "$non_repo_cwd"
+@test "AC13 EMPTY WORKTREE: unset WORKTREE with passing cwd fails closed via guard message" {
+  # Build a passing cwd (unknown runtime + seeded evidence).
+  # If the guard slipped through and cd "" evaluated this tree, the gate would
+  # exit 0 — so this arrangement makes the test FALSE-PASS without the guard.
+  local repo="$BATS_FILE_TMPDIR/ac13-repo"
+  local wt="$BATS_FILE_TMPDIR/ac13-wt"
+  _bb_make_pass_fixture "$repo" "$wt"
+  local task="qg-ac13"
+  _bb_seed_evidence "$wt" "$task"
+
+  # Install a git stub that returns empty (exit 1) for rev-parse --show-toplevel.
+  # All other git invocations are forwarded to the real git.
+  # This neutralises _cqg_resolve_worktree's fallback so WORKTREE resolves empty
+  # even though cwd is a real git worktree.
+  local git_stub_dir="$BATS_FILE_TMPDIR/gitstub-ac13-$$"
+  mkdir -p "$git_stub_dir"
+  local real_git
+  real_git="$(command -v git)"
+  cat > "$git_stub_dir/git" <<GITSTUB
+#!/usr/bin/env bash
+if [ "\${1:-}" = "rev-parse" ] && [ "\${2:-}" = "--show-toplevel" ]; then
+  exit 1
+fi
+exec "${real_git}" "\$@"
+GITSTUB
+  chmod +x "$git_stub_dir/git"
 
   local stub_dir
   stub_dir="$(_bb_install_red_pytest_stub)"
@@ -593,9 +626,10 @@ RUNNER
   local runner="$BATS_FILE_TMPDIR/run-empty-wt-$$.sh"
   cat > "$runner" <<RUNNER
 #!/usr/bin/env bash
-export PATH="${stub_dir}:${PATH}"
+export PATH="${git_stub_dir}:${stub_dir}:${PATH}"
 unset WORKTREE
-cd "${non_repo_cwd}"
+export CLAUDE_PIPELINE_TASK_ID="${task}"
+cd "${wt}"
 bash "${GATE_SCRIPT}"
 RUNNER
   chmod +x "$runner"
@@ -603,5 +637,6 @@ RUNNER
 
   # Must BLOCK — empty WORKTREE is a fatal configuration error
   [ "$status" -eq 2 ]
-  [[ "$output" == *"PR_BLOCKED"* ]]
+  # Message is emitted ONLY by the [ -z "$WORKTREE" ] guard — pins the guard.
+  [[ "$output" == *"could not resolve worktree"* ]]
 }
