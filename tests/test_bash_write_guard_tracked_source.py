@@ -305,5 +305,61 @@ class SourceMdDoesNotTrickRedirectDetector(unittest.TestCase):
                          f"was checked; stderr={r.stderr}")
 
 
+
+class LinuxTmpPathRegressionBlocks(unittest.TestCase):
+    """Regression: tracked files inside a git repo under /tmp must BLOCK.
+
+    Root cause: the /tmp/* early-return in _bwg_destination_is_protected and
+    matches_python_pathlib_write was designed to prevent over-blocking genuine
+    /tmp scratch writes.  On Linux CI, tempfile.mkdtemp() returns /tmp/... paths,
+    so fixture git repos live under /tmp.  The guard fired on tracked destinations
+    inside those repos, causing a fail-open (ALLOW instead of BLOCK).
+
+    Fix: /tmp/* guard removed from .md branches; is_protected_path returns ALLOW
+    for genuinely non-repo /tmp paths ("not a git repository"), so the guard is
+    no longer needed.  This test forces a /tmp-style base even on macOS so the
+    divergence is caught regardless of platform.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        # Force the repo under a /tmp/ path — on macOS mkdtemp() returns
+        # /var/folders/... which hid the bug.  Use an explicit /tmp subdir
+        # to reproduce the Linux CI condition on both platforms.
+        cls._tmpdir = tempfile.mkdtemp(dir="/tmp")
+        cls._repo = _make_git_repo(cls._tmpdir)
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        shutil.rmtree(cls._tmpdir, ignore_errors=True)
+
+    def test_cp_to_tracked_readme_under_tmp_blocks(self):
+        """cp to tracked README inside /tmp-based repo must BLOCK (Linux CI regression)."""
+        readme = os.path.join(self._repo, "README.md")
+        r = _run(f"cp /tmp/x.md {readme}", self._repo)
+        self.assertEqual(r.returncode, 2,
+                         f"cp to tracked README under /tmp must block; stderr={r.stderr}")
+
+    def test_write_text_to_tracked_rules_under_tmp_blocks(self):
+        """write_text to tracked rules/core.md inside /tmp-based repo must BLOCK."""
+        rules = os.path.join(self._repo, "rules", "core.md")
+        r = _run(
+            f"python3 -c \"from pathlib import Path; Path('{rules}').write_text('x')\",",
+            self._repo,
+        )
+        self.assertEqual(r.returncode, 2,
+                         f"write_text to tracked rules/core.md under /tmp must block; "
+                         f"stderr={r.stderr}")
+
+    def test_genuine_tmp_scratch_still_allowed(self):
+        """write_text to /tmp/scratch.md (not in any repo) must ALLOW."""
+        cmd = (
+            "python3 -c \"from pathlib import Path; "
+            "Path('/tmp/scratch.md').write_text('data')\"")
+        r = _run(cmd, self._repo)
+        self.assertEqual(r.returncode, 0,
+                         f"write_text to /tmp/scratch.md must pass; stderr={r.stderr}")
+
 if __name__ == "__main__":
     unittest.main()

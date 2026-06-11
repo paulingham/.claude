@@ -5,12 +5,15 @@
 #   exit 0 = BLOCK (orchestrator must not write here)
 #   exit 1 = ALLOW (genuine scratch / orchestrator-state)
 #
-# Fail-closed: any git error or missing parent → exit 0 (BLOCK).
+# Fail-closed: most git errors → exit 0 (BLOCK).
+# Exception: "not a git repository" → exit 1 (ALLOW) — genuine non-repo path.
 #
 # Decision precedence:
 #   Step 1 — explicit allowlist substrings/regexes → ALLOW immediately
 #   Step 2 — resolve repo from the target's parent directory
 #             (NOT realpath — macOS lacks --canonicalize-missing on older versions)
+#             If git finds no repo ("not a git repository") → ALLOW (genuine scratch).
+#             Other git errors (ownership, permission) → BLOCK (fail-closed).
 #   Step 3 — if target is git-tracked → BLOCK
 #   Step 4 — if target is untracked but its parent dir contains tracked siblings → BLOCK
 #             (blocks net-new source files such as agents/new.md, hooks/new.sh)
@@ -56,8 +59,20 @@ is_protected_path() {
     [[ -z "$parent" ]] && return 0
     repo="$(git -C "$parent" rev-parse --show-toplevel 2>/dev/null)"
     rc=$?
-    # git returned error (128 = not a repo), or repo is empty → BLOCK
-    [[ $rc -ne 0 || -z "$repo" ]] && return 0
+    # Distinguish "no repo" (genuine scratch) from other git errors.
+    # "not a git repository" (rc!=0, specific message) → ALLOW: the path is
+    # genuinely outside any tracked tree (e.g. /tmp/scratch.md on Linux CI where
+    # mkdtemp() returns /tmp/...).  Returning ALLOW here lets callers skip the
+    # /tmp/* early-return that caused a fail-open when test fixture repos lived
+    # under /tmp (Linux) vs /var/folders (macOS).
+    # Other git errors ("detected dubious ownership", permissions) → BLOCK.
+    if [[ $rc -ne 0 ]]; then
+        local _git_err=""
+        _git_err="$(git -C "$parent" rev-parse --show-toplevel 2>&1 1>/dev/null)"
+        [[ "$_git_err" == *"not a git repository"* ]] && return 1
+        return 0
+    fi
+    [[ -z "$repo" ]] && return 0
 
     # Step 3: is the target itself a tracked file? → BLOCK
     relpath="${path#"$repo"/}"

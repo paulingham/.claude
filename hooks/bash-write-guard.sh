@@ -149,7 +149,11 @@ matches_python_pathlib_write() {
     # appearing before the write-target (e.g. a pipeline-state path passed to
     # read_text()) causes the guard to ALLOW without ever inspecting the destination.
     # Safe direction: loop over ALL .md tokens; block if ANY is protected.
-    # /tmp/ tokens are explicitly skipped (mirroring _bwg_destination_is_protected).
+    # NOTE: /tmp/* skip intentionally removed — on Linux CI, mkdtemp() returns
+    # /tmp/... paths, so fixture git repos live under /tmp.  Skipping /tmp tokens
+    # caused a fail-open (ALLOW) for tracked files inside those repos.
+    # is_protected_path now returns ALLOW for genuinely non-repo /tmp paths
+    # (git "not a git repository" → ALLOW), so the skip is no longer needed.
     if [[ "$1" =~ \.md([^a-zA-Z0-9]|$) ]]; then
         local _md_token=""
         while IFS= read -r _md_token; do
@@ -157,9 +161,6 @@ matches_python_pathlib_write() {
             # Strip any surrounding quote characters that grep may have included.
             _md_token="${_md_token//\'/}"
             _md_token="${_md_token//\"/}"
-            # /tmp/ paths are scratch; skip rather than delegating to is_protected_path
-            # (git fails on /tmp → fail-closed would over-block legitimate scratch writes).
-            [[ "$_md_token" == /tmp/* ]] && continue
             is_protected_path "$_md_token" && return 0
         done < <(grep -oE "['\"]?[^'\"[:space:]]+\.md['\"]?" <<<"$1")
     fi
@@ -171,10 +172,9 @@ matches_cp_mv_to_protected() {
     # tree unblocked. cp/mv destination is, by convention, the LAST argument;
     # we decide on that token. Heuristic limitation (fail-closed-ish): we do not
     # parse `-t DIR` / `--target-directory` GNU forms, and a trailing flag would
-    # be misread as the dest — both are rare in orchestrator usage. If the final
-    # token bears a protected extension and is NOT under /tmp/ and NOT inside a
-    # worktree, block. /tmp and worktree destinations are legitimate (scratch
-    # output / agent-trusted writes) and pass.
+    # be misread as the dest — both are rare in orchestrator usage. Worktree
+    # destinations are trusted; for .md files is_protected_path decides
+    # (handles repos under /tmp on Linux CI); for other exts /tmp is skipped.
     [[ "$1" =~ (^|[[:space:]])(cp|mv)[[:space:]] ]] || return 1
     _bwg_destination_is_protected "$1"
 }
@@ -183,10 +183,19 @@ _bwg_destination_is_protected() {
     # The destination is the last whitespace-separated token of a cp/mv command.
     local dest=""
     dest="${1##* }"
-    [[ "$dest" == /tmp/* || "$dest" == *"/.claude/worktrees/"* ]] && return 1
-    [[ "$dest" =~ \.(json|sh|yaml|yml)([^a-zA-Z0-9]|$) ]] && return 0
+    # Worktree destinations are always trusted (subagent writes).
+    [[ "$dest" == *"/.claude/worktrees/"* ]] && return 1
     # .md: delegate to is_protected_path (git-index based decision).
+    # NOTE: /tmp/* guard intentionally NOT applied here — on Linux CI, mkdtemp()
+    # returns /tmp/... paths, so fixture git repos live under /tmp.  A /tmp/*
+    # early-return would ALLOW writes to tracked files inside those repos (fail-open).
+    # is_protected_path now distinguishes "no repo" (ALLOW) from "tracked file" (BLOCK),
+    # so genuine /tmp scratch paths pass correctly without the early-return guard.
     [[ "$dest" =~ \.md([^a-zA-Z0-9]|$) ]] && is_protected_path "$dest" && return 0
+    # For non-.md extensions, use the /tmp guard before extension matching since
+    # there is no git-index fallback — extension matching alone is over-broad.
+    [[ "$dest" == /tmp/* ]] && return 1
+    [[ "$dest" =~ \.(json|sh|yaml|yml)([^a-zA-Z0-9]|$) ]] && return 0
     return 1
 }
 

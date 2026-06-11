@@ -185,5 +185,49 @@ class Hole3MdBlockedByGitIndex(unittest.TestCase):
                          f".md under pipeline-state/ must pass; stderr={r.stderr}")
 
 
+
+class Hole3LinuxTmpPathRegression(unittest.TestCase):
+    """Regression: Hole3 tests must pass even when fixture repo is under /tmp.
+
+    On Linux CI, tempfile.mkdtemp() returns /tmp/... paths, so fixture repos
+    live under /tmp.  The previous /tmp/* early-return in _bwg_destination_is_protected
+    and matches_python_pathlib_write caused fail-open (ALLOW) for tracked files
+    in those repos.  This class forces a /tmp base on both platforms to prevent
+    the regression from going undetected on macOS.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        # Force /tmp base — macOS mkdtemp() normally uses /var/folders/... which
+        # hid the Linux CI divergence.  Explicit /tmp reproduces the Linux condition.
+        cls._tmpdir = tempfile.mkdtemp(dir="/tmp")
+        cls._repo = _make_h3_git_repo(cls._tmpdir)
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        shutil.rmtree(cls._tmpdir, ignore_errors=True)
+
+    def test_redirect_to_tracked_rollout_under_tmp_blocks(self):
+        rollout = os.path.join(self._repo, "ROLLOUT.md")
+        r = _run(f"echo content > {rollout}")
+        self.assertEqual(r.returncode, 2,
+                         f"redirect to tracked ROLLOUT.md under /tmp must block; "
+                         f"stderr={r.stderr}")
+
+    def test_cp_to_tracked_templates_under_tmp_blocks(self):
+        dest = os.path.join(self._repo, "templates", "new.md")
+        r = _run(f"cp /tmp/x.md {dest}")
+        self.assertEqual(r.returncode, 2,
+                         f"cp to tracked templates dir under /tmp must block; "
+                         f"stderr={r.stderr}")
+
+    def test_pipeline_state_under_tmp_still_allowed(self):
+        plan = os.path.join(self._repo, "pipeline-state", "task", "plan.md")
+        r = _run(f"echo content > {plan}")
+        self.assertEqual(r.returncode, 0,
+                         f".md under pipeline-state/ (repo under /tmp) must pass; "
+                         f"stderr={r.stderr}")
+
 if __name__ == "__main__":
     unittest.main()
