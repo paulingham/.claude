@@ -35,6 +35,8 @@ ANY_FAILED=0
 # CLAUDE_QG_SKIP_CHECKS=1 skips the heavy checks (tests/lint/audit/shape/
 # contract) while preserving advisory + freshness logic; set by the test
 # conftest so a test invoking this hook does NOT recursively re-run the suite.
+#
+# WHY: keep identical to skills/pr-creation/lib/check-quality-gate.sh — skill-step gate for gh api/MCP. GP-C1 #33106.
 if [[ "${CLAUDE_QG_SKIP_CHECKS:-0}" != "1" ]]; then
   for check in tests lint audit shape contract; do
     _qg_check_${check} "$RT"; rc=$?
