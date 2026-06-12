@@ -1,6 +1,7 @@
 ---
 name: "plan-self-validation"
 description: "Lightweight Plan Validation for non-critical, low-budget pipelines. Architect re-reads its own plan against a structured holes-finding rubric and returns PLAN_APPROVED or PLAN_HOLES. Used in autonomous mode when criticality is standard AND Budget < 7. Heavy challenger team is reserved for critical or Budget >= 7 plans."
+verdict: PLAN_APPROVED|PLAN_HOLES|ROUTING_UPSHIFTED|PLAN_FEASIBILITY_REJECTED
 model: opus
 argument-hint: "Path to plan file ($state_dir/{task-id}/plan.md)"
 ---
@@ -72,6 +73,7 @@ For each rubric item, write a one-line verdict (`OK` / `HOLE: {what is missing}`
 
 ### Step 3: Verdict
 
+- **Inline Feasibility Finding is FEASIBILITY_REJECTED** → `PLAN_FEASIBILITY_REJECTED`. Before scoring the rubric, inspect plan.md for a line matching `FEASIBILITY: FEASIBILITY_REJECTED` (the architect's inline finding from the light-gate path). If found: surface the reject-brief to the user verbatim; write `feasibility_drift` to the state file (`architect_said: FEASIBILITY_REJECTED`, `reviewers_concluded: FEASIBILITY_REJECTED`, `overturned: false`); emit `PLAN_FEASIBILITY_REJECTED` and stop. Do NOT proceed to PLAN_APPROVED/PLAN_HOLES logic — this skill is a self-judgment only (overturn to FEASIBLE is heavy-gate only). If the inline finding says `FEASIBILITY: FEASIBLE` or is absent, proceed below.
 - **Step 0 upshift detected** → `ROUTING_UPSHIFTED`. Write the upshift fields (`tier_initial`, `tier_replanned`, `routing_upshifted: true`) to `$state_dir/{task-id}/plan-validation.md` and return. The pipeline re-dispatches downstream phases at the new tier.
 - **All items OK** → `PLAN_APPROVED`. Write a one-line confirmation to `$state_dir/{task-id}/plan-validation.md` and return.
 - **One or more HOLE entries** → `PLAN_HOLES`. Write the hole list to `$state_dir/{task-id}/plan-validation.md` and return. The pipeline returns the plan to architect with the hole list for ONE revision pass. If holes persist after that pass, the pipeline escalates to heavy challengers (product-reviewer + software-engineer team) per `protocols/pipeline-protocol.md`.
@@ -85,7 +87,7 @@ Write `$state_dir/{task-id}/plan-validation.md`:
 task_id: {task-id}
 phase: plan-validation
 mode: light
-verdict: PLAN_APPROVED | PLAN_HOLES | ROUTING_UPSHIFTED
+verdict: PLAN_APPROVED | PLAN_HOLES | ROUTING_UPSHIFTED | PLAN_FEASIBILITY_REJECTED
 tier_initial: T0|T1|T2|T3|T4|T5|T6
 tier_replanned: T0|T1|T2|T3|T4|T5|T6
 routing_upshifted: true|false
@@ -115,7 +117,7 @@ timestamp: {ISO 8601}
 ## Phase Output
 
 ```
-Verdict: PLAN_APPROVED | PLAN_HOLES | ROUTING_UPSHIFTED
+Verdict: PLAN_APPROVED | PLAN_HOLES | ROUTING_UPSHIFTED | PLAN_FEASIBILITY_REJECTED
 Mode: light
 Holes: {N}
 Tier: T{initial}->T{replanned}  (when ROUTING_UPSHIFTED)
@@ -138,7 +140,7 @@ exactly once, after Step 4):
 ```
 
 where `<VERDICT>` is the same verdict written to `plan-validation.md` —
-one of `PLAN_APPROVED`, `PLAN_HOLES`, `ROUTING_UPSHIFTED`.
+one of `PLAN_APPROVED`, `PLAN_HOLES`, `ROUTING_UPSHIFTED`, `PLAN_FEASIBILITY_REJECTED`.
 
 **Marker shape (exact, do NOT paraphrase)**:
 

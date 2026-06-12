@@ -81,6 +81,22 @@ Use these findings to ground your **Codebase Ground-Truth Citations** (Plan Outp
 
 When recon did NOT run (light plan-validation gate, no `architect-context.md` present), draft from a cold start and rely on your own Read calls during planning.
 
+### Feasibility Pass (run before drafting)
+
+After reading `architect-context.md` (or completing your own Read calls when no recon ran), evaluate whether the request's **PREMISE** is true against the recon findings. Emit `FEASIBLE` or `FEASIBILITY_REJECTED`.
+
+**Output**: Append a `## Feasibility Finding` section to `architect-context.md` (the file you already Read — no new `feasibility.md`). Contract:
+- A verdict line: `FEASIBILITY: FEASIBLE` or `FEASIBILITY: FEASIBILITY_REJECTED`.
+- On `FEASIBILITY_REJECTED`: a ≤150-word evidence-cited brief ("premise is false because X") with `file:line` citations from recon. Default depth = REJECT-BRIEF-ONLY: no fallback plan unless reviewers overturn.
+
+**On `FEASIBILITY_REJECTED`**: the architect STILL emits the reject-brief AND a minimal plan skeleton (frontmatter + Feasibility Finding reference), then hands to reviewers. **The architect NEVER stops the pipeline and NEVER hard-rejects.** Stopping or self-gating is a bug — the Build gate is owned by the challenger agents (heavy gate) or `plan-self-validation` (light gate), not the architect.
+
+**On `FEASIBLE`**: proceed to draft the full plan as normal.
+
+**Architect-can't-Write fallback**: if the architect cannot Write the appended section (read-only sandbox), it returns the Feasibility Finding text inline in its response; the orchestrator persists it into `architect-context.md` (Iron-Law-3-safe `.md` state).
+
+**Light-gate note (L2)**: when recon did NOT run (no `architect-context.md`), the architect still performs the premise check from its own Read calls and records the finding inline in `plan.md` (no `architect-context.md` to append to). The `plan-self-validation` skill consumes this inline finding as a self-judgment with no overturn-to-feasible path (heavy-gate only).
+
 ## Pre-Emit Self-Review (Required)
 
 Before emitting your plan, you MUST answer the questions from each of three named personas inline in the plan, under a `## Pre-Emit Self-Review` section. The personas encode the failure modes that downstream challengers (product-reviewer, software-engineer) reliably find. By answering them yourself, round-1 challenger findings collapse — most are already addressed.
