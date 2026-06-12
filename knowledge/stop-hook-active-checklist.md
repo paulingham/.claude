@@ -98,5 +98,6 @@ State of every Stop / SubagentStop hook in this repo as of 2026-05-05 (after the
 | `cost-feed.sh` | SubagentStop | yes | duplicate cost record |
 | `quality-gate-stop.sh` | SubagentStop | yes | duplicate quality-gate forensic |
 | `tdd-guard-stop.sh` | SubagentStop | yes | duplicate tdd-guard forensic |
+| `mutation-score-gate.sh` | SubagentStop | yes | duplicate mutation-score JSONL row |
 
 External entries skipped from this audit because they are not maintained in this repo: `$HOME/.local/bin/hcom poll` (Stop), `$HOME/.local/bin/hcom subagent-stop` (SubagentStop), and the `type: agent` Stop registration (a subagent type, not a shell script).

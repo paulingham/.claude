@@ -113,6 +113,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `NO_CHANGE` | info | `eval-model-effectiveness` | utility | Recommendations unchanged from prior run |
 | `COST_REPORT_READY` | info | `cost-report` | utility | Advisory report written to `metrics/reports/{date}-cost.md`; human reviews |
 | `CACHE_AUDIT_READY` | info | `cache-audit` | utility | Advisory report written to `metrics/reports/{date}-cache.md`; human reviews |
+| `MUTATION_SCORE_REPORT_READY` | info | `mutation-score-report` | utility | Advisory mutation-score convergence report written; human reviews soak progress vs the >=10-session / >=70% promotion criterion |
 | `CACHE_FLIP_GATE_PASS` | success | `cache-flip-gate` | utility | 30-day P50 read_ratio >= 0.70 AND n_observations >= 100; operator may raise `READ_RATIO_TARGET` from 0.65 to 0.70 in `skills/cache-audit/SKILL.md` (manual constant edit, requires PASS observed twice ≥7 days apart per Slice C safeguard) |
 | `CACHE_FLIP_GATE_HOLD` | info | `cache-flip-gate` | utility | 30-day P50 read_ratio < 0.70 (with n_observations >= 30); flip from 0.65 to 0.70 NOT recommended; operator re-runs in ≥7 days |
 | `CACHE_FLIP_GATE_INSUFFICIENT_DATA` | info | `cache-flip-gate` | utility | Fewer than 30 cache.jsonl observations in window; gate refuses to grade; re-run after more data arrives |
