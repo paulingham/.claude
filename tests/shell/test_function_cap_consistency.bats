@@ -37,7 +37,7 @@ setup() {
 # law, not the old mis-stated 8-line method rule).
 ALLOWLIST_5=(
   # CC ≤ 5 restatements (cyclomatic complexity, not body length).
-  "agents/fix-engineer.md:113"
+  "agents/fix-engineer.md:115"
   "hooks/_lib/baseline_capture.sh:86"
   "hooks/_lib/plan-cache-lookup.sh:76"
   "hooks/_lib/sandbox_e2b_client.py:96"

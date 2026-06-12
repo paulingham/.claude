@@ -12,6 +12,8 @@ tools:
   - ToolSearch
   - mcp_lsp_diagnostics_ts
   - mcp_lsp_diagnostics_py
+  - mcp_lsp_definition_ts
+  - mcp_lsp_definition_py
 model: sonnet
 executor: claude-sonnet-4-6
 advisor: none
