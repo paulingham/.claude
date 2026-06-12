@@ -339,3 +339,61 @@ PYEOF
 @test "AC3: intake-backstop.sh header contains 'advisory'" {
   grep -q 'advisory' "$HOOK"
 }
+
+# ---------------------------------------------------------------------------
+# GAP-EP: empty-path guard — Write/Edit with no file_path field → silent exit 0
+# WHY: the branch extracts path via jq '... // empty'; [[ -z "$path" ]] && exit 0.
+# If that guard is deleted, _ibs_advise fires spuriously on any Write whose
+# tool_input has no file_path/notebook_path key (e.g., malformed or future
+# tool variant). Advisory-only so no blocking regression, but a false advisory
+# on a path-less Write would be noisy and confusing. This test documents the
+# current contract: no path fields → silent exit 0, no advisory.
+# ---------------------------------------------------------------------------
+@test "GAP-EP: Write with no file_path field → silent exit 0 (empty-path guard)" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local json='{"tool_name":"Write","session_id":"test-ep-write","tool_input":{}}'
+  local cwd; cwd=$(mktemp -d)
+  run bash -c "cd '$cwd' && printf '%s' '$json' | env CLAUDE_PLUGIN_DATA='$tmpdir' CLAUDE_PLUGIN_ROOT='$REPO_ROOT' bash '$HOOK'"
+  rm -rf "$tmpdir" "$cwd"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"INTAKE ADVISORY"* ]]
+}
+
+@test "GAP-EP: NotebookEdit with no notebook_path field → silent exit 0 (empty-path guard)" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  # WHY tool_input:{}: NotebookEdit delivers notebook_path; if that key is absent
+  # (malformed payload) the guard must suppress silently — not emit a spurious advisory.
+  local json='{"tool_name":"NotebookEdit","session_id":"test-ep-nb","tool_input":{}}'
+  local cwd; cwd=$(mktemp -d)
+  run bash -c "cd '$cwd' && printf '%s' '$json' | env CLAUDE_PLUGIN_DATA='$tmpdir' CLAUDE_PLUGIN_ROOT='$REPO_ROOT' bash '$HOOK'"
+  rm -rf "$tmpdir" "$cwd"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"INTAKE ADVISORY"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# GAP-DS: .claude-substring fail-open class — characterization test.
+# WHY: _ibs_path_is_state matches (^|/)\.claude(/|$), so ANY path containing
+# /.claude/ is treated as state-safe and suppresses the advisory. In this
+# maintainer repo (root IS named .claude), EVERY absolute harness path matches
+# this regex, meaning the advisory NEVER fires for orchestrator writes here.
+# This is documented as a flip-blocking issue — the >=10-session observation
+# window cannot accumulate data from this repo.
+# This test CHARACTERIZES the current behavior (advisory suppressed for .claude
+# paths) rather than asserting it should fire. If the predicate is ever tightened
+# to discriminate git-tracked vs state, this test should be updated accordingly.
+# See: memory/dotclaude-repo-substring-swallow.md
+# ---------------------------------------------------------------------------
+@test "GAP-DS: Write to absolute .claude dir path → no advisory (state-predicate suppresses)" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  # Use a synthetic absolute path that contains /.claude/ — matches the regex.
+  local json='{"tool_name":"Write","session_id":"test-ds-abs","tool_input":{"file_path":"/home/user/.claude/agents/foo.md"}}'
+  local cwd; cwd=$(mktemp -d)
+  run bash -c "cd '$cwd' && printf '%s' '$json' | env CLAUDE_PLUGIN_DATA='$tmpdir' CLAUDE_PLUGIN_ROOT='$REPO_ROOT' bash '$HOOK'"
+  rm -rf "$tmpdir" "$cwd"
+  [ "$status" -eq 0 ]
+  # CHARACTERIZES current behavior: advisory is suppressed because /.claude/ matches
+  # the state-dir predicate. If this test flips RED, the predicate was tightened —
+  # verify the tightening doesn't break the harness repo's own write flows.
+  [[ "$output" != *"INTAKE ADVISORY"* ]]
+}
