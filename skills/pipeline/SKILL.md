@@ -75,18 +75,18 @@ If `tier_emitted` is missing from intake.md (legacy intake or fingerprint error)
 
 | Work Type | Entry Skill | Pipeline Phases |
 |-----------|-------------|-----------------|
-| Feature (micro) | `/harness:build-implementation` | Plan → Plan Validation → Build → Review → Ship |
-| Feature (small) | `/harness:build-implementation` | Plan → Plan Validation → Build → Review → Verify → Ship |
-| Feature (medium) | `/harness:build-implementation` | Plan → Plan Validation → Build → Review → Verify → Test → Accept → Ship → Deploy |
-| Feature (large) | `/harness:build-implementation` | Plan → Plan Validation → Build → Review → Verify → Load Test → Test → Accept → Ship → Deploy |
-| Refactor | `/harness:refactor` | Plan → Plan Validation → Build → Review → Verify → Test → Accept → Ship |
-| Bug Fix | `/harness:bug-fix` | Plan → Plan Validation → Build → Review → Verify → Test → Accept → Ship → Deploy |
+| Feature (micro) | `/harness:build-implementation` | Plan → Plan Validation → Build (incl. code-review) → Security Review → Ship |
+| Feature (small) | `/harness:build-implementation` | Plan → Plan Validation → Build (incl. code-review) → Security Review → Verify → Ship |
+| Feature (medium) | `/harness:build-implementation` | Plan → Plan Validation → Build (incl. code-review) → Security Review → Verify → Test → Accept → Ship → Deploy |
+| Feature (large) | `/harness:build-implementation` | Plan → Plan Validation → Build (incl. code-review) → Security Review → Verify → Load Test → Test → Accept → Ship → Deploy |
+| Refactor | `/harness:refactor` | Plan → Plan Validation → Build (incl. code-review) → Security Review → Verify → Test → Accept → Ship |
+| Bug Fix | `/harness:bug-fix` | Plan → Plan Validation → Build (incl. code-review) → Security Review → Verify → Test → Accept → Ship → Deploy |
 | Spike | `/harness:tech-spike` | Spike only (no pipeline) |
 | Planning | `/harness:epic-breakdown` | Plan only (produces stories for future pipelines) |
 
 **Pipeline scale tiers:**
-- **Micro**: 1 file, less than 5 lines changed, no behavior change → Plan + Plan Validation + Build + Review + Ship
-- **Small**: 1-3 files, isolated change → Plan + Plan Validation + Build + Review + Verify + Ship
+- **Micro**: 1 file, less than 5 lines changed, no behavior change → Plan + Plan Validation + Build (incl. code-review) + Security Review + Ship
+- **Small**: 1-3 files, isolated change → Plan + Plan Validation + Build (incl. code-review) + Security Review + Verify + Ship
 - **Medium/Large**: Full pipeline. No phase is skipped.
 
 All tiers include Plan + Plan Validation. The `/harness:learn` system may create instincts to adjust this per project/pattern.
@@ -131,8 +131,8 @@ Classification: [feature/refactor/bug]
 - Plan: pending
 - Plan Validation: pending
 - Scaffold: pending (or N/A if no scaffolding needed)
-- Build: pending
-- Review: pending
+- Build: pending  # WHY: code-review runs as Build's final step (see rules/core.md § Pipeline Phase Order)
+- Security Review: pending
 [...other phases per scale...]
 - Ship: pending
 
@@ -379,7 +379,7 @@ If changed files include `.tsx`, `.jsx`, `.vue`, `.svelte`, or CSS files:
 5. Product-reviewer MUST receive screenshots — no visual review without them
 6. No silent skip — if frontend files changed, visual proof is required
 
-#### Review Phase (TEAM — always)
+#### Security Review + Code-review Dispatch (TEAM — always)
 
 1. `TeamCreate("pipeline-{task-id}")` if not already created
 2. Spawn reviewers as **teammates** (NOT independent subagents):
@@ -412,7 +412,7 @@ All agents assess the same final state independently. Shut down after all verdic
 
 #### Parallel Phases (Dispatch Reference)
 
-- **Review**: teammates in pipeline team (see above)
+- **Security Review + Code-review**: teammates in pipeline team (see above)
 - **Build (independent slices)**: multiple engineers dispatched in parallel worktrees
 - **Final Gate**: teammates in pipeline team (see above)
 - **Verify Tier 1+2**: independent tiers dispatched in parallel where applicable

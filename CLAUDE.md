@@ -79,7 +79,7 @@ Per-session env vars short-circuit each gate to `exit 0`. Full table: `protocols
 |-------|-------|----------|---------------|---------|
 | architect | Plan | No | opus | No |
 | architect-context-recon | Plan (recon) | No | haiku | No |
-| code-reviewer | Review | No | opus [1] | Yes |
+| code-reviewer | Build (code-review) | No | opus [1] | Yes |
 | database-engineer | Build | Yes | sonnet | Yes |
 | fix-engineer | Build (in-cycle) | Yes | sonnet | Yes |
 | frontend-engineer | Build | Yes | sonnet | Yes |
@@ -91,13 +91,13 @@ Per-session env vars short-circuit each gate to `exit 0`. Full table: `protocols
 | product-reviewer | Accept | No | sonnet | Yes |
 | qa-engineer | Test | Yes | sonnet | Yes |
 | sandbox-verify-engineer | Build | No | sonnet | No |
-| security-engineer | Review | No | opus | No |
+| security-engineer | Security Review | No | opus [1] | No |
 | session-memory-updater | Post-phase | No | haiku | No |
 | software-engineer | Build | Yes | sonnet | Yes |
 | spec-blind-validator | Final Gate | No | sonnet | No |
 | vlm-critic | Final Gate | No | sonnet | No |
 
-> `[1]` Default Model `opus` is the frontmatter `model:` contract (mirrored by `tests/test_claude_md_agent_table.py`). The live executor differs: `code-reviewer` and `security-engineer` ship `executor: claude-sonnet-4-6` + `advisor: claude-opus-4-7`, but the Opus-advisor pairing is **ADVISORY — NOT ENFORCED** (the `advisor:` field is not schema-exposed; `resolve_model_conditional` is log-only) — so review work **runs Sonnet-solo today**. `code-reviewer` additionally drops to `model: sonnet` via `model_conditional` when `complexity_budget.total < 6`. See `agents/code-reviewer.md`, `protocols/advisor-mode.md`, and `hooks/_lib/advisor_resolver.py::resolve_model_conditional`.
+> `[1]` **`code-reviewer` and `security-engineer` run Sonnet-solo today.** The Agent-Team Default Model cell reads `opus` because it mirrors the agent's frontmatter `model:` contract (pinned by `tests/test_claude_md_agent_table.py`), NOT the live executor: both ship `executor: claude-sonnet-4-6` + `advisor: claude-opus-4-7`, but the Opus-advisor pairing is **ADVISORY — NOT ENFORCED** (the `advisor:` field is not schema-exposed; `resolve_model_conditional` is log-only) — so review work runs Sonnet-solo. `code-reviewer` additionally drops to `model: sonnet` via `model_conditional` when `complexity_budget.total < 6`. See `agents/code-reviewer.md`, `protocols/advisor-mode.md`, and `hooks/_lib/advisor_resolver.py::resolve_model_conditional`.
 
 Model self-tuning, downgrade rules, and `architect`/`security-engineer` hard locks: `orchestrator/agent-orchestration.md` § Instinct Injection. Advisory recommendation report (`/harness:eval-model-effectiveness`): see skill SKILL.md.
 
@@ -110,7 +110,7 @@ Parallelizable phases dispatch as **parallel subagent calls in a single message*
 | Plan | Subagent | Subagent |
 | Build (single) | Subagent + worktree | Subagent + worktree |
 | Build (multi) | Parallel subagents (1 message, N calls) | Team in tmux panes |
-| Review | Parallel subagents (1 message, 2 calls) | Team in tmux panes |
+| Security Review + Code-review | Parallel subagents (1 message, 2 calls) | Team in tmux panes |
 | Final Gate | Parallel subagents (1 message, 4 calls) | Team in tmux panes |
 | Ship / Deploy | Subagent | Subagent |
 
