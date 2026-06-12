@@ -39,16 +39,17 @@ Simplicity is a prerequisite for reliability (Dijkstra/Hickey): you can only mak
 ## Connascence
 
 Two units are connascent if a change in one forces a change in the other to stay correct — this is the WHY under DRY, SOLID, ≤4 params, and single entry point.
-
-**Strength spectrum (weak→strong):**
+**Strength spectrum (weak→strong; dynamic > static):**
 - Static: Name → Type → Meaning/Convention → Position → Algorithm
-- Dynamic: Execution → Timing → Value → Identity — dynamic is stronger than static.
+- Dynamic: Execution → Timing → Value → Identity
 
 **Two axes:** **degree** (how many components share the connascence) and **locality** (how close they are).
 
 **Rule:** the stronger the connascence, the more local it must be. Minimise strength AND degree across module boundaries; convert strong-remote connascence to weak-local.
 
-**Example:** `place_order(user_id, org_id)` — two raw strings in fixed slots = Connascence of Position (strong). Replacing with a named-params object `{ userId, orgId }` or dedicated value objects weakens it to Connascence of Name/Type.
+**Example:** `place_order(user_id, org_id)` — two raw strings in fixed slots = Connascence of Position (strong).
+- Named-params object `{ userId, orgId }` → Connascence of **Name** (kills slot-order coupling; both fields still `string`, so a `{ userId: orgId }` swap still compiles).
+- Distinct value objects `UserId` / `OrgId` → Connascence of **Type** (kills the same-type swap; compiler-enforced).
 
 ## Comments
 
@@ -92,8 +93,7 @@ The comment-smell hook blocks only high-confidence narration (bare lowercase-ver
 **Immutability by default** — prefer immutable data; mutation is a justified exception that MUST carry a `# WHY:` comment (reuses the WHY-prefix convention from `## Comments`). Judgment-feeding.
 - Justified: `# WHY: in-place accumulation; copy-per-iter is O(n²) on 50k rows`
 
-**Acyclic dependencies** — the module/import dependency graph must be acyclic; dependencies point inward toward stability (extends the DIP rule in `## SOLID`). Judgment-feeding.
-[ADVISORY — import-cycle enforcement hook not yet wired; treat as design guidance]
+**Acyclic dependencies** — the module/import dependency graph must be acyclic; dependencies point inward toward stability (extends the DIP rule in `## SOLID`). Judgment-feeding (import-cycle enforcement hook not yet wired; treat as design guidance).
 
 ## Naming
 
