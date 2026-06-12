@@ -117,7 +117,7 @@ timestamp: {ISO 8601}
 ## Phase Output
 
 ```
-Verdict: PLAN_APPROVED | PLAN_HOLES | ROUTING_UPSHIFTED
+Verdict: PLAN_APPROVED | PLAN_HOLES | ROUTING_UPSHIFTED | PLAN_FEASIBILITY_REJECTED
 Mode: light
 Holes: {N}
 Tier: T{initial}->T{replanned}  (when ROUTING_UPSHIFTED)
