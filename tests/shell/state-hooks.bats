@@ -105,11 +105,6 @@ _stat_mode() {
   [ "$count" -ge 2 ]
 }
 
-@test "H3.11 auto-bug-detect uses state dir for dedup (not /tmp)" {
-  ! grep -q '/tmp/claude-hook-guard' "$REPO_ROOT/hooks/auto-bug-detect.sh"
-  grep -q '_state_path' "$REPO_ROOT/hooks/auto-bug-detect.sh"
-}
-
 @test "H3.10 loop-guard uses state dir for hook-guard files" {
   run bash -c "source '$REPO_ROOT/hooks/loop-guard.sh'; source '$REPO_ROOT/hooks/_lib/state-dir.sh'; check_loop_guard 'probe' 10 60"
   [ "$status" -eq 0 ]

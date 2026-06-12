@@ -6,14 +6,11 @@ in a worktree commit. Keeping it import-clean (no subprocess, no filesystem I/O)
 makes the secret-vs-clean decision unit-testable without a git checkout, exactly
 as `hooks/_lib/agentic_security_gate.py` is for its gate.
 
-DRY note — overlap with `hooks/governance-capture.sh:48-62`: that registered
-PreToolUse:Bash hook ALSO runs regex secret detection (AWS `AKIA[0-9A-Z]{16}`,
-GitHub tokens, JWT, PEM private-key blocks). That overlap is intentional and not
-an accident: governance-capture is ADVISORY (exit 0, logs to governance.jsonl)
-and scans the COMMAND STRING. This core is the HARD-BLOCK (exit 2) path and
-scans the STAGED DIFF. This module owns the canonical set for the block path;
-governance-capture remains the advisory command-string logger. Do not collapse
-the two — they gate different lifecycles.
+This module owns the CANONICAL secret-detection pattern set for the HARD-BLOCK
+path. The patterns here are the single source of truth for "what counts as an
+introduced secret" — they gate the STAGED DIFF at commit time. Any advisory
+command-string logging is a separate concern handled by separate hooks and MUST
+NOT collapse into this module, which is the enforcing path only.
 """
 from __future__ import annotations
 

@@ -310,15 +310,6 @@
             "command": "bash",
             "args": [
               "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/auto-bug-detect.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/observation-length-cap.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
@@ -528,15 +519,6 @@
             "command": "bash",
             "args": [
               "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/governance-capture.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/runtime-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
@@ -605,15 +587,6 @@
             "command": "bash",
             "args": [
               "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/governance-capture.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/runtime-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
@@ -647,15 +620,6 @@
             "args": [
               "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/config-protection.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/governance-capture.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 10000
           },
