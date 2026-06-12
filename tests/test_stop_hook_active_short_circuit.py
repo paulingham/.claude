@@ -93,6 +93,7 @@ class StopHookActiveShortCircuit(unittest.TestCase):
             "quality-gate-stop.sh",
             "tdd-guard-stop.sh",
             "bug-fixed-payload-validator.sh",
+            "mutation-score-gate.sh",
         })
 
     def test_every_stop_hook_short_circuits(self):

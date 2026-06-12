@@ -113,7 +113,7 @@ instinct — a backward feedback loop from review into build. Details:
   settings.json      Hook registration, permissions, env vars
 
   agents/            # 19 specialized agent definitions (role, checklist, model)
-  skills/            # 68 skills — the procedural workflows the orchestrator invokes
+  skills/            # 69 skills — the procedural workflows the orchestrator invokes
   hooks/             # 87 enforcement scripts (the mechanical guardrails)
   protocols/         # 19 deep-dive protocol docs, loaded on demand
   orchestrator/      # orchestrator-only dispatch procedures
@@ -201,7 +201,7 @@ Deploy runs post-deploy verification with automatic rollback.
 
 ---
 
-## Skills (68)
+## Skills (69)
 
 Skills are the procedural workflows the orchestrator invokes per phase — `/harness:intake`,
 `/harness:build-implementation`, `/harness:code-review`, `/harness:patch-critique`, and the
@@ -229,6 +229,20 @@ One hook is external tooling: **rtk** (a token-optimisation proxy) is installed 
 It compresses dev-tool output before it reaches the model and defaults on for
 mac+linux; set `CLAUDE_REQUIRE_RTK=0` to skip it or `CLAUDE_REQUIRE_RTK=1` to force it. If
 absent, the harness proceeds without it — no hard failure.
+
+Two hooks support the Reflect phase deviation-acknowledgment loop. **reflect-token-emit**
+writes named-deviation tokens during Build and Review phases whenever an agent records a
+deviation from protocol; the tokens persist in pipeline state. **reflect-gate-acknowledgment**
+is the Reflect-phase gate that reads those tokens and exits nonzero if any deviation token
+remains unacknowledged, blocking the pipeline from completing until each deviation is
+explicitly addressed. Both hooks are skill-invoked (not event-registered) per
+[`protocols/reflection-protocol.md`](protocols/reflection-protocol.md).
+
+One SubagentStop hook gathers mutation-testing soak data: **mutation-score-gate** fires when
+a `software-engineer` or `fix-engineer` subagent completes, recording changed-files context and
+mutation-tool availability to `metrics/$SESSION_ID/mutation-score.jsonl`. It is advisory-log
+only (exit 0 always). The soak converges once >=10 sessions reach a median changed-line score
+>=70%; use `skills/mutation-score-report/SKILL.md` to view convergence progress.
 
 ## Omnichannel Support
 
