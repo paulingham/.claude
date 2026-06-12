@@ -173,6 +173,15 @@ _make_marker() {
   [ "$status" -eq 0 ]
 }
 
+@test "AC-T0: MultiEdit no-marker non-state → exit 0 never exit 2" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local json; json=$(_ibs_json MultiEdit file_path hooks/intake-backstop.sh test-session-t0-5)
+  local cwd; cwd=$(mktemp -d)
+  run bash -c "cd '$cwd' && printf '%s' '$json' | env CLAUDE_PLUGIN_DATA='$tmpdir' CLAUDE_PLUGIN_ROOT='$REPO_ROOT' bash '$HOOK'"
+  rm -rf "$tmpdir" "$cwd"
+  [ "$status" -eq 0 ]
+}
+
 # ---------------------------------------------------------------------------
 # AC2: intake-backstop.sh registered under PreToolUse Write AND Edit in BOTH
 #      registries. Also validates both files parse as valid JSON.
@@ -185,71 +194,133 @@ _make_marker() {
   python3 -c "import json; json.load(open('$SETTINGS_JSON'))"
 }
 
-@test "AC2: intake-backstop.sh in PreToolUse Write gate-group in hooks.json" {
+@test "AC2: intake-backstop.sh in PreToolUse Write/Edit gate-group in hooks.json" {
   python3 - "$HOOKS_JSON" <<'PYEOF'
 import json, sys
 data = json.load(open(sys.argv[1]))
 blocks = data["hooks"].get("PreToolUse", [])
-# Gate group: PreToolUse Write block containing orchestrator-discipline.sh
+# Gate group: PreToolUse block whose matcher covers Write and Edit (may be combined)
+# and which also contains orchestrator-discipline.sh and intake-backstop.sh.
 for block in blocks:
-    if block.get("matcher") != "Write":
+    matcher = block.get("matcher", "")
+    if "Write" not in matcher or "Edit" not in matcher:
         continue
-    names = [h["args"][1] for h in block["hooks"] if len(h.get("args", [])) > 1]
+    names = [h["args"][1] for h in block.get("hooks", []) if len(h.get("args", [])) > 1]
     if any("orchestrator-discipline" in n for n in names):
         if any("intake-backstop" in n for n in names):
             sys.exit(0)
-print("FAIL: intake-backstop.sh not found in PreToolUse Write gate-group")
+print("FAIL: intake-backstop.sh not found in PreToolUse Write/Edit gate-group")
 sys.exit(1)
 PYEOF
 }
 
-@test "AC2: intake-backstop.sh in PreToolUse Edit gate-group in hooks.json" {
-  python3 - "$HOOKS_JSON" <<'PYEOF'
-import json, sys
-data = json.load(open(sys.argv[1]))
-blocks = data["hooks"].get("PreToolUse", [])
-for block in blocks:
-    if block.get("matcher") != "Edit":
-        continue
-    names = [h["args"][1] for h in block["hooks"] if len(h.get("args", [])) > 1]
-    if any("orchestrator-discipline" in n for n in names):
-        if any("intake-backstop" in n for n in names):
-            sys.exit(0)
-print("FAIL: intake-backstop.sh not found in PreToolUse Edit gate-group")
-sys.exit(1)
-PYEOF
-}
-
-@test "AC2: intake-backstop.sh in PreToolUse Write gate-group in settings.json" {
+@test "AC2: intake-backstop.sh in PreToolUse Write/Edit gate-group in settings.json" {
   python3 - "$SETTINGS_JSON" <<'PYEOF'
 import json, sys
 data = json.load(open(sys.argv[1]))
 blocks = data["hooks"].get("PreToolUse", [])
 for block in blocks:
-    if block.get("matcher") != "Write":
+    matcher = block.get("matcher", "")
+    if "Write" not in matcher or "Edit" not in matcher:
         continue
-    names = [h["args"][1] for h in block["hooks"] if len(h.get("args", [])) > 1]
+    names = [h["args"][1] for h in block.get("hooks", []) if len(h.get("args", [])) > 1]
     if any("orchestrator-discipline" in n for n in names):
         if any("intake-backstop" in n for n in names):
             sys.exit(0)
-print("FAIL: intake-backstop.sh not found in PreToolUse Write gate-group")
+print("FAIL: intake-backstop.sh not found in PreToolUse Write/Edit gate-group")
 sys.exit(1)
 PYEOF
 }
 
-@test "AC2: intake-backstop.sh in PreToolUse Edit gate-group in settings.json" {
-  python3 - "$SETTINGS_JSON" <<'PYEOF'
+# ---------------------------------------------------------------------------
+# AC1e-MultiEdit: MultiEdit with file_path, no marker → INTAKE ADVISORY
+# WHY MultiEdit: MultiEdit is registered as a PreToolUse matcher
+# (planning-agent-edit-scope.sh) and uses .tool_input.file_path — same as Edit.
+# ---------------------------------------------------------------------------
+@test "AC1e-MultiEdit: MultiEdit tracked-source, no marker → advisory + exit 0" {
+  local tmpdir; tmpdir=$(mktemp -d)
+  local json; json=$(_ibs_json MultiEdit file_path rules/core.md test-session-ac1e-multi)
+  local cwd; cwd=$(mktemp -d)
+  run bash -c "cd '$cwd' && printf '%s' '$json' | env CLAUDE_PLUGIN_DATA='$tmpdir' CLAUDE_PLUGIN_ROOT='$REPO_ROOT' bash '$HOOK'"
+  rm -rf "$tmpdir" "$cwd"
+  [ "$status" -eq 0 ]
+  echo "output: $output"
+  [[ "$output" == *"INTAKE ADVISORY"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# AC-CC (cross-check): the REGISTERED matcher(s) for intake-backstop in
+# BOTH registries must contain NotebookEdit AND MultiEdit.
+# WHY: bare Write/Edit matchers don't route NotebookEdit/MultiEdit calls to
+# the hook at all — a combined matcher string (e.g. Write|Edit|MultiEdit|NotebookEdit)
+# is required, mirroring the shadow-git-checkpoint shape. This test goes RED
+# against a bare Write or Edit matcher and GREEN only after the combined matcher
+# is wired in.
+# ---------------------------------------------------------------------------
+@test "AC-CC: hooks.json intake-backstop matcher covers NotebookEdit and MultiEdit" {
+  python3 - "$HOOKS_JSON" <<'PYEOF'
 import json, sys
+
 data = json.load(open(sys.argv[1]))
 blocks = data["hooks"].get("PreToolUse", [])
+
+# Find the orchestrator-discipline gate group block that contains intake-backstop.sh.
+# WHY orchestrator-discipline: intake-backstop must be routed in the same
+# combined matcher as orchestrator-discipline (the Write/Edit gate group).
+# The Bash-matcher block also has intake-backstop but is not the target here.
 for block in blocks:
-    if block.get("matcher") != "Edit":
+    names = [h["args"][1] for h in block.get("hooks", []) if len(h.get("args", [])) > 1]
+    if not any("orchestrator-discipline" in n for n in names):
         continue
-    names = [h["args"][1] for h in block["hooks"] if len(h.get("args", [])) > 1]
-    if any("orchestrator-discipline" in n for n in names):
-        if any("intake-backstop" in n for n in names):
-            sys.exit(0)
-print("FAIL: intake-backstop.sh not found in PreToolUse Edit gate-group")
+    if not any("intake-backstop" in n for n in names):
+        print("FAIL: orchestrator-discipline gate group does not contain intake-backstop.sh")
+        sys.exit(1)
+    matcher = block.get("matcher", "")
+    has_nb = "NotebookEdit" in matcher
+    has_me = "MultiEdit" in matcher
+    if has_nb and has_me:
+        sys.exit(0)
+    missing = []
+    if not has_nb:
+        missing.append("NotebookEdit")
+    if not has_me:
+        missing.append("MultiEdit")
+    print(f"FAIL: orchestrator-discipline gate group matcher={repr(matcher)} missing: {missing}")
+    sys.exit(1)
+
+print("FAIL: no orchestrator-discipline gate group found in PreToolUse hooks.json")
+sys.exit(1)
+PYEOF
+}
+
+@test "AC-CC: settings.json intake-backstop matcher covers NotebookEdit and MultiEdit" {
+  python3 - "$SETTINGS_JSON" <<'PYEOF'
+import json, sys
+
+data = json.load(open(sys.argv[1]))
+blocks = data["hooks"].get("PreToolUse", [])
+
+for block in blocks:
+    names = [h["args"][1] for h in block.get("hooks", []) if len(h.get("args", [])) > 1]
+    if not any("orchestrator-discipline" in n for n in names):
+        continue
+    if not any("intake-backstop" in n for n in names):
+        print("FAIL: orchestrator-discipline gate group does not contain intake-backstop.sh")
+        sys.exit(1)
+    matcher = block.get("matcher", "")
+    has_nb = "NotebookEdit" in matcher
+    has_me = "MultiEdit" in matcher
+    if has_nb and has_me:
+        sys.exit(0)
+    missing = []
+    if not has_nb:
+        missing.append("NotebookEdit")
+    if not has_me:
+        missing.append("MultiEdit")
+    print(f"FAIL: orchestrator-discipline gate group matcher={repr(matcher)} missing: {missing}")
+    sys.exit(1)
+
+print("FAIL: no orchestrator-discipline gate group found in PreToolUse settings.json")
 sys.exit(1)
 PYEOF
 }

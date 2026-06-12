@@ -553,7 +553,7 @@
         ]
       },
       {
-        "matcher": "Write",
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -597,70 +597,6 @@
             "args": [
               "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/intake-backstop.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 5000
-          }
-        ]
-      },
-      {
-        "matcher": "Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/orchestrator-discipline.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/config-protection.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/runtime-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/planning-agent-edit-scope.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/intake-backstop.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 5000
-          }
-        ]
-      },
-      {
-        "matcher": "MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/planning-agent-edit-scope.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
           }

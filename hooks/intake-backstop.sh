@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Intake Backstop — PreToolUse hook for Bash, Agent, Write, Edit, NotebookEdit.
+# Intake Backstop — PreToolUse hook for Bash, Agent, Write, Edit, MultiEdit, NotebookEdit.
 #
 # enforces: protocols/work-class-routing.md:Intake gate
 # protects: intake, pipeline
@@ -8,9 +8,9 @@
 # running tests, building, deploying, mutating files/git, spawning specialized
 # build/review agents) WITHOUT first running /intake to classify and route the
 # request through the pipeline. The hook branches on the tool name from stdin:
-#   - Write/Edit/NotebookEdit: ADVISORY-ONLY — exit 0 always. Emits systemMessage
-#     advisory when the orchestrator writes a non-state source file without a
-#     prior /intake. NEVER exit 2 from this branch (Tier-0 advisory contract).
+#   - Write/Edit/MultiEdit/NotebookEdit: ADVISORY-ONLY — exit 0 always. Emits
+#     systemMessage advisory when the orchestrator writes a non-state source file
+#     without a prior /intake. NEVER exit 2 from this branch (Tier-0 advisory contract).
 #   - Bash:  FAIL-OPEN block-list — exit 2 only for clear work detectors W1-W8.
 #   - Agent: FAIL-CLOSED allow-list — exit 2 for specialized roles, allow
 #            architect + non-specialized.
@@ -18,7 +18,7 @@
 # WRITE/EDIT PROMOTION CRITERION (advisory -> enforcing flip):
 #   >=10 sessions with zero false-positive advisories observed before considering
 #   a flip from advisory (exit 0) to enforcing (exit 2) for the Write/Edit branch.
-#   if-broken-look-at: hooks/intake-backstop.sh Write/Edit/NotebookEdit branch
+#   if-broken-look-at: hooks/intake-backstop.sh Write/Edit/MultiEdit/NotebookEdit branch
 #                      protocols/work-class-routing.md Intake gate
 #
 # SHARED short-circuits (all fail-open / exit 0): wrong hook profile, escape
@@ -138,12 +138,14 @@ _ibs_advise() {
 }
 
 # =====================================================================
-# Write / Edit / NotebookEdit branch — ADVISORY ONLY (exit 0 always).
+# Write / Edit / MultiEdit / NotebookEdit branch — ADVISORY ONLY (exit 0 always).
 # =====================================================================
-if [[ "$TOOL_NAME" =~ ^(Write|Edit|NotebookEdit)$ ]]; then
+if [[ "$TOOL_NAME" =~ ^(Write|Edit|MultiEdit|NotebookEdit)$ ]]; then
     # WHY file_path // notebook_path: NotebookEdit delivers notebook_path, not
-    # file_path. Shadow-git-checkpoint.sh uses file_path only and silently no-ops
-    # on NotebookEdit — we must handle both fields here.
+    # file_path; Write/Edit/MultiEdit all deliver file_path (confirmed:
+    # planning-agent-edit-scope.sh:27 extracts .tool_input.file_path for MultiEdit).
+    # Shadow-git-checkpoint.sh uses file_path only and silently no-ops on
+    # NotebookEdit — we must handle both fields here.
     path=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' 2>/dev/null)
     [[ -z "$path" ]] && exit 0
     _ibs_path_is_state "$path" && exit 0
