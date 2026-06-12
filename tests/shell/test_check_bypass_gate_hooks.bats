@@ -7,9 +7,9 @@
 # (b) returns exit 0 when the hook-specific CLAUDE_DISABLE_* var is set to "1"
 # — the exact contract stated in plan.md Tier-0 #5.
 #
-# Class-2 (build-loop-scan, pre-agent-advisor) and Class-3 (runtime-state-guard,
-# mutation-tooling-guard) hooks are NOT included here because they are already
-# exercised with full audit/message assertions in their own test harnesses.
+# Class-2 (build-loop-scan, pre-agent-advisor) and Class-3 (runtime-state-guard)
+# hooks are NOT included here because they are already exercised with full
+# audit/message assertions in their own test harnesses.
 # Class-1b (no-shell-read, shadow-git-checkpoint) are already covered in
 # test_no_shell_read.bats and test_shadow_git_checkpoint.bats respectively.
 #
