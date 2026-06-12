@@ -42,7 +42,7 @@ ALLOWLIST_5=(
   "hooks/_lib/plan-cache-lookup.sh:76"
   "hooks/_lib/sandbox_e2b_client.py:96"
   "hooks/_lib/visual_diff.js:102"
-  "rules/core.md:24"
+  "rules/core.md:25"
   "scripts/README.md:127"
   "skills/build-implementation/SKILL.md:248"
   "skills/refactor/SKILL.md:73"
@@ -81,7 +81,7 @@ ALLOWLIST_5=(
   # Diff-size threshold for the "Micro" task class, not function shape.
   "skills/pipeline/SKILL.md:88"
   # The NEW per-language contract (Ruby ≤ 5 / TS ≤ 12) — the law, not a fossil.
-  "rules/core.md:22"
+  "rules/core.md:23"
   "skills/build-implementation/SKILL.md:80"
   "skills/build-implementation/SKILL.md:252"
   "skills/build-implementation/SKILL.md:273"
