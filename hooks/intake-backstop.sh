@@ -131,7 +131,7 @@ _ibs_path_is_state() {
 }
 
 # ----- Advisory emitter (Write/Edit/NotebookEdit branch only) ---------------
-# WHY separate helper: DRY on 2nd occurrence; keeps the branch body <=5 lines.
+# WHY separate helper: DRY on 2nd occurrence; keeps the advisory branch body small.
 # NEVER exits 2 — advisory-only contract (Tier-0).
 _ibs_advise() {
     echo '{"systemMessage": "INTAKE ADVISORY: This looks like source-file work. Run /harness:intake first to classify and route, or set CLAUDE_INTAKE_BACKSTOP=off if intentional."}'
