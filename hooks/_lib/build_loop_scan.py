@@ -6,11 +6,9 @@ in a worktree commit. Keeping it import-clean (no subprocess, no filesystem I/O)
 makes the secret-vs-clean decision unit-testable without a git checkout, exactly
 as `hooks/_lib/agentic_security_gate.py` is for its gate.
 
-This module owns the CANONICAL secret-detection pattern set for the HARD-BLOCK
-path. The patterns here are the single source of truth for "what counts as an
-introduced secret" — they gate the STAGED DIFF at commit time. Any advisory
-command-string logging is a separate concern handled by separate hooks and MUST
-NOT collapse into this module, which is the enforcing path only.
+The patterns here gate the STAGED DIFF at commit time (HARD-BLOCK, exit 2).
+Any advisory command-string logging is a separate concern handled by separate
+hooks and MUST NOT collapse into this module, which is the enforcing path only.
 """
 from __future__ import annotations
 
