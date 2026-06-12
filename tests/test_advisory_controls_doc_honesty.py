@@ -365,6 +365,7 @@ class IronLawTags(unittest.TestCase):
             5: "ASPIRATIONAL",
             6: "ASPIRATIONAL",
             7: "ASPIRATIONAL",
+            8: "ASPIRATIONAL",
         }
         failures = []
         for law_num, tag in expected.items():
