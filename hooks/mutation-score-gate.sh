@@ -37,6 +37,9 @@ readonly ALLOWED_ROLES="software-engineer fix-engineer"
 # Only [A-Za-z0-9._-] is safe for use in a filesystem path segment.
 sanitize_id() {
   local raw="$1"
+  # Defense-in-depth: reject dot-only inputs before the regex (. and .. are allowed
+  # by [A-Za-z0-9._-] but must never reach the filesystem as path segments).
+  [[ "$raw" == "." || "$raw" == ".." ]] && { printf 'unknown'; return; }
   if [[ "$raw" =~ ^[A-Za-z0-9._-]+$ ]]; then
     printf '%s' "$raw"
   else

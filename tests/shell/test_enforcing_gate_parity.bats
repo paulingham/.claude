@@ -78,6 +78,8 @@ PYEOF
 }
 
 # Helper: does a hook script (or its sourced _lib scripts) contain exit 2 or return 2?
+# NOTE: follows ONE level of `source _lib/*.sh`; deeper delegation (lib-A -> lib-B) is
+# not detected. Verified zero such multi-level delegates exist today — documented boundary.
 _hook_is_enforcing() {
   local script="$HOOKS_DIR/$1"
   [ -f "$script" ] || return 1
@@ -99,9 +101,10 @@ _hook_is_enforcing() {
   return 1
 }
 
-# Live-only exemption allowlist — these have reachable exit 2 via lib but are
-# intentionally excluded from hooks.json (advisory / live-session-dependent):
-# WHY: they require per-session context that plugin install environments lack.
+# Live-only exemption allowlist — intentionally excluded from hooks.json.
+# WHY: these advisory hooks block via permissionDecision JSON (or are pure exit-0
+# advisory), NOT exit 2 — so _hook_is_enforcing never flags them; this allowlist is
+# defensive (keeps the parity test correct if one ever gains a lib-level exit 2).
 _is_live_only_exempt() {
   local basename="$1"
   case "$basename" in
