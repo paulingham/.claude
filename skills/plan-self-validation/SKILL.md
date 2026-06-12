@@ -1,6 +1,7 @@
 ---
 name: "plan-self-validation"
 description: "Lightweight Plan Validation for non-critical, low-budget pipelines. Architect re-reads its own plan against a structured holes-finding rubric and returns PLAN_APPROVED or PLAN_HOLES. Used in autonomous mode when criticality is standard AND Budget < 7. Heavy challenger team is reserved for critical or Budget >= 7 plans."
+verdict: PLAN_APPROVED|PLAN_HOLES|ROUTING_UPSHIFTED|PLAN_FEASIBILITY_REJECTED
 model: opus
 argument-hint: "Path to plan file ($state_dir/{task-id}/plan.md)"
 ---
