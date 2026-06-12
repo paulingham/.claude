@@ -413,7 +413,7 @@ All other phases (Build single slice, Polish, Ship) use sequential Skill tool in
 1. Surface the reject-brief to the user verbatim.
 2. Write feasibility_drift to observations (4d-i) BEFORE the stop.
 3. Pipeline stops; ticket → Blocked.
-This is NOT the silent architect re-work of PLAN_CHANGES_REQUESTED (line 396) — the drift signal (architect-said-X, reviewers-concluded-Y) MUST survive into forensics.
+This is NOT the silent architect re-work of the PLAN_CHANGES_REQUESTED handler above — the drift signal (architect-said-X, reviewers-concluded-Y) MUST survive into forensics.
 4. Light-gate variant: plan-self-validation emitted it as a self-judgment; same user-surface + same feasibility_drift write (architect_said == reviewers_concluded == FEASIBILITY_REJECTED, overturned:false). Distinct from the silent re-work path: user sees the reject-brief, feasibility_drift is written, pipeline does not loop.
 
 #### Review CHANGES_REQUESTED

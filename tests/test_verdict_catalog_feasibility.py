@@ -364,3 +364,47 @@ def test_verdict_consistency_audit_bidirectional_clean():
                 f"known skill or agent. Known agents include: "
                 f"{sorted(known_agents)[:5]}..."
             )
+
+
+# ---------------------------------------------------------------------------
+# Body-wiring assertion (gap-prevention test)
+# ---------------------------------------------------------------------------
+
+def test_light_gate_emission_wired_in_body():
+    """plan-self-validation SKILL.md BODY references PLAN_FEASIBILITY_REJECTED
+    in both the Step 3 verdict section and the Step 5 marker enumeration.
+
+    AC-A5 only checks frontmatter; this test ensures the emission path is
+    also wired in the body so the skill is executable — not just declared.
+
+    Specifically asserts:
+    - Step 3 section mentions PLAN_FEASIBILITY_REJECTED (emission branch)
+    - Step 5 '<VERDICT> is one of ...' enumeration includes PLAN_FEASIBILITY_REJECTED
+      (so the plan-cache audit hook receives a declared enum token)
+    """
+    text = PLAN_SELF_VALIDATION_SKILL.read_text()
+    # Strip frontmatter so we only inspect the body
+    body = re.sub(r"^---\n.*?\n---\n", "", text, count=1, flags=re.DOTALL)
+
+    step3_match = re.search(r"### Step 3.*?### Step 4", body, re.DOTALL)
+    assert step3_match, (
+        "skills/plan-self-validation/SKILL.md must contain a '### Step 3' section "
+        "followed by '### Step 4'"
+    )
+    step3_text = step3_match.group(0)
+    assert "PLAN_FEASIBILITY_REJECTED" in step3_text, (
+        "Step 3 verdict section in plan-self-validation/SKILL.md must reference "
+        "PLAN_FEASIBILITY_REJECTED — the light-gate emission branch is unwired "
+        "in the skill body (frontmatter declaration alone is not executable)"
+    )
+
+    step5_match = re.search(r"### Step 5.*?(?=^##|\Z)", body, re.DOTALL | re.MULTILINE)
+    assert step5_match, (
+        "skills/plan-self-validation/SKILL.md must contain a '### Step 5' section"
+    )
+    step5_text = step5_match.group(0)
+    assert "PLAN_FEASIBILITY_REJECTED" in step5_text, (
+        "Step 5 marker enumeration in plan-self-validation/SKILL.md must include "
+        "PLAN_FEASIBILITY_REJECTED — the plan-cache audit hook anchors on this "
+        "enum; omitting it silently breaks the consumer (per the drift warning)"
+    )
