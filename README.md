@@ -230,6 +230,14 @@ It compresses dev-tool output before it reaches the model and defaults on for
 mac+linux; set `CLAUDE_REQUIRE_RTK=0` to skip it or `CLAUDE_REQUIRE_RTK=1` to force it. If
 absent, the harness proceeds without it — no hard failure.
 
+Two hooks support the Reflect phase deviation-acknowledgment loop. **reflect-token-emit**
+writes named-deviation tokens during Build and Review phases whenever an agent records a
+deviation from protocol; the tokens persist in pipeline state. **reflect-gate-acknowledgment**
+is the Reflect-phase gate that reads those tokens and exits nonzero if any deviation token
+remains unacknowledged, blocking the pipeline from completing until each deviation is
+explicitly addressed. Both hooks are skill-invoked (not event-registered) per
+[`protocols/reflection-protocol.md`](protocols/reflection-protocol.md).
+
 ## Omnichannel Support
 
 The same pipeline delivers across channels: **web** (React/Next.js), **mobile** (Expo,

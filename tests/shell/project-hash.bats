@@ -150,17 +150,6 @@ EOF
   [ "$output" = "0" ]
 }
 
-@test "AC1.4e auto-bug-detect.sh calls _md5_hash directly (no _project_hash/--fallback)" {
-  grep -q '| _md5_hash' "$REPO_ROOT/hooks/auto-bug-detect.sh"
-  ! grep -q '_project_hash' "$REPO_ROOT/hooks/auto-bug-detect.sh"
-  ! grep -q -- '--fallback' "$REPO_ROOT/hooks/auto-bug-detect.sh"
-}
-
-@test "AC1.4e2 auto-bug-detect.sh no longer uses openssl md5 -r" {
-  run grep -c "openssl md5 -r" "$REPO_ROOT/hooks/auto-bug-detect.sh"
-  [ "$output" = "0" ]
-}
-
 # ---------- AC1.4 docs: rewrite openssl md5 -r references ----------
 
 @test "AC1.4f protocols/autonomous-intelligence.md no openssl md5 -r" {

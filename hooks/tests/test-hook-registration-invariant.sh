@@ -34,6 +34,7 @@ SOURCED_LIBS_LIST="hook-profile.sh loop-guard.sh"
 ALLOWLIST_LIST="pipeline-analytics.sh|skills/pipeline/SKILL.md:633 (Step 7a Reflect analytics)
 reflect-gate-acknowledgment.sh|protocols/reflection-protocol.md:137 (Reflect 6d-bis gate)
 reflect-token-emit.sh|protocols/reflection-protocol.md:139 (deviation token writer)
+phase-boundary-compress.sh|skills/pipeline/SKILL.md:299 (phase-boundary token analytics)
 cloud-bootstrap.sh|hooks/cloud-bootstrap.sh:9-12 (operator-deployed cloud utility; not wired in shipped configs by design)"
 # Tier 3 — hooks/tests/ directory contents: excluded by path filter
 # Tier 4 — hooks/_lib/ contents: excluded by path filter
