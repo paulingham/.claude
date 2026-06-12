@@ -159,5 +159,63 @@ class TestBatchPipelineStep6IncludesPatchCriticBlock(unittest.TestCase):
         self.assertIn("persona_rejections", block)
 
 
+class TestFeasibilityDriftConditionalBlock(unittest.TestCase):
+    """AC-C8 (slice-c update): 4d-i block documents phases.plan_validation.feasibility_drift
+    conditional append with:
+    - the three fields: architect_said, reviewers_concluded, overturned
+    - overturned:false present on FEASIBLE-agreed (not omitted)
+    - absence reserved for pass-didn't-run (not written as null)
+    Mirror of persona_rejections absence-vs-null rule (SKILL.md:520).
+    """
+
+    def test_feasibility_drift_conditional_block_documented(self):
+        body = _step_7b_bis_body()
+        self.assertTrue(body, "4d-i section not found")
+        self.assertIn(
+            "feasibility_drift",
+            body,
+            "4d-i must document the feasibility_drift conditional block",
+        )
+        self.assertIn("architect_said", body)
+        self.assertIn("reviewers_concluded", body)
+        self.assertIn("overturned", body)
+
+    def test_no_pass_emits_no_null_field(self):
+        body = _step_7b_bis_body()
+        self.assertTrue(body, "4d-i section not found")
+        # Absence rule: when pass didn't run, omit the key (not null)
+        has_absence_rule = bool(
+            re.search(
+                r"(absent.*only.*pass.*not.*run|"
+                r"absent.*no.*pass|"
+                r"omit.*key.*null|"
+                r"do\s+NOT\s+write\s+null|"
+                r"pass.*did.?n.?t.*run.*omit)",
+                body,
+                re.IGNORECASE | re.DOTALL,
+            )
+        )
+        self.assertTrue(
+            has_absence_rule,
+            "4d-i must state absence is reserved for pass-didn't-run (not null)",
+        )
+
+    def test_overturned_false_present_on_feasible_agreed(self):
+        body = _step_7b_bis_body()
+        self.assertTrue(body, "4d-i section not found")
+        has_false_present = bool(
+            re.search(
+                r"overturned.*:.*[Ff]alse|overturned.*false.*FEASIBLE|"
+                r"both.*agreed.*FEASIBLE.*overturned.*false",
+                body,
+                re.IGNORECASE | re.DOTALL,
+            )
+        )
+        self.assertTrue(
+            has_false_present,
+            "4d-i must document overturned:false (present, not omitted) on FEASIBLE-agreed",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

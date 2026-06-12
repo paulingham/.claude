@@ -170,6 +170,7 @@ Agent({
     - Plan file: $state_dir/{task-id}/plan.md (Read this; do not assume the prompt contains the full plan)
     - Original story / acceptance criteria: see TaskList for details
     - Architect-context (recon): $state_dir/{task-id}/architect-context.md (if it exists)
+    - Feasibility Finding: the `## Feasibility Finding` section of `architect-context.md` — the architect's `FEASIBLE`/`FEASIBILITY_REJECTED` call and reject-brief. Verify the premise independently. If the section is absent, treat the architect as implicitly FEASIBLE and run your own premise check anyway.
 
     ## Grading Surface (per agents/architect.md § Plan Output Contract)
 
@@ -188,6 +189,7 @@ Agent({
     Verdict (per your agent file's rubric):
     - APPROVE: all artifacts complete, ≤2 LOW findings.
     - CHANGES_REQUESTED: ≥1 HIGH OR ≥3 MEDIUM findings.
+    - PLAN_FEASIBILITY_REJECTED — emit when the request's PREMISE is false, regardless of what the architect concluded. Overturn the architect BOTH directions: (a) architect said FEASIBLE but you find the premise false → PLAN_FEASIBILITY_REJECTED; (b) architect said FEASIBILITY_REJECTED but you find it WAS feasible → emit APPROVE with an explicit "overturn: feasibility" note so the orchestrator re-plans (architect authors the full plan it skipped). DISTINCT from CHANGES_REQUESTED: a premise-veto, not a plan-nit.
 
     Output structure: verdict line, then findings grouped by severity, each citing the artifact (or self-review persona) it applies to."
 })
@@ -207,6 +209,7 @@ Agent({
     - Original story / acceptance criteria: see TaskList for details
     - Architect-context (recon): $state_dir/{task-id}/architect-context.md (if it exists)
     - The actual codebase (use Read/Grep to verify the architect's citations)
+    - Feasibility Finding: the `## Feasibility Finding` section of `architect-context.md` — the architect's `FEASIBLE`/`FEASIBILITY_REJECTED` call and reject-brief. Verify the premise independently. If the section is absent, treat the architect as implicitly FEASIBLE and run your own premise check anyway.
 
     ## Grading Surface (per agents/architect.md § Plan Output Contract)
 
@@ -224,6 +227,7 @@ Agent({
     Verdict (per your agent file's rubric):
     - APPROVE: citations verified, slices sound, scope clear; ≤2 LOW findings.
     - CHANGES_REQUESTED: ≥1 HIGH OR ≥3 MEDIUM findings.
+    - PLAN_FEASIBILITY_REJECTED — emit when the request's PREMISE is false, regardless of what the architect concluded. Overturn the architect BOTH directions: (a) architect said FEASIBLE but you find the premise false → PLAN_FEASIBILITY_REJECTED; (b) architect said FEASIBILITY_REJECTED but you find it WAS feasible → emit APPROVE with an explicit "overturn: feasibility" note so the orchestrator re-plans (architect authors the full plan it skipped). DISTINCT from CHANGES_REQUESTED: a premise-veto, not a plan-nit.
 
     Output structure: verdict line, then findings grouped by severity, each citing the artifact (or self-review persona) it applies to."
 })

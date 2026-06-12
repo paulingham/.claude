@@ -277,6 +277,9 @@ After the architect produces a plan, validate it before proceeding to Build.
    - Round 2 still rejected → `PLAN_ESCALATED`
      - Output `VERDICT: PLAN_ESCALATED` with full context
      - Pipeline stops (autonomous: ticket transitions to Blocked)
+   - **PRECEDENCE NOTE**: The `Any single PLAN_FEASIBILITY_REJECTED` rule below is evaluated BEFORE the re-plan branch. A split case (one reject + one overturn) resolves to PLAN_FEASIBILITY_REJECTED, never to re-plan.
+   - **M1 aggregation (split case)**: Any single PLAN_FEASIBILITY_REJECTED (even if the other challenger APPROVEs or APPROVE-with-overturn) → emit PLAN_FEASIBILITY_REJECTED. Mirror the "Either CHANGES_REQUESTED" single-rejector semantics: one premise-veto is conservative-sufficient. SURFACE to the user (distinct from silent CHANGES_REQUESTED re-work); write feasibility_drift recording BOTH challenger verdicts; pipeline stops pending user decision (autonomous: ticket → Blocked with the reject-brief). Do NOT fall through to re-plan.
+   - **Re-plan branch (both challengers overturn a reject)**: Architect said FEASIBILITY_REJECTED AND BOTH challengers emit APPROVE-with-overturn (and neither emits PLAN_FEASIBILITY_REJECTED) → re-spawn architect to author the full plan it skipped (NOT a CHANGES_REQUESTED re-work; logged in feasibility_drift with overturned:true), then re-validate. Do NOT stop.
 
 4. After validation completes: shut down challengers
 
@@ -405,6 +408,13 @@ All other phases (Build single slice, Polish, Ship) use sequential Skill tool in
 1. Pipeline stops immediately
 2. Output: VERDICT: PLAN_ESCALATED with plan, feedback, and rejection reasons
 3. Ticket transitions to Blocked with full context comment
+
+#### Plan Validation PLAN_FEASIBILITY_REJECTED
+1. Surface the reject-brief to the user verbatim.
+2. Write feasibility_drift to observations (4d-i) BEFORE the stop.
+3. Pipeline stops; ticket → Blocked.
+This is NOT the silent architect re-work of PLAN_CHANGES_REQUESTED (line 396) — the drift signal (architect-said-X, reviewers-concluded-Y) MUST survive into forensics.
+4. Light-gate variant: plan-self-validation emitted it as a self-judgment; same user-surface + same feasibility_drift write (architect_said == reviewers_concluded == FEASIBILITY_REJECTED, overturned:false). Distinct from the silent re-work path: user sees the reject-brief, feasibility_drift is written, pipeline does not loop.
 
 #### Review CHANGES_REQUESTED
 1. Spawn engineer (worktree) with specific findings
@@ -551,6 +561,26 @@ record = {
 # `hooks/_lib/sandbox_verify_observation.diverging_tests_from_build_md`.
 # When verdict == "SANDBOX_SKIPPED", populate `skip_reason` from the
 # build.md body line (`reason=...`).
+
+# OPTIONAL: append `phases.plan_validation.feasibility_drift` IFF a
+# feasibility pass ran. Detect via a `## Feasibility Finding` section in
+# `architect-context.md`, OR the inline plan.md finding in the light gate.
+# Absence-vs-null rule (mirrors persona_rejections at SKILL.md:520):
+#   - ABSENT means no feasibility pass ran (pass-didn't-run, not "agreed FEASIBLE").
+#   - PRESENT with overturned:false means the pass RAN and both parties agreed FEASIBLE
+#     (L1: do NOT omit on FEASIBLE-agreed — that would make "pass ran, agreed" indistinguishable
+#     from "pass never ran").
+# Parse architect_said from the Feasibility Finding verdict line
+# ("FEASIBILITY: FEASIBLE" or "FEASIBILITY: FEASIBILITY_REJECTED").
+# Parse reviewers_concluded/overturned from the challenger verdicts (or, in the
+# light gate, reviewers_concluded := architect_said, overturned := false).
+# Example fill when pass ran:
+#   record.setdefault("phases", {}).setdefault("plan_validation", {})["feasibility_drift"] = {
+#       "architect_said": "FEASIBLE",          # or "FEASIBILITY_REJECTED"
+#       "reviewers_concluded": "FEASIBLE",     # or "FEASIBILITY_REJECTED"
+#       "overturned": False,                   # True when architect_said != reviewers_concluded
+#   }
+# When the pass did NOT run, omit the key entirely — do NOT write null.
 
 path = os.path.expanduser("~/.claude/learning/<project-hash>/observations.jsonl")
 os.makedirs(os.path.dirname(path), exist_ok=True)
