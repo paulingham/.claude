@@ -43,7 +43,7 @@ You have Read, Grep, Glob, Write. You CAN read the codebase, learning observatio
 
 ## Output File
 
-Your spawn prompt provides `outputPath`. Write your findings to exactly that path, exactly once.
+Your spawn prompt provides `outputPath`. Write your findings to exactly that path, exactly once. The architect appends a `## Feasibility Finding` section to the concatenated `architect-context.md` downstream; the recon agent itself does NOT write it (recon is hindsight-only, no feasibility call). This reserves the section name — do not use `## Feasibility Finding` anywhere in your output file.
 
 ```markdown
 ---
