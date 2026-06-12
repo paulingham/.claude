@@ -14,6 +14,29 @@ The autonomous conductor for the delivery pipeline. Takes a task, determines whi
 - Immediately after classifying work type (feature, refactor, bug fix)
 - The `/harness:intake` skill invokes this, or the orchestrator invokes it directly after the pre-flight protocol
 
+## Golden Path (Happy Case)
+
+The linear happy-case sequence for a standard feature (T4/T5, budget 7–9, non-critical). Conditional
+branches (multi-repo, scaffolding, Best-of-N/PDR-RTV, recovery loops) are noted but off this path.
+
+1. **Tier Guard** (Step 1.0) — read `tier_emitted` from intake.md → T4/T5/T6 continue; T0–T3 re-route out.
+2. **Classify + Pre-flight** (Steps 1–2) — pipeline scale; CLAUDE.md + greenfield checks.
+3. **Create Pipeline State** (Step 2c) — write `pipeline.md` (the SSOT).
+4. **Plan Cache Lookup** (Step 2c-bis) — MISS (default) → continue to spec-grounding + architect.
+5. **Spec-Grounding** (Step 2c-ter) — EARS-tag ACs against codebase evidence (non-blocking).
+6. **Recon + Architect** — context recon → architect produces plan.md.
+7. **Plan Validation** (Step 2d) — challengers (product-reviewer + software-engineer) → PLAN_APPROVED.
+8. **Build** (Step 3) — software-engineer in a worktree (TDD). *Standard dispatch for T4/T5; T6 critical uses Best-of-N / PDR-RTV — see Build Phase Dispatch below.*
+9. **Code-review** — Build's final step (second model, different priors).
+10. **Security Review** — separate phase (orthogonal concern).
+11. **Final Gate** (Step 3) — verify + test + accept + patch-critique, in parallel.
+12. **Reflect-write** (Step 4d, pre-Ship) — observation + /learn + commit learning to the feature branch.
+13. **Ship** (Step 4c) — /harness:pr-creation → PR_CREATED.
+14. **Deploy** (Step 5) — conditional; auto on merge for medium/large.
+15. **Reflect** (Step 7) — analytics + qualitative reflection + state cleanup.
+
+Everything below expands these steps with the conditional branches.
+
 ## Process
 
 ### Step 1.0: Tier Guard (MANDATORY first step)
@@ -43,6 +66,8 @@ Status line — always emit one of:
 ```
 
 For T0-T3, **Pipeline halts (NO state file created)** — the dispatch target (direct answer / `/harness:harness-config` / `/harness:batch-pipeline` / lightweight worktree subagent) is invoked instead. Pipeline state file (`$state_dir/{task-id}/pipeline.md`) is created only at Step 2c (which runs for T4-T6 only). This Step 1.0 is the cost-discipline lever — T1 doc edits no longer burn ~12-15 subagent spawns through a full pipeline shape.
+
+T4 and T5 are routed identically (standard pipeline); the fingerprinter does not emit T5 today (Phase 3 deferred).
 
 If `tier_emitted` is missing from intake.md (legacy intake or fingerprint error), default to T4+ behaviour (safety-bias — never under-dispatch). Log the missing-tier condition to the pipeline state file once it is created.
 
@@ -464,6 +489,8 @@ This assessment is zero-cost — it reads the existing review output. No additio
 
 ### Step 4d: Reflect-write (Pre-Ship)
 
+> **Why pre-Ship, not post-Deploy?** Learning observations + instinct files must be committed to the feature branch so they ship inside the PR (not stranded as orphan chore(learning): commits on local main). That is why Reflect is split: the file-producing sub-steps run here (pre-Ship), and analytics + qualitative reflection + cleanup run at Step 7 (post-Deploy).
+
 **MANDATORY** between Final Gate completion and Step 4c (Multi-Repo Ship / `/harness:pr-creation`). Relocates the two file-producing Reflect sub-steps (observation append + `/harness:learn`) to before `gh pr create` so the learning artifacts land inside the feature branch and ship with the PR — instead of as orphan `chore(learning):` commits stranded on local `main` while other PRs merge ahead.
 
 Three sub-steps, in strict order. Each must complete before the next begins.
@@ -669,11 +696,11 @@ If the pipeline experienced failures, >2 review rounds, or any recovery loop: in
 
 #### 7b-bis. Per-Pipeline Observation Capture — RELOCATED to Step 4d-i
 
-This sub-step has moved to Step 4d-i (Reflect-write, pre-Ship). The observation append now runs BEFORE `/harness:pr-creation` so the producer surface is captured on the feature branch and ships inside the PR. See Step 4d for the full body (JSON template, mode invariant, sandbox-safe append).
+Moved pre-Ship so learning artifacts land in the PR (see Step 4d for full body: JSON template, mode invariant, sandbox-safe append).
 
 #### 7c. Learning Extraction — RELOCATED to Step 4d-ii
 
-This sub-step has moved to Step 4d-ii (Reflect-write, pre-Ship) and is now invoked **synchronously** (NOT background-spawn). The synchronous dispatch is a deliberate deviation from `protocols/reflection-protocol.md` § 6b's async path — § 6b describes the legacy post-Ship variant; the pre-Ship variant in Step 4d must complete before the 4d-iii feature-branch commit so instinct `.md` files are flushed to disk before being staged.
+Moved pre-Ship and invoked **synchronously** (NOT background-spawn) so instinct files are flushed before the Step 4d-iii feature-branch commit (see Step 4d; deviation from `protocols/reflection-protocol.md` § 6b async path is intentional).
 
 #### 7d. Reflect Cleanup (Dual-Form During DUAL_PATH Soak)
 

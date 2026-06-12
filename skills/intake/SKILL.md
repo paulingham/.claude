@@ -78,6 +78,8 @@ If safety override fires, set `tier_emitted: T6` (or T4 minimum for non-Iron-Law
 
 When Phase 1 is ambiguous AND Phase 2 did not fire, fall through with `tier_emitted: T4`, `detector_phase: fallthrough`, `detector_confidence: low`, `fingerprint_cost_tokens: 0`. Spec `protocols/work-class-routing.md:89` documents fallthrough-to-T4 as accepted mitigation. **Phase 3 deferred** to a follow-up pipeline.
 
+The fingerprinter currently emits only T0–T4 and T6; **T5 is reserved for the deferred Phase 3** (Haiku tiebreaker). The pipeline treats T4 and T5 identically as standard dispatch — see `protocols/work-class-routing.md`.
+
 #### Override discipline
 
 | Token in user prompt | Effect |
