@@ -67,7 +67,7 @@ Status line — always emit one of:
 
 For T0-T3, **Pipeline halts (NO state file created)** — the dispatch target (direct answer / `/harness:harness-config` / `/harness:batch-pipeline` / lightweight worktree subagent) is invoked instead. Pipeline state file (`$state_dir/{task-id}/pipeline.md`) is created only at Step 2c (which runs for T4-T6 only). This Step 1.0 is the cost-discipline lever — T1 doc edits no longer burn ~12-15 subagent spawns through a full pipeline shape.
 
-T4 and T5 are routed identically (standard pipeline); the fingerprinter does not emit T5 today (Phase 3 deferred).
+T4 and T5 both route into the standard (non-heavy) pipeline (neither uses the T6 heavy Build variants); the fingerprinter does not emit T5 today (Phase 3 deferred).
 
 If `tier_emitted` is missing from intake.md (legacy intake or fingerprint error), default to T4+ behaviour (safety-bias — never under-dispatch). Log the missing-tier condition to the pipeline state file once it is created.
 
