@@ -29,13 +29,17 @@ def _read_request():
             return json.loads(_stdin().read(length))
 
 
-def _send_response(obj):
+def _send_response(obj, extra_header=False):
     body = json.dumps(obj).encode()
-    _stdout().write(b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n" + body)
+    header = b"Content-Length: " + str(len(body)).encode() + b"\r\n"
+    if extra_header:
+        header += b"Content-Type: application/vscode-jsonrpc; charset=utf-8\r\n"
+    header += b"\r\n"
+    _stdout().write(header + body)
     _stdout().flush()
 
 
-def _handle_initialize(req_id):
+def _handle_initialize(req_id, extra_header=False):
     _send_response({
         "jsonrpc": "2.0",
         "id": req_id,
@@ -43,10 +47,10 @@ def _handle_initialize(req_id):
             "capabilities": {"definitionProvider": True},
             "serverInfo": {"name": "fake-ls", "version": "0.0.1"},
         },
-    })
+    }, extra_header=extra_header)
 
 
-def _handle_definition(req_id):
+def _handle_definition(req_id, extra_header=False):
     _send_response({
         "jsonrpc": "2.0",
         "id": req_id,
@@ -57,29 +61,30 @@ def _handle_definition(req_id):
                 "end": {"line": 10, "character": 10},
             },
         }],
-    })
+    }, extra_header=extra_header)
 
 
-def _dispatch(req):
+def _dispatch(req, extra_header=False):
     method = req.get("method", "")
     req_id = req.get("id")
     if method == "initialize":
-        _handle_initialize(req_id)
+        _handle_initialize(req_id, extra_header=extra_header)
     elif method == "initialized":
         pass
     elif method == "textDocument/definition":
-        _handle_definition(req_id)
+        _handle_definition(req_id, extra_header=extra_header)
     elif method == "shutdown":
-        _send_response({"jsonrpc": "2.0", "id": req_id, "result": None})
+        _send_response({"jsonrpc": "2.0", "id": req_id, "result": None},
+                       extra_header=extra_header)
 
 
-def _loop_normal():
+def _loop_normal(extra_header=False):
     while True:
         try:
             req = _read_request()
         except (EOFError, ValueError):
             break
-        _dispatch(req)
+        _dispatch(req, extra_header=extra_header)
 
 
 def _loop_hang():
@@ -92,11 +97,12 @@ def _loop_hang():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--hang", action="store_true")
+    parser.add_argument("--extra-header", action="store_true")
     args = parser.parse_args()
     if args.hang:
         _loop_hang()
     else:
-        _loop_normal()
+        _loop_normal(extra_header=args.extra_header)
 
 
 if __name__ == "__main__":

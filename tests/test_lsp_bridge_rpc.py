@@ -184,6 +184,68 @@ class TestLsTimeoutSelectsOutTerminatesAndErrors(unittest.TestCase):
                          "run_definition must not leak threads")
 
 
+class TestExtraHeaderDoesNotCorruptFrame(unittest.TestCase):
+    """FIX1: Content-Type header after Content-Length must not corrupt the frame."""
+
+    def _make_extra_header_factory(self):
+        fake_ls = str(_FIXTURES / "fake_ls.py")
+
+        def factory(binary):
+            import subprocess
+            return subprocess.Popen(
+                [sys.executable, fake_ls, "--extra-header"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+            )
+
+        return factory
+
+    def test_definition_resolves_with_extra_content_type_header(self):
+        lsp = _load_lsp()
+        lsp.resolve_binary = lambda lang: "/fake/binary"
+        pos = lsp.Position(path="/project/src/main.ts", line=5, character=10)
+        factory = self._make_extra_header_factory()
+        result = lsp.run_definition(factory, "ts", pos)
+        payload = json.loads(result["content"][0]["text"])
+        self.assertFalse(result["isError"], f"Expected success, got: {payload}")
+        self.assertIn("definitions", payload)
+        self.assertGreater(len(payload["definitions"]), 0)
+
+
+class TestValidateDefArgsTypeEnforcement(unittest.TestCase):
+    """FIX2: non-int line/character must return bad-args, not propagate."""
+
+    def test_string_line_returns_bad_args(self):
+        rpc = _load_rpc()
+        msg = {
+            "jsonrpc": "2.0", "id": 5, "method": "tools/call",
+            "params": {
+                "name": "mcp_lsp_definition_ts",
+                "arguments": {"path": "/x.ts", "line": "42", "character": 0},
+            },
+        }
+        result = rpc.route(msg, "ts")
+        envelope = result["result"]
+        self.assertTrue(envelope["isError"])
+        err = json.loads(envelope["content"][0]["text"])
+        self.assertEqual(err["error"], "bad-args")
+
+    def test_bool_line_returns_bad_args(self):
+        rpc = _load_rpc()
+        msg = {
+            "jsonrpc": "2.0", "id": 6, "method": "tools/call",
+            "params": {
+                "name": "mcp_lsp_definition_ts",
+                "arguments": {"path": "/x.ts", "line": True, "character": 0},
+            },
+        }
+        result = rpc.route(msg, "ts")
+        envelope = result["result"]
+        self.assertTrue(envelope["isError"])
+        err = json.loads(envelope["content"][0]["text"])
+        self.assertEqual(err["error"], "bad-args")
+
+
 @skipUnless(
     shutil.which("typescript-language-server") or
     shutil.which("pyright-langserver") or

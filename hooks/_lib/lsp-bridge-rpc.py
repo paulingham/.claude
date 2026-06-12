@@ -51,6 +51,11 @@ def _validate_def_args(args):
     for key in ("path", "line", "character"):
         if key not in args:
             return _err_envelope("bad-args", f"Missing required arg: {key}")
+    if not isinstance(args["path"], str):
+        return _err_envelope("bad-args", "path must be a string")
+    for key in ("line", "character"):
+        if type(args[key]) is not int:
+            return _err_envelope("bad-args", f"{key} must be an integer")
     return None
 def _definition(args, lang):
     err = _validate_def_args(args)

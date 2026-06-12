@@ -80,13 +80,22 @@ def _raw_out(proc):
 def _read_frame(proc, deadline):
     length = _read_header(proc, deadline)
     return _read_body(proc, length, deadline)
+def _parse_content_length(line):
+    if line.lower().startswith(b"content-length:"):
+        return int(line.split(b":", 1)[1].strip())
+    return None
 def _read_header(proc, deadline):
     raw = _raw_out(proc)
+    length = None
     while True:
         line = _read_raw_line(raw, deadline)
-        if line.lower().startswith(b"content-length:"):
-            _read_raw_line(raw, deadline)
-            return int(line.split(b":", 1)[1].strip())
+        if line in (b"\r\n", b"\n"):
+            if length is not None:
+                return length
+            continue
+        parsed = _parse_content_length(line)
+        if parsed is not None:
+            length = parsed
 def _read_raw_line(raw, deadline):
     result = b""
     while not result.endswith(b"\n"):
