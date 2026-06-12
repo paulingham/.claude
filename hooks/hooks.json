@@ -121,6 +121,15 @@
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/injection-scan.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/syntax-check.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 10000
           }
         ]
       },
@@ -177,18 +186,9 @@
             "command": "bash",
             "args": [
               "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/auto-bug-detect.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/syntax-check.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/observation-length-cap.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 5000
           }
         ]
       },
@@ -310,15 +310,6 @@
             "command": "bash",
             "args": [
               "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/mutation-tooling-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/runtime-state-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
@@ -373,15 +364,6 @@
             "command": "bash",
             "args": [
               "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/governance-capture.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/runtime-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
@@ -412,6 +394,33 @@
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/tdd-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/pytest-suite-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/build-loop-scan.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/intake-backstop.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 5000
           }
         ]
       },
@@ -433,15 +442,6 @@
             "args": [
               "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/config-protection.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/governance-capture.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 10000
           },
@@ -492,15 +492,6 @@
             "args": [
               "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/config-protection.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
-            ],
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "-lc",
-              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/governance-capture.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 10000
           },
@@ -683,6 +674,15 @@
             "args": [
               "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/pipeline-entry-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/intake-backstop.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
           }
@@ -991,6 +991,15 @@
             "args": [
               "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/bug-fixed-payload-validator.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/mutation-score-gate.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
           }

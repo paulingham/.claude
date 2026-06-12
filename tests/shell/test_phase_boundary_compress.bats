@@ -158,6 +158,7 @@ teardown() {
   ALLOWLIST_EXACT=(
     "$REPO_ROOT/hooks/phase-boundary-compress.sh"
     "$REPO_ROOT/hooks/_lib/phase_boundary_tokens.py"
+    "$REPO_ROOT/hooks/tests/test-hook-registration-invariant.sh"
     "$REPO_ROOT/protocols/pipeline-protocol.md"
     "$REPO_ROOT/protocols/cost-discipline.md"
     "$REPO_ROOT/skills/pipeline/SKILL.md"

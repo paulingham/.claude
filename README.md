@@ -230,6 +230,20 @@ It compresses dev-tool output before it reaches the model and defaults on for
 mac+linux; set `CLAUDE_REQUIRE_RTK=0` to skip it or `CLAUDE_REQUIRE_RTK=1` to force it. If
 absent, the harness proceeds without it — no hard failure.
 
+Two hooks support the Reflect phase deviation-acknowledgment loop. **reflect-token-emit**
+writes named-deviation tokens during Build and Review phases whenever an agent records a
+deviation from protocol; the tokens persist in pipeline state. **reflect-gate-acknowledgment**
+is the Reflect-phase gate that reads those tokens and exits nonzero if any deviation token
+remains unacknowledged, blocking the pipeline from completing until each deviation is
+explicitly addressed. Both hooks are skill-invoked (not event-registered) per
+[`protocols/reflection-protocol.md`](protocols/reflection-protocol.md).
+
+One SubagentStop hook gathers mutation-testing soak data: **mutation-score-gate** fires when
+a `software-engineer` or `fix-engineer` subagent completes, recording changed-files context and
+mutation-tool availability to `metrics/$SESSION_ID/mutation-score.jsonl`. It is advisory-log
+only (exit 0 always). The soak converges once >=10 sessions reach a median changed-line score
+>=70%; use `skills/mutation-score-report/SKILL.md` to view convergence progress.
+
 ## Omnichannel Support
 
 The same pipeline delivers across channels: **web** (React/Next.js), **mobile** (Expo,
