@@ -36,6 +36,21 @@ Simple means **don't complect** (Hickey): one concern per unit, not braided or i
 
 Simplicity is a prerequisite for reliability (Dijkstra/Hickey): you can only make reliable what you can reason about; complected code defeats reasoning combinatorially.
 
+## Connascence
+
+Two units are connascent if a change in one forces a change in the other to stay correct — this is the WHY under DRY, SOLID, ≤4 params, and single entry point.
+**Strength spectrum (weak→strong; dynamic > static):**
+- Static: Name → Type → Meaning/Convention → Position → Algorithm
+- Dynamic: Execution → Timing → Value → Identity
+
+**Two axes:** **degree** (how many components share the connascence) and **locality** (how close they are).
+
+**Rule:** the stronger the connascence, the more local it must be. Minimise strength AND degree across module boundaries; convert strong-remote connascence to weak-local.
+
+**Example:** `place_order(user_id, org_id)` — two raw strings in fixed slots = Connascence of Position (strong).
+- Named-params object `{ userId, orgId }` → Connascence of **Name** (kills slot-order coupling; both fields still `string`, so a `{ userId: orgId }` swap still compiles).
+- Distinct value objects `UserId` / `OrgId` → Connascence of **Type** (kills the same-type swap; compiler-enforced).
+
 ## Comments
 
 **Code carries the WHAT. Comments carry only the WHY** — intent, rationale, non-obvious constraints, public-API contracts, and warnings of consequences.
@@ -69,6 +84,16 @@ The comment-smell hook blocks only high-confidence narration (bare lowercase-ver
 - Function is independently useful (not part of a tightly coupled group)
 
 **React exception:** Hooks and components stay as functions -- React's model handles state via `useState`/`useRef`. But `lib/` layer business logic follows the class rules above.
+
+## Type Discipline
+
+**No primitive obsession at module ports** — a raw `string`, `UUID`, `number`, or `bool` carrying domain meaning across a module boundary should be a domain type or Value Object (`Email`, `Money`, `UserId`), not a primitive. Scoped to ports/boundaries only: raw primitives are fine for local scratch variables (e.g. a loop counter). Judgment-feeding (reviewer/architect).
+- Before: `sendInvoice(customerId: string, amount: number)` at a module port. After: `sendInvoice(id: CustomerId, amount: Money)` — the compiler enforces the agreement.
+
+**Immutability by default** — prefer immutable data; mutation is a justified exception that MUST carry a `# WHY:` comment (reuses the WHY-prefix convention from `## Comments`). Judgment-feeding.
+- Justified: `# WHY: in-place accumulation; copy-per-iter is O(n²) on 50k rows`
+
+**Acyclic dependencies** — the module/import dependency graph must be acyclic; dependencies point inward toward stability (extends the DIP rule in `## SOLID`). Judgment-feeding (import-cycle enforcement hook not yet wired; treat as design guidance).
 
 ## Naming
 
