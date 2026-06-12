@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Intake Backstop — PreToolUse hook for BOTH Bash and Agent matchers.
+# Intake Backstop — PreToolUse hook for Bash, Agent, Write, Edit, MultiEdit, NotebookEdit.
 #
 # enforces: protocols/work-class-routing.md:Intake gate
 # protects: intake, pipeline
@@ -8,9 +8,18 @@
 # running tests, building, deploying, mutating files/git, spawning specialized
 # build/review agents) WITHOUT first running /intake to classify and route the
 # request through the pipeline. The hook branches on the tool name from stdin:
+#   - Write/Edit/MultiEdit/NotebookEdit: ADVISORY-ONLY — exit 0 always. Emits
+#     systemMessage advisory when the orchestrator writes a non-state source file
+#     without a prior /intake. NEVER exit 2 from this branch (Tier-0 advisory contract).
 #   - Bash:  FAIL-OPEN block-list — exit 2 only for clear work detectors W1-W8.
 #   - Agent: FAIL-CLOSED allow-list — exit 2 for specialized roles, allow
 #            architect + non-specialized.
+#
+# WRITE/EDIT PROMOTION CRITERION (advisory -> enforcing flip):
+#   >=10 sessions with zero false-positive advisories observed before considering
+#   a flip from advisory (exit 0) to enforcing (exit 2) for the Write/Edit branch.
+#   if-broken-look-at: hooks/intake-backstop.sh Write/Edit/MultiEdit/NotebookEdit branch
+#                      protocols/work-class-routing.md Intake gate
 #
 # SHARED short-circuits (all fail-open / exit 0): wrong hook profile, escape
 # env, subagent caller, in-worktree caller, intake marker present. Every error
@@ -109,6 +118,41 @@ SID=$(resolve_session_id "$INPUT")
 # every session. The session-scoped marker above is the only "intake ran"
 # signal; pipeline-resume arms it explicitly (skills/pipeline-resume Step 0).
 
+# ----- State-dir predicate (shared by Write/Edit/NotebookEdit and Bash branches) ---
+# WHY defined here: the Write/Edit/NotebookEdit branch calls this before the Bash
+# branch section where it was previously defined; moved up so both branches can use it.
+_ibs_path_is_state() {
+    local p="$1"
+    [[ "$p" == /tmp/* || "$p" == /tmp ]] && return 0
+    [[ -n "${HARNESS_DATA:-}" && "$p" == "$HARNESS_DATA"* ]] && return 0
+    [[ "$p" =~ (^|/)(pipeline-state|metrics|learning)(/|$) ]] && return 0
+    [[ "$p" =~ (^|/)\.claude(/|$) ]] && return 0
+    return 1
+}
+
+# ----- Advisory emitter (Write/Edit/NotebookEdit branch only) ---------------
+# WHY separate helper: DRY on 2nd occurrence; keeps the advisory branch body small.
+# NEVER exits 2 — advisory-only contract (Tier-0).
+_ibs_advise() {
+    echo '{"systemMessage": "INTAKE ADVISORY: This looks like source-file work. Run /harness:intake first to classify and route, or set CLAUDE_INTAKE_BACKSTOP=off if intentional."}'
+}
+
+# =====================================================================
+# Write / Edit / MultiEdit / NotebookEdit branch — ADVISORY ONLY (exit 0 always).
+# =====================================================================
+if [[ "$TOOL_NAME" =~ ^(Write|Edit|MultiEdit|NotebookEdit)$ ]]; then
+    # WHY file_path // notebook_path: NotebookEdit delivers notebook_path, not
+    # file_path; Write/Edit/MultiEdit all deliver file_path (confirmed:
+    # planning-agent-edit-scope.sh:27 extracts .tool_input.file_path for MultiEdit).
+    # Shadow-git-checkpoint.sh uses file_path only and silently no-ops on
+    # NotebookEdit — we must handle both fields here.
+    path=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' 2>/dev/null)
+    [[ -z "$path" ]] && exit 0
+    _ibs_path_is_state "$path" && exit 0
+    _ibs_advise
+    exit 0
+fi
+
 # ----- Block message (shared) -----------------------------------------------
 _ibs_block() {
     cat >&2 <<'EOF'
@@ -148,18 +192,6 @@ fi
 
 COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 [[ -z "$COMMAND" ]] && exit 0
-
-# State-dir allowance: redirects / fs verbs targeting these roots are
-# coordination/state writes, not "work". A path token is state-safe if it sits
-# under /tmp, $HARNESS_DATA, or one of the named state subdirs.
-_ibs_path_is_state() {
-    local p="$1"
-    [[ "$p" == /tmp/* || "$p" == /tmp ]] && return 0
-    [[ -n "${HARNESS_DATA:-}" && "$p" == "$HARNESS_DATA"* ]] && return 0
-    [[ "$p" =~ (^|/)(pipeline-state|metrics|learning)(/|$) ]] && return 0
-    [[ "$p" =~ (^|/)\.claude(/|$) ]] && return 0
-    return 1
-}
 
 # W1 — package install.
 _ibs_w1_pkg_install() {
