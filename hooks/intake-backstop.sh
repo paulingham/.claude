@@ -262,7 +262,7 @@ _ibs_w7_git_mutation() {
     return 1
 }
 
-# W8 — migration / destructive DB (governance-capture.sh:65-72 shapes).
+# W8 — migration / destructive DB (db:migrate / alembic / flyway / DROP shapes).
 _ibs_w8_migration() {
     [[ "$1" =~ db:migrate ]] && return 0
     [[ "$1" =~ alembic[[:space:]]+upgrade ]] && return 0

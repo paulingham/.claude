@@ -1,8 +1,13 @@
-# runtime-state-guard + mutation-tooling-guard: Promote-Time Hardening Gaps
+# runtime-state-guard: Promote-Time Hardening Gaps
 
 > **Implementation note (2026-06-04)**: Gaps 1–5 implemented in branch fix/guard-hardening-telemetry
-> (pipeline guard-hardening-telemetry-fixes, 2026-06-04). Remaining: mutation-tooling-guard enforcing
-> flip pending FP review — see TODO(mutation-tooling-guard-promote) in hooks/mutation-tooling-guard.sh.
+> (pipeline guard-hardening-telemetry-fixes, 2026-06-04).
+>
+> **mutation-tooling-guard.sh retired in golden-path-convergence-hooks (2026-06).** Advisory→enforcing
+> soak never converged (0 telemetry across 772 sessions). The Invariant-#11 mutation-discipline path is
+> superseded by the advisory `hooks/mutation-score-gate.sh` — see that hook's header for the new promotion
+> criterion. The Gap 2/3 mutation-tooling-guard hardening analysis is preserved in git history at the
+> pre-retirement revision.
 
 **Created**: 2026-06-04
 **Context**: guards-new-hooks batch (harden-root-contamination pipeline)
@@ -74,96 +79,13 @@ worktree pattern. This is weaker than Option A.
 
 ---
 
-## Gap 2 — mutation-tooling-guard Regex Obfuscation Bypasses
+## Gap 2 and Gap 3 — mutation-tooling-guard (RETIRED)
 
-**Status (2026-06-04): RESOLVED — see `hooks/mutation-tooling-guard.sh:137` (`_mtg_normalize_command`) unwraps bash -c/eval/backslash/$(echo X); `_mtg_is_mutmut()` line 220 adds python -m mutmut pattern**
-
-**Severity**: MEDIUM
-**Promotion-blocking**: YES (advisory → enforcing flip requires zero confirmed bypass paths)
-**Files**: `hooks/mutation-tooling-guard.sh:77` (`_mtg_is_mutmut`), `:83` (`_mtg_is_sed_inplace_source`)
-
-### Description
-
-The pattern detectors match on literal command strings. Several trivial obfuscations
-bypass all three detectors:
-
-| Bypass | Example | Why it works |
-|--------|---------|--------------|
-| Backslash escape | `s\ed -i 's/x/y/' src.py` | `sed` regex does not match `s\ed` |
-| Command substitution | `$(echo mutmut) run` | mutmut regex does not match the substitution form |
-| `bash -c` wrapper | `bash -c 'sed -i ...'` | outer command is `bash`, not `sed` |
-| Python module | `python -m mutmut run` | mutmut regex only matches bare `mutmut` |
-| `eval` wrapper | `eval "sed -i 's/x/y/' src.py"` | outer command is `eval` |
-
-### Proposed Fix
-
-Before pattern matching, normalize the command string:
-1. Resolve simple `$(echo X)` substitutions via a conservative regex strip.
-2. Recurse into `bash -c '...'` argument strings (extract and re-test the inner command).
-3. Add `python -m mutmut` as an explicit pattern in `_mtg_is_mutmut`.
-4. Add `eval "sed ..."` detection (flag any eval containing a source-extension target).
-
-Backslash-escaped commands (`s\ed`) are unlikely in practice but can be handled by
-normalizing `\` + identifier sequences before matching.
-
----
-
-## Gap 3 — Env-Var Bypass: Guard Variables and Context Variables
-
-**Status (2026-06-04): RESOLVED — escape-hatch audit at `hooks/mutation-tooling-guard.sh:43-50` (Gap 3 Bypass A); WORKTREE_PATH-unset heuristic via `_mtg_has_active_worktrees()` at line 113 and Gap 3 path at line 308 (Gap 3 Bypass B)**
-
-**Severity**: MEDIUM
-**Promotion-blocking**: YES for mutation-tooling-guard; LOW for runtime-state-guard (enforcing; gap narrower)
-**Files**: `hooks/mutation-tooling-guard.sh:42`, `:52`; `hooks/runtime-state-guard.sh:42`
-
-### Description
-
-**Bypass A — Escape-hatch vars**: Both hooks short-circuit silently on their disable
-env vars:
-
-```bash
-# mutation-tooling-guard.sh:42
-[[ "${CLAUDE_DISABLE_MUTATION_TOOLING_GUARD:-0}" == "1" ]] && exit 0
-
-# runtime-state-guard.sh:42
-[[ "${CLAUDE_DISABLE_RUNTIME_STATE_GUARD:-0}" == "1" ]] && exit 0
-```
-
-These are intentional escapes (per protocol), but they write no audit record. A
-session that sets the var and then contaminates root is invisible to post-incident
-forensics.
-
-**Bypass B — Context-var clearing**: mutation-tooling-guard only fires when
-`CLAUDE_WORKTREE_PATH` is set (line 52: `[[ -n "${CLAUDE_WORKTREE_PATH:-}" ]] || exit 0`).
-A session can unset or clear this variable before invoking mutation tooling, bypassing
-the entire guard:
-
-```bash
-unset CLAUDE_WORKTREE_PATH
-mutmut run   # → guard exits 0 (no worktree context declared)
-```
-
-Similarly, clearing `HOME`, `CLAUDE_CONFIG_DIR`, or `CLAUDE_PLUGIN_ROOT` before running
-the hook can affect `HARNESS_DATA` resolution and the advisory log path.
-
-### Proposed Fix
-
-**Bypass A**: Before the escape-hatch `exit 0`, write an audit JSONL record to a
-well-known path (e.g. `$HARNESS_DATA/metrics/${session}/guard-escapes.jsonl`) so
-forensics can identify sessions that bypassed guards. Example:
-
-```bash
-if [[ "${CLAUDE_DISABLE_RUNTIME_STATE_GUARD:-0}" == "1" ]]; then
-    _rsg_log_escape  # writes {timestamp, session_id, guard, action:"escaped"} to JSONL
-    exit 0
-fi
-```
-
-**Bypass B**: Add a secondary signal — if `CLAUDE_WORKTREE_PATH` is unset but
-`REPO_ROOT` itself is NOT a worktree path, and a mutation command is detected,
-emit a reduced-confidence advisory (noting that worktree context could not be
-verified). This requires a heuristic (e.g. check `git worktree list` output for
-any active worktrees) rather than relying solely on the env var.
+**mutation-tooling-guard.sh retired in golden-path-convergence-hooks (2026-06).** Advisory→enforcing
+soak never converged (0 telemetry across 772 sessions). The Invariant-#11 mutation-discipline path is
+superseded by the advisory `hooks/mutation-score-gate.sh` — see that hook's header for the new promotion
+criterion. The Gap 2/3 mutation-tooling-guard hardening analysis is preserved in git history at the
+pre-retirement revision.
 
 ---
 
@@ -215,30 +137,26 @@ both a write verb and a `pipeline-state` path token) reduces false-negative expo
 
 ## Gap 5 — Bypass Env-Vars Exit Silently (No Audit Record)
 
-**Status (2026-06-04): RESOLVED — escape-hatch audit record written before exit in both hooks: `hooks/runtime-state-guard.sh:43-50` and `hooks/mutation-tooling-guard.sh:43-50` (writes guard-escapes.jsonl)**
+**Status (2026-06-04): RESOLVED — escape-hatch audit record written before exit in `hooks/runtime-state-guard.sh:43-50` (writes guard-escapes.jsonl)**
 
 **Severity**: LOW-MEDIUM
-**Promotion-blocking**: YES for advisory → enforcing promotion of mutation-tooling-guard (audit trail required)
-**Files**: `hooks/mutation-tooling-guard.sh:42`; `hooks/runtime-state-guard.sh:42`
+**Promotion-blocking**: NO (runtime-state-guard is already enforcing; this is a hardening item)
+**Files**: `hooks/runtime-state-guard.sh:42`
 
 ### Description
 
-This gap is related to Gap 3 Bypass A but is called out separately as a distinct
-promotion-blocking item because the security re-review explicitly flagged it.
+This gap is called out separately as a distinct hardening item because the security re-review
+explicitly flagged it.
 
-When `CLAUDE_DISABLE_RUNTIME_STATE_GUARD=1` or `CLAUDE_DISABLE_MUTATION_TOOLING_GUARD=1`
-is set, both hooks call `exit 0` immediately with no side-effects. There is no log
-entry, no metrics record, and no stderr notice. In a post-incident investigation,
-there is no way to determine from the hook's own output that the bypass was exercised.
-
-This is acceptable during early soak (advisory mode), but becomes a forensics gap
-once either hook is enforcing or is promoted to enforcing.
+When `CLAUDE_DISABLE_RUNTIME_STATE_GUARD=1` is set, the hook calls `exit 0` immediately with
+no side-effects. There is no log entry, no metrics record, and no stderr notice. In a
+post-incident investigation, there is no way to determine from the hook's own output that the
+bypass was exercised.
 
 ### Proposed Fix
 
-Add a lightweight audit write before each escape-hatch exit. The write must be
-best-effort (fail-open) and must not introduce dependencies on `HARNESS_DATA` being
-set (since the escape may be exercised in contexts where path resolution is broken):
+Add a lightweight audit write before the escape-hatch exit. The write must be best-effort
+(fail-open) and must not introduce dependencies on `HARNESS_DATA` being set:
 
 ```bash
 # Example: runtime-state-guard.sh
@@ -253,8 +171,8 @@ if [[ "${CLAUDE_DISABLE_RUNTIME_STATE_GUARD:-0}" == "1" ]]; then
 fi
 ```
 
-Same pattern for mutation-tooling-guard. The log path (`guard-escapes.jsonl`) is
-intentionally separate from the violation log so the two can be queried independently.
+The log path (`guard-escapes.jsonl`) is intentionally separate from the violation log so the
+two can be queried independently.
 
 ---
 
@@ -263,23 +181,9 @@ intentionally separate from the violation log so the two can be queried independ
 | Gap | Severity | Promotes | Hook | Proposed Fix |
 |-----|----------|----------|------|--------------|
 | 1 — Worktree fast-path no registry check | MEDIUM | YES (enforcing hook bypass) | runtime-state-guard | `git worktree list` registry check |
-| 2 — Regex obfuscation bypasses | MEDIUM | YES (advisory flip blocked) | mutation-tooling-guard | Normalize + recurse into bash -c / python -m |
-| 3 — Env-var bypass (CLAUDE_WORKTREE_PATH unset / HOME cleared) | MEDIUM | YES (advisory flip blocked) | mutation-tooling-guard | Heuristic fallback + secondary worktree detection |
+| 2/3 — mutation-tooling-guard (RETIRED) | — | — | — | See tombstone note above |
 | 4 — cp/mv/rsync/tar coverage | LOW | NO | runtime-state-guard | Extend Bash verb pattern |
-| 5 — Bypass vars exit silently (no audit) | LOW-MEDIUM | YES (forensics requirement) | both | Write guard-escapes.jsonl before exit |
-
-## Promotion Checklist for mutation-tooling-guard
-
-Before flipping `exit 0` → `exit 2` at `hooks/mutation-tooling-guard.sh:362`:
-
-- [x] Gap 2 resolved: obfuscation bypasses addressed (`_mtg_normalize_command` + python -m mutmut pattern)
-- [x] Gap 3 resolved: CLAUDE_WORKTREE_PATH-unset bypass addressed (heuristic + audit logging)
-- [x] Gap 5 resolved: escape-hatch audit logging in place (guard-escapes.jsonl before exit 0)
-- [ ] N=10 distinct sessions with advisory events, zero confirmed false-positive blocks
-      (`jq -r '.session_id' "$HARNESS_DATA"/metrics/*/mutation-tooling-advisory.jsonl | sort -u | wc -l`)
-      **Deferred (2026-06-04 FP review)**: confirmed pre-fix /var/folders FP records present in advisory log
-      + Gap 3 reduced-confidence pattern records unsoaked (added this pipeline). Re-run FP review after
-      10+ sessions with updated guard (post slice-1b) pass.
+| 5 — Bypass vars exit silently (no audit) | LOW-MEDIUM | NO | runtime-state-guard | Write guard-escapes.jsonl before exit |
 
 ## Promotion Checklist for runtime-state-guard (already enforcing — hardening only)
 

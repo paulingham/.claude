@@ -1123,20 +1123,6 @@ rm -f /tmp/rsg-test-out-$$.log
 
 echo ""
 
-# -- mutation-tooling-guard (delegated harness) ------------------------------
-echo "-- mutation-tooling-guard.sh (via test-mutation-tooling-guard.sh) --"
-if bash "$HOOKS_DIR/tests/test-mutation-tooling-guard.sh" > /tmp/mtg-test-out-$$.log 2>&1; then
-  MTG_PASSES=$(grep -c "^  PASS: " /tmp/mtg-test-out-$$.log)
-  pass "mutation-tooling-guard: delegated harness ($MTG_PASSES sub-tests passed)"
-else
-  MTG_FAILS=$(grep -c "^  FAIL: " /tmp/mtg-test-out-$$.log)
-  fail "mutation-tooling-guard: delegated harness" "0 failures" "$MTG_FAILS failure(s) — see /tmp/mtg-test-out-$$.log"
-  cat /tmp/mtg-test-out-$$.log
-fi
-rm -f /tmp/mtg-test-out-$$.log
-
-echo ""
-
 # -- root-tree-clean-check + root-snapshot-capture (delegated harness) -------
 echo "-- root-tree-clean-check.sh + root-snapshot-capture.sh (via test-root-tree-clean-check.sh) --"
 if bash "$HOOKS_DIR/tests/test-root-tree-clean-check.sh" > /tmp/rcc-test-out-$$.log 2>&1; then
