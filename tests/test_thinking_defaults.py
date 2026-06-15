@@ -1190,7 +1190,7 @@ class ReadmeCountsMatchActualFiles(unittest.TestCase):
             readme,
             rf"(?m)^## Skills \({expected_skills}\)$",
             f"README `## Skills (N)` heading: expected ({expected_skills}); "
-            f"adjust line 126 of README.md")
+            f"adjust line 204 of README.md")
         # The architecture-diagram comment lines naming both counts.
         self.assertRegex(
             readme,
