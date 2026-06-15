@@ -1,5 +1,6 @@
 """Tests for s2 — design-source adapter: explicit-pointer, DesignSync mock, Figma deferred."""
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -171,3 +172,72 @@ def test_figma_is_deferred_slot():
     assert isinstance(adapter, dsa.FigmaAdapter)
     with pytest.raises(NotImplementedError):
         adapter.ingest()
+
+
+# ---------------------------------------------------------------------------
+# PROOF — consume→write→read: full CLI pipeline with real fixture tokens
+# ---------------------------------------------------------------------------
+
+CLI = Path(__file__).resolve().parent.parent / "hooks" / "_lib" / "mcp_capability_cli.py"
+
+
+def _seed_manifest(plugin_data: Path, tokens_path: Path) -> None:
+    """Write a capability manifest pointing at a local tokens file."""
+    manifest_dir = plugin_data / "mcp-capability"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    manifest = {
+        "schema_version": 1,
+        "capabilities": {
+            "design-source": {
+                "status": "connected",
+                "adapter": "explicit-pointer",
+                "tokens_path": str(tokens_path),
+            }
+        },
+    }
+    (manifest_dir / "manifest.json").write_text(json.dumps(manifest))
+
+
+def _fixture_tokens(tmp: Path) -> Path:
+    tokens_file = tmp / "tokens.json"
+    tokens_file.write_text(json.dumps({
+        "colors": {"primary": "#007bff", "secondary": "#6c757d"},
+        "typography": {"base": "16px"},
+        "spacing": {"md": "16px"},
+    }))
+    return tokens_file
+
+
+def test_consume_design_source_writes_brief(tmp_path):
+    """Full consume→write→read proof: CLI writes brief with real token values."""
+    tokens_file = _fixture_tokens(tmp_path)
+    _seed_manifest(tmp_path, tokens_file)
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    result = subprocess.run(
+        [sys.executable, str(CLI),
+         "--consume-design-source", "--task-id", "proof-test",
+         "--state-dir", str(state_dir)],
+        capture_output=True, text=True,
+        env={**__import__("os").environ, "CLAUDE_PLUGIN_DATA": str(tmp_path)},
+    )
+    assert result.returncode == 0, result.stderr
+    brief_path = state_dir / "proof-test-design-brief.md"
+    assert brief_path.exists(), f"Brief not written to flat path: {brief_path}"
+    content = brief_path.read_text()
+    assert "#007bff" in content
+    assert "16px" in content
+    assert "DATA BOUNDARY" not in content
+
+
+def test_write_brief_is_external_has_boundary(tmp_path):
+    """write_design_brief(is_external=True) injects DATA BOUNDARY; False omits it."""
+    brief_data = {"colors": {"primary": "#abc"}}
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    ext_path = dsa.write_design_brief(brief_data, "ext-task", str(state_dir), is_external=True)
+    ext_content = Path(ext_path).read_text()
+    assert "DATA BOUNDARY" in ext_content
+    trusted_path = dsa.write_design_brief(brief_data, "trust-task", str(state_dir), is_external=False)
+    trusted_content = Path(trusted_path).read_text()
+    assert "DATA BOUNDARY" not in trusted_content

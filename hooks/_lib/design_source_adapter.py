@@ -113,8 +113,19 @@ def _safe_brief_path(task_id: str, state_dir: str) -> Path:
     return path
 
 
-def write_design_brief(brief_data: dict, task_id: str, state_dir: str) -> str:
-    """Write flat pipeline-state/{task-id}-design-brief.md; return written path."""
+def write_design_brief(
+    brief_data: dict,
+    task_id: str,
+    state_dir: str,
+    is_external: bool = False,
+) -> str:
+    """Write flat pipeline-state/{task-id}-design-brief.md; return written path.
+
+    # WHY: is_external=True threads the DATA BOUNDARY injection-guard header into
+    # the written file for DesignSync/Figma sources (third-party MCP content).
+    # Callers MUST pass is_external=True for designsync/figma adapters,
+    # is_external=False for explicit-pointer (local, trusted).
+    """
     path = _safe_brief_path(task_id, state_dir)
-    path.write_text(render_design_brief(brief_data))
+    path.write_text(render_design_brief(brief_data, is_external=is_external))
     return str(path)
