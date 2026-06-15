@@ -27,6 +27,7 @@ update pinned CI tests, or affect enforcement gates.
 
 **Adding a pipeline skill:** requires adding a `verdict:` to `verdict-catalog.md`
 and wiring into `protocols/skill-directory.md`. Open a discussion issue first.
+Note: the generator syncs counts, not verdict-catalog.md rows — those are manual.
 
 **Adding an agent:**
 
