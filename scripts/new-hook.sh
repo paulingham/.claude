@@ -56,6 +56,7 @@ _restore_backups() {
   cp "${HOOKS_JSON}.bak" "$HOOKS_JSON"
   cp "${SETTINGS_JSON}.bak" "$SETTINGS_JSON"
   rm -f "$dest"
+  _cleanup_backups
 }
 
 _cleanup_backups() {

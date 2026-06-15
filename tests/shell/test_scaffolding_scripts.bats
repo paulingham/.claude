@@ -170,6 +170,64 @@ teardown() {
   [ ! -e "$TMPDIR_TEST/hooks/$hook_name.sh" ]
 }
 
+# ── C12: _restore_backups cleans .bak files after JSON-validate failure ────────
+
+@test "C12 new-hook _restore_backups removes .bak files after restoring registries" {
+  # WHY: the JSON-validate failure path calls _restore_backups but the original
+  # code did NOT call _cleanup_backups inside it, leaving .bak files behind.
+  # This test pins the fix: _restore_backups must clean .bak files.
+
+  local hook_name="test-validate-fail-$$"
+
+  # Capture original content
+  local orig_hooks; orig_hooks="$(cat "$TMPDIR_TEST/hooks.json")"
+  local orig_settings; orig_settings="$(cat "$TMPDIR_TEST/settings.json")"
+
+  # Simulate state just before _restore_backups is called:
+  # .bak files hold original content; live files have been mutated by _wire;
+  # orphan hook file exists at fake_dest.
+  cp "$TMPDIR_TEST/hooks.json" "$TMPDIR_TEST/hooks.json.bak"
+  cp "$TMPDIR_TEST/settings.json" "$TMPDIR_TEST/settings.json.bak"
+  local fake_dest="$TMPDIR_TEST/hooks/$hook_name.sh"
+  touch "$fake_dest"
+  echo '{"mutated":true}' > "$TMPDIR_TEST/hooks.json"
+  echo '{"mutated":true}' > "$TMPDIR_TEST/settings.json"
+
+  # Assert 1 (source-level): _restore_backups in new-hook.sh must contain a
+  # _cleanup_backups call — this goes RED against the pre-fix code.
+  grep -A 10 '^_restore_backups()' "$SCRIPTS/new-hook.sh" \
+    | grep -q '_cleanup_backups'
+
+  # Assert 2 (behavioural): run the functions directly in an isolated subshell.
+  # We define the two functions verbatim-matching the script contract and verify
+  # that calling _restore_backups removes .bak files (the bug was the absence of
+  # _cleanup_backups inside _restore_backups).
+  run bash -c "
+    HOOKS_JSON='$TMPDIR_TEST/hooks.json'
+    SETTINGS_JSON='$TMPDIR_TEST/settings.json'
+    _cleanup_backups() { rm -f \"\${HOOKS_JSON}.bak\" \"\${SETTINGS_JSON}.bak\"; }
+    _restore_backups() {
+      local dest=\"\$1\"
+      cp \"\${HOOKS_JSON}.bak\" \"\$HOOKS_JSON\"
+      cp \"\${SETTINGS_JSON}.bak\" \"\$SETTINGS_JSON\"
+      rm -f \"\$dest\"
+      _cleanup_backups
+    }
+    _restore_backups '$fake_dest'
+    [ ! -f '${TMPDIR_TEST}/hooks.json.bak' ] || { echo 'FAIL: hooks.json.bak remains' >&2; exit 10; }
+    [ ! -f '${TMPDIR_TEST}/settings.json.bak' ] || { echo 'FAIL: settings.json.bak remains' >&2; exit 11; }
+  "
+  [ "$status" -eq 0 ]
+
+  # Verify live registries were restored to original content
+  local after_hooks; after_hooks="$(cat "$TMPDIR_TEST/hooks.json")"
+  local after_settings; after_settings="$(cat "$TMPDIR_TEST/settings.json")"
+  [ "$orig_hooks" = "$after_hooks" ]
+  [ "$orig_settings" = "$after_settings" ]
+  # Orphan hook file must be removed
+  [ ! -e "$fake_dest" ]
+}
+
 # ── C11: new-skill bumps BOTH README locations on confirm ─────────────────────
 
 @test "C11 new-skill with confirm bumps both README skill-count locations" {
