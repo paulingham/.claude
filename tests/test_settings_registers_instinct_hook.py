@@ -1,10 +1,11 @@
 """Slice 3: settings.json must register instinct-injector.sh at index 5 and
-the full PreToolUse Agent hook order MUST match the canonical 10-entry snapshot.
+the full PreToolUse Agent hook order MUST match the canonical 15-entry snapshot.
 
 The instinct-injector hook MUST sit at PreToolUse Agent index 5, AFTER
 pre-agent-allowlist (index 4) and BEFORE verification-freshness-guard
-(index 6), scratchpad-bytes (index 7), depth-guard (index 8), and
-runtime-guard (index 9).
+(index 6), scratchpad-bytes (index 7), depth-guard (index 8),
+runtime-guard (index 11), agentic-security-gate (index 12), and
+intake-backstop (index 13).
 
 Decision hooks (thinking, advisor, allowlist, instinct, freshness-guard)
 cluster contiguously before resource-cap guards (scratchpad-bytes,
@@ -38,6 +39,8 @@ EXPECTED_ORDER = [
     "pre-agent-swe-pruner",
     "depth-guard",
     "runtime-guard",
+    # WHY: enforcing agentic-spawn gate — between runtime-guard and intake-backstop, mirrors hooks.json
+    "agentic-security-gate",
     "intake-backstop",
     # over-spawn advisory guard (GP-P2-04) — appended last, after intake-backstop.
     # Advisory exit-0 Agent hook at the tail of the decision/guard chain.

@@ -22,7 +22,7 @@ be deleted.
 | test-eval-model-effectiveness.sh | tests/shell/bridge_eval_model_effectiveness.bats | BRIDGED |
 | test-harness-paths.sh | — | QUARANTINED — E4 config-dir, G1 ROLLOUT overlay-sync ref, B7c Path.home (85p/3f) |
 | test-hook-registration-invariant.sh | tests/shell/test_registration_invariant_green.bats | BRIDGED (pre-existing bridge) |
-| test-hooks-json.sh | — | QUARANTINED — registry drift: NOT_IN_SETTINGS (runtime-state-guard.sh, agentic-security-gate.sh in hooks.json but not settings.json) (7p/3f) |
+| test-hooks-json.sh | — | QUARANTINED — A7: pre-existing NOT_IN_SETTINGS for advisory (non-enforcing) hooks added since test was authored: pipeline-entry-guard.sh, root-snapshot-capture.sh, root-tree-clean-check.sh (SessionEnd+Stop), worktree-reaper.sh; A7 checks ALL hooks.json entries against settings.json but advisory hooks are intentionally settings.json-absent (9p/1f) |
 | test-hooks.sh | — | QUARANTINED — 90p/18f (stale count + assertion drift; text-pinned by project-hash.bats:144,149) |
 | test-intake-backstop.sh | tests/shell/bridge_intake_backstop.bats | BRIDGED |
 | test-main-branch-guard.sh | tests/shell/bridge_main_branch_guard.bats | BRIDGED |

@@ -2,7 +2,7 @@
 # test-hooks-json.sh — ACs for plugin-port-slice3
 # A1  hooks.json exists + valid JSON
 # A2  .claude-plugin/plugin.json has "hooks": "./hooks/hooks.json"
-# A3  registered hook count == 88
+# A3  registered hook count == 97
 # A4  every /hooks/-referencing arg uses ${CLAUDE_PLUGIN_ROOT:-
 # A5  ZERO residual bare ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/ in hooks.json
 # A6  ZERO hcom / rtk / gh-cache strings in hooks.json
@@ -49,13 +49,13 @@ else
     fi
 fi
 
-# A3: registered hook count == 88
+# A3: registered hook count == 97
 if [[ -f "$HOOKS_JSON" ]]; then
     count=$(python3 -c "import json; d=json.load(open('$HOOKS_JSON')); total=sum(len(g.get('hooks',[])) for ev_groups in d.get('hooks',{}).values() for g in ev_groups); print(total)")
-    if [[ "$count" == "88" ]]; then
-        pass "A3: hook count is 88"
+    if [[ "$count" == "97" ]]; then
+        pass "A3: hook count is 97"
     else
-        fail "A3: hook count is $count (expected 88)"
+        fail "A3: hook count is $count (expected 97)"
     fi
 fi
 
