@@ -34,7 +34,9 @@ and wiring into `protocols/skill-directory.md`. Open a discussion issue first.
 bash scripts/new-agent.sh my-new-agent
 ```
 
-Updates `agents/`, the `### Agent Team` table in `CLAUDE.md`, and the README agent count.
+Creates the agent file from the template and bumps the README agent count automatically.
+It also prints the 5-column `### Agent Team` row for you to paste into `CLAUDE.md` manually
+(Phase, Worktree, and Tunable values require a human decision).
 See `templates/AGENT_AUTHORING.md` for the frontmatter contract.
 
 **Adding a hook:**
