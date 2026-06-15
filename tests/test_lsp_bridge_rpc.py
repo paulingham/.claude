@@ -246,39 +246,140 @@ class TestValidateDefArgsTypeEnforcement(unittest.TestCase):
         self.assertEqual(err["error"], "bad-args")
 
 
+import select
+import subprocess
+import tempfile
+import time
+
+
+def _build_py_fixture(tmpdir):
+    content = "def my_target_function():\n    return 1\n\n\nresult = my_target_function()\n"
+    path = str(Path(tmpdir) / "fix.py")
+    Path(path).write_text(content)
+    return path, content
+
+
+def _build_ts_fixture(tmpdir):
+    content = "function myTargetFunction(): number {\n    return 1;\n}\n\nconst r = myTargetFunction();\n"
+    path = str(Path(tmpdir) / "fix.ts")
+    Path(path).write_text(content)
+    return path, content
+
+
+def _drain_lsp_frames(lsp, proc):
+    raw = lsp._raw_out(proc)
+    while select.select([raw], [], [], 0.2)[0]:
+        try:
+            lsp._read_frame(proc, time.monotonic() + 0.5)
+        except Exception:
+            return
+
+
+_LANG_ID = {"py": "python", "ts": "typescript"}
+
+
+def _did_open_msg(fixture_path, content, lang):
+    return {"jsonrpc": "2.0", "method": "textDocument/didOpen",
+            "params": {"textDocument": {"uri": f"file://{fixture_path}",
+                "languageId": _LANG_ID.get(lang, lang), "version": 1, "text": content}}}
+
+
+def _make_init_patch(orig_init, tmpdir):
+    def _f():
+        p = orig_init()
+        p["rootUri"] = f"file://{tmpdir}"
+        return p
+    return _f
+
+
+def _make_hs_patch(lsp, orig_hs, fixture_path, content, lang):
+    def _f(proc, deadline):
+        orig_hs(proc, deadline)
+        lsp._write_frame(proc, _did_open_msg(fixture_path, content, lang))
+        time.sleep(3)
+        _drain_lsp_frames(lsp, proc)
+    return _f
+
+
+def _patch_lsp_for_real_run(lsp, tmpdir, fixture_path, content, lang):
+    lsp._init_params = _make_init_patch(lsp._init_params, tmpdir)
+    lsp._handshake = _make_hs_patch(lsp, lsp._handshake, fixture_path, content, lang)
+
+
+def _resolve_real(lsp, binary, lang, fixture_path, line, char):
+    def factory(_b):
+        return subprocess.Popen(
+            [binary, "--stdio"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        )
+    pos = lsp.Position(path=fixture_path, line=line, character=char)
+    return lsp.run_definition(factory, lang, pos)
+
+
+def _extract_result(result):
+    payload = json.loads(result["content"][0]["text"])
+    return result["isError"], payload.get("definitions", [])
+
+
+def _make_lsp():
+    lsp = _load_lsp()
+    lsp._TIMEOUT_SECONDS = 30
+    return lsp
+
+
+def _run_real_definition(binary, lang, ref_line, ref_char, fix_fn):
+    lsp = _make_lsp()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        fixture_path, content = fix_fn(tmpdir)
+        _patch_lsp_for_real_run(lsp, tmpdir, fixture_path, content, lang)
+        result = _resolve_real(lsp, binary, lang, fixture_path, ref_line, ref_char)
+    return fixture_path, *_extract_result(result)
+
+
+def _write_evidence(binary, lang, fixture_path, defs):
+    ev = {"ac5": "real-run", "binary": binary, "language": lang,
+          "target": fixture_path, "resolved": defs}
+    (REPO_ROOT / "verification-evidence.json").write_text(json.dumps(ev, indent=2))
+
+
+def _ts_npm_dep_present():
+    try:
+        out = subprocess.check_output(
+            ["npm", "ls", "-g", "typescript"], stderr=subprocess.DEVNULL, text=True)
+        return "typescript" in out and "empty" not in out
+    except Exception:
+        return False
+
+
+def _ts_binary_usable():
+    return bool(shutil.which("typescript-language-server")) and _ts_npm_dep_present()
+
+
 @skipUnless(
-    shutil.which("typescript-language-server") or
-    shutil.which("pyright-langserver") or
-    shutil.which("pyright") or
-    shutil.which("tsserver"),
+    shutil.which("pyright-langserver") or shutil.which("pyright") or
+    shutil.which("typescript-language-server") or shutil.which("tsserver"),
     "No real LS binary on PATH — AC5 deferred",
 )
 class TestRealLsResolvesDefinition(unittest.TestCase):
-    """AC5: real LS on PATH → spawn, assert non-empty definitions[]."""
+    """AC5: real LS on PATH → self-fixtured run, assert non-empty definitions[]."""
 
-    def test_real_ls_resolves_definition(self):
-        lsp = _load_lsp()
-        binary = (shutil.which("typescript-language-server") or
-                  shutil.which("tsserver"))
-        self.assertIsNotNone(binary, "Expected a TS LS binary")
-        ts_files = list(REPO_ROOT.rglob("*.ts"))
-        if not ts_files:
-            self.skipTest("No .ts files in repo for real-LS test")
-        target = ts_files[0]
+    def _assert_definition(self, is_err, defs, expected_file, expected_line):
+        self.assertFalse(is_err, f"Real LS error; defs={defs}")
+        self.assertGreater(len(defs), 0, "definitions[] was empty — LS did not resolve")
+        self.assertEqual(defs[0]["file"], expected_file)
+        self.assertEqual(defs[0]["line"], expected_line)
 
-        def real_factory(_binary):
-            import subprocess
-            return subprocess.Popen(
-                [binary, "--stdio"],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-            )
+    def test_real_py_ls_resolves_definition(self):
+        binary = shutil.which("pyright-langserver") or shutil.which("pyright")
+        if not binary:
+            self.skipTest("pyright-langserver not on PATH")
+        fp, is_err, defs = _run_real_definition(binary, "py", 4, 9, _build_py_fixture)
+        _write_evidence(binary, "py", fp, defs)
+        self._assert_definition(is_err, defs, fp, 0)
 
-        pos = lsp.Position(path=str(target), line=0, character=0)
-        result = lsp.run_definition(real_factory, "ts", pos)
-        payload = json.loads(result["content"][0]["text"])
-        evidence_path = REPO_ROOT / "verification-evidence.json"
-        evidence = {"ac5": "real-run", "binary": binary,
-                    "target": str(target), "result": payload}
-        evidence_path.write_text(json.dumps(evidence, indent=2))
-        self.assertFalse(result["isError"], f"Real LS failed: {payload}")
+    def test_real_ts_ls_resolves_definition(self):
+        if not _ts_binary_usable():
+            self.skipTest("typescript-language-server or typescript npm dep absent")
+        binary = shutil.which("typescript-language-server")
+        fp, is_err, defs = _run_real_definition(binary, "typescript", 4, 10, _build_ts_fixture)
+        _write_evidence(binary, "ts", fp, defs)
+        self._assert_definition(is_err, defs, fp, 0)
