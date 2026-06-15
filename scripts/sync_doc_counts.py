@@ -23,16 +23,21 @@ def _skill_dirs(repo_root: pathlib.Path) -> list:
     return list(repo_root.glob("skills/*/SKILL.md"))
 
 
-# WHY: mirrors test_thinking_defaults.py:1162-1173 glob rule exactly so the
-# test helper and the generator share one counting definition.
+# WHY: SSOT for skill count; test_thinking_defaults delegates here so the
+# glob rule is defined once and shared.
 def _count_skills(repo_root: pathlib.Path) -> int:
     return sum(1 for p in _skill_dirs(repo_root) if p.parent.name != "_template")
+
+
+# WHY: SSOT for agent count; test_thinking_defaults delegates here.
+def _count_agents(repo_root: pathlib.Path) -> int:
+    return len(list(repo_root.glob("agents/*.md")))
 
 
 def compute_counts(repo_root: pathlib.Path) -> dict:
     return {
         "skills": _count_skills(repo_root),
-        "agents": len(list(repo_root.glob("agents/*.md"))),
+        "agents": _count_agents(repo_root),
     }
 
 
@@ -43,7 +48,7 @@ def _sub_heading(text: str, n: int) -> str:
 
 
 def _sub_arch_skills(text: str, n: int) -> str:
-    return re.sub(r"(#\s*)\d+(\s+skills\b)", rf"\g<1>{n}\2", text)
+    return re.sub(r"(skills/\s*#\s*)\d+(\s+skills\b)", rf"\g<1>{n}\2", text)
 
 
 def _sub_prose_skills(text: str, n: int) -> str:

@@ -1166,16 +1166,13 @@ class RoleDefaultsTableShowsXhighForPromotedRoles(unittest.TestCase):
 
 
 def _count_active_skills(repo_root):
-    """Counts user-facing skills under `skills/*/SKILL.md`, excluding the
-    scaffolding template. The rule is documented here so the test and the
-    README pin to the same number deterministically.
-    """
-    all_skills = list(repo_root.glob("skills/*/SKILL.md"))
-    return sum(1 for p in all_skills if p.parent.name != "_template")
+    """Delegates to sync_doc_counts._count_skills — generator is SSOT."""
+    return _sync_mod._count_skills(repo_root)
 
 
 def _count_agents(repo_root):
-    return len(list(repo_root.glob("agents/*.md")))
+    """Delegates to sync_doc_counts._count_agents — generator is SSOT."""
+    return _sync_mod._count_agents(repo_root)
 
 
 class ReadmeCountsMatchActualFiles(unittest.TestCase):
