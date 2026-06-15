@@ -31,15 +31,8 @@ setup() {
   echo "$output" | grep -q "12 passed, 0 failed"
 }
 
-@test "A7b agent-table test still passes (templates/ outside agents/)" {
-  run python3 -m pytest "$REPO_ROOT/tests/test_claude_md_agent_table.py" -q \
-    --tb=short 2>&1
-  [ "$status" -eq 0 ]
-}
-
-@test "A7c README counts test still passes (templates/ not a skill)" {
-  run python3 -m pytest \
-    "$REPO_ROOT/tests/test_thinking_defaults.py" \
-    -k "counts_match or readme" -q --tb=short 2>&1
-  [ "$status" -eq 0 ]
-}
+# WHY: A7b/A7c (agent-table + README-count pinning) intentionally live in the CI
+# 'Python test suite' job (tests/test_claude_md_agent_table.py and
+# tests/test_thinking_defaults.py), NOT here — the bats CI job installs only
+# bats + jq, with no python/pytest available. Running python3 -m pytest from a
+# bats test would always fail on CI. See .github/workflows/ci.yml.
