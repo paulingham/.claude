@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_detect_stale_pipeline_state.bats
 # Test harness for scripts/detect-stale-pipeline-state.sh --prune guard.
 #
 # Covers:

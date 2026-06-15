@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_cost_feed_router_signals.bats
 # Story 1 (dynamic-model-router): cost record enriched with four router-training
 # signals. Drives a real non-zero-token SubagentStop envelope through
 # cost-feed.sh and asserts on the written costs.jsonl line.

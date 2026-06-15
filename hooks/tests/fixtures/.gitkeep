@@ -1,2 +1,2 @@
-# Placeholder so git tracks the empty fixtures dir.
-# Slice 1 populates this with jq/stdin fixtures for project-hash specs.
+# Placeholder so git tracks the fixtures dir.
+# Contains: intake-backstop-corpus.jsonl, stuck/ (×9), trace-prompt/ (×2).

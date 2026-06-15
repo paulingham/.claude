@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_eval_model_effectiveness.bats
 # Test harness for skills/eval-model-effectiveness/analyze.py
 # Hermetic: all obs/costs/out paths are in a mktemp tmpdir. Never touches
 # real ~/.claude/learning or ~/.claude/metrics data.

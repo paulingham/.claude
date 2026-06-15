@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_pytest_suite_guard.bats
 # Tests for pytest-suite-guard.sh — a PreToolUse Bash hook.
 # Blocks (exit 2) two command shapes that have hung/corrupted the pipeline:
 #   RULE 1: unbounded whole-suite pytest (no scoping, no timeout).

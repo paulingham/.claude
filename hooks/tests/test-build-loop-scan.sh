@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_build_loop_scan.bats
 # Tests for build-loop-scan.sh + _lib/build_loop_scan{,_cli}.py — the in-build-loop
 # scan gate. Mirrors test-bash-write-guard.sh: hermetic scratch repo + worktree
 # under .claude/worktrees/agent-*, run_*/pass/fail helpers, exit nonzero on any

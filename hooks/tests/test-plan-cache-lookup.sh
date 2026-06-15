@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_plan_cache_lookup.bats
 # Test harness for _plan_cache_write_resume_stub in hooks/_lib/plan-cache-lookup.sh.
 #
 # Covers:

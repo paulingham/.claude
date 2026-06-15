@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_quality_gate_diff_scope.bats
 # Tests for the language-relevance guard on the quality-gate tests check.
 #
 # Gap fixed: _qg_check_tests_python ran the WHOLE-REPO pytest suite with no

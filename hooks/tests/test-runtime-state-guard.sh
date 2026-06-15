@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_runtime_state_guard.bats
 # Tests for runtime-state-guard.sh (PreToolUse:Bash + PreToolUse:Write)
 # Guards against:
 #   - mkdir of pipeline-state/ under REPO_ROOT (Bash tool)

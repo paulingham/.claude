@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_main_branch_guard.bats
 # Tests for main-branch-guard self-denial fix (slice-2).
 # Regression tests: cd <worktree> && gh pr create must exit 0 from worktree CWD.
 # Fix: main-branch-detect.sh:174 REPO_ROOT derived from porcelain head -1, not git rev-parse.
