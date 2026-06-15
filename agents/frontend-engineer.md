@@ -13,6 +13,8 @@ tools:
   - Computer
   - mcp_lsp_diagnostics_ts
   - mcp_lsp_diagnostics_py
+  - mcp_lsp_definition_ts
+  - mcp_lsp_definition_py
   - mcp_chrome_devtools_navigate_page
   - mcp_chrome_devtools_list_console_messages
   - mcp_chrome_devtools_list_network_requests
