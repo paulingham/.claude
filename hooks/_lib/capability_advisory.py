@@ -60,6 +60,7 @@ def emit_once(
     session_id: str,
     marker_dir: str,
     *,
+    server: str | None = None,
     emit_fn=print,
     suppress_list: list | None = None,
 ) -> bool:
@@ -68,7 +69,7 @@ def emit_once(
         return False
     if advisory_already_emitted(capability, session_id, marker_dir):
         return False
-    text = advisory_text_for_status(status, None)
+    text = advisory_text_for_status(status, server)
     emit_fn(text)
     _marker_path(capability, session_id, marker_dir).touch()
     return True

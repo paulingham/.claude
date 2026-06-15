@@ -88,3 +88,38 @@ def test_suppress_entry_silences_class(tmp_path):
     )
     assert result is False
     assert len(call_count) == 0
+
+
+# ---------------------------------------------------------------------------
+# AC6d — emit_once threads real server name into advisory text
+# ---------------------------------------------------------------------------
+
+def test_emit_once_names_real_server(tmp_path):
+    """emit_once with server='DesignSync' emits text naming DesignSync, not 'unknown'."""
+    marker_dir = tmp_path / "markers"
+    marker_dir.mkdir()
+    emitted = []
+
+    ca.emit_once(
+        "design-source", "needs-auth", "sess-emit-server",
+        str(marker_dir), server="DesignSync", emit_fn=emitted.append,
+    )
+
+    assert len(emitted) == 1
+    assert "DesignSync" in emitted[0]
+    assert "unknown" not in emitted[0]
+
+
+def test_emit_once_no_server_falls_back_gracefully(tmp_path):
+    """emit_once with no server kwarg falls back to 'unknown' without crashing."""
+    marker_dir = tmp_path / "markers"
+    marker_dir.mkdir()
+    emitted = []
+
+    ca.emit_once(
+        "design-source", "needs-auth", "sess-emit-noserver",
+        str(marker_dir), emit_fn=emitted.append,
+    )
+
+    assert len(emitted) == 1
+    assert "unknown" in emitted[0]

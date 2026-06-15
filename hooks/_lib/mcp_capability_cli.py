@@ -66,8 +66,9 @@ def _ensure_lib() -> None:
 def _advisory_for(cap_class: str, entry: dict | None, session_id: str) -> None:
     import capability_advisory as ca
     status = entry["status"] if entry else "absent"
+    server = entry.get("server") if entry else None
     if status in ("absent", "needs-auth"):
-        ca.emit_once(cap_class, status, session_id, str(_marker_dir()), emit_fn=print)
+        ca.emit_once(cap_class, status, session_id, str(_marker_dir()), server=server, emit_fn=print)
 
 def _emit_advisories(manifest: dict, session_id: str) -> None:
     _ensure_lib()
