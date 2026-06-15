@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_eval_capture_hook.bats
 # Story 5 tests: auto-capture on PR merge hook.
 # Hermetic — uses mock gh via CLAUDE_EVAL_FIX_DIR / CLAUDE_EVAL_FIXTURE.
 set -uo pipefail

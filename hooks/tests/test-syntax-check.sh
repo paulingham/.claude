@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_syntax_check.bats
 # Tests for syntax-check.sh (PostToolUse BLOCKING syntax gate)
 # Verifies the hook rejects (exit 2) un-parseable code before it lands and
 # stays out of the way (exit 0) for valid code, unsupported files, missing

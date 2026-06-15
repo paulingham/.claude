@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_intake_backstop.bats
 # Tests for the intake-backstop enforcement chain (task: intake-backstop-enforce).
 #
 # Covers:

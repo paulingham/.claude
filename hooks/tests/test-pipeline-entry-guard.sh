@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_pipeline_entry_guard.bats
 # Tests for pipeline-entry-guard.sh block path — slice-3 integration tests.
 #
 # Exercises the block path by synthesizing absent-signal context:

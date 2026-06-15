@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/test_registration_invariant_green.bats
 # test-hook-registration-invariant.sh — ACs for ws-e-dead-hooks-audit
 # AC1  probe hook and orphaned test files deleted
 # AC2  every hooks/*.sh is registered in settings.json or hooks.json (or allowlisted/exempted)

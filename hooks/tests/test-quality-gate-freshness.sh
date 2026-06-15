@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_quality_gate_freshness.bats
 # Test harness for _qg_check_freshness worktree-path extraction in
 # hooks/_lib/quality-gate-checks.sh.
 #

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CI-BRIDGE: run by tests/shell/bridge_pipeline_analytics.bats
 # Tests for pipeline-analytics.sh ordering invariant (slice-4).
 # AC-4.1: analytics exits 0 when state present at call time.
 # AC-4.1: analytics exits 1 when state already cleaned (strict invariant preserved).
