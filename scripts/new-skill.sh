@@ -52,15 +52,12 @@ _print_diff() {
 }
 
 _create_skill() {
-  local dest="$1" cur="$2" new_count="$3"
+  local dest="$1"
   mkdir -p "$(dirname "$dest")"
   sed "s/your-skill-name-kebab-case/$SKILL_NAME/" "$TEMPLATE" > "$dest"
-  sed -i.bak \
-    -e "s/## Skills ($cur)/## Skills ($new_count)/" \
-    -e "s/# $cur skills/# $new_count skills/" \
-    "$REPO_ROOT/README.md" && rm -f "$REPO_ROOT/README.md.bak"
+  python3 "$SCRIPT_DIR/sync_doc_counts.py" --write --repo-root "$REPO_ROOT"
   echo "  Created: $dest"
-  echo "  Updated: README.md Skills count -> $new_count"
+  echo "  Updated: README.md Skills count via generator"
 }
 
 main() {
@@ -75,7 +72,7 @@ main() {
     exit 0
   fi
   if _oc_confirm; then
-    _create_skill "$dest" "$cur" "$new_count"
+    _create_skill "$dest"
   else
     echo "Aborted." >&2
     exit 1

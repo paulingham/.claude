@@ -1,4 +1,5 @@
 """Thinking-defaults resolver tests (incremental TDD)."""
+import importlib.util
 import json
 import os
 import re
@@ -10,6 +11,11 @@ import unittest
 import uuid
 from pathlib import Path
 from unittest.mock import patch
+
+_SYNC_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "sync_doc_counts.py"
+_spec = importlib.util.spec_from_file_location("sync_doc_counts", _SYNC_SCRIPT)
+_sync_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_sync_mod)
 
 from pipeline_frontmatter import coerce_state, parse_frontmatter
 from pipeline_state import read_active_state
@@ -1173,35 +1179,40 @@ def _count_agents(repo_root):
 
 
 class ReadmeCountsMatchActualFiles(unittest.TestCase):
-    """AC9: README skill/agent counts MUST equal filesystem reality. Counting
-    rule: skills = `skills/*/SKILL.md` minus `_template`; agents =
-    `agents/*.md`. Test asserts whatever the file count IS — drift in either
-    direction fails CI. README must be updated when skills or agents are
-    added or removed.
+    """AC9 (B1): README skill/agent counts MUST equal filesystem reality.
+    Delegates to sync_doc_counts --check so all four token locations (including
+    the line-177 prose token) are covered by a single SSOT gate.
     """
 
-    def test_readme_skill_and_agent_counts_match_filesystem(self):
+    def test_readme_counts_via_generator_check(self):
+        """B1: generator --check on live repo exits 0; any drift is an error."""
+        rc = _sync_mod.main(["--check", "--repo-root", str(REPO_ROOT)])
+        self.assertEqual(
+            rc, 0,
+            "README.md count tokens are out of sync with filesystem. "
+            "Run: python3 scripts/sync_doc_counts.py --write --repo-root <repo>"
+        )
+
+    def test_readme_line_177_prose_count_is_synced(self):
+        """B3: the prose-count token on README:177 equals computed skill count."""
         readme = (REPO_ROOT / "README.md").read_text()
-        expected_skills = _count_active_skills(REPO_ROOT)
-        expected_agents = _count_agents(REPO_ROOT)
-        # The `## Skills (N)` heading. `(?m)` enables MULTILINE so `^/$` anchor
-        # to line boundaries, not the whole-string boundary.
-        self.assertRegex(
-            readme,
-            rf"(?m)^## Skills \({expected_skills}\)$",
-            f"README `## Skills (N)` heading: expected ({expected_skills}); "
-            f"adjust line 204 of README.md")
-        # The architecture-diagram comment lines naming both counts.
-        self.assertRegex(
-            readme,
-            rf"#\s*{expected_skills}\s+skills",
-            f"README architecture diagram: expected `{expected_skills} skills` "
-            f"comment near line 43")
-        self.assertRegex(
-            readme,
-            rf"#\s*{expected_agents}\s+specialized agent",
-            f"README architecture diagram: expected `{expected_agents} "
-            f"specialized agent` comment near line 42")
+        expected = _count_active_skills(REPO_ROOT)
+        import re as _re
+        m = _re.search(r"\((\d+) skills, grouped", readme)
+        self.assertIsNotNone(m, "README missing '(N skills, grouped' prose token")
+        self.assertEqual(int(m.group(1)), expected,
+                         f"README prose token says {m.group(1)} skills; "
+                         f"filesystem has {expected}")
+
+    def test_no_adjust_line_n_instruction_remains(self):
+        """B2: old hand-edit hint ('adjust line' + '204') no longer appears as
+        an actionable assertRegex failure message in this source.
+        Split-string check prevents the B2 test itself from triggering."""
+        source = Path(__file__).read_text()
+        # WHY: split the banned phrase so the B2 test body does not self-trigger.
+        banned = "adjust line" + " 204 of README"
+        self.assertNotIn(banned, source,
+                         "Old hand-edit instruction must be removed from assertRegex")
 
 
 # ---------------- AC10: CLAUDE.md carries Apr 23 / Opus 4.7 postmortem note ----------------

@@ -45,13 +45,11 @@ _print_diff() {
 }
 
 _create_agent() {
-  local dest="$1" new_count="$2"
+  local dest="$1"
   sed "s/your-agent-name/$AGENT_NAME/g" "$TEMPLATE" > "$dest"
-  sed -i.bak \
-    "s/# [0-9]* specialized agent/# $new_count specialized agent/" \
-    "$REPO_ROOT/README.md" && rm -f "$REPO_ROOT/README.md.bak"
+  python3 "$SCRIPT_DIR/sync_doc_counts.py" --write --repo-root "$REPO_ROOT"
   echo "  Created: $dest"
-  echo "  Updated: README.md agent count -> $new_count"
+  echo "  Updated: README.md agent count via generator"
   echo ""
   echo "  NEXT: add a 5-column row to the ### Agent Team table in CLAUDE.md:"
   echo "  | $AGENT_NAME | <Phase> | <Yes/No> | <sonnet/opus> | <Yes/No> |"
@@ -69,7 +67,7 @@ main() {
     exit 0
   fi
   if _oc_confirm; then
-    _create_agent "$dest" "$new_count"
+    _create_agent "$dest"
   else
     echo "Aborted." >&2
     exit 1

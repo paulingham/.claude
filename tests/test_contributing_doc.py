@@ -110,5 +110,19 @@ class SkillsReadmeBreadcrumb(unittest.TestCase):
                          "skills/README.md must NOT appear in skills/*/SKILL.md glob")
 
 
+class VerdictCatalogManualNote(unittest.TestCase):
+    """B4 — CONTRIBUTING.md carries a note that the generator syncs counts,
+    not verdict-catalog.md rows (those are manual).
+    """
+
+    def test_contributing_notes_verdict_catalog_is_manual(self):
+        text = CONTRIBUTING.read_text()
+        self.assertIn(
+            "generator syncs counts",
+            text,
+            "CONTRIBUTING.md must state the generator syncs counts not verdict rows"
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
