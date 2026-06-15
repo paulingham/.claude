@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "capability": "design-source",
+      "name_regex": ["(?i)designsync", "(?i)figma", "(?i)design.?token"],
+      "tool_family": [
+        "*get*file*", "*list*components*", "*get*variables*", "*design*tokens*"
+      ],
+      "tool_roles": {},
+      "adapter_hint": {"designsync": "designsync", "figma": "figma"}
+    },
+    {
+      "capability": "issue-tracker",
+      "name_regex": ["(?i)jira", "(?i)linear", "(?i)trello", "(?i)github.?issue"],
+      "tool_family": [
+        "*transition*", "*create*issue*", "*list*transitions*", "*move*card*"
+      ],
+      "tool_roles": {},
+      "adapter_hint": {}
+    },
+    {
+      "capability": "lsp-nav",
+      "name_regex": ["(?i)lsp", "(?i)language.?server"],
+      "tool_family": [
+        "*definition*", "*references*", "*hover*", "*completion*"
+      ],
+      "tool_roles": {},
+      "adapter_hint": {}
+    }
+  ]
+}

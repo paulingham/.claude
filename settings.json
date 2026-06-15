@@ -3,7 +3,7 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_HOOK_PROFILE": "standard",
     "ENABLE_TOOL_SEARCH": "true",
-    "_doc_ENABLE_TOOL_SEARCH": "Pin explicit. Default already defers all MCP tools behind ToolSearch (lowest upfront-token cost). `auto` was REJECTED at intake because its 10%-context-window threshold mode loads small servers upfront — INCREASES tool-definition tokens vs default. This pin guards against a future Claude Code default flip. Source: https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search. Requires Sonnet 4+ or Opus 4+ (Haiku unsupported). See protocols/_proposals/2026-05-15-mcp-tool-config.md for full rationale.",
+    "_doc_ENABLE_TOOL_SEARCH": "Pin explicit. Default already defers all MCP tools behind ToolSearch (lowest upfront-token cost). `auto` was REJECTED at intake because its 10%-context-window threshold mode loads small servers upfront \u2014 INCREASES tool-definition tokens vs default. This pin guards against a future Claude Code default flip. Source: https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search. Requires Sonnet 4+ or Opus 4+ (Haiku unsupported). See protocols/_proposals/2026-05-15-mcp-tool-config.md for full rationale.",
     "CLAUDE_PIPELINE_TASK_ID": "",
     "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
     "CLAUDE_PIPELINE_MODE": "autonomous",
@@ -123,7 +123,7 @@
             "command": "bash",
             "args": [
               "-c",
-              "{ ls pipeline-state/*-pipeline.md pipeline-state/*/pipeline.md; } 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'"
+              "{ ls pipeline-state/*-pipeline.md pipeline-state/*/pipeline.md; } 2>/dev/null && echo 'Pipeline state files found \u2014 resume from current phase.' || echo 'No active pipeline.'"
             ],
             "timeout": 10000
           }
@@ -910,6 +910,15 @@
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/harness-audit-advisory.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/mcp-capability-detect.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 10000
           }
         ]
       },
@@ -921,7 +930,7 @@
             "command": "bash",
             "args": [
               "-c",
-              "printf 'CONTEXT COMPACTED — Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ — review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases — invoke via Skill tool\\n5. Agent Teams enabled — use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory — check .claude/agent-memory/'"
+              "printf 'CONTEXT COMPACTED \u2014 Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Rules are in ~/.claude/rules/ \u2014 review if uncertain about protocol\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases \u2014 invoke via Skill tool\\n5. Agent Teams enabled \u2014 use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory \u2014 check .claude/agent-memory/'"
             ],
             "timeout": 10000
           }
@@ -955,7 +964,7 @@
           },
           {
             "type": "agent",
-            "prompt": "Verify autonomous continuation is safe. Respond {\"ok\": true} UNLESS the stop would leave the system in a destructive or data-loss state. Bias strongly toward {\"ok\": true}: questions, uncertainty, incomplete polish, missing tests, TODO comments, uncommitted-but-safe changes — all return {\"ok\": true}. Only return {\"ok\": false, \"reason\": \"...\"} when: (a) an in-progress destructive operation would be abandoned (partial rm, partial migration), or (b) pipeline-state/*-pipeline.md is mid-phase and abandoning it would lose work. Never use {\"ok\": false} to ask the user a clarifying question — the orchestrator must self-resolve those. If stop_hook_active is true, immediately respond {\"ok\": true} to avoid loops.",
+            "prompt": "Verify autonomous continuation is safe. Respond {\"ok\": true} UNLESS the stop would leave the system in a destructive or data-loss state. Bias strongly toward {\"ok\": true}: questions, uncertainty, incomplete polish, missing tests, TODO comments, uncommitted-but-safe changes \u2014 all return {\"ok\": true}. Only return {\"ok\": false, \"reason\": \"...\"} when: (a) an in-progress destructive operation would be abandoned (partial rm, partial migration), or (b) pipeline-state/*-pipeline.md is mid-phase and abandoning it would lose work. Never use {\"ok\": false} to ask the user a clarifying question \u2014 the orchestrator must self-resolve those. If stop_hook_active is true, immediately respond {\"ok\": true} to avoid loops.",
             "timeout": 120
           },
           {
@@ -1278,7 +1287,7 @@
         "--ignore-scripts",
         "chrome-devtools-mcp@0.26.0"
       ],
-      "_comment": "Pinned to 0.26.0. Future hardening: replace npx with npm ci against committed lockfile under ~/.claude/mcp-servers/chrome-devtools/ — tracked separately. Provenance: github.com/ChromeDevTools/chrome-devtools-mcp (Google org)."
+      "_comment": "Pinned to 0.26.0. Future hardening: replace npx with npm ci against committed lockfile under ~/.claude/mcp-servers/chrome-devtools/ \u2014 tracked separately. Provenance: github.com/ChromeDevTools/chrome-devtools-mcp (Google org)."
     }
   }
 }

@@ -8,7 +8,7 @@
             "command": "bash",
             "args": [
               "-c",
-              "{ ls pipeline-state/*-pipeline.md pipeline-state/*/pipeline.md; } 2>/dev/null && echo 'Pipeline state files found — resume from current phase.' || echo 'No active pipeline.'"
+              "{ ls pipeline-state/*-pipeline.md pipeline-state/*/pipeline.md; } 2>/dev/null && echo 'Pipeline state files found \u2014 resume from current phase.' || echo 'No active pipeline.'"
             ],
             "timeout": 10000
           }
@@ -783,6 +783,15 @@
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/root-snapshot-capture.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/mcp-capability-detect.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 10000
           }
         ]
       },
@@ -794,7 +803,7 @@
             "command": "bash",
             "args": [
               "-c",
-              "printf 'CONTEXT COMPACTED — Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Iron Laws in ~/.claude/rules/core.md; full protocols in ~/.claude/protocols/ — review if uncertain\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases — invoke via Skill tool\\n5. Agent Teams enabled — use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory — check .claude/agent-memory/'"
+              "printf 'CONTEXT COMPACTED \u2014 Critical reminders:\\n1. Check pipeline-state/*-pipeline.md for in-progress pipelines before continuing any work\\n2. Iron Laws in ~/.claude/rules/core.md; full protocols in ~/.claude/protocols/ \u2014 review if uncertain\\n3. All code changes go through agents (orchestrator never writes source files)\\n4. Skills are mandatory for pipeline phases \u2014 invoke via Skill tool\\n5. Agent Teams enabled \u2014 use for complex multi-domain work\\n6. Specialized agents (code-reviewer, software-engineer) have persistent memory \u2014 check .claude/agent-memory/'"
             ],
             "timeout": 10000
           }
@@ -815,7 +824,7 @@
           },
           {
             "type": "agent",
-            "prompt": "Verify autonomous continuation is safe. Respond {\"ok\": true} UNLESS the stop would leave the system in a destructive or data-loss state. Bias strongly toward {\"ok\": true}: questions, uncertainty, incomplete polish, missing tests, TODO comments, uncommitted-but-safe changes — all return {\"ok\": true}. Only return {\"ok\": false, \"reason\": \"...\"} when: (a) an in-progress destructive operation would be abandoned (partial rm, partial migration), or (b) pipeline-state/*-pipeline.md is mid-phase and abandoning it would lose work. Never use {\"ok\": false} to ask the user a clarifying question — the orchestrator must self-resolve those. If stop_hook_active is true, immediately respond {\"ok\": true} to avoid loops.",
+            "prompt": "Verify autonomous continuation is safe. Respond {\"ok\": true} UNLESS the stop would leave the system in a destructive or data-loss state. Bias strongly toward {\"ok\": true}: questions, uncertainty, incomplete polish, missing tests, TODO comments, uncommitted-but-safe changes \u2014 all return {\"ok\": true}. Only return {\"ok\": false, \"reason\": \"...\"} when: (a) an in-progress destructive operation would be abandoned (partial rm, partial migration), or (b) pipeline-state/*-pipeline.md is mid-phase and abandoning it would lose work. Never use {\"ok\": false} to ask the user a clarifying question \u2014 the orchestrator must self-resolve those. If stop_hook_active is true, immediately respond {\"ok\": true} to avoid loops.",
             "timeout": 120
           },
           {
