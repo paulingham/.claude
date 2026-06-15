@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # new-hook.sh — scaffold a new hook under hooks/<name>.sh and wire BOTH registries.
 # Usage: new-hook.sh <hook-name> <Event>
-# Events: PreToolUse | PostToolUse | PostCompact | Stop
 # WHY: hooks require DUAL registration in hooks/hooks.json AND settings.json;
 #      missing either means the hook silently never fires in some contexts.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${CLAUDE_ONRAMP_REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+# shellcheck source=_lib/onramp-common.sh
+source "$SCRIPT_DIR/_lib/onramp-common.sh"
 
 TEMPLATE="$REPO_ROOT/templates/hook-template.sh"
 HOOKS_JSON="${CLAUDE_ONRAMP_HOOKS_JSON:-$REPO_ROOT/hooks/hooks.json}"
@@ -17,7 +18,7 @@ EVENT=""
 
 _usage() {
   echo "Usage: $0 <hook-name-kebab-case> <Event>" >&2
-  echo "  Events: PreToolUse | PostToolUse | PostCompact | Stop" >&2
+  echo "  Valid events: ${_OC_VALID_EVENTS[*]}" >&2
   exit 1
 }
 
@@ -26,6 +27,8 @@ _parse_args() {
   [[ $# -eq 2 ]] || _usage
   HOOK_NAME="$1"
   EVENT="$2"
+  _oc_validate_name "$HOOK_NAME"
+  _oc_validate_event "$EVENT"
 }
 
 _idiom_command() {
@@ -49,8 +52,14 @@ _backup() {
 }
 
 _restore_backups() {
+  local dest="$1"
   cp "${HOOKS_JSON}.bak" "$HOOKS_JSON"
   cp "${SETTINGS_JSON}.bak" "$SETTINGS_JSON"
+  rm -f "$dest"
+}
+
+_cleanup_backups() {
+  rm -f "${HOOKS_JSON}.bak" "${SETTINGS_JSON}.bak"
 }
 
 _validate_json() {
@@ -99,27 +108,12 @@ _run_invariant() {
   fi
 }
 
-_confirm_or_decline() {
-  if [[ "${CLAUDE_ONRAMP_AUTOCONFIRM:-0}" == "1" ]]; then
-    return 0
-  fi
-  if [[ "${CLAUDE_ONRAMP_DECLINE:-0}" == "1" ]]; then
-    return 1
-  fi
-  printf '\nProceed with registration? [y/N] '
-  read -r answer
-  case "$answer" in
-    y|Y|yes|YES) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
 main() {
   _parse_args "$@"
   local dest="$HOOKS_DIR/$HOOK_NAME.sh"
   [[ -e "$dest" ]] && { echo "hook already exists: $dest" >&2; exit 1; }
   _print_proposed_diff "$dest"
-  if ! _confirm_or_decline; then
+  if ! _oc_confirm; then
     echo ""
     echo "WARNING: Registration SKIPPED — $HOOKS_DIR/$HOOK_NAME.sh is NOT wired." >&2
     echo "Re-run scripts/new-hook.sh $HOOK_NAME $EVENT and confirm to register" >&2
@@ -131,9 +125,10 @@ main() {
   _wire_both_registries
   if ! _validate_json; then
     echo "ERROR: registry JSON invalid after write — restoring backups" >&2
-    _restore_backups
+    _restore_backups "$dest"
     exit 1
   fi
+  _cleanup_backups
   echo "  Updated: $HOOKS_JSON"
   echo "  Updated: $SETTINGS_JSON"
   _run_invariant

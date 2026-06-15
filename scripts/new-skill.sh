@@ -5,7 +5,9 @@
 #      this script keeps the filesystem and README count in sync atomically.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="${CLAUDE_ONRAMP_REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+# shellcheck source=_lib/onramp-common.sh
+source "$SCRIPT_DIR/_lib/onramp-common.sh"
 
 TEMPLATE="$REPO_ROOT/templates/skill-reference/SKILL.md"
 DRY_RUN=0
@@ -27,6 +29,7 @@ _parse_args() {
     esac
   done
   [[ -n "$SKILL_NAME" ]] || _usage
+  _oc_validate_name "$SKILL_NAME"
 }
 
 _current_skill_count() {
@@ -41,17 +44,20 @@ _current_skill_count() {
 }
 
 _print_diff() {
-  local dest="$1" new_count="$2"
+  local dest="$1" cur="$2" new_count="$3"
   echo "=== Proposed changes ==="
   echo "  CREATE $dest"
-  echo "  UPDATE README.md: ## Skills ($((new_count-1))) -> ## Skills ($new_count)"
+  echo "  UPDATE README.md: ## Skills ($cur) -> ## Skills ($new_count)"
+  echo "  UPDATE README.md: # $cur skills -> # $new_count skills (arch diagram)"
 }
 
 _create_skill() {
-  local dest="$1" new_count="$2"
+  local dest="$1" cur="$2" new_count="$3"
   mkdir -p "$(dirname "$dest")"
   sed "s/your-skill-name-kebab-case/$SKILL_NAME/" "$TEMPLATE" > "$dest"
-  sed -i.bak "s/## Skills ($((new_count-1)))/## Skills ($new_count)/" \
+  sed -i.bak \
+    -e "s/## Skills ($cur)/## Skills ($new_count)/" \
+    -e "s/# $cur skills/# $new_count skills/" \
     "$REPO_ROOT/README.md" && rm -f "$REPO_ROOT/README.md.bak"
   echo "  Created: $dest"
   echo "  Updated: README.md Skills count -> $new_count"
@@ -63,17 +69,17 @@ main() {
   [[ -e "$dest" ]] && { echo "skill already exists: $dest" >&2; exit 1; }
   local cur; cur="$(_current_skill_count)"
   local new_count=$((cur+1))
-  _print_diff "$dest" "$new_count"
+  _print_diff "$dest" "$cur" "$new_count"
   if [[ "$DRY_RUN" -eq 1 ]]; then
     echo "(dry-run — nothing written)"
     exit 0
   fi
-  printf '\nProceed? [y/N] '
-  read -r answer
-  case "$answer" in
-    y|Y|yes|YES) _create_skill "$dest" "$new_count" ;;
-    *) echo "Aborted." >&2; exit 1 ;;
-  esac
+  if _oc_confirm; then
+    _create_skill "$dest" "$cur" "$new_count"
+  else
+    echo "Aborted." >&2
+    exit 1
+  fi
 }
 
 main "$@"

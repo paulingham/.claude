@@ -5,7 +5,9 @@
 #      adding a file without updating CLAUDE.md + README count breaks CI.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="${CLAUDE_ONRAMP_REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+# shellcheck source=_lib/onramp-common.sh
+source "$SCRIPT_DIR/_lib/onramp-common.sh"
 
 TEMPLATE="$REPO_ROOT/templates/agent-template.md"
 DRY_RUN=0
@@ -27,6 +29,7 @@ _parse_args() {
     esac
   done
   [[ -n "$AGENT_NAME" ]] || _usage
+  _oc_validate_name "$AGENT_NAME"
 }
 
 _current_agent_count() {
@@ -65,12 +68,12 @@ main() {
     echo "(dry-run — nothing written)"
     exit 0
   fi
-  printf '\nProceed? [y/N] '
-  read -r answer
-  case "$answer" in
-    y|Y|yes|YES) _create_agent "$dest" "$new_count" ;;
-    *) echo "Aborted." >&2; exit 1 ;;
-  esac
+  if _oc_confirm; then
+    _create_agent "$dest" "$new_count"
+  else
+    echo "Aborted." >&2
+    exit 1
+  fi
 }
 
 main "$@"
