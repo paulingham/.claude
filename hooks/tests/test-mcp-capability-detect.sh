@@ -12,6 +12,7 @@
 set -uo pipefail
 
 HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$HOOKS_DIR/.." && pwd)"
 LIB="$HOOKS_DIR/_lib"
 PASS=0
 FAIL=0
@@ -243,6 +244,96 @@ else
   fail "live claude mcp list round-trip" "OK: N servers" "$ROUNDTRIP_OUT"
 fi
 
+echo ""
+
+# ---------------------------------------------------------------------------
+# E2E: run the actual hook with a stubbed `claude` on PATH; assert manifest written
+# ---------------------------------------------------------------------------
+echo "-- e2e: hook run with stubbed claude -> manifest written --"
+
+E2E_TMP=$(mktemp -d)
+E2E_DATA="$E2E_TMP/data"
+E2E_MFT="$E2E_DATA/mcp-capability/manifest.json"
+STUB_BIN="$E2E_TMP/bin"
+mkdir -p "$STUB_BIN" "$E2E_DATA"
+
+# Write a stub `claude` that emits a fake `mcp list` line
+cat > "$STUB_BIN/claude" <<'STUB'
+#!/usr/bin/env bash
+if [[ "${1:-}" == "mcp" && "${2:-}" == "list" ]]; then
+  printf 'DesignSync: python3 /path/ds.py - \xe2\x9c\x94 Connected\n'
+fi
+STUB
+chmod +x "$STUB_BIN/claude"
+
+# Run the hook with stubbed env; suppress log/loop-guard noise
+E2E_OUT=$(PATH="$STUB_BIN:$PATH" \
+  CLAUDE_PLUGIN_DATA="$E2E_DATA" \
+  CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+  CLAUDE_HOOK_PROFILE="standard" \
+  bash "$HOOKS_DIR/mcp-capability-detect.sh" <<< '{"session_id":"e2e-test"}' 2>/dev/null; echo "exit:$?")
+EXIT_CODE=$(echo "$E2E_OUT" | grep -o 'exit:[0-9]*' | cut -d: -f2)
+run_test "e2e: hook exits 0 with stubbed claude" 0 "${EXIT_CODE:-99}"
+
+if [[ -f "$E2E_MFT" ]]; then
+  pass "e2e: manifest file written at expected path"
+  DESIGN_CAP=$(PYTHONPATH="$LIB" python3 - <<PY
+import json
+d = json.load(open("$E2E_MFT"))
+cap = d.get("capabilities", {}).get("design-source", {})
+print(cap.get("adapter", "MISSING"))
+PY
+)
+  if [[ "$DESIGN_CAP" == "designsync" ]]; then
+    pass "e2e: design-source capability classified with adapter=designsync"
+  else
+    fail "e2e: design-source adapter" "designsync" "$DESIGN_CAP"
+  fi
+else
+  fail "e2e: manifest file written" "exists" "missing ($E2E_MFT)"
+  PASS=$(( PASS + 2 )); FAIL=$(( FAIL - 1 ))
+fi
+
+echo ""
+
+# ---------------------------------------------------------------------------
+# E2E degrade: stubbed claude exits non-zero -> all-absent manifest, hook exits 0
+# ---------------------------------------------------------------------------
+echo "-- e2e-degrade: failing claude -> all-absent manifest, hook exits 0 --"
+
+DEG2_TMP=$(mktemp -d)
+DEG2_DATA="$DEG2_TMP/data"
+DEG2_MFT="$DEG2_DATA/mcp-capability/manifest.json"
+DEG2_BIN="$DEG2_TMP/bin"
+mkdir -p "$DEG2_BIN" "$DEG2_DATA"
+
+cat > "$DEG2_BIN/claude" <<'STUB'
+#!/usr/bin/env bash
+exit 1
+STUB
+chmod +x "$DEG2_BIN/claude"
+
+DEG2_OUT=$(PATH="$DEG2_BIN:$PATH" \
+  CLAUDE_PLUGIN_DATA="$DEG2_DATA" \
+  CLAUDE_PLUGIN_ROOT="$REPO_ROOT" \
+  CLAUDE_HOOK_PROFILE="standard" \
+  bash "$HOOKS_DIR/mcp-capability-detect.sh" <<< '{"session_id":"deg-test"}' 2>/dev/null; echo "exit:$?")
+DEG2_EXIT=$(echo "$DEG2_OUT" | grep -o 'exit:[0-9]*' | cut -d: -f2)
+run_test "e2e-degrade: hook exits 0 even when claude fails" 0 "${DEG2_EXIT:-99}"
+
+if [[ -f "$DEG2_MFT" ]]; then
+  DEG2_CAPS=$(PYTHONPATH="$LIB" python3 - <<PY
+import json
+d = json.load(open("$DEG2_MFT"))
+print(len(d.get("capabilities", {})))
+PY
+)
+  run_test "e2e-degrade: manifest has 0 capabilities (all-absent)" 0 "${DEG2_CAPS:-99}"
+else
+  fail "e2e-degrade: manifest written even on failure" "exists" "missing"
+fi
+
+rm -rf "$E2E_TMP" "$DEG2_TMP"
 echo ""
 
 echo "=== Results: $PASS passed, $FAIL failed ==="

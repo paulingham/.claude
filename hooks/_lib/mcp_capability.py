@@ -156,9 +156,27 @@ def classify_server(server: dict, rules: list, overrides: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _cap_entry(s: dict, status: str, overrides: dict) -> dict:
+def _design_rule(rules: list) -> dict:
+    for r in rules:
+        if r.get("capability") == "design-source":
+            return r
+    return {}
+def _resolve_adapter(name: str, rules: list) -> str:
+    hints: dict = _design_rule(rules).get("adapter_hint", {})
+    for pattern, adapter in hints.items():
+        if re.search(pattern, name, re.IGNORECASE):
+            return adapter
+    return ""
+def _base_entry(s: dict, status: str, overrides: dict) -> dict:
     by = "override" if s["name"] in overrides else "rules"
     return {"status": status, "server": s["name"], "classified_by": by}
+def _cap_entry(s: dict, status: str, overrides: dict, cap: str = "", rules: list | None = None) -> dict:
+    entry = _base_entry(s, status, overrides)
+    if cap == "design-source" and rules:
+        adapter = _resolve_adapter(s["name"], rules)
+        if adapter:
+            entry["adapter"] = adapter
+    return entry
 # ---------------------------------------------------------------------------
 
 
@@ -168,11 +186,11 @@ def _classify_one(s: dict, rules: list, overrides: dict) -> tuple:
 
 
 def _add_classified(caps: dict, unclassed: list, s: dict,
-                    cap: str, status: str, overrides: dict) -> None:
+                    cap: str, status: str, overrides: dict, rules: list | None = None) -> None:
     if cap == "unclassified":
         unclassed.append({"server": s["name"], "status": status})
     else:
-        caps[cap] = _cap_entry(s, status, overrides)
+        caps[cap] = _cap_entry(s, status, overrides, cap=cap, rules=rules)
 # ---------------------------------------------------------------------------
 
 
@@ -181,7 +199,7 @@ def _partition(servers: list, rules: list, overrides: dict) -> tuple:
     unclassed: list = []
     for s in servers:
         cap, status = _classify_one(s, rules, overrides)
-        _add_classified(caps, unclassed, s, cap, status, overrides)
+        _add_classified(caps, unclassed, s, cap, status, overrides, rules=rules)
     return caps, unclassed
 # ---------------------------------------------------------------------------
 
