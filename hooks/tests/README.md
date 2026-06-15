@@ -34,7 +34,7 @@ be deleted.
 | test-pytest-suite-guard.sh | tests/shell/bridge_pytest_suite_guard.bats | BRIDGED |
 | test-quality-gate-diff-scope.sh | tests/shell/bridge_quality_gate_diff_scope.bats | BRIDGED |
 | test-quality-gate-freshness.sh | tests/shell/bridge_quality_gate_freshness.bats | BRIDGED |
-| test-root-tree-clean-check.sh | tests/shell/bridge_root_tree_clean_check.bats | BRIDGED |
+| test-root-tree-clean-check.sh | — | QUARANTINED — macOS-green / Linux-red — portability gap in harness (passes locally on bash 3.2, fails on CI bash 4/ubuntu); needs portability-refresh follow-up |
 | test-runtime-state-guard.sh | tests/shell/bridge_runtime_state_guard.bats | BRIDGED |
 | test-session-start-bootstrap.sh | — | QUARANTINED — hook likely renamed/restructured (5p/12f) |
 | test-syntax-check.sh | tests/shell/bridge_syntax_check.bats | BRIDGED |

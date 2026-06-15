@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# CI-BRIDGE: run by tests/shell/bridge_root_tree_clean_check.bats
 # Tests for root-tree-clean-check.sh (Stop + SessionEnd)
 # Asserts root-tree cleanliness against a session-start snapshot.
 # Also tests root-snapshot-capture.sh (SessionStart companion).
