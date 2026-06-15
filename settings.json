@@ -447,6 +447,15 @@
             "command": "bash",
             "args": [
               "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/runtime-state-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/pytest-suite-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
@@ -610,6 +619,20 @@
             "command": "bash",
             "args": [
               "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/runtime-state-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/spec-blind-write-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
@@ -738,6 +761,15 @@
             "args": [
               "-lc",
               "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/runtime-guard.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/agentic-security-gate.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
             ],
             "timeout": 5000
           },

@@ -148,3 +148,173 @@ _is_live_only_exempt() {
     return 1
   fi
 }
+
+# --------------------------------------------------------------------------
+# AC-D1: REVERSE parity — every ENFORCING (exit 2) hook in hooks.json must
+#         also appear in settings.json OR be on the hooks-json-only allowlist.
+#
+# WHY: settings.json is enforced independently of hooks.json (#18517).
+#      An enforcing hook absent from settings.json is silently bypassed on
+#      direct-install sessions that load settings.json but not hooks.json.
+#      This catches future dual-registration drift like the runtime-state-guard
+#      / agentic-security-gate gap closed by this task.
+# --------------------------------------------------------------------------
+
+# Helper: extract hook basenames registered in hooks.json
+_hooks_json_basenames() {
+  python3 - "$HOOKS_JSON" <<'PYEOF'
+import json, sys, re
+
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+
+basenames = set()
+for event_hooks in data.get("hooks", {}).values():
+    for block in event_hooks:
+        for hook in block.get("hooks", []):
+            args = hook.get("args", [])
+            for arg in args:
+                m = re.search(r'/hooks/([^/"]+\.sh)', arg)
+                if m:
+                    basenames.add(m.group(1))
+print("\n".join(sorted(basenames)))
+PYEOF
+}
+
+# Hooks-json-only allowlist — enforcing hooks intentionally absent from settings.json.
+# WHY: none currently; placeholder so the allowlist pattern is clear for future use.
+_is_hooks_json_only_allowlist() {
+  local basename="$1"
+  case "$basename" in
+    __canary-test-hook-never-real__.sh)
+      return 0 ;;
+  esac
+  return 1
+}
+
+@test "AC-D1: every hooks.json enforcing hook is in settings.json or hooks-json-only allowlist" {
+  local missing=()
+
+  while IFS= read -r basename; do
+    [ -z "$basename" ] && continue
+
+    # Only check hooks that have reachable exit 2
+    _hook_is_enforcing "$basename" || continue
+
+    # Exempt explicitly-allowlisted hooks-json-only entries
+    _is_hooks_json_only_allowlist "$basename" && continue
+
+    # Must be present in settings.json
+    if ! grep -q "$basename" "$SETTINGS_JSON"; then
+      missing+=("$basename")
+    fi
+  done < <(_hooks_json_basenames)
+
+  if [ "${#missing[@]}" -gt 0 ]; then
+    echo "ENFORCING hooks in hooks.json missing from settings.json:"
+    printf '  %s\n' "${missing[@]}"
+    return 1
+  fi
+}
+
+# --------------------------------------------------------------------------
+# AC-D2: CANARY — prove the reverse assertion actually bites.
+#
+# WHY: a canary that never fires is worthless. We inject a synthetic
+#      enforcing hook into hooks.json, run the reverse assertion logic
+#      directly, and assert it returns non-zero (RED). If the canary
+#      itself returns 0, the detector is broken.
+# --------------------------------------------------------------------------
+
+@test "AC-D2: canary — synthetic hooks.json-only enforcing hook makes reverse assertion RED" {
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  local fake_hooks_json="$tmpdir/hooks.json"
+  local fake_hook_script="$tmpdir/canary-enforcing-hook.sh"
+
+  # WHY: write a real shell script with exit 2 so _hook_is_enforcing returns 0.
+  printf '#!/usr/bin/env bash\nexit 2\n' > "$fake_hook_script"
+  chmod +x "$fake_hook_script"
+
+  # Inject the canary basename into a minimal hooks.json fragment
+  python3 - "$HOOKS_JSON" "$fake_hooks_json" "canary-enforcing-hook.sh" <<'PYEOF'
+import json, sys
+
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+
+canary_name = sys.argv[3]
+plugin_root = "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
+canary_entry = {
+    "type": "command",
+    "command": "bash",
+    "args": ["-lc", f'h="{plugin_root}/hooks/{canary_name}"; [ -x "$h" ] && exec "$h" || exit 0'],
+    "timeout": 5000
+}
+
+data.setdefault("hooks", {}).setdefault("PreToolUse", [])
+data["hooks"]["PreToolUse"].append({"matcher": "Bash", "hooks": [canary_entry]})
+
+with open(sys.argv[2], "w") as f:
+    json.dump(data, f)
+PYEOF
+
+  # Run the reverse assertion against the modified hooks.json and real settings.json.
+  # It must return non-zero (RED) because the canary is enforcing but not in settings.json.
+  local hooks_dir_saved="$HOOKS_DIR"
+  local missing=()
+
+  while IFS= read -r basename; do
+    [ -z "$basename" ] && continue
+
+    # Resolve the script path — canary lives in tmpdir, others in HOOKS_DIR
+    local script_path
+    if [ "$basename" = "canary-enforcing-hook.sh" ]; then
+      script_path="$fake_hook_script"
+    else
+      script_path="$HOOKS_DIR/$basename"
+    fi
+
+    # Inline exit-2 check (can't call _hook_is_enforcing with different path)
+    local is_enforcing=0
+    if [ -f "$script_path" ] && grep -qE 'exit 2|return 2' "$script_path"; then
+      is_enforcing=1
+    fi
+    [ "$is_enforcing" -eq 1 ] || continue
+
+    _is_hooks_json_only_allowlist "$basename" && continue
+
+    if ! grep -q "$basename" "$SETTINGS_JSON"; then
+      missing+=("$basename")
+    fi
+  done < <(python3 - "$fake_hooks_json" <<'PYEOF'
+import json, sys, re
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+basenames = set()
+for event_hooks in data.get("hooks", {}).values():
+    for block in event_hooks:
+        for hook in block.get("hooks", []):
+            args = hook.get("args", [])
+            for arg in args:
+                m = re.search(r'/hooks/([^/"]+\.sh)', arg)
+                if m:
+                    basenames.add(m.group(1))
+print("\n".join(sorted(basenames)))
+PYEOF
+)
+
+  rm -rf "$tmpdir"
+
+  # Canary MUST be in the missing list — if not, the detector is broken
+  local found_canary=0
+  for m in "${missing[@]}"; do
+    [ "$m" = "canary-enforcing-hook.sh" ] && found_canary=1
+  done
+
+  if [ "$found_canary" -eq 0 ]; then
+    echo "CANARY FAILURE: detector did not catch the synthetic hooks.json-only enforcing hook"
+    echo "The reverse-parity assertion (AC-D1) would not have caught this drift."
+    return 1
+  fi
+}
