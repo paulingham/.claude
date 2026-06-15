@@ -246,64 +246,22 @@ class TestValidateDefArgsTypeEnforcement(unittest.TestCase):
         self.assertEqual(err["error"], "bad-args")
 
 
-import select
 import subprocess
 import tempfile
-import time
 
 
 def _build_py_fixture(tmpdir):
     content = "def my_target_function():\n    return 1\n\n\nresult = my_target_function()\n"
     path = str(Path(tmpdir) / "fix.py")
     Path(path).write_text(content)
-    return path, content
+    return path
 
 
 def _build_ts_fixture(tmpdir):
     content = "function myTargetFunction(): number {\n    return 1;\n}\n\nconst r = myTargetFunction();\n"
     path = str(Path(tmpdir) / "fix.ts")
     Path(path).write_text(content)
-    return path, content
-
-
-def _drain_lsp_frames(lsp, proc):
-    raw = lsp._raw_out(proc)
-    while select.select([raw], [], [], 0.2)[0]:
-        try:
-            lsp._read_frame(proc, time.monotonic() + 0.5)
-        except Exception:
-            return
-
-
-_LANG_ID = {"py": "python", "ts": "typescript"}
-
-
-def _did_open_msg(fixture_path, content, lang):
-    return {"jsonrpc": "2.0", "method": "textDocument/didOpen",
-            "params": {"textDocument": {"uri": f"file://{fixture_path}",
-                "languageId": _LANG_ID.get(lang, lang), "version": 1, "text": content}}}
-
-
-def _make_init_patch(orig_init, tmpdir):
-    def _f():
-        p = orig_init()
-        p["rootUri"] = f"file://{tmpdir}"
-        return p
-    return _f
-
-
-def _make_hs_patch(lsp, orig_hs, fixture_path, content, lang):
-    def _f(proc, deadline):
-        orig_hs(proc, deadline)
-        lsp._write_frame(proc, _did_open_msg(fixture_path, content, lang))
-        time.sleep(3)
-        _drain_lsp_frames(lsp, proc)
-    return _f
-
-
-def _patch_lsp_for_real_run(lsp, tmpdir, fixture_path, content, lang):
-    lsp._init_params = _make_init_patch(lsp._init_params, tmpdir)
-    lsp._handshake = _make_hs_patch(lsp, lsp._handshake, fixture_path, content, lang)
+    return path
 
 
 def _resolve_real(lsp, binary, lang, fixture_path, line, char):
@@ -329,10 +287,53 @@ def _make_lsp():
 def _run_real_definition(binary, lang, ref_line, ref_char, fix_fn):
     lsp = _make_lsp()
     with tempfile.TemporaryDirectory() as tmpdir:
-        fixture_path, content = fix_fn(tmpdir)
-        _patch_lsp_for_real_run(lsp, tmpdir, fixture_path, content, lang)
+        fixture_path = fix_fn(tmpdir)
         result = _resolve_real(lsp, binary, lang, fixture_path, ref_line, ref_char)
     return fixture_path, *_extract_result(result)
+
+
+class TestDidOpenPinsHandshake(unittest.TestCase):
+    """Unit: fake_ls --require-did-open returns null without didOpen; bridge sends it."""
+
+    def _make_factory(self, require_did_open=False):
+        fake_ls = str(_FIXTURES / "fake_ls.py")
+        flags = ["--require-did-open"] if require_did_open else []
+
+        def factory(binary):
+            return subprocess.Popen(
+                [sys.executable, fake_ls] + flags,
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            )
+
+        return factory
+
+    def test_bridge_sends_did_open_so_definition_resolves(self):
+        lsp = _load_lsp()
+        lsp.resolve_binary = lambda lang: "/fake/binary"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fixture_path = _build_py_fixture(tmpdir)
+            pos = lsp.Position(path=fixture_path, line=4, character=9)
+            factory = self._make_factory(require_did_open=True)
+            result = lsp.run_definition(factory, "py", pos)
+        payload = json.loads(result["content"][0]["text"])
+        self.assertFalse(result["isError"], f"Expected success, got: {payload}")
+        self.assertGreater(len(payload.get("definitions", [])), 0,
+                           "definitions[] empty — fake_ls returned null (didOpen not sent)")
+
+    def test_without_did_open_fake_ls_returns_empty(self):
+        """Confirms fake_ls guards work: null result → empty definitions via bridge."""
+        lsp = _load_lsp()
+        lsp.resolve_binary = lambda lang: "/fake/binary"
+        lsp._send_did_open = lambda proc, pos, lang: None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fixture_path = _build_py_fixture(tmpdir)
+            pos = lsp.Position(path=fixture_path, line=4, character=9)
+            factory = self._make_factory(require_did_open=True)
+            result = lsp.run_definition(factory, "py", pos)
+        payload = json.loads(result["content"][0]["text"])
+        self.assertFalse(result["isError"])
+        self.assertEqual(payload.get("definitions", []), [],
+                         "Expected empty definitions when didOpen suppressed")
 
 
 def _write_evidence(binary, lang, fixture_path, defs):

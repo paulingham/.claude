@@ -31,34 +31,52 @@ def run_definition(proc_factory, lang, pos):
     binary = resolve_binary(lang)
     if binary is None:
         return _err("ls-unavailable", f"No LS binary for lang={lang}")
-    return _run_with_proc(proc_factory(binary), pos)
-def _run_with_proc(proc, pos):
+    return _run_with_proc(proc_factory(binary), lang, pos)
+def _run_with_proc(proc, lang, pos):
     try:
-        return _execute_definition(proc, pos)
+        return _execute_definition(proc, lang, pos)
     finally:
         _cleanup(proc)
-def _execute_definition(proc, pos):
+def _execute_definition(proc, lang, pos):
     deadline = time.monotonic() + _TIMEOUT_SECONDS
     try:
-        return _resolve_ok(proc, pos, deadline)
+        return _resolve_ok(proc, pos, lang, deadline)
     except _LsTimeout:
         return _err("ls-timeout", "LS did not respond within deadline")
     except Exception as exc:
         return _err("ls-unavailable", str(exc))
-def _resolve_ok(proc, pos, deadline):
-    _handshake(proc, deadline)
+def _resolve_ok(proc, pos, lang, deadline):
+    _handshake(proc, pos, lang, deadline)
     locations = _request_definition(proc, pos, deadline)
     return _ok_envelope({"definitions": _flatten(locations)})
-def _handshake(proc, deadline):
-    _send_request(proc, 1, "initialize", _init_params())
-    _read_frame(proc, deadline)
+def _handshake(proc, pos, lang, deadline):
+    _send_request(proc, 1, "initialize", _init_params(pos))
+    _read_response(proc, 1, deadline)
     _send_notification(proc, "initialized", {})
-def _init_params():
-    return {"processId": os.getpid(), "rootUri": None, "capabilities": {}}
+    _send_did_open(proc, pos, lang)
+def _init_params(pos):
+    root = f"file://{os.path.dirname(pos.path)}"
+    return {"processId": os.getpid(), "rootUri": root, "capabilities": {}}
+def _language_id(lang):
+    return {"ts": "typescript", "py": "python"}.get(lang, lang)
+def _did_open_params(pos, lang):
+    try:
+        text = open(pos.path).read()
+    except OSError:
+        text = ""
+    return {"textDocument": {"uri": f"file://{pos.path}",
+            "languageId": _language_id(lang), "version": 1, "text": text}}
+def _send_did_open(proc, pos, lang):
+    _send_notification(proc, "textDocument/didOpen", _did_open_params(pos, lang))
 def _request_definition(proc, pos, deadline):
     _send_request(proc, 2, "textDocument/definition", _def_params(pos))
-    frame = _read_frame(proc, deadline)
+    frame = _read_response(proc, 2, deadline)
     return frame.get("result") or []
+def _read_response(proc, req_id, deadline):
+    while True:
+        frame = _read_frame(proc, deadline)
+        if frame.get("id") == req_id:
+            return frame
 def _def_params(pos):
     return {
         "textDocument": {"uri": f"file://{pos.path}"},

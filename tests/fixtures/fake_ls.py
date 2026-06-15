@@ -64,27 +64,39 @@ def _handle_definition(req_id, extra_header=False):
     }, extra_header=extra_header)
 
 
-def _dispatch(req, extra_header=False):
+def _dispatch(req, extra_header=False, state=None):
     method = req.get("method", "")
     req_id = req.get("id")
     if method == "initialize":
         _handle_initialize(req_id, extra_header=extra_header)
     elif method == "initialized":
         pass
+    elif method == "textDocument/didOpen":
+        if state is not None:
+            state["did_open"] = True
     elif method == "textDocument/definition":
-        _handle_definition(req_id, extra_header=extra_header)
+        _handle_definition_guarded(req_id, extra_header, state)
     elif method == "shutdown":
         _send_response({"jsonrpc": "2.0", "id": req_id, "result": None},
                        extra_header=extra_header)
 
 
-def _loop_normal(extra_header=False):
+def _handle_definition_guarded(req_id, extra_header, state):
+    if state is not None and not state.get("did_open"):
+        _send_response({"jsonrpc": "2.0", "id": req_id, "result": None},
+                       extra_header=extra_header)
+    else:
+        _handle_definition(req_id, extra_header=extra_header)
+
+
+def _loop_normal(extra_header=False, require_did_open=False):
+    state = {"did_open": False} if require_did_open else None
     while True:
         try:
             req = _read_request()
         except (EOFError, ValueError):
             break
-        _dispatch(req, extra_header=extra_header)
+        _dispatch(req, extra_header=extra_header, state=state)
 
 
 def _loop_hang():
@@ -98,11 +110,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--hang", action="store_true")
     parser.add_argument("--extra-header", action="store_true")
+    parser.add_argument("--require-did-open", action="store_true")
     args = parser.parse_args()
     if args.hang:
         _loop_hang()
     else:
-        _loop_normal(extra_header=args.extra_header)
+        _loop_normal(extra_header=args.extra_header,
+                     require_did_open=args.require_did_open)
 
 
 if __name__ == "__main__":
