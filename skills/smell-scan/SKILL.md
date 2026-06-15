@@ -166,7 +166,7 @@ The skill MUST emit exactly one verdict per invocation.
 
 - **Do NOT hard-block on SMELLS_FOUND**: this is an advisory scan. The code-reviewer decides whether findings constitute a gate failure. Findings alone do not block ship — never a gate.
 - **Do NOT re-implement shape-hook-owned smells**: the following are explicitly OUT — owned by shape hooks (`rules/core.md` § Code Shape Rules):
-  - Long function / long method — OUT (shape hook: Ruby >5 lines, TS/JS >12 lines)
+  - Long function / long method — OUT (shape hook owns per-language method-length limits)
   - Long parameter list — OUT (shape hook: ≤4 params rule)
   - Large class / large file — OUT (shape hook: `CLAUDE_FILE_LINE_LIMIT` 300-line cap)
   - Deep nesting — OUT (shape hook: nesting ≤2 rule)
