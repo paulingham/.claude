@@ -248,5 +248,64 @@ class PricingTableSourceOfTruth(unittest.TestCase):
         )
 
 
+class Opus48PricingAndFamilyFallback(unittest.TestCase):
+    """T0-a..T0-d: opus-4-8 explicit entry + family-prefix fallback."""
+
+    # Fixed token vector shared across price-equality assertions.
+    _TOKENS = {
+        "input_tokens": 200_000,
+        "output_tokens": 80_000,
+        "cache_read_input_tokens": 100_000,
+    }
+
+    def _cost(self, model_id):
+        return estimate_cost_usd([{"model": model_id, **self._TOKENS}])
+
+    def test_opus_4_8_priced_identically_to_opus_4_7(self):
+        # T0-a: claude-opus-4-8 must produce the same non-zero cost as opus-4-7
+        # on an identical token vector. $0 means the unknown-model fallback fired.
+        cost_4_7 = self._cost("claude-opus-4-7")
+        cost_4_8 = self._cost("claude-opus-4-8")
+        self.assertGreater(cost_4_8, 0.0,
+                           "claude-opus-4-8 billed $0 — missing from PRICING_PER_MILLION")
+        self.assertEqual(cost_4_8, cost_4_7,
+                         f"opus-4-8 ({cost_4_8}) != opus-4-7 ({cost_4_7})")
+
+    def test_family_prefix_fallback_prices_unknown_opus_bump(self):
+        # T0-b: a future model id with no exact PRICING_PER_MILLION entry but a
+        # recognised opus- prefix must resolve to a non-zero opus-family price.
+        future_model = "claude-opus-4-9-20991231"
+        cost_future = self._cost(future_model)
+        cost_base = self._cost("claude-opus-4-8")
+        self.assertGreater(cost_future, 0.0,
+                           f"{future_model} billed $0 — family-prefix fallback missing")
+        self.assertEqual(cost_future, cost_base,
+                         f"family-fallback price ({cost_future}) != opus base ({cost_base})")
+
+    def test_genuinely_unknown_model_still_returns_zero(self):
+        # T0-c: regression — claude-fake-model-x9 has no known family stem;
+        # the prefix fallback must NOT match it; existing $0 behaviour preserved.
+        usd = self._cost("claude-fake-model-x9")
+        self.assertEqual(usd, 0.0,
+                         "claude-fake-model-x9 must bill $0 — no matching family stem")
+
+    def test_existing_exact_keys_prices_unchanged(self):
+        # T0-d: regression — exact-key lookup must shadow the prefix path;
+        # known models must produce their pre-existing prices.
+        # Expected values: 200K*input/M + 80K*output/M + 100K*cache_read/M
+        cases = {
+            "claude-opus-4-7":         3.05,   # 1+2+0.05
+            "claude-sonnet-4-6":       1.83,   # 0.6+1.2+0.03
+            "claude-haiku-4-5-20251001": 0.488, # 0.16+0.32+0.008
+        }
+        for model_id, expected in cases.items():
+            with self.subTest(model=model_id):
+                got = self._cost(model_id)
+                self.assertTrue(
+                    _approx_eq(got, expected),
+                    f"{model_id}: expected {expected}, got {got}",
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

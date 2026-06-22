@@ -5,13 +5,14 @@ Sums per-call cost from `tool-timings.jsonl`-shaped records. Used by the
 attach a dollar figure to pipeline activity.
 
 Pricing source-of-truth (per-million tokens, USD), as published by Anthropic
-on the model pricing pages (claude-opus-4-7 GA 2026-04-16). Rates verified
-against https://www.anthropic.com/pricing on 2026-05-04. To update: edit the
+on the model pricing pages (claude-opus-4-8 GA 2026-06). Rates verified
+against https://www.anthropic.com/pricing on 2026-06-22. To update: edit the
 PRICING_PER_MILLION dict at module top, run the test suite, ship.
 
 | Model                           | Input $/M | Output $/M | Cache-read $/M |
 |---------------------------------|-----------|------------|----------------|
 | claude-opus-4-7                 | 5.00      | 25.00      | 0.50           |
+| claude-opus-4-8                 | 5.00      | 25.00      | 0.50           |
 | claude-sonnet-4-6               | 3.00      | 15.00      | 0.30           |
 | claude-haiku-4-5-20251001       | 0.80      | 4.00       | 0.08           |
 
@@ -36,12 +37,24 @@ PRICING_PER_MILLION = {
     "claude-opus-4-7": {
         "input": 5.00, "output": 25.00, "cache_read": 0.50,
     },
+    "claude-opus-4-8": {
+        "input": 5.00, "output": 25.00, "cache_read": 0.50,
+    },
     "claude-sonnet-4-6": {
         "input": 3.00, "output": 15.00, "cache_read": 0.30,
     },
     "claude-haiku-4-5-20251001": {
         "input": 0.80, "output": 4.00, "cache_read": 0.08,
     },
+}
+
+# WHY: GA point-bumps (claude-opus-4-9, ...) must not silently bill $0.
+# Maps a known family stem to the exact PRICING_PER_MILLION key for that
+# family's base price — a pointer, never a duplicated literal.
+_FAMILY_PREFIX_PRICE = {
+    "claude-opus-":   "claude-opus-4-8",
+    "claude-sonnet-": "claude-sonnet-4-6",
+    "claude-haiku-":  "claude-haiku-4-5-20251001",
 }
 
 _PER_MILLION = 1_000_000.0
@@ -52,35 +65,33 @@ def _warn_unknown_model_once(model: str) -> None:
     if model in _warned_models:
         return
     _warned_models.add(model)
-    sys.stderr.write(
-        f"cost_estimator: unknown model {model!r} — billed at $0.00 "
-        "(update PRICING_PER_MILLION to track)\n"
-    )
+    msg = f"cost_estimator: unknown model {model!r} — billed at $0.00 (update PRICING_PER_MILLION to track)\n"
+    sys.stderr.write(msg)
+
+
+def _resolve_pricing_key(model: str) -> str | None:
+    # WHY: exact hit wins; prefix path never shadows a known exact key.
+    if model in PRICING_PER_MILLION:
+        return model
+    matched = next((base for stem, base in _FAMILY_PREFIX_PRICE.items() if model.startswith(stem)), None)
+    return matched
+
+
+def _token_cost_usd(rates: dict, record: dict) -> float:
+    # WHY: cache-creation tokens bill at input rate (write-through cache pricing).
+    inp = (record.get("input_tokens", 0) or 0) + (record.get("cache_creation_input_tokens", 0) or 0)
+    out = record.get("output_tokens", 0) or 0
+    cread = record.get("cache_read_input_tokens", 0) or 0
+    return (inp * rates["input"] + out * rates["output"] + cread * rates["cache_read"]) / _PER_MILLION
 
 
 def _record_cost_usd(record: dict) -> float:
-    """Compute USD cost for a single tool-timings record.
-
-    Unknown models return 0.0 (graceful fallback). Missing token fields
-    default to 0 — partial records are tolerated.
-    """
     model = record.get("model", "")
-    rates = PRICING_PER_MILLION.get(model)
+    rates = PRICING_PER_MILLION.get(_resolve_pricing_key(model) or "")
     if rates is None:
-        if model:
-            _warn_unknown_model_once(model)
+        if model: _warn_unknown_model_once(model)
         return 0.0
-    input_tokens = record.get("input_tokens", 0) or 0
-    output_tokens = record.get("output_tokens", 0) or 0
-    cache_read = record.get("cache_read_input_tokens", 0) or 0
-    cache_create = record.get("cache_creation_input_tokens", 0) or 0
-    # cache-creation tokens bill at regular input rate (write-through cache).
-    billable_input = input_tokens + cache_create
-    return (
-        billable_input * rates["input"]
-        + output_tokens * rates["output"]
-        + cache_read * rates["cache_read"]
-    ) / _PER_MILLION
+    return _token_cost_usd(rates, record)
 
 
 def estimate_cost_usd(timings: Iterable[dict]) -> float:
