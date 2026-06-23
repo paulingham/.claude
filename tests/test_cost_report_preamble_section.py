@@ -1,7 +1,7 @@
-"""AC tests — `skills/cost-report/SKILL.md` emits `## Preamble Tokens (MEASURED)`.
+"""AC tests — `skills/cost-report/SKILL.md` emits `## Preamble Tokens (estimated, bytes/3.5)`.
 
 The skill file documents an additional section that renders the
-per-session measured preamble token aggregate. These tests assert the
+per-session estimated preamble token aggregate. These tests assert the
 skill file itself documents the section + uses the shared
 `preamble_tokens_aggregate.aggregate_preamble_tokens` helper.
 
@@ -20,12 +20,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 class CostReportEmitsPreambleTokensSection(unittest.TestCase):
     """`skills/cost-report/SKILL.md` documents the Preamble Tokens section."""
 
-    def test_skill_documents_preamble_tokens_measured_section(self):
+    def test_skill_documents_preamble_tokens_estimated_section(self):
         doc = (REPO_ROOT / "skills" / "cost-report" / "SKILL.md").read_text()
         self.assertIn(
-            "Preamble Tokens (MEASURED)",
+            "Preamble Tokens (estimated, bytes/3.5)",
             doc,
-            "cost-report skill must document the `## Preamble Tokens (MEASURED)` "
+            "cost-report skill must document the `## Preamble Tokens (estimated, bytes/3.5)` "
             "section")
 
     def test_skill_references_preamble_aggregator_helper(self):

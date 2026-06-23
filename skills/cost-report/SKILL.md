@@ -26,8 +26,9 @@ argument-hint: "Optional: --since YYYY-MM-DD or --out <path>"
     `agent_role`, `task_id`.
   - `~/.claude/metrics/costs.jsonl` — per-session `session_end` records
     written by `hooks/cost-tracker.sh`. Each `session_end` record carries
-    a `preamble_tokens` field (MEASURED by `hooks/_lib/preamble-tokens-emit.py`
-    at session close). Used by Step 5-bis.
+    a `preamble_tokens` field (estimated, bytes/3.5) and a `usage_by_model`
+    field (real token counts per model, read from the transcript at session
+    close). Used by Steps 2, 4, and 5-bis.
   - `hooks/_lib/cost_estimator.py` — `estimate_cost_usd` and
     `estimate_cost_usd_per_pipeline` (single source of truth for pricing).
 - **External (optional)**: GitHub merged-PR list — used to attach a
@@ -47,17 +48,34 @@ find "${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/metrics" -maxde
 
 Filter by `--since YYYY-MM-DD` (file mtime) when the argument is given.
 
-### Step 2: Compute per-pipeline cost from each timing file
+### Step 2: Compute per-pipeline cost from costs.jsonl
 
-For each discovered file, call:
+Read `~/.claude/metrics/costs.jsonl`, find all `session_end` records that
+carry a `usage_by_model` field, and compute cost per `task_id`:
 
 ```python
-from cost_estimator import estimate_cost_usd_per_pipeline
-per_pipeline = estimate_cost_usd_per_pipeline(timings_path)
+import json, sys
+sys.path.insert(0, f"{os.environ.get('CLAUDE_PLUGIN_ROOT') or os.path.join(os.path.expanduser('~'), '.claude')}/hooks/_lib")
+from cost_estimator import estimate_cost_usd
+
+def _usage_by_model_to_records(ubm):
+    return [{"model": m, **counts} for m, counts in ubm.items()]
+
+by_pipeline = {}
+with open(costs_jsonl_path) as f:
+    for line in f:
+        rec = json.loads(line.strip())
+        if rec.get("event") != "session_end":
+            continue
+        task_id = rec.get("task_id") or rec.get("session_id", "unattributed")
+        ubm = rec.get("usage_by_model") or {}
+        usd = estimate_cost_usd(_usage_by_model_to_records(ubm))
+        by_pipeline[task_id] = by_pipeline.get(task_id, 0.0) + usd
 # {task_id: usd, ...}
 ```
 
-Aggregate across all sessions into one dict keyed by `task_id`.
+Note: per-subagent USD is best-effort (transcript turns interleave across
+subagents); per-session and per-pipeline totals are the reliable figures.
 
 ### Step 3: Join with merged-PR data
 
@@ -81,10 +99,10 @@ per-pipeline section without a PR linkage.
 
 ### Step 4: Compute per-agent-role aggregates
 
-Re-scan the same timing files, this time grouping by `agent_role` (records
-without `agent_role` are bucketed as `unattributed`). Sum cost per role.
-This requires a second pass because the per-pipeline aggregator drops
-`agent_role`.
+Re-scan `costs.jsonl` session_end records, grouping by `agent_role` (records
+without `agent_role` are bucketed as `unattributed`). Use `usage_by_model`
+and `estimate_cost_usd` exactly as in Step 2, keying by `agent_role`
+instead of `task_id`.
 
 ### Step 5: Write the report
 
@@ -125,10 +143,11 @@ Sections (in order):
 
    When `total_invocations == 0`, render the header with a single line `_No sandbox-verify invocations found in scanned metrics._` — the section is not omitted; an empty fleet is itself informative. When `dropped_lines > 0`, surface the dropped count so operators can investigate JSONL corruption.
 
-6. `## Preamble Tokens (MEASURED)` — MEASURED per-session preamble token counts
-   read from `metrics/costs.jsonl` `session_end` records. These are recorded
-   values (not estimates), written by `hooks/cost-tracker.sh` via
-   `hooks/_lib/preamble-tokens-emit.py`. Aggregated via the shared helper:
+6. `## Preamble Tokens (estimated, bytes/3.5)` — per-session preamble token
+   counts read from `metrics/costs.jsonl` `session_end` records. Values are
+   estimated (UTF-8 byte count ÷ 3.5) by `hooks/_lib/preamble-tokens-emit.py`
+   at session close and written by `hooks/cost-tracker.sh`. Aggregated via the
+   shared helper:
 
    ```python
    import sys
@@ -142,7 +161,7 @@ Sections (in order):
    Render as:
 
    ```markdown
-   ## Preamble Tokens (MEASURED)
+   ## Preamble Tokens (estimated, bytes/3.5)
    - Total preamble tokens: 142,857
    - Sessions recorded: 23
    - Avg preamble tokens per session: 6,211
@@ -153,8 +172,7 @@ Sections (in order):
    `session_count == 0` render `0`). When `session_count == 0`, render the
    header with a single line
    `_No session_end preamble records found in scanned metrics._` — the
-   section is not omitted. Values are MEASURED (per-session recorded), not
-   derived from the cost_estimator estimate basis.
+   section is not omitted.
 
 7. `## Notes` — any unknown-model warnings (collected from `cost_estimator` stderr) and dropped-record counts (malformed JSONL lines, records without `task_id`).
 
@@ -201,7 +219,7 @@ Range: last 30 days. Files scanned: 47. Records processed: 12,394.
 | 2 | software-engineer | $58.32 | 23 |
 | 3 | code-reviewer | $22.04 | 23 |
 
-## Preamble Tokens (MEASURED)
+## Preamble Tokens (estimated, bytes/3.5)
 - Total preamble tokens: 142,857
 - Sessions recorded: 23
 - Avg preamble tokens per session: 6,211
