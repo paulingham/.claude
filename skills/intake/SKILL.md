@@ -192,6 +192,7 @@ timestamp: {ISO 8601}
 - Approach: {chosen approach from validation}
 - Integration point: {where it fits}
 - Data assumptions: {confirmed or external data provided}
+- Triggered-by (optional): {prior pipeline task-id when user reports "PR #X caused this"; OMIT when unknown — never guess}
 ```
 
 This file feeds into the architect during the Plan phase and survives context compaction.

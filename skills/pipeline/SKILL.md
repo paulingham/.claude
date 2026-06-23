@@ -549,6 +549,10 @@ Schema source of truth: `protocols/autonomous-intelligence.md` § Field referenc
   "rework": false,
   "duration_phases": 6,
   "complexity_budget": 9
+  // OPTIONAL: "triggered_by_pipeline_id": "<prior-task-id>" — include ONLY when the
+  // user confirmed the originating pipeline at intake (Discussion Persistence §
+  // Impact on Implementation) or root-cause at bug-fix Step 0. OMIT when unknown;
+  // NEVER write null — absence and null are forensically distinct.
 }
 ```
 
@@ -608,6 +612,16 @@ record = {
 #       "overturned": False,                   # True when architect_said != reviewers_concluded
 #   }
 # When the pass did NOT run, omit the key entirely — do NOT write null.
+
+# OPTIONAL: include triggered_by_pipeline_id when the originating pipeline is known.
+# Primary source: read `discussion.md` § Impact on Implementation Triggered-by line.
+# Fallback: engineer-identified at bug-fix Step 0. Absence-vs-null rule mirrors
+# persona_rejections (SKILL.md:557): omit the key when absent — NEVER write null.
+# Example fill when known:
+#   triggered = read_triggered_by_from_discussion_md()  # parse Triggered-by line
+#   if triggered:
+#       record["triggered_by_pipeline_id"] = triggered
+#   # Otherwise: record.pop("triggered_by_pipeline_id", None) — omit entirely
 
 path = os.path.expanduser("~/.claude/learning/<project-hash>/observations.jsonl")
 os.makedirs(os.path.dirname(path), exist_ok=True)
