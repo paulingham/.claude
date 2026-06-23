@@ -270,9 +270,91 @@ EOF
 
 The eval-baseline stamp is appended to every PR body so reviewers see the latest suite pass rate + `harness_ref` SHA without per-PR reruns. See `~/.claude/skills/internal-eval/score/stamp-pr-body.sh`.
 
+### 5b. Watch remote CI (advisory)
+
+After `PR_CREATED`, the orchestrator runs an advisory CI-watch before proceeding to the cost annotator. This sub-phase is never a block — it drives the in-cycle fix loop on RED and emits `watch-skipped:operator-cancel` on operator interruption.
+
+**Arm the poll:**
+
+```bash
+# Capture headRefOid at arm time — this is the pushed commit SHA.
+# A force-push between arm and conclusion cannot produce a false-green
+# against a commit whose CI was never evaluated.
+HEAD_OID=$(gh pr view <pr-number> --json headRefOid -q '.headRefOid')
+```
+
+# SAFETY: Validate <pr-number> matches ^[0-9]+$ before interpolating; double-quote
+# all interpolated placeholders in gh/git commands (e.g. `gh pr checks "$PR"`,
+# `git ls-remote "$remote" "$branch"`) to prevent word-splitting and injection.
+
+Poll `gh pr checks "$PR"` in a loop until all runs reach a concluded state
+(SUCCESS or FAILURE). On each poll, compare the check-run SHA to the captured
+`headRefOid` — if any check-run SHA does not match, skip it (stale run from a
+previous push, not the current head).
+
+**GREEN path — emit `CI_GREEN`:**
+
+When ≥1 check-run matches the captured `headRefOid` AND all matched runs conclude
+SUCCESS:
+- Emit `CI_GREEN`.
+- Proceed to Step 6 (cost annotator).
+
+If the matched-run set is empty (zero check-runs match the captured `headRefOid` —
+e.g. a force-push made every visible run stale), this is NOT a GREEN signal.
+Route to `CI status: watch-skipped:no-matching-runs` and proceed (same as the
+unreadable / no-runs path). CI_GREEN requires ≥1 matched run.
+
+**RED path — emit `CI_RED`, re-enter fix loop:**
+
+When ≥1 check-run against `headRefOid` concludes FAILURE:
+1. Pull the failing logs: `gh pr checks "$PR" --log-failed`
+   # SAFETY: Do NOT persist --log-failed output into the PR body, a PR comment,
+   # the scratchpad, or an observation — CI failure logs commonly contain secrets
+   # in stack traces. The logs feed the in-cycle fix loop only.
+2. Emit `CI_RED`.
+3. Re-enter the in-cycle fix loop: spawn fix-engineer on the **SAME build worktree**
+   (not a fresh one — the build worktree retains the full branch history).
+4. After fix-engineer reports a fix committed and pushed, verify the fix-engineer's
+   claimed/expected SHA actually reached the remote **before re-polling**.
+   The orchestrator holds the expected SHA from the fix-engineer's report; confirm
+   the remote branch head **equals** that expected SHA:
+   ```bash
+   git ls-remote "$remote" "$branch"
+   ```
+   If `git ls-remote` shows the branch head does NOT equal the fix-engineer's
+   claimed SHA, the fix-engineer stalled at push. Surface "fix not on remote —
+   fix-engineer stalled, manual recovery needed" and halt re-polling. (See memory:
+   `ship-must-watch-remote-ci`, `fix-engineer-nested-worktree-side-branch` —
+   fix-engineer subagents stall silently at commit/push; never trust self-report.)
+5. Use the `git ls-remote`-confirmed SHA as the new HEAD_OID and re-arm the poll.
+   This threads the single ls-remote-confirmed value through both step-4 verification
+   and step-5 re-arm — there is no second source for the new HEAD_OID.
+
+**Operator cancel escape hatch:**
+
+If the operator interrupts the poll mid-flight (e.g. known CI flake, persistent
+fix-engineer stall loop), the orchestrator emits:
+
+```
+CI status: watch-skipped:operator-cancel
+```
+
+with an explicit note: "CI status unverified — not a block (advisory). Operator
+chose to proceed without confirmed CI conclusion."
+
+This is advisory — cancelling leaves CI status unverified but does NOT block
+pipeline advancement. Prevents the operator being held hostage on an infinite
+RED-fix loop.
+
+**Unreadable / no-runs path:**
+
+If `gh pr checks` returns no runs or errors, emit `CI status: watch-skipped:<reason>`
+and proceed. In Slice 1 (advisory), an unreadable status never blocks.
+
 ### 6. Annotate PR cost on CI-green
 
-After the CI-watch confirms all checks pass, invoke the cost annotator:
+After the CI-watch (Step 5b) confirms all checks pass against the pushed headRefOid,
+invoke the cost annotator:
 
 ```bash
 python3 "${HARNESS_ROOT}/hooks/_lib/pr_cost_annotate.py" <pr-number>
@@ -414,14 +496,17 @@ The orchestrator handles merge ordering — this skill only creates PRs. It adds
 
 ## Verdict
 
-- **PR_CREATED**: PR URL returned, quality gate hook passed.
+- **PR_CREATED**: PR URL returned, quality gate hook passed. Advisory CI-watch (Step 5b) follows.
 - **PR_BLOCKED**: Quality gate failed. Fix issues and retry.
+- **CI_GREEN**: All `gh pr checks` runs concluded SUCCESS against the pushed headRefOid; advisory — proceed to cost annotator (Step 6) then Deploy entry.
+- **CI_RED**: ≥1 `gh pr checks` run concluded FAILURE; advisory — pull `--log-failed`, re-enter in-cycle fix loop, verify `git ls-remote` == claimed SHA, re-arm watch. Never blocks Ship→Deploy in Slice 1.
 
 ## Phase Output
 
 ```
-Verdict: PR_CREATED / PR_BLOCKED
-Next: Pipeline complete. Report PR URL to user.
+Verdict: PR_CREATED / PR_BLOCKED / CI_GREEN / CI_RED
+Next: After PR_CREATED, run the advisory CI-watch sub-phase (Step 5b). On CI_GREEN, annotate cost (Step 6) then pipeline complete / Deploy entry. On CI_RED, re-enter in-cycle fix loop and re-arm.
 PR URL: [GitHub PR URL]
+CI status: [CI_GREEN | CI_RED | watch-skipped:operator-cancel | watch-skipped:<reason>]
 Agent summaries: [assembled decision narrative from all participating agents]
 ```
