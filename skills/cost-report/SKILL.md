@@ -67,15 +67,18 @@ with open(costs_jsonl_path) as f:
         rec = json.loads(line.strip())
         if rec.get("event") != "session_end":
             continue
-        task_id = rec.get("task_id") or rec.get("session_id", "unattributed")
+        _tid = rec.get("task_id")
+        task_id = _tid if (_tid and _tid != "none") else rec.get("session_id", "unattributed")
         ubm = rec.get("usage_by_model") or {}
         usd = estimate_cost_usd(_usage_by_model_to_records(ubm))
         by_pipeline[task_id] = by_pipeline.get(task_id, 0.0) + usd
 # {task_id: usd, ...}
 ```
 
-Note: per-subagent USD is best-effort (transcript turns interleave across
-subagents); per-session and per-pipeline totals are the reliable figures.
+Note: `task_id` is populated by `hooks/cost-tracker.sh` from the active pipeline
+at session close; records written when no pipeline was active carry `task_id: "none"`
+and are treated as unattributed (fall back to `session_id`). Per-session and
+per-pipeline totals are the reliable figures; per-subagent USD is not available.
 
 ### Step 3: Join with merged-PR data
 
@@ -97,12 +100,23 @@ Match PR `headRefName` against pipeline `task_id` (the harness convention is
 cost-per-PR figure to recent merges. Unmatched pipelines remain in the
 per-pipeline section without a PR linkage.
 
-### Step 4: Compute per-agent-role aggregates
+### Step 4: Per-agent-role attribution — not available from this source
 
-Re-scan `costs.jsonl` session_end records, grouping by `agent_role` (records
-without `agent_role` are bucketed as `unattributed`). Use `usage_by_model`
-and `estimate_cost_usd` exactly as in Step 2, keying by `agent_role`
-instead of `task_id`.
+Per-agent-role USD is **not derivable** from `costs.jsonl` `usage_by_model`
+records. Each `session_end` record covers an entire Claude Code session; a
+session may span multiple subagents whose turns interleave in the transcript.
+The `cost-tracker.sh` Stop hook has no per-subagent breakout — it sums all
+transcript turns into one `usage_by_model` dict with no `agent_role` field.
+
+Omit the per-agent-role section from the report, or render the header with
+a single honest line:
+
+```markdown
+## Top 3 Most Expensive Agents
+Per-agent-role USD attribution is not available from session-level transcript
+data (turns interleave across subagents). A future slice adding per-subagent
+token capture would unlock this view.
+```
 
 ### Step 5: Write the report
 
@@ -114,7 +128,7 @@ Sections (in order):
 1. `## Total Spend (USD)` — single dollar figure with the date range covered.
 2. `## Cost-per-PR by project` — table with columns `Project | PRs merged | Total cost USD | Avg cost per PR`. The "project" column derives from the GitHub remote of the matched PRs.
 3. `## Top 3 Most Expensive Pipelines` — table `Rank | task_id | USD | PR (if matched)`.
-4. `## Top 3 Most Expensive Agents` — table `Rank | agent_role | USD | Pipelines touched`.
+4. `## Top 3 Most Expensive Agents` — honest note that per-agent-role USD is not available from session-level data (see Step 4).
 5. `## Sandbox Verify Skip Rate` — operator-facing fleet-ops view of sandbox-verify health. Aggregates `metrics/*/sandbox-verify-skips.jsonl` via the shared helper:
 
    ```python
@@ -213,11 +227,9 @@ Range: last 30 days. Files scanned: 47. Records processed: 12,394.
 | 3 | b12-batch | $14.22 | #74 |
 
 ## Top 3 Most Expensive Agents
-| Rank | agent_role | USD | Pipelines |
-|---|---|---|---|
-| 1 | architect | $74.10 | 21 |
-| 2 | software-engineer | $58.32 | 23 |
-| 3 | code-reviewer | $22.04 | 23 |
+Per-agent-role USD attribution is not available from session-level transcript
+data (turns interleave across subagents). A future slice adding per-subagent
+token capture would unlock this view.
 
 ## Preamble Tokens (estimated, bytes/3.5)
 - Total preamble tokens: 142,857
@@ -227,7 +239,7 @@ Range: last 30 days. Files scanned: 47. Records processed: 12,394.
 
 ## Notes
 - 2 records had unknown model `claude-experiment-x` (billed at $0.00).
-- 14 records lacked `task_id` (excluded from per-pipeline view; included in agent totals).
+- Records written before `task_id` injection (older sessions) bucket under their `session_id`.
 ```
 
 ## Safeguards

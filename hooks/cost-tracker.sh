@@ -87,6 +87,16 @@ _ct_validate_usage() {
     echo "$raw" | jq -e 'type == "object"' >/dev/null 2>&1 && echo "$raw" || echo '{}'
 }
 
+# WHY: reuse _cf_pipeline_id from cost-helpers.sh (DRY) to tag record with active task_id.
+_ct_pipeline_id() {
+  # shellcheck source=_lib/cost-helpers.sh
+  source "$(dirname "${BASH_SOURCE[0]}")/_lib/cost-helpers.sh"
+  _cf_pipeline_id 2>/dev/null || echo none
+}
+
+TASK_ID=$(_ct_pipeline_id 2>/dev/null || echo none)
+[[ -n "$TASK_ID" ]] || TASK_ID="none"
+
 PREAMBLE_TOKENS=$("$HARNESS_ROOT/hooks/_lib/preamble-tokens-emit.py" 2>/dev/null || echo 0)
 [[ "$PREAMBLE_TOKENS" =~ ^[0-9]+$ ]] || PREAMBLE_TOKENS=0
 
@@ -99,6 +109,7 @@ jq -c -n \
     --arg sid "$SESSION_ID" \
     --arg project "$PROJECT" \
     --arg hash "$PROJECT_HASH" \
+    --arg task_id "$TASK_ID" \
     --argjson duration "$DURATION_S" \
     --argjson tools "$TOOL_CALLS" \
     --argjson preamble "$PREAMBLE_TOKENS" \
@@ -107,6 +118,7 @@ jq -c -n \
     "{
         \"timestamp\": \$ts,
         \"session_id\": \$sid,
+        \"task_id\": \$task_id,
         \"project\": \$project,
         \"project_hash\": \$hash,
         \"event\": \"session_end\",
