@@ -53,21 +53,29 @@ def _usage_to_records(usage_by_model: dict) -> list:
     return [{"model": m, **counts} for m, counts in usage_by_model.items()]
 
 
-def _model_cost_part(model: str, counts: dict) -> str:
-    cost = estimate_cost_usd([{"model": model, **counts}])
+def _model_cost_rounded(model: str, counts: dict) -> float:
+    # WHY: round each model's cost here so breakdown and headline share the same
+    # rounded values — prevents drift between headline and sum of displayed parts.
+    return round(estimate_cost_usd([{"model": model, **counts}]), 2)
+
+
+def _model_cost_part(model: str, cost: float) -> str:
     return f"{model} ${cost:.2f}"
 
 
-def _breakdown(usage_by_model: dict) -> str:
-    return ", ".join(_model_cost_part(m, c) for m, c in usage_by_model.items())
+def _breakdown(parts: list) -> str:
+    return ", ".join(_model_cost_part(m, c) for m, c in parts)
 
 
 def format_cost_line(usage_by_model: dict) -> str:
-    total = estimate_cost_usd(_usage_to_records(usage_by_model))
-    base = f"{_SENTINEL_PREFIX} ${total:.2f}"
+    # WHY: headline = sum of rounded per-model parts so displayed numbers always
+    # reconcile; avoids raw-float total rounding differently than per-part sum.
+    base = f"{_SENTINEL_PREFIX} "
     if not usage_by_model:
-        return base
-    return f"{base} ({_breakdown(usage_by_model)})"
+        return base + "$0.00"
+    parts = [(m, _model_cost_rounded(m, c)) for m, c in usage_by_model.items()]
+    total = round(sum(cost for _, cost in parts), 2)
+    return f"{_SENTINEL_PREFIX} ${total:.2f} ({_breakdown(parts)})"
 
 
 def _has_sentinel(body: str) -> bool:
@@ -80,9 +88,14 @@ def _append_line(body: str, new_line: str) -> str:
 
 
 def replace_sentinel(body: str, new_line: str) -> str:
-    if _has_sentinel(body):
-        return _SENTINEL_RE.sub(new_line, body, count=1)
-    return _append_line(body, new_line)
+    # WHY: target the LAST match — prose earlier in the body may share the prefix;
+    # the sentinel is always appended at the end, so the last match is always the
+    # real sentinel/cost line to replace (not the first).
+    matches = list(_SENTINEL_RE.finditer(body))
+    if not matches:
+        return _append_line(body, new_line)
+    last = matches[-1]
+    return body[: last.start()] + new_line + body[last.end() :]
 
 
 def _run_gh(*args: str) -> str:

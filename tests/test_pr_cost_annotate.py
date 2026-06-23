@@ -243,6 +243,141 @@ class SentinelAbsentAppendOnce(unittest.TestCase):
 
 
 
+
+
+class ReplaceSentinelProseClobber(unittest.TestCase):
+    """8. prose-collision: a prose line starting with the sentinel prefix is NOT clobbered."""
+
+    # WHY: replace_sentinel must target the LAST matching line (the real trailing
+    # sentinel), not the first — prose earlier in the body can legitimately start
+    # with "**Pipeline cost:**" (e.g. this feature's own PRs discuss pipeline cost).
+
+    def _body_prose_collision(self):
+        """Body where the first line shares the sentinel prefix (prose), then a real sentinel."""
+        return (
+            "## Summary\n"
+            "**Pipeline cost:** is what we track in this PR.\n"
+            "Some other prose.\n"
+            "**Pipeline cost:** _pending CI_\n"
+        )
+
+    def test_prose_line_not_clobbered(self):
+        """The prose line that starts with the sentinel prefix must survive byte-identical."""
+        body = self._body_prose_collision()
+        new_line = "**Pipeline cost:** $5.00 (claude-opus-4-8 $5.00)"
+        result = replace_sentinel(body, new_line)
+        self.assertIn(
+            "**Pipeline cost:** is what we track in this PR.",
+            result,
+            msg="prose line sharing sentinel prefix must not be clobbered",
+        )
+
+    def test_trailing_sentinel_replaced_not_prose(self):
+        """Only the trailing sentinel line changes; prose line is byte-identical."""
+        body = self._body_prose_collision()
+        new_line = "**Pipeline cost:** $5.00 (claude-opus-4-8 $5.00)"
+        result = replace_sentinel(body, new_line)
+        self.assertIn(new_line, result)
+        self.assertNotIn("_pending CI_", result)
+
+    def test_prose_collision_count_preserved(self):
+        """With prose collision + sentinel, after replace there are still 2 sentinel-prefix
+        lines (the prose line + the replaced cost line), not 1 or 3."""
+        body = self._body_prose_collision()
+        new_line = "**Pipeline cost:** $7.00"
+        result = replace_sentinel(body, new_line)
+        count = result.count("**Pipeline cost:**")
+        self.assertEqual(
+            count,
+            2,
+            msg=f"prose collision body must have exactly 2 sentinel-prefix lines after replace, got {count}",
+        )
+
+    def test_idempotent_with_prose_collision(self):
+        """Re-running replace on the already-replaced body changes only the last line."""
+        body = self._body_prose_collision()
+        new_line = "**Pipeline cost:** $5.00 (claude-opus-4-8 $5.00)"
+        once = replace_sentinel(body, new_line)
+        twice = replace_sentinel(once, new_line)
+        self.assertEqual(
+            once,
+            twice,
+            msg="replace_sentinel must be idempotent even when prose shares the prefix",
+        )
+
+
+class FormatCostLinePartsReconcile(unittest.TestCase):
+    """9. parts-reconcile: displayed headline total equals sum of displayed per-model parts.
+
+    WHY: independent per-part rounding can make the parts sum differ from
+    the raw-float total rounded separately (e.g. $12.53 + $3.02 = $15.55
+    while the raw total rounds to $15.54). The fix makes the headline equal
+    the sum of the rounded parts.
+    """
+
+    # Reviewer's drift-prone vector: opus 2,505,000 input + sonnet 1,005,000 input.
+    # opus cost = 12.525 -> rounds to 12.53
+    # sonnet cost = 3.015 -> rounds to 3.02
+    # sum of rounded parts = 15.55, but raw total 15.54 -> drift.
+    _OPUS_USAGE = {
+        "input_tokens": 2_505_000,
+        "output_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+    }
+    _SONNET_USAGE = {
+        "input_tokens": 1_005_000,
+        "output_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+    }
+
+    def _parse_headline_total(self, line):
+        """Extract the $X.XX headline total from the formatted line."""
+        import re
+        m = re.search(r"\*\*Pipeline cost:\*\* \$(\d+\.\d+)", line)
+        self.assertIsNotNone(m, msg=f"headline dollar amount not found in: {line!r}")
+        return float(m.group(1))
+
+    def _parse_per_model_parts(self, line):
+        """Extract all $y.yy values from the per-model breakdown in parentheses."""
+        import re
+        m = re.search(r"\((.+)\)", line)
+        self.assertIsNotNone(m, msg=f"no breakdown parentheses in: {line!r}")
+        return [float(x) for x in re.findall(r"\$(\d+\.\d+)", m.group(1))]
+
+    def test_headline_equals_sum_of_parts(self):
+        """Headline total must equal sum of per-model parts (both displayed as $X.XX)."""
+        usage = {
+            "claude-opus-4-8": self._OPUS_USAGE,
+            "claude-sonnet-4-6": self._SONNET_USAGE,
+        }
+        line = format_cost_line(usage)
+        headline = self._parse_headline_total(line)
+        parts = self._parse_per_model_parts(line)
+        parts_sum = round(sum(parts), 2)
+        self.assertEqual(
+            headline,
+            parts_sum,
+            msg=(
+                f"headline ${headline:.2f} must equal sum of parts "
+                f"${parts_sum:.2f} ({parts}). line={line!r}"
+            ),
+        )
+
+    def test_single_model_headline_equals_part(self):
+        """With one model, headline and the single part must be equal."""
+        usage = {"claude-opus-4-8": self._OPUS_USAGE}
+        line = format_cost_line(usage)
+        headline = self._parse_headline_total(line)
+        parts = self._parse_per_model_parts(line)
+        self.assertEqual(len(parts), 1)
+        self.assertEqual(
+            headline,
+            parts[0],
+            msg=f"single-model headline must equal the one part: {line!r}",
+        )
+
 class SlugDerivation(unittest.TestCase):
     """6. slug: _cwd_slug replaces both / and . with -, preserving leading dash."""
 
