@@ -480,10 +480,12 @@ class DowngradeListMatchesAgentFrontmatter(unittest.TestCase):
         return match.group(1) if match else ""
 
     def _is_sonnet_executor(self, role):
+        from model_alias import resolve_model_alias
         body = self._frontmatter(role)
         executor = re.search(r"^executor:\s*(\S+)", body, re.MULTILINE)
         if executor:
-            return "sonnet" in executor.group(1).lower()
+            resolved = resolve_model_alias(executor.group(1).lower())
+            return "sonnet" in resolved
         model = re.search(r"^model:\s*(\S+)", body, re.MULTILINE)
         return bool(model) and "sonnet" in model.group(1).lower()
 

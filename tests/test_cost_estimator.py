@@ -307,5 +307,34 @@ class Opus48PricingAndFamilyFallback(unittest.TestCase):
                 )
 
 
+class EveryModelsJsonAliasValueHasPricingRow(unittest.TestCase):
+    """AC2: each models.json value must resolve to a non-None _resolve_pricing_key."""
+
+    def test_every_models_json_alias_value_has_pricing_row(self):
+        import json
+        from pathlib import Path
+        from cost_estimator import _resolve_pricing_key
+        models_json = Path(__file__).resolve().parents[1] / "hooks" / "_lib" / "models.json"
+        aliases = json.loads(models_json.read_text())
+        for alias_key, model_id in aliases.items():
+            pricing_key = _resolve_pricing_key(model_id)
+            self.assertIsNotNone(
+                pricing_key,
+                f"models.json value {model_id!r} (alias {alias_key!r}) has no "
+                f"pricing row in cost_estimator — update PRICING_PER_MILLION",
+            )
+
+
+class Opus47PricingRowRetainedForHistoricalReplay(unittest.TestCase):
+    """AC2: claude-opus-4-7 row must remain in PRICING_PER_MILLION for historical replay."""
+
+    def test_opus_4_7_pricing_row_retained_for_historical_replay(self):
+        self.assertIn(
+            "claude-opus-4-7",
+            cost_estimator.PRICING_PER_MILLION,
+            "claude-opus-4-7 row must be retained for historical tool-timings replay",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -14,6 +14,10 @@ from pathlib import Path
 
 import yaml
 
+# WHY: conftest.py prepends hooks/_lib to sys.path before collection;
+# model_alias is importable without a per-file sys.path manipulation.
+from model_alias import ALIASES as _MODEL_ALIASES
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AGENTS_DIR = REPO_ROOT / "agents"
 EXCLUDED_SUBDIRS = {"dynamic", "archive"}
@@ -39,13 +43,17 @@ def _discover_agent_files() -> list:
 
 
 def _is_valid_executor(value) -> bool:
-    return isinstance(value, str) and value.startswith("claude-")
+    if not isinstance(value, str):
+        return False
+    return value.startswith("claude-") or value in _MODEL_ALIASES
 
 
 def _is_valid_advisor(value) -> bool:
     if value == "none":
         return True
-    return isinstance(value, str) and value.startswith("claude-")
+    if not isinstance(value, str):
+        return False
+    return value.startswith("claude-") or value in _MODEL_ALIASES
 
 
 class EveryAgentDeclaresExecutorAndAdvisor(unittest.TestCase):
@@ -267,6 +275,54 @@ class SliceE1ClaudeMdAgentTeamTable(unittest.TestCase):
             "resolve_model_conditional", text,
             "CLAUDE.md: footnote [1] must reference "
             "'resolve_model_conditional'",
+        )
+
+
+class TestAdvisorAcceptsSsotAliasKeys(unittest.TestCase):
+    """AC3: _is_valid_advisor must accept the 3 SSOT alias keys."""
+
+    def test_advisor_accepts_ssot_alias_keys(self):
+        self.assertTrue(
+            _is_valid_advisor("strong"),
+            "_is_valid_advisor('strong') must return True after SSOT alias widen",
+        )
+        self.assertTrue(
+            _is_valid_advisor("mid"),
+            "_is_valid_advisor('mid') must return True after SSOT alias widen",
+        )
+        self.assertTrue(
+            _is_valid_advisor("cheap"),
+            "_is_valid_advisor('cheap') must return True after SSOT alias widen",
+        )
+        self.assertFalse(
+            _is_valid_advisor("bogus"),
+            "_is_valid_advisor('bogus') must return False (not in ALIASES, not claude- prefix)",
+        )
+
+
+class TestExecutorAcceptsSsotAliasKeys(unittest.TestCase):
+    """AC3 HIGH fix: _is_valid_executor must accept the 3 SSOT alias keys.
+
+    Guards the executor: mid card flip — without this, test_executor_present_and_valid
+    goes RED across all 20 cards when code-reviewer's executor is set to 'mid'.
+    """
+
+    def test_executor_accepts_ssot_alias_keys(self):
+        self.assertTrue(
+            _is_valid_executor("mid"),
+            "_is_valid_executor('mid') must return True after SSOT alias widen",
+        )
+        self.assertTrue(
+            _is_valid_executor("strong"),
+            "_is_valid_executor('strong') must return True after SSOT alias widen",
+        )
+        self.assertTrue(
+            _is_valid_executor("cheap"),
+            "_is_valid_executor('cheap') must return True after SSOT alias widen",
+        )
+        self.assertFalse(
+            _is_valid_executor("bogus"),
+            "_is_valid_executor('bogus') must return False (not in ALIASES, not claude- prefix)",
         )
 
 

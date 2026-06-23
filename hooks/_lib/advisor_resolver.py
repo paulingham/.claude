@@ -5,6 +5,7 @@ The Agent input schema does not currently expose `advisor`; the bash
 wrapper is therefore log-only until the schema lands.
 """
 from advisor_frontmatter import parse_frontmatter  # re-export
+from model_alias import resolve_model_alias
 
 __all__ = [
     "parse_frontmatter",
@@ -119,7 +120,8 @@ def _no_api_key(env):
 
 
 def _pairing(fm):
-    return {"executor": fm["executor"], "advisor": fm["advisor"],
+    return {"executor": resolve_model_alias(fm["executor"]),
+            "advisor": resolve_model_alias(fm["advisor"]),
             "fallback_reason": "", "source": "frontmatter-pairing"}
 
 
@@ -141,13 +143,21 @@ def resolve(tool_input, env, frontmatter):
 
 
 def _top_level_triple(fm):
-    return {"model": fm.get("model"), "executor": fm.get("executor"),
-            "advisor": fm.get("advisor"), "source": "no-conditional"}
+    executor = fm.get("executor")
+    advisor = fm.get("advisor")
+    return {"model": fm.get("model"),
+            "executor": resolve_model_alias(executor) if executor else executor,
+            "advisor": resolve_model_alias(advisor) if advisor else advisor,
+            "source": "no-conditional"}
 
 
 def _arm(arm_dict, source):
-    return {"model": arm_dict.get("model"), "executor": arm_dict.get("executor"),
-            "advisor": arm_dict.get("advisor"), "source": source}
+    executor = arm_dict.get("executor")
+    advisor = arm_dict.get("advisor")
+    return {"model": arm_dict.get("model"),
+            "executor": resolve_model_alias(executor) if executor else executor,
+            "advisor": resolve_model_alias(advisor) if advisor else advisor,
+            "source": source}
 
 
 def _first_matching_rule(rules, budget):
