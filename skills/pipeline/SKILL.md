@@ -674,6 +674,14 @@ If single-repo mode (no manifest) → existing Ship behavior (one PR, no cross-r
 
 After Ship phase returns PR_CREATED:
 
+> **Advisory CI-watch (pr-creation Step 5b):** Before the merge-status check below,
+> the orchestrator runs the advisory CI-watch sub-phase (`skills/pr-creation/SKILL.md`
+> Step 5b). It polls `gh pr checks <pr-number>` (keyed off CI conclusion) until all
+> runs conclude against the pushed headRefOid. On CI_RED, the fix loop re-enters
+> automatically; on CI_GREEN, it proceeds here. This does NOT gate Deploy on CI
+> conclusion — the enforcing gate is Slice 2. The merge-status check below remains
+> the Deploy trigger; CI-watch and merge status are orthogonal signals.
+
 1. Check PR merge status: `gh pr view [PR_NUMBER] --json state -q '.state'`
 2. If `MERGED`: automatically invoke `/harness:deploy` → `/harness:deployment-verification`
 3. If `OPEN`: inform user PR is ready for review. The deploy phase will run when the user returns after merge — `/harness:pipeline-resume` detects Ship=completed + Deploy=pending and auto-continues.
