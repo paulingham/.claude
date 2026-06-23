@@ -354,6 +354,20 @@ This step is **project-level, NOT per-group**. Unlike Step 7c which aggregates b
 
 **Absence / skip:** if zero `deploy_outcome` records exist, skip this step and render the Step 9 Deployment Reliability line as "not yet measured — no deployed pipelines observed." The skill MUST NOT raise on zero records and MUST NOT coerce absence to `0.0` or `"no escapes"`. This skip applies ONLY to Step 7c-bis and its Step 9 Deployment Reliability line — the Step 7c per-group cost-quality correlation is a separate step on a different record type (`record_type == "pipeline"`) and is NOT skipped or affected by absent `deploy_outcome` records. The two steps are independent.
 
+### 7c-ter. Post-Merge Regression Reliability (project-level)
+
+This step is **project-level, NOT per-group**. Unlike Step 7c which aggregates by `(agent_role, task-class)`, `post_merge_escape_rate` is computed across ALL `pipeline` records in the project that carry a truthy `triggered_by_pipeline_id`. The `triggered_by_pipeline_id` field carries no `agent_role` — it cannot be grouped into the Step 7c per-group table. The `post_merge_escape_rate` field MUST NOT appear as a key in the Step 7c group-dict output. This step is independent of BOTH Step 7c-bis (which reads `deploy_outcome` records) AND Step 7c cost-quality correlation (which reads `pipeline` records on a different filter).
+
+**Input:** `learning/{project-hash}/observations.jsonl`, filtered to `record_type == "pipeline"` records.
+
+**Algorithm:**
+
+1. Collect all `record_type == "pipeline"` records. `n_pipelines` = total count (denominator). This includes pipelines that were later abandoned or failed Ship/CI — the denominator is "recorded pipelines", NOT strictly "merged pipelines" (conservatively biased slightly low vs a merged-only denominator).
+2. Numerator: count records where `triggered_by_pipeline_id` is **present AND truthy** AND `classification == "bug"`. A `null` or `""` (empty-string) value MUST NOT count — a falsy value is treated identically to an absent key ("no causal link established"). This is the value-pollution safeguard: only explicit, non-empty task-id strings count as attributed.
+3. `post_merge_escape_rate = n_triggered / n_pipelines`. Emit `post_merge_escape_rate`, `n_triggered` (numerator), `n_pipelines` (denominator).
+
+**Absence / skip:** if zero records carry a truthy `triggered_by_pipeline_id`, skip this step and render the Step 9 Post-Merge Regression Reliability line as "not yet measured — no post-merge regressions attributed." The skill MUST NOT raise on zero attributed records and MUST NOT coerce the rate to `0.0`. This skip applies ONLY to Step 7c-ter and its Step 9 Post-Merge Regression Reliability line — Step 7c-bis (deploy reliability) and the Step 7c per-group cost-quality correlation are separate steps on different record filters and are NOT affected by absent `triggered_by_pipeline_id` records. The three steps are decoupled and independent.
+
 ### 8. Identify System Improvements (Continuous Self-Improvement)
 
 Beyond instincts, analyze the data for system-level improvement proposals:
@@ -392,6 +406,11 @@ Deployment Reliability (deploy-phase rollbacks):
   Revert/escape rate: {escape_rate} ({n_reverts} of {n_deploys} deployed pipelines)
   -- or, when no deploy_outcome records exist --
   Revert/escape rate: not yet measured — no deployed pipelines observed.
+
+Post-Merge Regression Reliability (merged work that later triggered a fix pipeline):
+  Post-merge regression-escape rate: {post_merge_escape_rate} ({n_triggered} of {n_pipelines} recorded pipelines)
+  -- or, when no triggered_by_pipeline_id records exist --
+  Post-merge regression-escape rate: not yet measured — no post-merge regressions attributed.
 
 System Proposals: (if any)
   - {proposal description}
