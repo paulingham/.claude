@@ -340,6 +340,20 @@ Thresholds (`mean_rounds >= 2.0`, `rework_rate >= 0.33`, `mean_rounds <= 1.0`, `
 
 **Backward compatibility:** if zero records carry `cost_estimate_usd` (legacy-only data, or pre-producer-wiring window per the implementation-status note), this step emits a single info line in the Step 9 report ("Cost-quality correlation: skipped — no cost-bearing observations") and no candidates are surfaced. The skill MUST NOT raise on absence.
 
+### 7c-bis. Deployment Reliability (project-level)
+
+This step is **project-level, NOT per-group**. Unlike Step 7c which aggregates by `(agent_role, task-class)`, `escape_rate` is computed across ALL pipelines in the project from `deploy_outcome` records, joined by `pipeline_id`. The `deploy_outcome` record type carries no `agent_role` or `task-class` field — it cannot be grouped into the Step 7c per-group table. The `escape_rate` field MUST NOT appear as a key in the Step 7c group-dict output.
+
+**Input:** `learning/{project-hash}/observations.jsonl`, filtered to `record_type == "deploy_outcome"` records.
+
+**Algorithm:**
+
+1. Collect all `deploy_outcome` records. Per `pipeline_id`, keep only the MAX-timestamp record (last-writer-wins: AUTO_ROLLBACK written by deployment-verification supersedes an earlier DEPLOYED written by deploy).
+2. `escape_rate = count(outcome ∈ {ROLLED_BACK, AUTO_ROLLBACK}) / count(deploy_outcome records)`. Denominator = pipelines that reached deploy (`DEPLOYED` / `ROLLED_BACK` / `AUTO_ROLLBACK` / `DEPLOY_FAILED`). `DEPLOY_FAILED` counts in the denominator but NOT the numerator (deploy attempted, never shipped — no regression escape).
+3. Emit `escape_rate`, `n_reverts` (numerator), `n_deploys` (denominator).
+
+**Absence / skip:** if zero `deploy_outcome` records exist, skip this step and render the Step 9 Deployment Reliability line as "not yet measured — no deployed pipelines observed." The skill MUST NOT raise on zero records and MUST NOT coerce absence to `0.0` or `"no escapes"`. This skip applies ONLY to Step 7c-bis and its Step 9 Deployment Reliability line — the Step 7c per-group cost-quality correlation is a separate step on a different record type (`record_type == "pipeline"`) and is NOT skipped or affected by absent `deploy_outcome` records. The two steps are independent.
+
 ### 8. Identify System Improvements (Continuous Self-Improvement)
 
 Beyond instincts, analyze the data for system-level improvement proposals:
@@ -373,6 +387,11 @@ Top instincts by confidence:
   [0.85] Always validate input at controller boundary (domain: security, roles: [software-engineer])
   [0.72] Read types.ts before editing services (domain: workflow, roles: [software-engineer])
   [0.50] Check for N+1 queries in ActiveRecord scopes (domain: performance, roles: [software-engineer, code-reviewer])
+
+Deployment Reliability (deploy-phase rollbacks):
+  Revert/escape rate: {escape_rate} ({n_reverts} of {n_deploys} deployed pipelines)
+  -- or, when no deploy_outcome records exist --
+  Revert/escape rate: not yet measured — no deployed pipelines observed.
 
 System Proposals: (if any)
   - {proposal description}
