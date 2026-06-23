@@ -96,7 +96,7 @@ After the verdict is known, append a `deploy_outcome` record as an optional lear
 ```bash
 # WHY: if escape_rate stays absent despite a known AUTO_ROLLBACK, grep
 # "record_type":"deploy_outcome" under learning/<hash>/observations.jsonl
-# and compare the project-hash idiom below against skills/learn/SKILL.md Step 10
+# and compare the project-hash idiom below against skills/learn/SKILL.md Step 1 (Identify Project & Bootstrap Instincts Dir)
 # (fork-cwd hash divergence: verification worktree may resolve a different hash
 # than the pipeline that wrote the pipeline record).
 source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/project-hash.sh"
