@@ -15,6 +15,7 @@ be deleted.
 | test-auto-learn-gate.sh | — | QUARANTINED — threshold trigger logic drift (15p/3f) |
 | test-bash-write-guard.sh | — | QUARANTINED — .md-path allowance + git-args blocking regressions (39p/6f) |
 | test-build-loop-scan.sh | tests/shell/bridge_build_loop_scan.bats | BRIDGED |
+| test-commit-signing.sh | tests/shell/test_commit_signing.bats | BRIDGED |
 | test-cache-feed-bugs.sh | — | QUARANTINED — BUG-1a cache.jsonl write condition (8/9 passing) |
 | test-cost-feed-router-signals.sh | tests/shell/bridge_cost_feed_router_signals.bats | BRIDGED |
 | test-detect-stale-pipeline-state.sh | tests/shell/bridge_detect_stale_pipeline_state.bats | BRIDGED |
