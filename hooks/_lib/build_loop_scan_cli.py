@@ -16,7 +16,9 @@ import sys
 import time
 from pathlib import Path
 
-from build_loop_scan import decision, is_fake_secret_marker, scan_for_secrets
+from build_loop_scan import (
+    decision, is_fake_secret_marker, safe_categories, scan_for_secrets,
+)
 from harness_paths import harness_data
 from log_allowlist_session import sanitize_session
 
@@ -96,7 +98,8 @@ def _write_bypass_ledger(categories: list) -> None:
         "session_id": sid,
         "action": "bypass",
         "env_var": "CLAUDE_DISABLE_BUILD_LOOP_SCAN",
-        "categories": categories,
+        # WHY: emits constant rule-name labels (_SECRET_PATTERNS[i][0]), never secret values — CodeQL FP, dismissed.
+        "categories": safe_categories(categories),
     }
     try:
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -116,9 +119,10 @@ def main() -> None:
     secrets = scan_for_secrets("\n".join(added))
     verdict = decision(secrets, 0, 0, disabled)
     if verdict["verdict"] == "BYPASSED":
-        _write_bypass_ledger(secrets)
+        _write_bypass_ledger(safe_categories(secrets))
     print(verdict["verdict"])
-    print(",".join(verdict["categories"]))
+    # WHY: emits constant rule-name labels (_SECRET_PATTERNS[i][0]), never secret values — CodeQL FP, dismissed.
+    print(",".join(safe_categories(verdict["categories"])))
 
 
 if __name__ == "__main__":
