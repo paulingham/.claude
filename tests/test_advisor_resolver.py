@@ -266,9 +266,16 @@ def _read_agent_frontmatter(name):
 
 class CodeReviewerHasAdvisorPairing(unittest.TestCase):
     def test_code_reviewer_has_advisor_pairing(self):
+        from model_alias import resolve_model_alias
         fm = _read_agent_frontmatter("code-reviewer")
-        self.assertEqual(fm["executor"], "claude-sonnet-4-6")
-        self.assertEqual(fm["advisor"], "claude-opus-4-7")
+        self.assertEqual(fm["executor"], "mid",
+                         "code-reviewer executor must be alias 'mid'")
+        self.assertEqual(resolve_model_alias(fm["executor"]), "claude-sonnet-4-6",
+                         "alias 'mid' must resolve to claude-sonnet-4-6")
+        self.assertEqual(fm["advisor"], "strong",
+                         "code-reviewer advisor must be alias 'strong'")
+        self.assertEqual(resolve_model_alias(fm["advisor"]), "claude-opus-4-8",
+                         "alias 'strong' must resolve to claude-opus-4-8")
         self.assertEqual(fm["model"], "opus", "model: opus must be UNCHANGED")
 
 
@@ -614,10 +621,17 @@ class TestCodeReviewerFrontmatterModelConditional(unittest.TestCase):
         return _read_agent_frontmatter("code-reviewer")
 
     def test_existing_triple_preserved_and_model_conditional_present(self):
+        from model_alias import resolve_model_alias
         fm = self._fm()
         self.assertEqual(fm["model"], "opus")
-        self.assertEqual(fm["executor"], "claude-sonnet-4-6")
-        self.assertEqual(fm["advisor"], "claude-opus-4-7")
+        self.assertEqual(fm["executor"], "mid",
+                         "code-reviewer executor must carry alias 'mid'")
+        self.assertEqual(resolve_model_alias(fm["executor"]), "claude-sonnet-4-6",
+                         "alias 'mid' must resolve to claude-sonnet-4-6")
+        self.assertEqual(fm["advisor"], "strong",
+                         "code-reviewer advisor must carry alias 'strong'")
+        self.assertEqual(resolve_model_alias(fm["advisor"]), "claude-opus-4-8",
+                         "alias 'strong' must resolve to claude-opus-4-8")
         self.assertIn("model_conditional", fm,
                       "code-reviewer.md missing model_conditional block")
 
@@ -628,9 +642,19 @@ class TestCodeReviewerFrontmatterModelConditional(unittest.TestCase):
         self.assertEqual(result["source"], "rule-match:budget_lt:6")
 
     def test_code_reviewer_model_conditional_resolves_cb_8_to_default(self):
-        result = resolve_model_conditional(self._fm(), budget=8)
+        from model_alias import resolve_model_alias
+        fm = self._fm()
+        # The card's default-arm must carry the alias token.
+        default_advisor = fm["model_conditional"]["default"]["advisor"]
+        self.assertEqual(default_advisor, "strong",
+                         "default-arm advisor in card must carry alias 'strong'")
+        self.assertEqual(resolve_model_alias(default_advisor), "claude-opus-4-8",
+                         "alias 'strong' must resolve to claude-opus-4-8")
+        # The resolved result must return the concrete ID.
+        result = resolve_model_conditional(fm, budget=8)
         self.assertEqual(result["model"], "opus")
-        self.assertEqual(result["advisor"], "claude-opus-4-7")
+        self.assertEqual(result["advisor"], "claude-opus-4-8",
+                         "resolved default-arm advisor must be concrete claude-opus-4-8")
         self.assertEqual(result["source"], "default-arm")
 
     def test_code_reviewer_status_flag_is_advisory_structural(self):
@@ -1229,6 +1253,70 @@ class ExtractRouterSignalsAssemblesDict(unittest.TestCase):
         # budget=None is preserved
         self.assertIsNone(result["complexity_budget"],
                           "budget=None must be preserved as None")
+
+
+class TestResolverResolvesAliasTokensToConcreteIds(unittest.TestCase):
+    """AC3: resolver exit points must resolve alias tokens via resolve_model_alias."""
+
+    def test_resolver_resolves_alias_tokens_to_concrete_ids(self):
+        """resolve_model_conditional on a frontmatter with alias tokens must
+        return resolved concrete IDs in executor/advisor fields.
+        """
+        from model_alias import resolve_model_alias
+        fm = {
+            "model": "opus",
+            "executor": "mid",
+            "advisor": "strong",
+            "model_conditional": {
+                "default": {
+                    "model": "opus",
+                    "executor": "mid",
+                    "advisor": "strong",
+                },
+                "rules": [
+                    {
+                        "when": {"budget_lt": 6},
+                        "model": "sonnet",
+                        "executor": "mid",
+                        "advisor": "none",
+                    },
+                ],
+                "status": "advisory",
+            },
+        }
+        result = resolve_model_conditional(fm, budget=8)
+        self.assertEqual(result["source"], "default-arm")
+        self.assertEqual(
+            resolve_model_alias(result["advisor"]),
+            "claude-opus-4-8",
+            "alias 'strong' in default arm must resolve to claude-opus-4-8",
+        )
+        self.assertEqual(
+            resolve_model_alias(result["executor"]),
+            "claude-sonnet-4-6",
+            "alias 'mid' must resolve to claude-sonnet-4-6",
+        )
+
+
+class TestResolverPassesThroughLiteralIds(unittest.TestCase):
+    """AC3: resolve_model_alias on a literal concrete ID must return it unchanged.
+
+    This ensures the 16 synthetic fixtures carrying literal claude-opus-4-7 values
+    remain green when the resolver routes those values through resolve_model_alias.
+    """
+
+    def test_resolver_passes_through_literal_ids(self):
+        from model_alias import resolve_model_alias
+        self.assertEqual(
+            resolve_model_alias("claude-opus-4-7"),
+            "claude-opus-4-7",
+            "literal claude-opus-4-7 must pass through unchanged",
+        )
+        self.assertEqual(
+            resolve_model_alias("claude-sonnet-4-6"),
+            "claude-sonnet-4-6",
+            "literal concrete ID must pass through unchanged",
+        )
 
 
 if __name__ == "__main__":

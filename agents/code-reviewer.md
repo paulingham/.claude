@@ -7,13 +7,13 @@ tools:
   - Glob
   - Bash
 model: opus
-executor: claude-sonnet-4-6
-advisor: claude-opus-4-7
+executor: mid
+advisor: strong
 model_conditional:
   default:
     model: opus
-    executor: claude-sonnet-4-6
-    advisor: claude-opus-4-7
+    executor: mid
+    advisor: strong
   rules:
     - when: { budget_lt: 6 }
       model: sonnet
