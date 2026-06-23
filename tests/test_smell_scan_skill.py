@@ -5,7 +5,7 @@ AC2  phase == utility, dispatch == skill-tool
 AC3  frontmatter verdict in {SMELLS_FOUND, SMELLS_CLEAN}; body names both verdicts
 AC4  verdict-catalog has both info rows attributed to smell-scan emitter
 AC5  skill-directory Active Skills has /harness:smell-scan row with both verdicts
-AC6  README has `## Skills (70)` AND `# 70 skills` (count bump)
+AC6  README has `## Skills (71)` AND `# 71 skills` (count bump)
 AC7  body names all 8 smell NAMES literally
 AC8  Anti-Patterns section excludes shape-hook-owned smells (long function, long param, deep nesting)
 AC9  advisory/never-blocks framing present
@@ -194,17 +194,17 @@ class AC6ReadmeCountBump(unittest.TestCase):
     def _readme(self):
         return README.read_text()
 
-    def test_readme_has_skills_70_heading(self):
+    def test_readme_has_skills_71_heading(self):
         self.assertRegex(
             self._readme(),
-            r"(?m)^## Skills \(70\)$",
-            "README must have `## Skills (70)` heading")
+            r"(?m)^## Skills \(71\)$",
+            "README must have `## Skills (71)` heading")
 
-    def test_readme_has_70_skills_comment(self):
+    def test_readme_has_71_skills_comment(self):
         self.assertRegex(
             self._readme(),
-            r"#\s*70\s+skills",
-            "README must have `# 70 skills` comment in architecture diagram")
+            r"#\s*71\s+skills",
+            "README must have `# 71 skills` comment in architecture diagram")
 
 
 class AC7SmellNamesInBody(unittest.TestCase):

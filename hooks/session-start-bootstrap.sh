@@ -96,7 +96,7 @@ if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
   echo "Scaffold: /harness:api-scaffold, /harness:db-migration, /harness:infra-scaffold, /harness:design-system-init"
   echo "Plan: /harness:epic-breakdown, /harness:estimation, /harness:story-writing, /harness:tech-spike"
   echo "Debug: /harness:debug (persistent state for complex bugs)"
-  echo "Utils: /harness:forensics (post-incident investigation) | /harness:workstream (parallel feature isolation)"
+  echo "Utils: /harness:forensics (post-incident investigation) | /harness:workstream (parallel feature isolation) | /harness:security-alert-fix (fix open CodeQL/secret-scanning alerts)"
 else
   # Overlay/migration-window mode: emit bare skill names (pre-cutover grace)
   echo "Entry: /intake (classify + route) | /pipeline (drive phases)"
@@ -107,7 +107,7 @@ else
   echo "Scaffold: /api-scaffold, /db-migration, /infra-scaffold, /design-system-init"
   echo "Plan: /epic-breakdown, /estimation, /story-writing, /tech-spike"
   echo "Debug: /debug (persistent state for complex bugs)"
-  echo "Utils: /forensics (post-incident investigation) | /workstream (parallel feature isolation)"
+  echo "Utils: /forensics (post-incident investigation) | /workstream (parallel feature isolation) | /security-alert-fix (fix open CodeQL/secret-scanning alerts)"
 fi
 
 # Learning system
