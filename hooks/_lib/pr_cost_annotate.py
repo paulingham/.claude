@@ -125,7 +125,9 @@ def _patch_pr_body(pr_number: str, repo: str, new_body: str) -> None:
 
 
 def _cwd_slug() -> str:
-    return Path(os.getcwd()).as_posix().replace("/", "-").lstrip("-")
+    # WHY: Claude Code slugifies the cwd by replacing BOTH / and . with -;
+    # the leading dash (from the root /) must be kept, matching the real projects dir name.
+    return Path(os.getcwd()).as_posix().replace("/", "-").replace(".", "-")
 
 
 def _default_transcript() -> str | None:

@@ -242,5 +242,101 @@ class SentinelAbsentAppendOnce(unittest.TestCase):
         self.assertIn("Some details.", result)
 
 
+
+class SlugDerivation(unittest.TestCase):
+    """6. slug: _cwd_slug replaces both / and . with -, preserving leading dash."""
+
+    def test_known_path_matches_real_projects_dir(self):
+        """/Users/Paul.Ingham/Projects/.claude -> -Users-Paul-Ingham-Projects--claude."""
+        import unittest.mock as mock
+        with mock.patch("os.getcwd", return_value="/Users/Paul.Ingham/Projects/.claude"):
+            slug = pr_cost_annotate._cwd_slug()
+        self.assertEqual(
+            slug,
+            "-Users-Paul-Ingham-Projects--claude",
+            msg=f"got {slug!r} — expected dots AND slashes replaced, leading dash kept",
+        )
+
+    def test_simple_path_no_dots(self):
+        """Path with no dots: only slashes replaced, leading dash preserved."""
+        import unittest.mock as mock
+        with mock.patch("os.getcwd", return_value="/home/user/myproject"):
+            slug = pr_cost_annotate._cwd_slug()
+        self.assertEqual(slug, "-home-user-myproject")
+
+    def test_path_with_dot_segment(self):
+        """Path with a dotfile segment (.config) gets double dash."""
+        import unittest.mock as mock
+        with mock.patch("os.getcwd", return_value="/home/user/.config/myapp"):
+            slug = pr_cost_annotate._cwd_slug()
+        self.assertEqual(slug, "-home-user--config-myapp")
+
+    def test_leading_dash_kept(self):
+        """Leading dash must NOT be stripped — real projects dir slug starts with -."""
+        import unittest.mock as mock
+        with mock.patch("os.getcwd", return_value="/any/path"):
+            slug = pr_cost_annotate._cwd_slug()
+        self.assertTrue(
+            slug.startswith("-"),
+            msg=f"slug must keep leading dash, got {slug!r}",
+        )
+
+
+class ResolveTranscriptSlugIntegration(unittest.TestCase):
+    """7. resolve_live_transcript with real slug shape picks newest top-level jsonl."""
+
+    def test_picks_newest_top_level_jsonl(self):
+        """Given a slug dir with two jsonl files, the newest is returned."""
+        import time
+        with tempfile.TemporaryDirectory() as tmpd:
+            slug = "-Users-Paul-Ingham-Projects--claude"
+            slug_dir = Path(tmpd) / slug
+            slug_dir.mkdir()
+            old = slug_dir / "session-old.jsonl"
+            new = slug_dir / "session-new.jsonl"
+            old.write_text("{}")
+            time.sleep(0.05)
+            new.write_text("{}")
+            result = resolve_live_transcript(tmpd, slug)
+            self.assertEqual(
+                Path(result).name,
+                "session-new.jsonl",
+                msg=f"expected newest file, got {result!r}",
+            )
+
+    def test_excludes_subagents_dir(self):
+        """jsonl files inside subagents/ must not be candidates."""
+        with tempfile.TemporaryDirectory() as tmpd:
+            slug = "-Users-Paul-Ingham-Projects--claude"
+            slug_dir = Path(tmpd) / slug
+            subagents_dir = slug_dir / "subagents"
+            subagents_dir.mkdir(parents=True)
+            top = slug_dir / "main-session.jsonl"
+            nested = subagents_dir / "nested.jsonl"
+            top.write_text("{}")
+            nested.write_text("{}")
+            result = resolve_live_transcript(tmpd, slug)
+            self.assertIsNotNone(result)
+            self.assertNotIn(
+                "subagents",
+                result,
+                msg=f"subagents jsonl must be excluded, got {result!r}",
+            )
+            self.assertEqual(Path(result).name, "main-session.jsonl")
+
+    def test_only_subagents_jsonl_returns_none(self):
+        """If only subagents/ jsonl exists (no top-level), returns None."""
+        with tempfile.TemporaryDirectory() as tmpd:
+            slug = "-Users-Paul-Ingham-Projects--claude"
+            slug_dir = Path(tmpd) / slug
+            subagents_dir = slug_dir / "subagents"
+            subagents_dir.mkdir(parents=True)
+            (subagents_dir / "sub.jsonl").write_text("{}")
+            result = resolve_live_transcript(tmpd, slug)
+            self.assertIsNone(
+                result,
+                msg="only subagents jsonl must yield None from resolve_live_transcript",
+            )
+
 if __name__ == "__main__":
     unittest.main()
