@@ -1,11 +1,12 @@
-"""Slice 1b — Verify advisory CI-watch line in Definition of Done.
+"""Slice 1b → Slice 2 update — CI-watch + enforcing gate in Definition of Done.
 
-AC9: protocols/pipeline-protocol.md Definition of Done carries an advisory
-     CI-watch line that contains 'advisory' and a not-a-gate qualifier
-     ('does not … block' / 'not yet block' / 'does not gate').
+Slice 1 (AC9): DoD gained an advisory CI-watch line.
+Slice 2: the advisory qualifier is FLIPPED to enforcing — 'CI-green gate passed'
+replaces 'does not yet block'. This test is updated to reflect the enforcing state.
 
-Goes RED before the line is added (DoD has no CI-watch item),
-GREEN after the line lands.
+The test still verifies the DoD mentions CI-watch/CI-green gate and that no
+advisory-only qualifier remains. Goes RED if the enforcing wording is reverted
+to the Slice 1 advisory form.
 """
 import re
 from pathlib import Path
@@ -25,37 +26,32 @@ def _dod_section(text):
 
 
 def test_dod_has_advisory_ci_watch_line():
-    """AC9: DoD contains an advisory CI-watch line with 'advisory' + not-a-gate qualifier."""
+    """Slice 2: DoD has enforcing CI-green gate line (not advisory-only from Slice 1).
+
+    Verifies:
+    - DoD mentions CI-green gate (enforcing gate passed before Deploy).
+    - DoD does NOT say 'does not yet block' or 'enforcing gate is tracked separately'
+      (advisory-only qualifiers from Slice 1 must be gone).
+    """
     text = PROTOCOL.read_text()
     dod = _dod_section(text)
     assert dod is not None, (
         "protocols/pipeline-protocol.md must have a '## Definition of Done' section"
     )
 
-    ci_watch_present = any(
+    ci_gate_present = any(
         kw in dod
-        for kw in ("gh pr checks", "CI-watch", "CI watch", "remote CI")
+        for kw in ("CI-green gate", "ci-green gate", "CI_GREEN", "gh pr checks")
     )
-    assert ci_watch_present, (
-        "Definition of Done must contain an advisory CI-watch line naming "
-        "'gh pr checks' or 'CI-watch' or 'remote CI'. "
+    assert ci_gate_present, (
+        "Definition of Done must contain a CI-green gate line (enforcing, Slice 2). "
         "None found in DoD section."
     )
 
-    assert "advisory" in dod, (
-        "The CI-watch DoD line must contain the word 'advisory' to signal "
-        "this is not yet a blocking gate."
+    # Enforcing state: advisory-only qualifiers must be gone
+    assert "does not yet block" not in dod, (
+        "DoD still says 'does not yet block' — Slice 2 must flip this to enforcing."
     )
-
-    not_a_gate_present = any(
-        kw in dod
-        for kw in (
-            "does not", "not yet block", "not block", "does not gate",
-            "does not yet block", "not a block", "non-blocking",
-        )
-    )
-    assert not_a_gate_present, (
-        "The CI-watch DoD line must include a not-a-gate qualifier such as "
-        "'does not … block' or 'not yet block Ship→Deploy'. "
-        "CI-watch is ADVISORY in Slice 1."
+    assert "enforcing gate is tracked separately" not in dod, (
+        "DoD still says 'enforcing gate is tracked separately' — Slice 2 must flip this."
     )

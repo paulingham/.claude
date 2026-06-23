@@ -270,9 +270,9 @@ EOF
 
 The eval-baseline stamp is appended to every PR body so reviewers see the latest suite pass rate + `harness_ref` SHA without per-PR reruns. See `~/.claude/skills/internal-eval/score/stamp-pr-body.sh`.
 
-### 5b. Watch remote CI (advisory)
+### 5b. Watch remote CI (advisory poll — enforcing gate is pipeline/SKILL.md Step 5)
 
-After `PR_CREATED`, the orchestrator runs an advisory CI-watch before proceeding to the cost annotator. This sub-phase is never a block — it drives the in-cycle fix loop on RED and emits `watch-skipped:operator-cancel` on operator interruption.
+After `PR_CREATED`, the orchestrator runs an advisory CI-watch before proceeding to the cost annotator. This sub-phase drives the in-cycle fix loop on RED and emits `watch-skipped:operator-cancel` on operator interruption. It is a polling loop, not the hard stop — the enforcing CI-green gate is at `skills/pipeline/SKILL.md` Step 5 (Deploy entry), which blocks `Ship→Deploy` on any non-conclusively-green status.
 
 **Arm the poll:**
 
@@ -498,8 +498,8 @@ The orchestrator handles merge ordering — this skill only creates PRs. It adds
 
 - **PR_CREATED**: PR URL returned, quality gate hook passed. Advisory CI-watch (Step 5b) follows.
 - **PR_BLOCKED**: Quality gate failed. Fix issues and retry.
-- **CI_GREEN**: All `gh pr checks` runs concluded SUCCESS against the pushed headRefOid; advisory — proceed to cost annotator (Step 6) then Deploy entry.
-- **CI_RED**: ≥1 `gh pr checks` run concluded FAILURE; advisory — pull `--log-failed`, re-enter in-cycle fix loop, verify `git ls-remote` == claimed SHA, re-arm watch. Never blocks Ship→Deploy in Slice 1.
+- **CI_GREEN**: All `gh pr checks` runs concluded SUCCESS against the pushed headRefOid; CI-green gate passed — proceed to cost annotator (Step 6) then Deploy.
+- **CI_RED**: ≥1 `gh pr checks` run concluded FAILURE (or CI status unreadable); pull `--log-failed`, re-enter in-cycle fix loop, verify `git ls-remote` == claimed SHA, re-arm watch. The enforcing CI-green gate at pipeline/SKILL.md Step 5 HALTS Ship→Deploy until CI is conclusively green.
 
 ## Phase Output
 

@@ -689,13 +689,21 @@ If single-repo mode (no manifest) → existing Ship behavior (one PR, no cross-r
 
 After Ship phase returns PR_CREATED:
 
-> **Advisory CI-watch (pr-creation Step 5b):** Before the merge-status check below,
+> **Advisory CI-watch (pr-creation Step 5b):** Before the enforcing gate below,
 > the orchestrator runs the advisory CI-watch sub-phase (`skills/pr-creation/SKILL.md`
 > Step 5b). It polls `gh pr checks <pr-number>` (keyed off CI conclusion) until all
 > runs conclude against the pushed headRefOid. On CI_RED, the fix loop re-enters
-> automatically; on CI_GREEN, it proceeds here. This does NOT gate Deploy on CI
-> conclusion — the enforcing gate is Slice 2. The merge-status check below remains
-> the Deploy trigger; CI-watch and merge status are orthogonal signals.
+> automatically; on CI_GREEN, it proceeds here. The advisory watch and the enforcing
+> gate are orthogonal — the watch drives the fix loop, the gate is the hard stop.
+
+**Enforcing CI-green gate (BEFORE deploy auto-invoke):**
+
+Run `skills/pipeline/lib/check-ci-green-gate.sh <PR_NUMBER>` before any deploy invocation.
+
+- **Exit 0 (CI_GREEN)**: CI is conclusively green — proceed to merge-status check and deploy.
+- **Exit 2 (CI_RED)**: CI is NOT conclusively green — **halt; do NOT invoke `/harness:deploy`**. Re-enter the in-cycle fix loop. The gate emits a human-readable block message naming the PR number, observed reason (e.g. `gh-error`, `empty-rollup`, `unknown-check-type:<token>`), and the override hint.
+
+Operator escape: `CLAUDE_CI_GREEN_GATE=off` bypasses the gate with a loud warning. Use only when the failure is demonstrably pre-existing and unrelated to the current change.
 
 1. Check PR merge status: `gh pr view [PR_NUMBER] --json state -q '.state'`
 2. If `MERGED`: automatically invoke `/harness:deploy` → `/harness:deployment-verification`

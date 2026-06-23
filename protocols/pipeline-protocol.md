@@ -240,5 +240,5 @@ A story is DONE when ALL are true:
 - Product reviewer: APPROVED
 - Quality gate hook passes
 - PR merged to main
-- Remote CI watched after push (advisory): `gh pr checks` polled to conclusion; CI_RED re-entered the in-cycle fix loop. (Advisory in this revision — CI status is reported and drives the fix loop, but does not yet block Ship→Deploy; the enforcing gate is tracked separately.)
+- CI is conclusively green (CI-green gate passed) before Deploy: `gh pr checks` polled to conclusion (advisory watch, Step 5b); the enforcing CI-green gate at `skills/pipeline/SKILL.md` Step 5 HALTS Ship→Deploy on any non-green/unreadable status. CI_RED re-enters the in-cycle fix loop.
 - Post-task reflection completed (rules/patterns updated if learnings identified)

@@ -92,8 +92,8 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `SMELLS_CLEAN` | info | `smell-scan` | utility | No smell candidates detected, or 0 source files in scope after filtering; advisory; non-blocking |
 | `PR_CREATED` | success | `pr-creation` | ship | `/harness:deploy` (if CD configured) |
 | `PR_BLOCKED` | failure | `pr-creation` | ship | Halt; missing approval token or quality-gate failure |
-| `CI_GREEN` | success | `pr-creation` | ship | All `gh pr checks` runs concluded SUCCESS against the pushed head (headRefOid verified); advisory — proceed to cost annotator (Step 6) then Deploy entry. Does NOT gate Deploy in Slice 1 (advisory only). |
-| `CI_RED` | failure | `pr-creation` | ship | ≥1 `gh pr checks` run concluded FAILURE; advisory — pull `--log-failed`, re-enter in-cycle fix loop (fix-engineer SAME build worktree → commit → push), verify `git ls-remote` == claimed SHA, re-arm watch. Never blocks Ship→Deploy in Slice 1. |
+| `CI_GREEN` | success | `pr-creation` | ship | All `gh pr checks` runs concluded SUCCESS against the pushed head (headRefOid verified); CI-green gate passed — proceed to cost annotator (Step 6) then Deploy. |
+| `CI_RED` | failure | `pr-creation` | ship | ≥1 `gh pr checks` run concluded FAILURE or CI status unreadable; HALTS Ship→Deploy at the CI-green gate — pull `--log-failed`, re-enter in-cycle fix loop (fix-engineer SAME build worktree → commit → push), verify `git ls-remote` == claimed SHA, re-arm watch. |
 | `CHANGELOG_WRITTEN` | success | `changelog` | ship | PR narrative returned for `pr-creation` `## Summary`; `CHANGELOG.md` updated under `Unreleased` |
 | `CHANGELOG_SKIPPED` | info | `changelog` | ship | No functional change in diff (docs/test-only); narrative returned, no changelog edit; non-blocking |
 | `DEPLOYED` | success | `deploy` | deploy | `/harness:deployment-verification` |
