@@ -1,12 +1,12 @@
-"""Aggregate measured preamble_tokens across per-session costs.jsonl records.
+"""Aggregate preamble_tokens across per-session costs.jsonl records.
 
 `aggregate_preamble_tokens(metrics_root)` reads
 `metrics_root/costs.jsonl`, counts only `session_end` records that
 carry a non-negative integer `preamble_tokens` field, and returns the
 canonical dict consumed by `skills/cost-report/SKILL.md`
-Step 5-bis (## Preamble Tokens (MEASURED)).
+Step 5-bis (## Preamble Tokens (estimated, bytes/3.5)).
 
-The preamble_tokens values are MEASURED per-session at session_end by
+The preamble_tokens values are estimated (bytes/3.5) per-session at session_end by
 `hooks/cost-tracker.sh` via `hooks/_lib/preamble-tokens-emit.py`.
 
 Return shape:

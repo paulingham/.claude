@@ -75,8 +75,33 @@ else
     EVAL_FIELDS=""
 fi
 
+# WHY: reads per-session token usage from transcript — the only path that has real counts.
+_ct_read_usage() {
+    local tp="$1"
+    [ -z "$tp" ] && { echo '{}'; return 0; }
+    python3 "$HARNESS_ROOT/hooks/_lib/transcript_usage.py" "$tp" 2>/dev/null || echo '{}'
+}
+
+_ct_validate_usage() {
+    local raw="$1"
+    echo "$raw" | jq -e 'type == "object"' >/dev/null 2>&1 && echo "$raw" || echo '{}'
+}
+
+# WHY: reuse _cf_pipeline_id from cost-helpers.sh (DRY) to tag record with active task_id.
+_ct_pipeline_id() {
+  # shellcheck source=_lib/cost-helpers.sh
+  source "$(dirname "${BASH_SOURCE[0]}")/_lib/cost-helpers.sh"
+  _cf_pipeline_id 2>/dev/null || echo none
+}
+
+TASK_ID=$(_ct_pipeline_id 2>/dev/null || echo none)
+[[ -n "$TASK_ID" ]] || TASK_ID="none"
+
 PREAMBLE_TOKENS=$("$HARNESS_ROOT/hooks/_lib/preamble-tokens-emit.py" 2>/dev/null || echo 0)
 [[ "$PREAMBLE_TOKENS" =~ ^[0-9]+$ ]] || PREAMBLE_TOKENS=0
+
+TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null || true)
+USAGE_JSON=$(_ct_validate_usage "$(_ct_read_usage "$TRANSCRIPT_PATH")")
 
 # Build enriched metrics record
 jq -c -n \
@@ -84,19 +109,23 @@ jq -c -n \
     --arg sid "$SESSION_ID" \
     --arg project "$PROJECT" \
     --arg hash "$PROJECT_HASH" \
+    --arg task_id "$TASK_ID" \
     --argjson duration "$DURATION_S" \
     --argjson tools "$TOOL_CALLS" \
     --argjson preamble "$PREAMBLE_TOKENS" \
+    --argjson usage "$USAGE_JSON" \
     "${EVAL_ARGS[@]}" \
     "{
         \"timestamp\": \$ts,
         \"session_id\": \$sid,
+        \"task_id\": \$task_id,
         \"project\": \$project,
         \"project_hash\": \$hash,
         \"event\": \"session_end\",
         \"duration_s\": \$duration,
         \"tool_calls\": \$tools,
-        \"preamble_tokens\": \$preamble
+        \"preamble_tokens\": \$preamble,
+        \"usage_by_model\": \$usage
         ${EVAL_FIELDS}
     }" >> "$METRICS_DIR/costs.jsonl" 2>/dev/null || true
 

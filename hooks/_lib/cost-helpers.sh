@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Shared helpers for cost-feed.sh (SubagentStop hook).
 # Bash-3.2 clean. Every function body ≤5 lines. POSIX O_APPEND atomic for <4096B records.
-# Field path verified from subagent-stop-trajectory.sh: SubagentStop top-level fields
-# are .subagent_type / .subagent_id (NO .tool_input wrapper). Token usage assumed at
-# .usage.input_tokens (top level), matching that asymmetry.
+# WHY: SubagentStop carries per-spawn token counts at .usage.* (top-level, no wrapper).
+# WHY: The SubagentStop cost-emit path is SUPERSEDED for session totals — real per-session
+# usage is now read from the transcript by hooks/cost-tracker.sh (Stop hook) via
+# hooks/_lib/transcript_usage.py. cost-feed.sh is retained because its cache emit at
+# line ~39 feeds /cache-audit's per-session cache.jsonl regardless of the cost gate.
 
 _cf_pipeline_id_from_path() {
   # New: parent dir. Legacy: basename minus '-pipeline.md'.
