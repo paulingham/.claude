@@ -236,3 +236,63 @@ STUBEOF
   [[ "$output" == *"WEIRD_NEW_STATE"* ]] || [[ "$output" == *"unknown"* ]]
   [[ "$output" == *"CLAUDE_CI_GREEN_GATE=off"* ]]
 }
+
+# ─── AC_legacy: Legacy StatusContext (conclusion absent, state set) ────────────
+# A04: when conclusion is empty, state is the authority (not a BLOCK:unknown).
+# Iron Law 8: empty+empty (both absent) must still BLOCK (fail-closed regression).
+
+@test "AC_legacy_statuscontext_success_allows: conclusion absent state=SUCCESS exits 0" {
+  # Real GitHub legacy StatusContext: conclusion field absent, state=SUCCESS
+  local json='{"statusCheckRollup":[{"name":"legacy-check","state":"SUCCESS"}]}'
+  _stub_gh "$json" 0
+  run bash "$GATE" 42
+  [ "$status" -eq 0 ]
+}
+
+@test "AC_legacy_statuscontext_pending_blocks: conclusion absent state=PENDING exits 2" {
+  local json='{"statusCheckRollup":[{"name":"legacy-check","state":"PENDING"}]}'
+  _stub_gh "$json" 0
+  run bash "$GATE" 42
+  [ "$status" -eq 2 ]
+}
+
+@test "AC_legacy_statuscontext_failure_blocks: conclusion absent state=FAILURE exits 2" {
+  local json='{"statusCheckRollup":[{"name":"legacy-check","state":"FAILURE"}]}'
+  _stub_gh "$json" 0
+  run bash "$GATE" 42
+  [ "$status" -eq 2 ]
+}
+
+@test "AC_legacy_statuscontext_empty_both_blocks: conclusion empty state empty still BLOCK (fail-closed)" {
+  # Iron Law 8 regression: empty conclusion AND empty state must BLOCK, not ALLOW.
+  # If the empty-conclusion branch incorrectly falls through to ALLOW, this goes RED.
+  local json='{"statusCheckRollup":[{"name":"legacy-check","conclusion":"","state":""}]}'
+  _stub_gh "$json" 0
+  run bash "$GATE" 42
+  [ "$status" -eq 2 ]
+}
+
+# ─── AC9_reader_strict_mode: reader direct invocation under set -uo pipefail ──
+# Fix #5: exercises the READER's strict-mode robustness, not just the wrapper's
+# empty-PR guard. Confirms ci_status_decision "" exits 2 with NO unbound-variable
+# stderr under set -uo pipefail.
+
+@test "AC9_reader_strict_mode_empty_pr_refuses: reader direct call ci_status_decision '' rc=2 no unbound-var" {
+  run bash -c "
+    set -uo pipefail
+    source '$READER'
+    ci_status_decision ''
+  "
+  [ "$status" -eq 2 ]
+  [[ "$output" != *"unbound variable"* ]]
+  [[ "$output" != *"parameter not set"* ]]
+}
+
+# ─── AC_override_ledger: escape warning emitted (best-effort ledger) ──────────
+
+@test "AC_override_ledger_warning_emitted: CLAUDE_CI_GREEN_GATE=off emits WARNING to stderr" {
+  CLAUDE_CI_GREEN_GATE=off run bash "$GATE" 42
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"WARNING"* ]] || [[ "$output" == *"CLAUDE_CI_GREEN_GATE=off"* ]]
+  [[ "$output" == *"42"* ]]
+}

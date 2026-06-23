@@ -12,12 +12,16 @@
 #   - Error-vs-absent distinction (gh-error vs empty-rollup)
 #   - Unconditional final BLOCK (the ONE allow path is all-green)
 #
-# C2 status map:
+# C2 status map — conclusion drives the decision:
 #   non-empty rollup AND all conclusion==SUCCESS/NEUTRAL        → ALLOW (0)
 #   ANY FAILURE/CANCELLED/TIMED_OUT/ACTION_REQUIRED             → BLOCK (2)
 #   ANY PENDING/EXPECTED/IN_PROGRESS/QUEUED/state==PENDING      → BLOCK (2)
 #   ANY ERROR                                                   → BLOCK (2)
 #   ANY SKIPPED                                                 → BLOCK (2)
+#   conclusion empty (legacy StatusContext) → state is authority:
+#     state==SUCCESS/NEUTRAL                                    → ALLOW (0)
+#     state==FAILURE/ERROR/etc                                  → BLOCK (2)
+#     state empty (both empty)                                  → BLOCK (2)
 #   empty/null rollup                                           → BLOCK (2)
 #   gh non-zero / auth error / network error                   → BLOCK (2)
 #   jq parse error / malformed JSON                            → BLOCK (2)
@@ -56,8 +60,21 @@ _csr_extract_rollup() {
   _CSR_JQ_RC=$?
 }
 
+# _csr_sanitize_token: strip non-printable chars, cap at 32 alnum/-/_ chars.
+# WHY: raw GitHub status enum tokens go into log/reason strings; sanitize for
+# log hygiene (not a security vulnerability — never executed, not a secret).
+_csr_sanitize_token() {
+  printf '%s' "${1:-}" | tr -cd 'a-zA-Z0-9_-' | cut -c1-32
+}
+
 # _csr_check_entry: map a single check entry (conclusion + state fields).
 # Prints "ALLOW" or "BLOCK:<reason>".
+#
+# Decision authority:
+#   - When conclusion is non-empty: conclusion drives the decision;
+#     state can only TIGHTEN (never loosen) a passing conclusion.
+#   - When conclusion is empty (legacy StatusContext): state is the authority.
+#   - When both are empty: BLOCK (unknown/unevaluable — fail-closed).
 _csr_check_entry() {
   local conclusion="$1" state="$2"
 
@@ -71,11 +88,35 @@ _csr_check_entry() {
       printf 'BLOCK:error' ; return ;;
     SKIPPED)
       printf 'BLOCK:skipped' ; return ;;
+    "")
+      # WHY: conclusion empty = legacy StatusContext (GitHub status API, not
+      # CheckRun API). The state field is the authority for these entries.
+      # Empty conclusion AND empty state → BLOCK (unknown/unevaluable).
+      case "$state" in
+        SUCCESS|NEUTRAL)
+          printf 'ALLOW' ; return ;;
+        FAILURE|CANCELLED|TIMED_OUT|ACTION_REQUIRED)
+          printf 'BLOCK:failure' ; return ;;
+        PENDING|EXPECTED|IN_PROGRESS|QUEUED)
+          printf 'BLOCK:pending' ; return ;;
+        ERROR)
+          printf 'BLOCK:error' ; return ;;
+        SKIPPED)
+          printf 'BLOCK:skipped' ; return ;;
+        *)
+          local _safe_state
+          _safe_state="$(_csr_sanitize_token "$state")"
+          printf "BLOCK:unknown-check-type:%s" "$_safe_state" ; return ;;
+      esac ;;
     *)
-      printf "BLOCK:unknown-check-type:%s" "$conclusion" ; return ;;
+      local _safe_conclusion
+      _safe_conclusion="$(_csr_sanitize_token "$conclusion")"
+      printf "BLOCK:unknown-check-type:%s" "$_safe_conclusion" ; return ;;
   esac
 
-  # Also check legacy state field for StatusContext entries
+  # conclusion is SUCCESS|NEUTRAL — also check legacy state field to tighten.
+  # WHY: a CheckRun may carry both fields; a non-passing state can only tighten.
+  # Empty state here means the state field is absent/irrelevant → pass through.
   case "$state" in
     SUCCESS|NEUTRAL|"") ;;
     PENDING|EXPECTED|IN_PROGRESS|QUEUED)
@@ -83,7 +124,9 @@ _csr_check_entry() {
     FAILURE|ERROR|CANCELLED|TIMED_OUT|ACTION_REQUIRED|SKIPPED)
       printf 'BLOCK:failure' ; return ;;
     *)
-      printf "BLOCK:unknown-check-type:%s" "$state" ; return ;;
+      local _safe_state2
+      _safe_state2="$(_csr_sanitize_token "$state")"
+      printf "BLOCK:unknown-check-type:%s" "$_safe_state2" ; return ;;
   esac
 
   printf 'ALLOW'

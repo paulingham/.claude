@@ -14,12 +14,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Resolve PR number from argument — BLOCK if empty/absent.
-# WHY: cd "" rc=0 (QG-gate-wrapper-test-traps memory); guard before use.
-_ccgg_resolve_pr() {
-  printf '%s' "${1:-}"
-}
-
-PR="$(_ccgg_resolve_pr "${1:-}")"
+PR="${1:-}"
 
 # C4: Honour operator escape BEFORE sourcing reader.
 # WHY: the escape must NOT interact with the reader's fail-closed paths —
@@ -28,6 +23,29 @@ PR="$(_ccgg_resolve_pr "${1:-}")"
 if [[ "${CLAUDE_CI_GREEN_GATE:-}" == "off" ]]; then
   echo "WARNING: CLAUDE_CI_GREEN_GATE=off — CI-green gate skipped for PR #${PR:-<unknown>}. Fix CI before deploying to production." >&2
   echo "[ci-green-gate] Gate bypassed via CLAUDE_CI_GREEN_GATE=off override for PR #${PR:-<unknown>}."
+
+  # AA03: Append audit record (best-effort — logging failure MUST NOT block override).
+  # WHY: override events must be traceable; mirrors observation-append pattern (python3
+  # os.open O_APPEND, not bash >> which bash-write-guard may block).
+  _CCGG_SESSION="$(python3 -c "import json,sys; d=json.load(sys.stdin) if not sys.stdin.isatty() else {}; print(d.get('session_id','unknown'))" 2>/dev/null < /dev/stdin || true)"
+  _CCGG_SESSION="${_CCGG_SESSION:-unknown}"
+  _CCGG_DATA_DIR="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/metrics/${_CCGG_SESSION}"
+  python3 - <<PYEOF 2>/dev/null || true
+import os, json, time
+data_dir = "$_CCGG_DATA_DIR"
+try:
+    os.makedirs(data_dir, exist_ok=True)
+    record = json.dumps({"timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "pr": "${PR:-}", "event": "override", "gate": "ci-green"})
+    path = os.path.join(data_dir, "ci-green-gate-overrides.jsonl")
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+    try:
+        os.write(fd, (record + "\n").encode())
+    finally:
+        os.close(fd)
+except Exception:
+    pass
+PYEOF
+
   exit 0
 fi
 
