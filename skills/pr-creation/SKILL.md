@@ -261,12 +261,34 @@ fi
 ## Related
 Closes [TICKET-XXX or issue number]
 
+**Pipeline cost:** _pending CI_
+
 ${STAMP}
 EOF
 )")
 ```
 
 The eval-baseline stamp is appended to every PR body so reviewers see the latest suite pass rate + `harness_ref` SHA without per-PR reruns. See `~/.claude/skills/internal-eval/score/stamp-pr-body.sh`.
+
+### 6. Annotate PR cost on CI-green
+
+After the CI-watch confirms all checks pass, invoke the cost annotator:
+
+```bash
+python3 "${HARNESS_ROOT}/hooks/_lib/pr_cost_annotate.py" <pr-number>
+```
+
+The annotator resolves the live session transcript (newest `*.jsonl` under
+`~/.claude/projects/{cwd-slug}/`, excluding `subagents/` subdirs), sums
+token usage by model via `transcript_usage.sum_usage_by_model`, prices it
+via `cost_estimator.estimate_cost_usd`, then PATCHes the PR body — replacing
+the `**Pipeline cost:** _pending CI_` sentinel line with the real figure.
+
+- **Fail-open**: any error (no transcript, gh failure, compute error) is
+  caught, printed to stderr, and the script exits 0. The sentinel is left
+  intact. The PR is never blocked.
+- **Idempotent**: safe to run more than once — exactly one cost line results.
+- **On by default**: no env flag required.
 
 ## Branch Naming Conventions
 
