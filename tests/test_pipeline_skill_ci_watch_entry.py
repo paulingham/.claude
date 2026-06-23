@@ -47,7 +47,7 @@ def test_step5_names_advisory_ci_watch_before_merge_check():
 
     merge_check_present = any(
         kw in step5
-        for kw in ("gh pr view", "json state", "merge status", "MERGED")
+        for kw in ("gh pr view --json state", "gh pr view", "json state", "MERGED")
     )
     assert merge_check_present, (
         "Step 5 must still contain the merge-status check "
@@ -64,7 +64,7 @@ def test_step5_names_advisory_ci_watch_before_merge_check():
             break
 
     merge_pos = -1
-    for kw in ("gh pr view", "json state", "merge status"):
+    for kw in ("gh pr view --json state", "gh pr view", "json state"):
         pos = step5.find(kw)
         if pos != -1:
             merge_pos = pos

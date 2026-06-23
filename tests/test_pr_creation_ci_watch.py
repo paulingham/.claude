@@ -179,3 +179,100 @@ def test_ci_watch_names_operator_cancel_escape():
         "'CI status unverified' qualifier — cancelling leaves CI status unverified "
         "but must NOT block pipeline advancement."
     )
+
+
+def test_empty_matched_run_set_routes_to_watch_skipped_not_ci_green():
+    """Fix #1 guard: empty matched-run set must NOT produce CI_GREEN (vacuous-true hole).
+
+    CI_GREEN requires ≥1 matched run. If zero check-runs match the captured headRefOid
+    (e.g. a force-push made every visible run stale), the procedure must route to
+    watch-skipped, not CI_GREEN.
+    """
+    text = _skill_text()
+    section = _step5b_section(text)
+    assert section is not None, "No ### 5b. section found; AC4 failing"
+
+    # The section must state the ≥1 requirement on the GREEN path.
+    at_least_one_required = any(
+        kw in section
+        for kw in (
+            "≥1 matched run",
+            ">=1 matched run",
+            "at least one matched run",
+            "at least 1 matched run",
+            "≥1 check-run matches",
+        )
+    )
+    assert at_least_one_required, (
+        "CI-watch GREEN path must explicitly require ≥1 matched run. "
+        "An empty matched-run set (all check-runs stale vs captured headRefOid) "
+        "must NOT produce CI_GREEN — the 'all SUCCESS' condition is vacuously true "
+        "over an empty set. The section must state CI_GREEN requires ≥1 matched run."
+    )
+
+    # The section must name the watch-skipped route for the empty-set case.
+    empty_routes_to_watch_skipped = any(
+        kw in section
+        for kw in (
+            "no-matching-runs",
+            "watch-skipped:no-matching-runs",
+            "empty matched-run set",
+            "zero check-runs match",
+            "matched-run set is empty",
+        )
+    )
+    assert empty_routes_to_watch_skipped, (
+        "CI-watch section must explicitly state that an empty matched-run set "
+        "(zero check-runs matching the captured headRefOid) routes to "
+        "watch-skipped, NOT to CI_GREEN. "
+        "Hint: add 'watch-skipped:no-matching-runs' or equivalent prose."
+    )
+
+
+def test_rearm_uses_equality_not_inequality_for_sha_check():
+    """Fix #2 guard: RED-path re-arm must verify ls-remote == expected SHA (equality),
+    not != pre-fix SHA (inequality). Equality-check prevents a third SHA (different
+    commit, not the fix-engineer's) from being accepted as a valid re-arm.
+    """
+    text = _skill_text()
+    section = _step5b_section(text)
+    assert section is not None, "No ### 5b. section found; AC4 failing"
+
+    # The section must name 'equals' or 'equal' (equality) in the SHA check context.
+    equality_check_present = any(
+        kw in section
+        for kw in (
+            "equals that expected SHA",
+            "equals the fix-engineer",
+            "equals the expected",
+            "equal to the expected",
+            "does NOT equal",
+            "does not equal",
+            "== the fix",
+            "== that",
+        )
+    )
+    assert equality_check_present, (
+        "CI-watch RED-path re-arm must use equality (branch head == expected fix SHA), "
+        "not inequality (!= pre-fix SHA). The section must name the equality check "
+        "e.g. 'does NOT equal the fix-engineer\\'s claimed SHA' or equivalent. "
+        "This prevents a third, unrelated commit from being silently accepted."
+    )
+
+    # The section must also state that the ls-remote-confirmed SHA becomes the
+    # new HEAD_OID — threading through to step-5 re-arm.
+    sha_threaded = any(
+        kw in section
+        for kw in (
+            "ls-remote-confirmed SHA",
+            "confirmed SHA as the new HEAD_OID",
+            "confirmed value through",
+            "threads the single ls-remote",
+            "thread",
+        )
+    )
+    assert sha_threaded, (
+        "CI-watch re-arm must state that the git ls-remote-confirmed SHA becomes "
+        "the new HEAD_OID for re-arming the poll (single-source threading). "
+        "The orchestrator must not derive the new HEAD_OID from a second source."
+    )

@@ -283,35 +283,52 @@ After `PR_CREATED`, the orchestrator runs an advisory CI-watch before proceeding
 HEAD_OID=$(gh pr view <pr-number> --json headRefOid -q '.headRefOid')
 ```
 
-Poll `gh pr checks <pr-number>` in a loop until all runs reach a concluded state
+# SAFETY: Validate <pr-number> matches ^[0-9]+$ before interpolating; double-quote
+# all interpolated placeholders in gh/git commands (e.g. `gh pr checks "$PR"`,
+# `git ls-remote "$remote" "$branch"`) to prevent word-splitting and injection.
+
+Poll `gh pr checks "$PR"` in a loop until all runs reach a concluded state
 (SUCCESS or FAILURE). On each poll, compare the check-run SHA to the captured
 `headRefOid` — if any check-run SHA does not match, skip it (stale run from a
 previous push, not the current head).
 
 **GREEN path — emit `CI_GREEN`:**
 
-When all check-runs against the captured `headRefOid` conclude SUCCESS:
+When ≥1 check-run matches the captured `headRefOid` AND all matched runs conclude
+SUCCESS:
 - Emit `CI_GREEN`.
 - Proceed to Step 6 (cost annotator).
+
+If the matched-run set is empty (zero check-runs match the captured `headRefOid` —
+e.g. a force-push made every visible run stale), this is NOT a GREEN signal.
+Route to `CI status: watch-skipped:no-matching-runs` and proceed (same as the
+unreadable / no-runs path). CI_GREEN requires ≥1 matched run.
 
 **RED path — emit `CI_RED`, re-enter fix loop:**
 
 When ≥1 check-run against `headRefOid` concludes FAILURE:
-1. Pull the failing logs: `gh pr checks <pr-number> --log-failed`
+1. Pull the failing logs: `gh pr checks "$PR" --log-failed`
+   # SAFETY: Do NOT persist --log-failed output into the PR body, a PR comment,
+   # the scratchpad, or an observation — CI failure logs commonly contain secrets
+   # in stack traces. The logs feed the in-cycle fix loop only.
 2. Emit `CI_RED`.
 3. Re-enter the in-cycle fix loop: spawn fix-engineer on the **SAME build worktree**
    (not a fresh one — the build worktree retains the full branch history).
-4. After fix-engineer reports a fix committed and pushed, verify the claimed SHA
-   actually reached the remote **before re-polling**:
+4. After fix-engineer reports a fix committed and pushed, verify the fix-engineer's
+   claimed/expected SHA actually reached the remote **before re-polling**.
+   The orchestrator holds the expected SHA from the fix-engineer's report; confirm
+   the remote branch head **equals** that expected SHA:
    ```bash
-   git ls-remote <remote> <branch>
+   git ls-remote "$remote" "$branch"
    ```
-   If `git ls-remote` shows the branch head is still the pre-fix SHA, the
-   fix-engineer stalled at push. Surface "fix not on remote — fix-engineer stalled,
-   manual recovery needed" and halt re-polling. (See memory:
+   If `git ls-remote` shows the branch head does NOT equal the fix-engineer's
+   claimed SHA, the fix-engineer stalled at push. Surface "fix not on remote —
+   fix-engineer stalled, manual recovery needed" and halt re-polling. (See memory:
    `ship-must-watch-remote-ci`, `fix-engineer-nested-worktree-side-branch` —
    fix-engineer subagents stall silently at commit/push; never trust self-report.)
-5. Capture the new `headRefOid` from the push and re-arm the poll.
+5. Use the `git ls-remote`-confirmed SHA as the new HEAD_OID and re-arm the poll.
+   This threads the single ls-remote-confirmed value through both step-4 verification
+   and step-5 re-arm — there is no second source for the new HEAD_OID.
 
 **Operator cancel escape hatch:**
 
