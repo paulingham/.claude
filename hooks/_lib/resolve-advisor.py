@@ -139,6 +139,7 @@ def main():
         read_active_state().get("budget") or None)
     if decision == "LOG":
         _attach_router_decision(resolved, tool_input, *_env_raws())
+    # WHY: emits model-IDs + reason labels only; credentials reduced to bool/strings upstream — CodeQL FP, dismissed.
     sys.stdout.write(f"{decision}\n{json.dumps(resolved)}\n{binding}\n")
 
 

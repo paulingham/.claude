@@ -98,6 +98,7 @@ def _write_bypass_ledger(categories: list) -> None:
         "session_id": sid,
         "action": "bypass",
         "env_var": "CLAUDE_DISABLE_BUILD_LOOP_SCAN",
+        # WHY: emits constant rule-name labels (_SECRET_PATTERNS[i][0]), never secret values — CodeQL FP, dismissed.
         "categories": safe_categories(categories),
     }
     try:
@@ -120,6 +121,7 @@ def main() -> None:
     if verdict["verdict"] == "BYPASSED":
         _write_bypass_ledger(safe_categories(secrets))
     print(verdict["verdict"])
+    # WHY: emits constant rule-name labels (_SECRET_PATTERNS[i][0]), never secret values — CodeQL FP, dismissed.
     print(",".join(safe_categories(verdict["categories"])))
 
 
