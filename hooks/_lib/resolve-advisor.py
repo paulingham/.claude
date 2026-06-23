@@ -119,7 +119,12 @@ def main():
     payload = _payload()
     tool_input = payload.get("tool_input") or {}
     frontmatter = load_agent_frontmatter(tool_input.get("subagent_type", ""))
-    resolved = resolve(tool_input=tool_input, env=os.environ, frontmatter=frontmatter)
+    advisor_disabled = os.environ.get("CLAUDE_REVIEW_ADVISOR_DISABLED") == "1"
+    key_present = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    resolved = resolve(tool_input=tool_input,
+                       advisor_disabled=advisor_disabled,
+                       has_api_key=key_present,
+                       frontmatter=frontmatter)
     decision = _decision(payload)
     state = read_active_state()
     budget = state.get("budget") or None  # coerce 0 to None (indistinguishable from unset)

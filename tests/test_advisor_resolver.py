@@ -121,9 +121,10 @@ class ResolverIgnoresNonReviewerAgents(unittest.TestCase):
         # executor/advisor pairing — resolver must fall through. infrastructure-
         # engineer chosen as a write-capable role outside the reviewer set.
         tool_input = {"subagent_type": "infrastructure-engineer"}
-        env = {"ANTHROPIC_API_KEY": "sk-test"}
         frontmatter = {"model": "opus"}
-        result = resolve(tool_input=tool_input, env=env, frontmatter=frontmatter)
+        result = resolve(tool_input=tool_input,
+                         advisor_disabled=False, has_api_key=True,
+                         frontmatter=frontmatter)
         # Falls through to no-pairing-frontmatter (NOT env-disabled, NOT no-api-key)
         self.assertIsNone(result["executor"])
         self.assertEqual(result["fallback_reason"], "no-pairing-frontmatter")
@@ -133,13 +134,14 @@ class ResolverIgnoresNonReviewerAgents(unittest.TestCase):
 class ResolverRespectsMissingApiKey(unittest.TestCase):
     def test_resolver_respects_missing_api_key(self):
         tool_input = {"subagent_type": "code-reviewer"}
-        env = {}  # ANTHROPIC_API_KEY absent
         frontmatter = {
             "model": "opus",
             "executor": "claude-sonnet-4-6",
             "advisor": "claude-opus-4-7",
         }
-        result = resolve(tool_input=tool_input, env=env, frontmatter=frontmatter)
+        result = resolve(tool_input=tool_input,
+                         advisor_disabled=False, has_api_key=False,
+                         frontmatter=frontmatter)
         self.assertIsNone(result["executor"])
         self.assertIsNone(result["advisor"])
         self.assertEqual(result["fallback_reason"], "no-api-key")
@@ -149,13 +151,14 @@ class ResolverRespectsMissingApiKey(unittest.TestCase):
 class ResolverRespectsEnvDisabled(unittest.TestCase):
     def test_resolver_respects_env_disabled(self):
         tool_input = {"subagent_type": "code-reviewer"}
-        env = {"ANTHROPIC_API_KEY": "sk-test", "CLAUDE_REVIEW_ADVISOR_DISABLED": "1"}
         frontmatter = {
             "model": "opus",
             "executor": "claude-sonnet-4-6",
             "advisor": "claude-opus-4-7",
         }
-        result = resolve(tool_input=tool_input, env=env, frontmatter=frontmatter)
+        result = resolve(tool_input=tool_input,
+                         advisor_disabled=True, has_api_key=True,
+                         frontmatter=frontmatter)
         self.assertIsNone(result["executor"])
         self.assertIsNone(result["advisor"])
         self.assertEqual(result["fallback_reason"], "env-disabled")
@@ -165,9 +168,10 @@ class ResolverRespectsEnvDisabled(unittest.TestCase):
 class ResolverReturnsSoloWhenNoPairingInFrontmatter(unittest.TestCase):
     def test_resolver_returns_solo_when_no_pairing_in_frontmatter(self):
         tool_input = {"subagent_type": "code-reviewer"}
-        env = {"ANTHROPIC_API_KEY": "sk-test"}
         frontmatter = {"model": "opus"}  # no executor, no advisor
-        result = resolve(tool_input=tool_input, env=env, frontmatter=frontmatter)
+        result = resolve(tool_input=tool_input,
+                         advisor_disabled=False, has_api_key=True,
+                         frontmatter=frontmatter)
         self.assertIsNone(result["executor"])
         self.assertIsNone(result["advisor"])
         self.assertEqual(result["fallback_reason"], "no-pairing-frontmatter")
@@ -177,13 +181,14 @@ class ResolverReturnsSoloWhenNoPairingInFrontmatter(unittest.TestCase):
 class ResolverReturnsFrontmatterPairingWhenBothPresent(unittest.TestCase):
     def test_resolver_returns_frontmatter_pairing_when_both_present(self):
         tool_input = {"subagent_type": "code-reviewer"}
-        env = {"ANTHROPIC_API_KEY": "sk-test"}
         frontmatter = {
             "model": "opus",
             "executor": "claude-sonnet-4-6",
             "advisor": "claude-opus-4-7",
         }
-        result = resolve(tool_input=tool_input, env=env, frontmatter=frontmatter)
+        result = resolve(tool_input=tool_input,
+                         advisor_disabled=False, has_api_key=True,
+                         frontmatter=frontmatter)
         self.assertEqual(result["executor"], "claude-sonnet-4-6")
         self.assertEqual(result["advisor"], "claude-opus-4-7")
         self.assertEqual(result["fallback_reason"], "")
@@ -362,7 +367,7 @@ class NonReviewerWithNoApiKeyReturnsNoPairingFrontmatter(unittest.TestCase):
     def test_non_reviewer_with_no_api_key_returns_no_pairing_frontmatter(self):
         result = resolve(
             tool_input={"subagent_type": "software-engineer"},
-            env={},  # ANTHROPIC_API_KEY absent
+            advisor_disabled=False, has_api_key=False,
             frontmatter={"model": "opus"})  # no executor/advisor
         self.assertEqual(result["fallback_reason"], "no-pairing-frontmatter")
         self.assertEqual(result["source"], "no-pairing-frontmatter")

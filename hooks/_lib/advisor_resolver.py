@@ -109,14 +109,12 @@ def _solo(reason):
     return {"executor": None, "advisor": None, "fallback_reason": reason, "source": reason}
 
 
-def _env_disabled(env):
-    disabled = (env or {}).get("CLAUDE_REVIEW_ADVISOR_DISABLED") == "1"
-    return _solo("env-disabled") if disabled else None
+def _env_disabled(advisor_disabled: bool):
+    return _solo("env-disabled") if advisor_disabled else None
 
 
-def _no_api_key(env):
-    has_key = bool((env or {}).get("ANTHROPIC_API_KEY"))
-    return _solo("no-api-key") if not has_key else None
+def _no_api_key(has_api_key: bool):
+    return _solo("no-api-key") if not has_api_key else None
 
 
 def _pairing(fm):
@@ -125,21 +123,13 @@ def _pairing(fm):
             "fallback_reason": "", "source": "frontmatter-pairing"}
 
 
-def resolve(tool_input, env, frontmatter):
-    """Resolve advisor pairing decision for an Agent spawn.
-
-    Future-state: when the Agent input schema exposes `advisor`, the wrapper
-    will inject this decision at PreToolUse time. Today the hook is log-only.
-    The runtime fallback path `runtime-advisor-unavailable` is documented here
-    but cannot be exercised today because the resolver runs PreToolUse,
-    before any actual API call. The runtime fallback will live in the
-    executor wrapper that dispatches the Sonnet+Opus-advisor pair.
-    Returns dict with keys: executor, advisor, fallback_reason, source.
-    """
+def resolve(tool_input, *, advisor_disabled=False, has_api_key=False, frontmatter):
+    """Resolve advisor pairing. Returns {executor, advisor, fallback_reason, source}.
+    runtime-advisor-unavailable: future path; unreachable today (PreToolUse hook)."""
     fm = frontmatter or {}
     if not (fm.get("executor") and fm.get("advisor")):
         return _solo("no-pairing-frontmatter")
-    return _env_disabled(env) or _no_api_key(env) or _pairing(fm)
+    return _env_disabled(advisor_disabled) or _no_api_key(has_api_key) or _pairing(fm)
 
 
 def _top_level_triple(fm):

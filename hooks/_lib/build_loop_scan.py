@@ -42,6 +42,17 @@ _SECRET_PATTERNS = (
 # the path-exemption (not this marker list) governs, so the intended block fires.
 _FAKE_MARKERS = ("EXAMPLE", "FAKE", "DUMMY", "PLACEHOLDER", "TEST-", "TEST_")
 
+# WHY: allowlist derived from _SECRET_PATTERNS so safe_categories() severs the
+# taint from arbitrary diff text — only fixed label constants can reach any sink.
+KNOWN_SECRET_CATEGORIES: frozenset[str] = frozenset(
+    name for name, _ in _SECRET_PATTERNS
+)
+
+
+def safe_categories(cats: list[str]) -> list[str]:
+    """Return sorted category labels filtered to the known-safe allowlist."""
+    return sorted(c for c in cats if c in KNOWN_SECRET_CATEGORIES)
+
 
 def is_fake_secret_marker(line: str) -> bool:
     """True when a line carries an obvious non-live placeholder token.

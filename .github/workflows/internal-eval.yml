@@ -10,6 +10,10 @@
 #
 # Triggers only on PRs labeled `harness-change` — keeps eval cost off noise PRs.
 name: Internal Eval
+
+permissions:
+  contents: read
+
 on:
   pull_request:
     types: [labeled, synchronize]

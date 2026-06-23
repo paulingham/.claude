@@ -7,6 +7,7 @@ import tempfile
 import unittest
 import urllib.error
 from pathlib import Path
+from urllib.parse import urlparse
 from unittest import mock
 
 REPO = Path(__file__).resolve().parents[1]
@@ -102,10 +103,13 @@ class TestFetchHttpPaths(unittest.TestCase):
         with mock.patch("urllib.request.urlopen", side_effect=capture):
             self.fetch.fetch_pr_data("o", "r", 5)
         for url in seen:
-            self.assertFalse(url.startswith("http://attacker.example"),
-                             f"env var redirected to attacker host: {url}")
-            self.assertTrue(url.startswith("https://api.github.com"),
-                            f"expected api.github.com, got {url}")
+            parsed = urlparse(url)
+            self.assertNotEqual(parsed.hostname, "attacker.example",
+                                f"env var redirected to attacker host: {url}")
+            self.assertEqual(parsed.scheme, "https",
+                             f"expected https scheme, got {url}")
+            self.assertEqual(parsed.hostname, "api.github.com",
+                             f"expected api.github.com host, got {url}")
 
 
 class TestWriteCache(unittest.TestCase):
