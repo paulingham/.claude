@@ -83,5 +83,41 @@ class TestOneLineEditRepointsStrong(unittest.TestCase):
             model_alias.ALIASES["strong"] = "claude-opus-4-8"
 
 
+class TestResolveNonStrInputPassesThrough(unittest.TestCase):
+    """Finding 1 (A03): resolve_model_alias must be total — non-str inputs pass through."""
+
+    def test_list_input_passes_through(self):
+        """Unhashable list must not raise TypeError (fail-soft passthrough)."""
+        from model_alias import resolve_model_alias
+        result = resolve_model_alias([1, 2])
+        self.assertEqual(result, [1, 2])
+
+    def test_none_input_passes_through(self):
+        from model_alias import resolve_model_alias
+        self.assertIsNone(resolve_model_alias(None))
+
+    def test_int_input_passes_through(self):
+        from model_alias import resolve_model_alias
+        self.assertEqual(resolve_model_alias(123), 123)
+
+
+class TestModelsJsonShapeIsStrStr(unittest.TestCase):
+    """Finding 2 (A05): models.json must parse as dict[str, str] — CI guard."""
+
+    def test_models_json_is_dict_of_str_to_str(self):
+        import json
+        data = json.loads(MODELS_JSON.read_text())
+        self.assertIsInstance(data, dict, "models.json must be a JSON object (dict)")
+        for key, value in data.items():
+            self.assertIsInstance(
+                key, str,
+                f"models.json key {key!r} is not a str — every key must be str",
+            )
+            self.assertIsInstance(
+                value, str,
+                f"models.json value for key {key!r} is {value!r}, expected str",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

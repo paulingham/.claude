@@ -20,6 +20,11 @@ _MODELS_JSON = Path(__file__).parent / "models.json"
 ALIASES: dict[str, str] = json.loads(_MODELS_JSON.read_text())
 
 
-def resolve_model_alias(alias: str) -> str:
-    """Return the concrete model ID for alias, or alias itself if unknown."""
-    return ALIASES.get(alias, alias)
+def resolve_model_alias(alias):
+    """Return the concrete model ID for alias, or alias itself if unknown.
+
+    Non-str inputs (e.g. list from malformed YAML) are returned unchanged
+    (fail-soft passthrough). Raising TypeError on unhashable inputs would
+    crash every downstream hook on a bad-frontmatter agent spawn.
+    """
+    return ALIASES.get(alias, alias) if isinstance(alias, str) else alias
