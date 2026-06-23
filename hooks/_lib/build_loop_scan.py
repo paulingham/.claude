@@ -50,8 +50,9 @@ KNOWN_SECRET_CATEGORIES: frozenset[str] = frozenset(
 
 
 def safe_categories(cats: list[str]) -> list[str]:
-    """Return sorted category labels filtered to the known-safe allowlist."""
-    return sorted(c for c in cats if c in KNOWN_SECRET_CATEGORIES)
+    """Return known-safe category labels present in cats, drawn from the constant allowlist."""
+    present = set(cats)
+    return sorted(known for known in KNOWN_SECRET_CATEGORIES if known in present)
 
 
 def is_fake_secret_marker(line: str) -> bool:

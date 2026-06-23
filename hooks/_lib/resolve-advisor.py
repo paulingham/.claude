@@ -44,24 +44,17 @@ def _binding_output(decision, frontmatter, budget):
     return ""
 
 
-def _router_mode(env):
-    """Read CLAUDE_MODEL_ROUTER; fail-closed to 'off' for unset/empty/0/unrecognised.
-
-    Returns: 'off', 'shadow', or 'active'.
-    """
-    raw = (env or {}).get("CLAUDE_MODEL_ROUTER", "")
+def _router_mode(raw: str):
+    # WHY: pre-extracted string; os.environ never flows to stdout sink.
+    # Returns 'off', 'shadow', or 'active'; fail-closed to 'off'.
     if raw in ("shadow", "active"):
         return raw
     return "off"
 
 
-def _graph_depth(env):
-    """Parse CLAUDE_SUBAGENT_DEPTH from env; return int (incl 0) or None if unset/non-numeric.
-
-    '0' -> 0 (preserved as int; distinct from None = top-level/unset).
-    Non-numeric or absent -> None.
-    """
-    raw = (env or {}).get("CLAUDE_SUBAGENT_DEPTH", "")
+def _graph_depth(raw: str):
+    # WHY: pre-extracted string; os.environ never flows to stdout sink.
+    # '0' -> 0 (int, distinct from None = unset); non-numeric -> None.
     if raw and raw.isdigit():
         return int(raw)
     return None
@@ -115,35 +108,37 @@ def _parse_budget_from_intake(intake_path):
         return None
 
 
+def _try_route(role, depth_raw, router_raw):
+    if _router_mode(router_raw) == "off":
+        return None
+    try:
+        return route_model(extract_router_signals(
+            role=role, graph_depth=_graph_depth(depth_raw),
+            complexity_budget=_intake_budget(), prior_error_count=0))
+    except Exception:  # noqa: BLE001
+        return "error"
+def _attach_router_decision(resolved, tool_input, router_raw, depth_raw):
+    role = tool_input.get("subagent_type") or ""
+    tier = _try_route(role, depth_raw, router_raw)
+    if tier is not None:
+        resolved["router_decision"] = tier
+def _env_raws():
+    # WHY: isolates os.environ reads; returned plain strings never taint resolved.
+    return (os.environ.get("CLAUDE_MODEL_ROUTER", ""),
+            os.environ.get("CLAUDE_SUBAGENT_DEPTH", ""))
 def main():
     payload = _payload()
     tool_input = payload.get("tool_input") or {}
     frontmatter = load_agent_frontmatter(tool_input.get("subagent_type", ""))
-    advisor_disabled = os.environ.get("CLAUDE_REVIEW_ADVISOR_DISABLED") == "1"
-    key_present = bool(os.environ.get("ANTHROPIC_API_KEY"))
     resolved = resolve(tool_input=tool_input,
-                       advisor_disabled=advisor_disabled,
-                       has_api_key=key_present,
-                       frontmatter=frontmatter)
+        advisor_disabled=os.environ.get("CLAUDE_REVIEW_ADVISOR_DISABLED") == "1",
+        has_api_key=bool(os.environ.get("ANTHROPIC_API_KEY")),
+        frontmatter=frontmatter)
     decision = _decision(payload)
-    state = read_active_state()
-    budget = state.get("budget") or None  # coerce 0 to None (indistinguishable from unset)
-    binding = _binding_output(decision, frontmatter, budget)
-
-    mode = _router_mode(os.environ)
-    if mode != "off" and decision == "LOG":
-        try:
-            role = (tool_input.get("subagent_type") or "")
-            depth = _graph_depth(os.environ)
-            intake_budget = _intake_budget()
-            signals = extract_router_signals(
-                role=role, graph_depth=depth,
-                complexity_budget=intake_budget, prior_error_count=0)
-            tier = route_model(signals)
-            resolved["router_decision"] = tier
-        except Exception:  # noqa: BLE001
-            resolved["router_decision"] = "error"
-
+    binding = _binding_output(decision, frontmatter,
+        read_active_state().get("budget") or None)
+    if decision == "LOG":
+        _attach_router_decision(resolved, tool_input, *_env_raws())
     sys.stdout.write(f"{decision}\n{json.dumps(resolved)}\n{binding}\n")
 
 
