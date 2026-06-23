@@ -38,6 +38,41 @@ All agents (subagents in worktrees AND teammates on branches) MUST commit before
 3. If work is incomplete (approaching turn limit): commit with `WIP:` prefix
 4. The orchestrator merges branches via `git merge` or `git cherry-pick`
 5. Never leave uncommitted changes -- uncommitted work cannot be merged reliably
+6. Commits inherit the user's signing config (`commit.gpgsign` + `user.signingkey`) from the parent repo's local + global git config — see `## Commit Signing` below
+
+## Commit Signing
+
+GitHub Enterprise requires signed commits. Every agent commits inside a git
+worktree created by `hooks/worktree-create.sh`, and git worktrees inherit the
+parent repo's local config plus the user's global git config. Commit signing
+therefore propagates to worktrees **automatically** — no per-worktree setup —
+**when** the user has configured both `commit.gpgsign=true` and a valid
+`user.signingkey` in their git config.
+
+Two things the harness does NOT do (intentionally, the user owns them):
+
+- It does not turn signing on or pick a key. The user must register the
+  corresponding public key in GitHub Enterprise first, then set their git
+  config (signing a commit with a key GHE doesn't know about is still rejected).
+- It does not modify git config in any way.
+
+What the harness DOES do: `worktree-create.sh` sources
+`hooks/_lib/commit-signing.sh` and verifies the inherited signing config is
+actually usable in the new worktree, emitting a **non-blocking** warning on
+stderr when it isn't:
+
+- Signing ON but broken (key missing/unreadable, or `user.signingkey` unset) →
+  `WARN:` line naming the reason, so the agent doesn't pile up commits GHE will
+  reject on push.
+- Signing OFF entirely → one-line `ADVISORY:` that GHE requires signed commits
+  and `commit.gpgsign` is unset.
+
+WHY non-blocking: a worktree with broken signing is recoverable (the user fixes
+their git config and re-commits), whereas refusing to create the worktree would
+halt all work. The check fails closed in the Iron-Law-8 sense — it refuses to
+silently pass when it cannot prove the signing material is usable — but
+"fail closed" here means *warn loudly*, not *block*. Diagnostics go to stderr
+only; stdout stays the clean worktree-path channel the harness parses.
 
 ## Hooks Calling MCP
 

@@ -41,6 +41,21 @@ if [[ -n "$BRANCH" ]]; then
 else
   git -C "$REPO_ROOT" worktree add "$WORKTREE_PATH" >&2
 fi
+
+# GHE requires signed commits. Worktrees inherit local+global git config, so
+# signing propagates automatically when commit.gpgsign + user.signingkey are
+# set. Verify the inherited config is actually usable so an agent doesn't pile
+# up commits the remote will reject on push. Non-blocking: a broken-signing
+# warning informs but must not halt work (the user can fix config + re-commit).
+# All signing diagnostics go to stderr; stdout stays the clean path channel.
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/commit-signing.sh"
+if [[ "$(_cs_signing_enabled "$WORKTREE_PATH")" != "true" ]]; then
+  echo "ADVISORY: commit.gpgsign is unset — GitHub Enterprise requires signed commits; agent commits may be rejected on push until you enable signing." >&2
+elif ! cs_reason=$(_cs_verify_reachable "$WORKTREE_PATH"); then
+  echo "WARN: commit signing is enabled but unusable in worktree ($cs_reason) — agent commits may be rejected by GitHub Enterprise on push." >&2
+fi
+
 # Harness reads stdout to discover the new worktree path; git's own progress
 # output goes to stderr so it doesn't pollute the path channel.
 echo "$WORKTREE_PATH"
