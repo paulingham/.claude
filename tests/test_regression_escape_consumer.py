@@ -104,6 +104,39 @@ class LearnStep7cBisDocumentsEscapeRate(unittest.TestCase):
             msg="Step 9 escape rate line must include the raw count '(n of m deployed pipelines)' form",
         )
 
+    def test_step9_empty_state_copy_and_scope_label(self):
+        """Pins the empty-state template and scope label in Step 9 Report (mutant M5)."""
+        body = _step9_body()
+        self.assertTrue(body, "### 9. Report section not found in skills/learn/SKILL.md")
+        self.assertIn(
+            "not yet measured",
+            body,
+            "Step 9 Report must document the empty-state fallback copy "
+            "'not yet measured' for when no deploy_outcome records exist",
+        )
+        self.assertIn(
+            "deploy-phase rollbacks",
+            body,
+            "Step 9 Report must document the scope label 'deploy-phase rollbacks' "
+            "in the Deployment Reliability section heading",
+        )
+
+    def test_deploy_failed_excluded_from_numerator(self):
+        """Pins the DEPLOY_FAILED denominator-only rule in 7c-bis (mutant M1)."""
+        body = _step7c_bis_body()
+        self.assertTrue(body, "### 7c-bis section not found in skills/learn/SKILL.md")
+        self.assertIn(
+            "DEPLOY_FAILED",
+            body,
+            "Step 7c-bis must mention DEPLOY_FAILED to document its denominator role",
+        )
+        self.assertRegex(
+            body,
+            r"DEPLOY_FAILED.{0,120}NOT the numerator|NOT the numerator.{0,120}DEPLOY_FAILED",
+            msg="Step 7c-bis must document that DEPLOY_FAILED counts in the denominator "
+                "but NOT the numerator (deploy attempted, never shipped — no regression escape)",
+        )
+
     def test_no_threshold_or_ceiling_in_escape_rate(self):
         body = _step7c_bis_body()
         self.assertTrue(
