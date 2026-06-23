@@ -617,8 +617,9 @@ record = {
 # Primary source: read `discussion.md` § Impact on Implementation Triggered-by line.
 # Fallback: engineer-identified at bug-fix Step 0. Absence-vs-null rule mirrors
 # persona_rejections (SKILL.md:557): omit the key when absent — NEVER write null.
-# Example fill when known:
-#   triggered = read_triggered_by_from_discussion_md()  # parse Triggered-by line
+# Example fill when known (pseudo — the orchestrator parses the line inline; there is
+# no real helper of this name):
+#   triggered = read_triggered_by_from_discussion_md()  # pseudo: parse Triggered-by line
 #   if triggered:
 #       record["triggered_by_pipeline_id"] = triggered
 #   # Otherwise: record.pop("triggered_by_pipeline_id", None) — omit entirely
