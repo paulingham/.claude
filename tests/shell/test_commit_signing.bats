@@ -9,6 +9,9 @@ setup() {
   CS_TMP="$(mktemp -d)"
   CS_REPO="$CS_TMP/repo"
   git init -q "$CS_REPO"
+  git -C "$CS_REPO" config user.email "test@example.com"
+  git -C "$CS_REPO" config user.name "Test"
+  git -C "$CS_REPO" config commit.gpgsign false
   git -C "$CS_REPO" commit -q --allow-empty -m init
 }
 
@@ -50,6 +53,9 @@ teardown() {
 @test "worktree-create.sh signing OFF -> stdout is exactly the worktree path" {
   local main="$CS_TMP/e2e-main"
   git init -q "$main"
+  git -C "$main" config user.email "test@example.com"
+  git -C "$main" config user.name "Test"
+  git -C "$main" config commit.gpgsign false
   git -C "$main" commit -q --allow-empty -m init
   local wt="$main/.claude/worktrees/agent-cs-e2e"
   mkdir -p "$main/.claude/worktrees"

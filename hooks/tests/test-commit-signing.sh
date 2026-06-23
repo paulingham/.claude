@@ -36,6 +36,9 @@ fi
 CS_TMP=$(mktemp -d)
 CS_REPO="$CS_TMP/repo"
 git init -q "$CS_REPO"
+git -C "$CS_REPO" config user.email "test@example.com"
+git -C "$CS_REPO" config user.name "Test"
+git -C "$CS_REPO" config commit.gpgsign false
 git -C "$CS_REPO" commit -q --allow-empty -m init
 
 # -- signing OFF -> reachable returns 0 ---------------------------------------
@@ -87,6 +90,9 @@ fi
 echo "-- worktree-create.sh stdout-clean (signing OFF) --"
 CS_MAIN="$CS_TMP/e2e-main"
 git init -q "$CS_MAIN"
+git -C "$CS_MAIN" config user.email "test@example.com"
+git -C "$CS_MAIN" config user.name "Test"
+git -C "$CS_MAIN" config commit.gpgsign false
 git -C "$CS_MAIN" commit -q --allow-empty -m init
 CS_WT="$CS_MAIN/.claude/worktrees/agent-cs-e2e"
 mkdir -p "$CS_MAIN/.claude/worktrees"
