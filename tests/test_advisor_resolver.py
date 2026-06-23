@@ -1287,14 +1287,14 @@ class TestResolverResolvesAliasTokensToConcreteIds(unittest.TestCase):
         result = resolve_model_conditional(fm, budget=8)
         self.assertEqual(result["source"], "default-arm")
         self.assertEqual(
-            resolve_model_alias(result["advisor"]),
+            result["advisor"],
             "claude-opus-4-8",
-            "alias 'strong' in default arm must resolve to claude-opus-4-8",
+            "resolver must return resolved concrete ID for alias 'strong', not the raw token",
         )
         self.assertEqual(
-            resolve_model_alias(result["executor"]),
+            result["executor"],
             "claude-sonnet-4-6",
-            "alias 'mid' must resolve to claude-sonnet-4-6",
+            "resolver must return resolved concrete ID for alias 'mid', not the raw token",
         )
 
 
