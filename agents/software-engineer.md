@@ -15,19 +15,19 @@ tools:
   - mcp_lsp_definition_ts
   - mcp_lsp_definition_py
 model: sonnet
-executor: claude-sonnet-4-6
-advisor: claude-opus-4-7
+executor: mid
+advisor: strong
 # advisor-rationale: Sonnet-default executor with Opus advisor for sub-Budget-7 work. Budget>=7 spawns route to Opus-solo (model_conditional default arm) for stakes-bearing build work. CLAUDE_FORCE_OPUS=1 forces Opus per-spawn (executor_resolver precedence 1).
 model_conditional:
   default:
     model: opus
-    executor: claude-opus-4-7
+    executor: strong
     advisor: none
   rules:
     - when: { budget_lt: 7 }
       model: sonnet
-      executor: claude-sonnet-4-6
-      advisor: claude-opus-4-7
+      executor: mid
+      advisor: strong
   status: advisory
 memory: project
 maxTurns: 150

@@ -17,7 +17,7 @@ model_conditional:
   rules:
     - when: { budget_lt: 6 }
       model: sonnet
-      executor: claude-sonnet-4-6
+      executor: mid
       advisor: none
   status: advisory
 memory: project

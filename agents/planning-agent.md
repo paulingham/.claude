@@ -7,7 +7,7 @@ tools:
   - Glob
   - Edit
 model: haiku
-executor: claude-haiku-4-5-20251001
+executor: cheap
 advisor: none
 # advisor-rationale: Haiku-solo, low-effort. Long-lived poll-loop role (read scratchpad, diff against plan, edit when contradicted). Iteration economics dominate; advisor handoff would defeat the purpose at every poll cycle. Demoted from Sonnet to Haiku 2026-05 (slice-C) — pattern-matching transcription, not architectural reasoning.
 maxTurns: 200

@@ -151,7 +151,7 @@ Telemetry write failure logs to stderr but does NOT block triage.
 
 ## Advisor Mode (Sonnet executor + Opus advisor)
 
-**Pairing**: security-engineer ships with `executor: claude-sonnet-4-6` and `advisor: claude-opus-4-7` in its frontmatter. Sonnet drives the OWASP/secrets sweep, Opus is consulted for threat-model and severity-classification calls.
+**Pairing**: security-engineer ships with `executor: mid` and `advisor: strong (resolves to the GA Opus)` in its frontmatter. Sonnet drives the OWASP/secrets sweep, Opus is consulted for threat-model and severity-classification calls.
 
 **Status**: This is the **intended default** — currently advisory because the Agent input schema does not yet expose `advisor`. Will become the enforced default the moment the schema lands. Until then, the `pre-agent-advisor.sh` PreToolUse hook logs the would-be pairing to `metrics/{session}/advisor-dispatch.jsonl` for observability; no spawn is blocked, no model is downgraded.
 

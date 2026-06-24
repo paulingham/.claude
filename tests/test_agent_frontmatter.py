@@ -91,9 +91,13 @@ CITATION_RE = re.compile(r"[a-z/_-]+\.(py|md|sh|json):\d+")
 
 class SliceCModelDemotions(unittest.TestCase):
     def test_planning_agent_is_haiku(self):
+        from model_alias import resolve_model_alias
         fm = _parse_frontmatter(PLANNING_AGENT)
         self.assertEqual(fm.get("model"), "haiku")
-        self.assertEqual(fm.get("executor"), "claude-haiku-4-5-20251001")
+        self.assertEqual(fm.get("executor"), "cheap",
+                         "planning-agent executor must be alias 'cheap'")
+        self.assertEqual(resolve_model_alias(fm.get("executor")), "claude-haiku-4-5-20251001",
+                         "alias 'cheap' must resolve to claude-haiku-4-5-20251001")
 
     def test_planning_agent_model_note_mentions_haiku_and_drops_sonnet(self):
         body = PLANNING_AGENT.read_text()
@@ -110,9 +114,13 @@ class SliceCModelDemotions(unittest.TestCase):
         )
 
     def test_architect_context_recon_is_haiku(self):
+        from model_alias import resolve_model_alias
         fm = _parse_frontmatter(RECON_AGENT)
         self.assertEqual(fm.get("model"), "haiku")
-        self.assertEqual(fm.get("executor"), "claude-haiku-4-5-20251001")
+        self.assertEqual(fm.get("executor"), "cheap",
+                         "architect-context-recon executor must be alias 'cheap'")
+        self.assertEqual(resolve_model_alias(fm.get("executor")), "claude-haiku-4-5-20251001",
+                         "alias 'cheap' must resolve to claude-haiku-4-5-20251001")
 
     def test_recon_code_archaeology_fixture_exists_and_has_citations(self):
         self.assertTrue(FIXTURE_PATH.exists(), f"missing fixture: {FIXTURE_PATH}")

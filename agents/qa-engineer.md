@@ -9,7 +9,7 @@ tools:
   - Grep
   - Glob
 model: sonnet
-executor: claude-sonnet-4-6
+executor: mid
 advisor: none
 # advisor-rationale: Sonnet-solo. Test-strategy and verify execution is procedural (pyramid coverage, gap analysis, mutation-tier execution) — no advisor handoff at the gate level.
 maxTurns: 100

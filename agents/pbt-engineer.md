@@ -9,7 +9,7 @@ tools:
   - Grep
   - Glob
 model: sonnet
-executor: claude-sonnet-4-6
+executor: mid
 advisor: none
 # advisor-rationale: Sonnet-solo. PBT authoring is procedural — pick a candidate, pick a relation, generate a property, time-box, freeze counterexamples — no advisor handoff at the gate level.
 maxTurns: 80

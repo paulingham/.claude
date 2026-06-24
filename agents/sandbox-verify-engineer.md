@@ -7,8 +7,8 @@ tools:
   - Glob
   - Bash
 model: sonnet
-executor: claude-sonnet-4-6
-advisor: claude-opus-4-7
+executor: mid
+advisor: strong
 memory: project
 maxTurns: 30
 instinct_categories:

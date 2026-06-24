@@ -8,8 +8,8 @@ tools:
   - Bash
   - Skill
 model: opus
-executor: claude-sonnet-4-6
-advisor: claude-opus-4-7
+executor: mid
+advisor: strong
 maxTurns: 40
 memory: project
 min_confidence: 0.5

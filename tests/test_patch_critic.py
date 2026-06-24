@@ -26,9 +26,20 @@ class PatchCriticAgentDefinition(unittest.TestCase):
         self.assertTrue(AGENT_MD.exists(), f"missing {AGENT_MD}")
 
     def test_advisor_pairing_sonnet_executor_opus_advisor(self):
+        from model_alias import resolve_model_alias
+        import re
+        import yaml
         text = AGENT_MD.read_text()
-        self.assertIn("executor: claude-sonnet-4-6", text)
-        self.assertIn("advisor: claude-opus-4-7", text)
+        match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+        fm = yaml.safe_load(match.group(1)) if match else {}
+        self.assertEqual(fm.get("executor"), "mid",
+                         "patch-critic executor must be alias 'mid'")
+        self.assertEqual(resolve_model_alias(fm.get("executor")), "claude-sonnet-4-6",
+                         "alias 'mid' must resolve to claude-sonnet-4-6")
+        self.assertEqual(fm.get("advisor"), "strong",
+                         "patch-critic advisor must be alias 'strong'")
+        self.assertEqual(resolve_model_alias(fm.get("advisor")), "claude-opus-4-8",
+                         "alias 'strong' must resolve to claude-opus-4-8")
 
     def test_read_only_tool_surface(self):
         text = AGENT_MD.read_text()
