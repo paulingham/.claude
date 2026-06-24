@@ -301,7 +301,7 @@ unevaluable input (Iron Law 8). Compare the event SHA against the captured `head
 **Note: silence is not success.** The orchestrator wraps the Monitor subscription with a
 bounded deadline (Monitor `timeout_ms` / orchestrator-wrapped bounded deadline;
 default floor: 30 minutes). Silence past the budget routes to
-`CI status: watch-skipped:<reason>` — the orchestrator never blocks indefinitely.
+`CI status: watch-skipped:<reason>` — the watch is bounded by the silence deadline, never hanging.
 While the subscription is active, the operator sees:
 "CI-watch armed (event-stream) — awaiting first CI event."
 
