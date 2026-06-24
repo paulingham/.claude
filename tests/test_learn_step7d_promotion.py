@@ -80,9 +80,13 @@ class Step7dRecurrenceBases(unittest.TestCase):
                         "§7d must mention backlink or [[ (memory recurrence basis)")
         self.assertIn("durable: true", section,
                       "§7d must mention 'durable: true' (secondary override)")
-        # Threshold N=3
-        self.assertIn("3", section,
-                      "§7d must state the default threshold N=3")
+        # Threshold N=3 — match the token in context, not a bare digit.
+        # The prose uses ">= 3" for both the instinct evidence_count gate and
+        # the memory backlink gate.  A bare "3" appears 5+ times in the section
+        # (list lengths, step references, etc.) so assertIn("3") is trivially
+        # green even if the threshold were corrupted to "N=9".
+        self.assertRegex(section, r">=\s*3",
+                         "§7d must state the default threshold as '>= 3'")
 
 
 class Step7dDraftDirectory(unittest.TestCase):
@@ -140,16 +144,20 @@ class Step7dAdvisoryVerbsOnly(unittest.TestCase):
         section = _extract_step_7d(text)
         self.assertNotEqual(section, "", "Could not locate §7d in skills/learn/SKILL.md")
 
+        # Split into sentences so the qualifier must appear in the SAME sentence
+        # as the banned verb.  A fixed ±100-char window allowed an "advisory" in
+        # a neighbouring sentence to suppress a banned verb in a different one,
+        # producing false-greens (e.g. "It is advisory.  Step 7d enforces the
+        # gate." — 76 chars apart but two distinct sentences).
+        sentences = re.split(r"(?<=[.!?])\s+|\n", section)
+
         violations = []
-        for m in self.BANNED_VERBS.finditer(section):
-            # Check a window of ±100 chars around the match for a qualifier.
-            start = max(0, m.start() - 100)
-            end = min(len(section), m.end() + 100)
-            window = section[start:end]
-            if not self.ADVISORY_QUALIFIER.search(window):
+        for sentence in sentences:
+            m = self.BANNED_VERBS.search(sentence)
+            if m and not self.ADVISORY_QUALIFIER.search(sentence):
                 violations.append(
-                    f"Unqualified enforcing verb '{m.group()}' at offset {m.start()}: "
-                    f"...{window.strip()}..."
+                    f"Unqualified enforcing verb '{m.group()}' in sentence: "
+                    f"{sentence.strip()!r}"
                 )
         self.assertEqual(
             violations, [],
@@ -226,11 +234,10 @@ class Step7dSkipsOnAbsence(unittest.TestCase):
         self.assertTrue(skip_clause,
                         "§7d must state a skip-not-raise absence clause "
                         "(e.g. 'skip … when no durable items clear the gate')")
-        # The prose may say "MUST NOT raise" (correct), but must not say
-        # "raise on" without the preceding negation.
+        # The prose may say "MUST NOT raise" (correct), but must not contain
+        # an unqualified "raise".  Accept patterns like "MUST NOT raise" —
+        # these confirm skip behaviour.
         import re as _re
-        bare_raise = _re.search(r"(?<!not )\braise\b(?! on.*must not)", section, _re.IGNORECASE)
-        # Accept patterns like "MUST NOT raise" — these confirm skip behaviour.
         unguarded_raise = _re.search(r"\braise\b", section, _re.IGNORECASE) and not _re.search(
             r"must not raise|MUST NOT raise|not raise", section, _re.IGNORECASE
         )
