@@ -110,7 +110,7 @@ class BatchBAdvisorCards(unittest.TestCase):
 class BatchCSonnetAdvisorNoneCards(unittest.TestCase):
     def test_batch_c_sonnet_advisor_none_cards(self):
         from model_alias import resolve_model_alias
-        for role in ("database-engineer", "product-reviewer", "qa-engineer"):
+        for role in ("database-engineer", "product-reviewer", "qa-engineer", "pbt-engineer"):
             with self.subTest(role=role):
                 fm, _ = _frontmatter(role)
                 self.assertEqual(fm["executor"], "mid",
@@ -300,3 +300,15 @@ class BatchGModelConditionalArmAliases(unittest.TestCase):
         self.assertEqual(resolve(rule["executor"]), MID)
         self.assertIn(rule.get("advisor"), ("none", None),
                       "code-reviewer budget_lt arm advisor must remain 'none'")
+
+    def test_code_reviewer_default_arm_resolves(self):
+        mc, resolve = self._mc("code-reviewer")
+        default = mc["default"]
+        self.assertEqual(default["executor"], "mid",
+                         "code-reviewer model_conditional.default.executor must be alias 'mid'")
+        self.assertEqual(resolve(default["executor"]), MID,
+                         "alias 'mid' must resolve to claude-sonnet-4-6")
+        self.assertEqual(default["advisor"], "strong",
+                         "code-reviewer model_conditional.default.advisor must be alias 'strong'")
+        self.assertEqual(resolve(default["advisor"]), STRONG,
+                         "alias 'strong' must resolve to claude-opus-4-8")
