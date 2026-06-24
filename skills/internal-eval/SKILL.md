@@ -3,7 +3,8 @@ name: "internal-eval"
 description: "Eval phase: suite execution, baseline capture, and regression diff across captured real-world harness cases. Runs the agent pipeline against a fixed case set, compares against a stored baseline, and emits a pass/fail verdict on regressions."
 context: fork
 agent: software-engineer
-argument-hint: "run | capture backfill | capture promote <case-id> | inspect <case-id>"
+argument-hint: "run | capture backfill | capture promote <case-id> | inspect <case-id> | ab --arm-a <run-id> --arm-b <run-id>"
+verdict: "EVAL_PASSED / EVAL_FAILED / EVAL_BASELINE_CAPTURED / INSUFFICIENT_CASES / EVAL_IMPROVEMENT_CONFIRMED / EVAL_REGRESSION_DETECTED / EVAL_NEUTRAL"
 ---
 
 # Internal Eval
@@ -26,6 +27,7 @@ This skill is the orchestration shell. The heavy lifting lives in four sub-skill
 | `/harness:internal-eval capture backfill [--limit N] [--since YYYY-MM-DD]` | Scan recent merged PRs via `gh pr list`, oracle-filter through `capture/oracle-paths.json`, write candidates to `eval/cases/.candidates/{case-id}/` (5 artifacts each) + exclusion report to `eval/.candidates/.exclusion-report-{ISO}.md`. Privacy-gated: requires `eval/.privacy-acked` marker. |
 | `/harness:internal-eval capture promote <case-id>` | Atomically move `eval/cases/.candidates/{case-id}/` → `eval/cases/{case-id}/`. Validates `metadata.json`; refuses if destination already exists. |
 | `/harness:internal-eval inspect <case-id>` | Diagnostic: show per-case metadata, latest result, oracle diff. Populated by Story 8. |
+| `/harness:internal-eval ab --arm-a <run-id> --arm-b <run-id> [--preamble-b <name>] [--suite default]` | A/B diff-economy comparison: compare two pre-run eval arms on LOC delta, USD cost, and safety%. Emits advisory verdict via `score/ab-compare.sh`. Non-gating by design — never gates any pipeline phase. |
 
 ## Process
 
@@ -96,6 +98,9 @@ Delegate to `skills/internal-eval/score/SKILL.md`. The score sub-skill computes 
 | `EVAL_FAILED` | Suite ran, ≥ 1 deterministic case regressed (pass→fail) vs baseline. |
 | `EVAL_BASELINE_CAPTURED` | `--baseline` mode: results stamped as the new baseline. No diff performed. |
 | `INSUFFICIENT_CASES` | Zero promoted cases matched the suite. Exit 0. Operator must capture + promote cases. |
+| `EVAL_IMPROVEMENT_CONFIRMED` | `ab` mode: arm B reduced diff-economy (LOC/USD) with safety floor held. Advisory only; gates nothing. |
+| `EVAL_REGRESSION_DETECTED` | `ab` mode: arm B safety dropped below arm A minus epsilon. Iron Law 1 guard; advisory, non-gating BY DESIGN. |
+| `EVAL_NEUTRAL` | `ab` mode: safety floor held but no significant diff-economy change beyond noise thresholds. |
 
 ## Phase Output
 
@@ -106,6 +111,15 @@ Harness ref: {sha}
 Cases executed: {N}
 Report: eval/runs/{run-id}/report.md
 ```
+
+For `ab` mode, the verdict line is one of:
+
+- `EVAL_IMPROVEMENT_CONFIRMED — arm B cut diff-economy (LOC −{dloc}, USD −${dusd}) with safety held ({saf_b}% ≥ {saf_a}%). Advisory only; gates nothing.`
+- `EVAL_REGRESSION_DETECTED — arm B safety dropped ({saf_b}% < {saf_a}%); diff-economy wins are disregarded by design (Iron Law 1). Advisory only; gates nothing.`
+- `EVAL_NEUTRAL — safety held but no diff-economy change beyond noise (LOC Δ {dloc}, USD Δ ${dusd}). Advisory only; gates nothing.`
+- `INSUFFICIENT — one or both arms scored 0 cases (A={n_a}, B={n_b}); no comparison computed. Fail-closed refusal, NOT a 100% pass.`
+
+All four `ab` verdicts are polarity `info` — non-gating by design; no pipeline phase is blocked by them.
 
 ## Prerequisite
 

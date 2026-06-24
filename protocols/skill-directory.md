@@ -50,7 +50,7 @@ Verdict semantics for every entry below are defined in `protocols/verdict-catalo
 | `/harness:health-scan` | Proactive codebase health: security, deps, coverage, tech debt | HEALTHY / CRITICAL_ISSUES |
 | `/harness:eval-model-effectiveness` | Advisory analysis of agent model efficiency from observations + costs | RECOMMENDATIONS_READY |
 | `/harness:cache-audit` | Aggregate per-session `metrics/{session}/cache.jsonl` records into a prompt-cache read-ratio report. Advisory; threshold `READ_RATIO_TARGET = 0.60` | CACHE_AUDIT_READY |
-| `/harness:internal-eval` | Eval phase: suite execution, baseline capture, regression diff | EVAL_PASSED / EVAL_FAILED / EVAL_BASELINE_CAPTURED / INSUFFICIENT_CASES |
+| `/harness:internal-eval` | Eval phase: suite execution, baseline capture, regression diff, and A/B diff-economy comparison (`ab` mode) | EVAL_PASSED / EVAL_FAILED / EVAL_BASELINE_CAPTURED / INSUFFICIENT_CASES / EVAL_IMPROVEMENT_CONFIRMED / EVAL_REGRESSION_DETECTED / EVAL_NEUTRAL |
 | `/harness:greenfield-scaffold` | Full project bootstrap from scratch: discovery, tech stack, UI architecture, framework init, DevX, design, infra, seed data | GREENFIELD_SCAFFOLD_COMPLETE |
 | `/harness:creative-direction` | Pre-build design thinking: brand brief → fonts, palette, layout, interaction paradigm | CREATIVE_DIRECTION_COMPLETE |
 | `/harness:design-system-init` | Generate design tokens, primitives, dark mode for a project | DESIGN_SYSTEM_READY |
