@@ -18,18 +18,24 @@ _parse_args() {
   done
   [ -n "$ARM_A" ] || { echo "[ab-compare] --arm-a required" >&2; exit 2; }
   [ -n "$ARM_B" ] || { echo "[ab-compare] --arm-b required" >&2; exit 2; }
+  case "$ARM_A" in */*|.*) echo "[ab-compare] invalid --arm-a: $ARM_A" >&2; exit 2 ;; esac
+  case "$ARM_B" in */*|.*) echo "[ab-compare] invalid --arm-b: $ARM_B" >&2; exit 2 ;; esac
 }
 
 _render_report() {
-  local arm_a="$1" arm_b="$2" preamble_b="$3" suite="$4" runs_dir="$5"
+  local arm_a="$1" arm_b="$2" preamble_b="$3" suite="$4" runs_dir="$5" costs_path="$6"
   python3 - "$arm_a" "$arm_b" "$preamble_b" "$suite" "$runs_dir" \
-    "$SCORE_DIR/lib/ab_compare.py" <<'PYEOF'
+    "$SCORE_DIR/lib/ab_compare.py" "$costs_path" <<'PYEOF'
 import sys, json
 from pathlib import Path
 
-arm_a, arm_b, preamble_b, suite, runs_dir, lib_path = sys.argv[1:]
+arm_a, arm_b, preamble_b, suite, runs_dir, lib_path, costs_path = sys.argv[1:]
 sys.path.insert(0, str(Path(lib_path).parent))
+sys.path.insert(0, str(Path(lib_path).parent.parent.parent.parent.parent / "hooks" / "_lib"))
 import ab_compare
+from cost_estimator import estimate_cost_usd_for_run, USD_UNAVAILABLE_SENTINEL
+
+USD_UNAVAIL_DISPLAY = "USD unavailable (no tagged records)"
 
 def _load_scored(run_id):
     p = Path(runs_dir) / run_id / "cases.json"
@@ -38,10 +44,27 @@ def _load_scored(run_id):
     data = json.loads(p.read_text())
     return data if isinstance(data, list) else data.get("cases", [])
 
+def _usd_raw(run_id):
+    result = estimate_cost_usd_for_run(run_id, costs_path)
+    return None if result is USD_UNAVAILABLE_SENTINEL else result
+
+def _per_arm_mutation(scored):
+    if not scored:
+        return None
+    vals = [c["mutation_score"] for c in scored if "mutation_score" in c]
+    return (sum(vals) / len(vals)) if vals else None
+
 scored_a = _load_scored(arm_a)
 scored_b = _load_scored(arm_b)
+mut_a = _per_arm_mutation(scored_a)
+mut_b = _per_arm_mutation(scored_b)
+usd_a_raw = _usd_raw(arm_a)
+usd_b_raw = _usd_raw(arm_b)
+
 r = ab_compare.compare_arms(arm_a_run_id=arm_a, arm_b_run_id=arm_b,
-    scored_a=scored_a, scored_b=scored_b)
+    scored_a=scored_a, scored_b=scored_b,
+    usd_a=usd_a_raw, usd_b=usd_b_raw,
+    mutation_score_a=mut_a, mutation_score_b=mut_b)
 v = r["verdict"]
 n_a, n_b = r.get("n_a", 0), r.get("n_b", 0)
 saf_a = round(r.get("safety_a", 0.0) * 100, 1) if "safety_a" in r else 0.0
@@ -50,8 +73,19 @@ dloc = r.get("loc_b", 0) - r.get("loc_a", 0) if "loc_a" in r else 0
 usd_a = r.get("usd_a")
 usd_b = r.get("usd_b")
 dusd = round(usd_b - usd_a, 4) if (usd_a is not None and usd_b is not None) else None
-proxy_a = "mutation score" if scored_a and "mutation_score" in scored_a[0] else "test-pass-rate"
-proxy_b = "mutation score" if scored_b and "mutation_score" in scored_b[0] else "test-pass-rate"
+
+def _tok_sum(scored):
+    return sum(c.get("input_tokens", 0) + c.get("output_tokens", 0) for c in scored)
+
+tok_a = _tok_sum(scored_a)
+tok_b = _tok_sum(scored_b)
+
+proxy_a = "mutation score" if mut_a is not None else "test-pass-rate"
+proxy_b = "mutation score" if mut_b is not None else "test-pass-rate"
+
+usd_a_cell = f"${usd_a:.4f}" if usd_a is not None else USD_UNAVAIL_DISPLAY
+usd_b_cell = f"${usd_b:.4f}" if usd_b is not None else USD_UNAVAIL_DISPLAY
+usd_d_cell = f"${dusd:.4f}" if dusd is not None else USD_UNAVAIL_DISPLAY
 
 lines = [
     "# A/B Diff-Economy Report", "",
@@ -68,6 +102,8 @@ lines = [
     "| Metric | Arm A | Arm B | Δ |",
     "|---|---|---|---|",
     f"| LOC (net added) | {r.get('loc_a', 'n/a')} | {r.get('loc_b', 'n/a')} | {dloc} |",
+    f"| Tokens | {tok_a} | {tok_b} | {tok_b - tok_a} |",
+    f"| USD | {usd_a_cell} | {usd_b_cell} | {usd_d_cell} |",
     f"| Safety % | {saf_a}% | {saf_b}% | {round(saf_b - saf_a, 1)} |",
     "",
     "## Verdict", "",
@@ -88,11 +124,18 @@ print("\n".join(lines))
 PYEOF
 }
 
+_resolve_costs_path() {
+  local data_root="${CLAUDE_PLUGIN_DATA:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
+  echo "${EVAL_COSTS_JSONL:-$data_root/metrics/costs.jsonl}"
+}
+
 main() {
   _parse_args "$@"
   local out_dir="${RUNS_DIR}/${ARM_A}-vs-${ARM_B}"
   mkdir -p "$out_dir"
-  _render_report "$ARM_A" "$ARM_B" "$PREAMBLE_B" "$SUITE" "$RUNS_DIR" \
+  local costs_path
+  costs_path="$(_resolve_costs_path)"
+  _render_report "$ARM_A" "$ARM_B" "$PREAMBLE_B" "$SUITE" "$RUNS_DIR" "$costs_path" \
     > "$out_dir/ab-report.md"
   echo "[ab-compare] wrote $out_dir/ab-report.md"
 }
