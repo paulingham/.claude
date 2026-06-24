@@ -275,9 +275,9 @@ The eval-baseline stamp is appended to every PR body so reviewers see the latest
 After `PR_CREATED`, the orchestrator runs an advisory CI-watch before proceeding to
 the cost annotator. This sub-phase drives the in-cycle fix loop on RED and emits
 `watch-skipped:operator-cancel` on operator interruption. It subscribes to a Monitor
-event-stream, not the hard stop — the enforcing CI-green gate is at
-`skills/pipeline/SKILL.md` Step 5 (Deploy entry), which blocks `Ship→Deploy` on any
-non-conclusively-green status.
+event-stream for results — this CI-watch is advisory (not a blocking gate). The enforcing
+CI-green gate is at `skills/pipeline/SKILL.md` Step 5 (Deploy entry), which blocks
+`Ship→Deploy` on any non-conclusively-green status.
 
 **Arm the event-stream subscription:**
 
@@ -286,11 +286,10 @@ non-conclusively-green status.
 # A force-push between arm and conclusion cannot produce a false-green
 # against a commit whose CI was never evaluated.
 HEAD_OID=$(gh pr view <pr-number> --json headRefOid -q '.headRefOid')
-```
-
 # SAFETY: Validate <pr-number> matches ^[0-9]+$ before interpolating; double-quote
 # all interpolated placeholders in gh/git commands (e.g. `gh pr checks "$PR"`,
 # `git ls-remote "$remote" "$branch"`) to prevent word-splitting and injection.
+```
 
 Subscribe to the Monitor event-stream for `<pr>`. The Monitor emits one structured line per concluded run (`conclusion` + `sha` + PR). The orchestrator blocks on the
 next event rather than spinning — this is an event-stream subscription, not a

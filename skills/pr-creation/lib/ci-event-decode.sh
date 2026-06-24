@@ -24,20 +24,18 @@ _decode_event() {
     exit 2
   fi
 
-  local conclusion sha pr parsed
+  local conclusion sha parsed
   parsed="$(echo "$line" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
     print(d.get('conclusion',''))
     print(d.get('sha',''))
-    print(d.get('pr',''))
 except Exception:
     sys.exit(1)
 " 2>/dev/null)" || parsed=""
   conclusion="$(echo "$parsed" | sed -n '1p')"
   sha="$(echo "$parsed" | sed -n '2p')"
-  pr="$(echo "$parsed" | sed -n '3p')"
 
   if [[ -z "$conclusion" ]]; then
     echo "unevaluable: missing-conclusion-field" >&2
