@@ -20,6 +20,9 @@ KNOWN_EXECUTORS = (
     "claude-sonnet-4-6",
     "claude-opus-4-7",
     "claude-haiku-4-5",
+    "mid",
+    "strong",
+    "cheap",
 )
 
 

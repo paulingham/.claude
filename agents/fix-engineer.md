@@ -15,7 +15,7 @@ tools:
   - mcp_lsp_definition_ts
   - mcp_lsp_definition_py
 model: sonnet
-executor: claude-sonnet-4-6
+executor: mid
 advisor: none
 # advisor-rationale: Sonnet-solo default for sub-Budget-7 fix work (cited finding + file diff fully scope the change). Budget>=7 fixes route to Opus-solo (model_conditional default arm). CLAUDE_FORCE_OPUS=1 forces Opus per-spawn.
 model_conditional:

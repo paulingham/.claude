@@ -11,7 +11,7 @@ tools:
   - NotebookEdit
   - ToolSearch
 model: sonnet
-executor: claude-sonnet-4-6
+executor: mid
 advisor: none
 # advisor-rationale: Sonnet-solo executor. Schema work is procedural and well-bounded by the migration template (reversibility check, zero-downtime sequencing) — no advisor handoff needed.
 maxTurns: 120

@@ -45,8 +45,13 @@ class FixEngineerRouting(unittest.TestCase):
         # (commit e0fc32d); the orchestrator still escalates it to Opus
         # dynamically at higher budgets (see agents/fix-engineer.md § dispatch).
         self.assertEqual(fm.get("model"), "sonnet")
-        self.assertEqual(fm.get("executor"), "claude-sonnet-4-6")
-        self.assertEqual(fm.get("advisor"), "none")
+        from model_alias import resolve_model_alias
+        self.assertEqual(fm.get("executor"), "mid",
+                         "fix-engineer executor must be alias 'mid'")
+        self.assertEqual(resolve_model_alias(fm.get("executor")), "claude-sonnet-4-6",
+                         "alias 'mid' must resolve to claude-sonnet-4-6")
+        self.assertEqual(fm.get("advisor"), "none",
+                         "fix-engineer advisor must remain literal 'none'")
         cats = fm.get("instinct_categories")
         self.assertIsInstance(cats, list, "instinct_categories must be a list")
         self.assertIn("fix-engineer", cats)
