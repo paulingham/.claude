@@ -38,7 +38,9 @@ mkdir -p "$METRICS_DIR" 2>/dev/null || true
 # Cache emit runs regardless of token gate (zeros included) so /cache-audit stays fed.
 python3 "${HOOK_DIR}/_lib/cache-jsonl-emit.py" "$HARNESS_DATA" "$SESSION_ID" "$TIMESTAMP" "$AGENT_ROLE" "$I_TOK" "$C_TOK" "$CC_TOK" 2>/dev/null || true
 
-# Cost emit requires non-zero tokens (avoids polluting costs.jsonl).
+# WHY: Keep this emit block (Option B). cost_parse.py:10 hard-requires agent_role;
+# trace fallback in SKILL.md:26 is UNIMPLEMENTED. Zero-gate fires today (SubagentStop
+# lacks per-model tokens) but shape is correct and test-pinned (T20, B2).
 [ "$I_TOK" -eq 0 ] && [ "$O_TOK" -eq 0 ] && [ "$C_TOK" -eq 0 ] && [ "$CC_TOK" -eq 0 ] && exit 0
 
 MODEL=$(_cf_resolve_field "$INPUT" '.model' "${CLAUDE_SUBAGENT_MODEL:-unknown}")
