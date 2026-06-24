@@ -38,6 +38,10 @@ except Exception:
     print('unevaluable: malformed-json', file=sys.stderr)
     sys.exit(2)
 
+if not isinstance(d, dict):
+    print('unevaluable: non-object-json', file=sys.stderr)
+    sys.exit(2)
+
 conclusion = d.get('conclusion', '')
 sha = d.get('sha', '')
 

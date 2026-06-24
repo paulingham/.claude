@@ -118,3 +118,25 @@ teardown() {
   [ "$status" -eq 2 ]
   [[ "$output" != *"candidate-green"* ]]
 }
+
+# ─── AC2quat: Non-object JSON — regression for exit-2 contract violation ───────
+# Valid JSON that is not a dict (array, scalar) previously raised AttributeError
+# inside python3 and exited 1 instead of the contracted exit 2.
+# After the isinstance(d, dict) guard this must exit 2, never exit 1 or candidate-green.
+
+@test "AC2quat_non_object_json_refuses: JSON array exits 2, not candidate-green" {
+  # WHY: Iron Law 8 — any unevaluable input exits 2. A JSON array is valid JSON
+  # but not a dict, so d.get() would raise AttributeError without the type guard.
+  # This test MUST go RED against the pre-fix HEAD (exits 1) and GREEN after.
+  run bash "$DECODER" <<< '[1,2]'
+  [ "$status" -eq 2 ]
+  [[ "$output" != *"candidate-green"* ]]
+}
+
+@test "AC2quat_scalar_json_refuses: JSON scalar exits 2, not candidate-green" {
+  # WHY: Scalar JSON (42, "SUCCESS", true, null) is equally non-evaluable.
+  # Verifies the type guard fires for the full non-dict class.
+  run bash "$DECODER" <<< '42'
+  [ "$status" -eq 2 ]
+  [[ "$output" != *"candidate-green"* ]]
+}
