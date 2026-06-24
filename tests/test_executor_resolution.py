@@ -1,12 +1,13 @@
 """B6-AC8: behavioral test for CLAUDE_FORCE_OPUS=1 env override.
 
-Verifies the executor resolver returns claude-opus-4-7 when the env var is
-set, regardless of frontmatter, and falls through to the frontmatter value
-when the env var is absent.
+Verifies the executor resolver returns the GA Opus (via resolve_model_alias("strong"))
+when the env var is set, regardless of frontmatter, and falls through to the frontmatter
+value when the env var is absent.
 """
 import unittest
 
 from executor_resolver import resolve_executor
+from model_alias import resolve_model_alias
 
 
 class ForceOpusEnvOverridesFrontmatter(unittest.TestCase):
@@ -15,7 +16,7 @@ class ForceOpusEnvOverridesFrontmatter(unittest.TestCase):
         frontmatter = {"executor": "claude-sonnet-4-6"}
         self.assertEqual(
             resolve_executor("software-engineer", env, frontmatter),
-            "claude-opus-4-7")
+            resolve_model_alias("strong"))
 
     def test_absent_env_falls_through_to_frontmatter(self):
         env = {}
