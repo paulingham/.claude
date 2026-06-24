@@ -2,6 +2,7 @@
 Five stuck-detection pattern predicates, extracted from stuck-detector.py.
 Each function takes `events: list[dict]` and returns evidence dict or None.
 """
+from __future__ import annotations
 
 import json
 import re
