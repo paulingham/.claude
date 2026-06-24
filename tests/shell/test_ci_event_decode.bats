@@ -90,3 +90,31 @@ teardown() {
   [[ "$output" == *"RED-hint"* ]]
   [[ "$output" != *"candidate-green"* ]]
 }
+
+# ─── AC2ter: Control-character injection — regression for newline-split attack ─
+# A JSON value containing a literal newline (the JSON backslash-n escape) would
+# previously split across lines when printed, causing sed-based re-extraction to
+# read the wrong field values and produce a false candidate-green.
+# After the fix the python3 process detects the control character and exits 2.
+
+@test "AC2ter_control_char_in_field_refuses: newline in conclusion exits 2, not candidate-green" {
+  # WHY: regression guard for the newline-injection attack. Valid JSON where the
+  # conclusion value contains a JSON-encoded newline must be rejected with exit 2.
+  # This test goes RED against the pre-fix sed-based decoder and GREEN after the
+  # all-in-python3 fix.
+  local payload
+  payload="$(python3 -c "import json; print(json.dumps({'conclusion': 'SUCCESS\nFAILURE', 'sha': 'abc123'}))")"
+  run bash "$DECODER" <<< "$payload"
+  [ "$status" -eq 2 ]
+  [[ "$output" != *"candidate-green"* ]]
+}
+
+@test "AC2ter_nul_char_in_sha_refuses: NUL in sha exits 2, not candidate-green" {
+  # WHY: NUL bytes in a field value are a control-char variant of the injection
+  # attack. Any ord less than 0x20 in any field must exit 2.
+  local payload
+  payload="$(python3 -c "import json; print(json.dumps({'conclusion': 'SUCCESS', 'sha': 'abc\x00def'}))")"
+  run bash "$DECODER" <<< "$payload"
+  [ "$status" -eq 2 ]
+  [[ "$output" != *"candidate-green"* ]]
+}

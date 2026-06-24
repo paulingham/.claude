@@ -2,7 +2,7 @@
 # ci-event-decode.sh — Thin event-line classifier for the Monitor event stream.
 #
 # Reads ONE structured event line from stdin and emits a classification token:
-#   candidate-green  → well-formed line, all-SUCCESS conclusion, sha + pr present
+#   candidate-green  → well-formed line, all-SUCCESS conclusion, conclusion + sha present
 #   RED-hint         → well-formed line with FAILURE/ERROR conclusion
 #   exit 2 + reason  → unevaluable: malformed/empty/absent/missing-field
 #
@@ -24,44 +24,45 @@ _decode_event() {
     exit 2
   fi
 
-  local conclusion sha parsed
-  parsed="$(echo "$line" | python3 -c "
+  # WHY: parse AND classify inside a single python3 process — never round-trip
+  # structured fields through newline-delimited text. A JSON value containing
+  # a literal newline would split across lines and corrupt sed-based re-extraction,
+  # allowing a crafted conclusion to spoof sha and produce false candidate-green.
+  # Any field containing a control character (including newline, NUL) exits 2.
+  echo "$line" | python3 -c "
 import sys, json
+
 try:
     d = json.load(sys.stdin)
-    print(d.get('conclusion',''))
-    print(d.get('sha',''))
 except Exception:
-    sys.exit(1)
-" 2>/dev/null)" || parsed=""
-  conclusion="$(echo "$parsed" | sed -n '1p')"
-  sha="$(echo "$parsed" | sed -n '2p')"
+    print('unevaluable: malformed-json', file=sys.stderr)
+    sys.exit(2)
 
-  if [[ -z "$conclusion" ]]; then
-    echo "unevaluable: missing-conclusion-field" >&2
-    exit 2
-  fi
+conclusion = d.get('conclusion', '')
+sha = d.get('sha', '')
 
-  if [[ -z "$sha" ]]; then
-    echo "unevaluable: missing-sha-field" >&2
-    exit 2
-  fi
+if not isinstance(conclusion, str) or not conclusion:
+    print('unevaluable: missing-conclusion-field', file=sys.stderr)
+    sys.exit(2)
 
-  case "$conclusion" in
-    SUCCESS)
-      # Authoritative GREEN decision deferred to ci_status_decision(PR).
-      # This decoder classifies only — never decides final green.
-      echo "candidate-green"
-      ;;
-    FAILURE|ERROR|CANCELLED|TIMED_OUT|ACTION_REQUIRED|STARTUP_FAILURE)
-      echo "RED-hint"
-      ;;
-    *)
-      # WHY: Iron Law 8 — unknown/unevaluable conclusion fails closed, never allows.
-      echo "unevaluable: unknown-conclusion:${conclusion}" >&2
-      exit 2
-      ;;
-  esac
+if not isinstance(sha, str) or not sha:
+    print('unevaluable: missing-sha-field', file=sys.stderr)
+    sys.exit(2)
+
+for name, val in (('conclusion', conclusion), ('sha', sha)):
+    if any(ord(c) < 0x20 for c in val):
+        print(f'unevaluable: control-char-in-{name}', file=sys.stderr)
+        sys.exit(2)
+
+RED = {'FAILURE', 'ERROR', 'CANCELLED', 'TIMED_OUT', 'ACTION_REQUIRED', 'STARTUP_FAILURE'}
+if conclusion == 'SUCCESS':
+    print('candidate-green')
+elif conclusion in RED:
+    print('RED-hint')
+else:
+    print(f'unevaluable: unknown-conclusion:{conclusion}', file=sys.stderr)
+    sys.exit(2)
+"
 }
 
 _decode_event
