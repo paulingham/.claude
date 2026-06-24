@@ -160,14 +160,30 @@ class BatchEExecutorResolver(unittest.TestCase):
 # Batch D/E — AC-D3 final sweep
 # ---------------------------------------------------------------------------
 
+def _arm_has_literal(arm: dict, path_name: str, arm_label: str, errors: list):
+    """Check one model_conditional arm dict for claude-* literals in executor/advisor."""
+    for field in ("executor", "advisor"):
+        value = arm.get(field, "")
+        if value in ("none", "") or value is None:
+            continue
+        if isinstance(value, str) and value.startswith("claude-"):
+            errors.append(
+                f"{path_name} model_conditional[{arm_label}].{field}: "
+                f"still holds a concrete claude-* literal ({value!r}); must be a logical alias"
+            )
+
+
 class FinalSweepNoHardcodes(unittest.TestCase):
-    def test_no_hardcoded_opus_4_7_anywhere_in_scope(self):
+    def test_no_hardcoded_claude_literals_top_level_and_model_conditional(self):
         """No agent card executor/advisor holds a claude-* literal (except 'none').
 
-        Also: executor_resolver.py source+docstring must not contain claude-opus-4-7.
+        Covers BOTH top-level frontmatter keys AND all model_conditional arms
+        (default arm + every rule arm).  Also: executor_resolver.py source+docstring
+        must not contain claude-opus-4-7.
         Scope: only executor_resolver.py, not the whole repo (test files legitimately
         contain the literal as passthrough-proof assertions).
         """
+        errors = []
         agent_files = sorted(AGENTS_DIR.glob("*.md"))
         for path in agent_files:
             text = path.read_text()
@@ -177,13 +193,26 @@ class FinalSweepNoHardcodes(unittest.TestCase):
             fm = yaml.safe_load(match.group(1)) or {}
             for field in ("executor", "advisor"):
                 value = fm.get(field, "")
-                if value == "none":
+                if value in ("none", "") or value is None:
                     continue
-                self.assertFalse(
-                    isinstance(value, str) and value.startswith("claude-"),
-                    f"{path.name} {field}: still holds a concrete claude-* literal "
-                    f"({value!r}); must be a logical alias",
-                )
+                if isinstance(value, str) and value.startswith("claude-"):
+                    errors.append(
+                        f"{path.name} top-level {field}: still holds a concrete "
+                        f"claude-* literal ({value!r}); must be a logical alias"
+                    )
+            mc = fm.get("model_conditional")
+            if isinstance(mc, dict):
+                default_arm = mc.get("default")
+                if isinstance(default_arm, dict):
+                    _arm_has_literal(default_arm, path.name, "default", errors)
+                for idx, rule in enumerate(mc.get("rules") or []):
+                    if isinstance(rule, dict):
+                        _arm_has_literal(rule, path.name, f"rules[{idx}]", errors)
+        self.assertFalse(
+            errors,
+            "Agent cards contain claude-* literals in executor/advisor "
+            "(top-level or model_conditional arms):\n" + "\n".join(errors),
+        )
         resolver_path = REPO_ROOT / "hooks" / "_lib" / "executor_resolver.py"
         resolver_text = resolver_path.read_text()
         self.assertNotIn(
@@ -192,3 +221,82 @@ class FinalSweepNoHardcodes(unittest.TestCase):
             "hooks/_lib/executor_resolver.py must not contain 'claude-opus-4-7' "
             "(source or docstring); use resolve_model_alias('strong') instead",
         )
+
+
+# ---------------------------------------------------------------------------
+# Batch G — model_conditional arm aliases (AC-D3 recurse coverage)
+# ---------------------------------------------------------------------------
+
+class BatchGModelConditionalArmAliases(unittest.TestCase):
+    """Verify that model_conditional arms in the 4 Batch-G cards resolve correctly.
+
+    default arm executor → strong → claude-opus-4-8
+    budget_lt arm executor → mid → claude-sonnet-4-6
+    budget_lt arm advisor strong → claude-opus-4-8  (software-engineer, frontend-engineer)
+    """
+
+    def _mc(self, role):
+        from model_alias import resolve_model_alias
+        fm, _ = _frontmatter(role)
+        mc = fm.get("model_conditional", {})
+        return mc, resolve_model_alias
+
+    def test_software_engineer_default_arm_executor_resolves_strong(self):
+        mc, resolve = self._mc("software-engineer")
+        default = mc["default"]
+        self.assertEqual(default["executor"], "strong",
+                         "software-engineer model_conditional.default.executor must be alias 'strong'")
+        self.assertEqual(resolve(default["executor"]), STRONG,
+                         "alias 'strong' must resolve to claude-opus-4-8")
+
+    def test_software_engineer_budget_lt_arm_resolves(self):
+        mc, resolve = self._mc("software-engineer")
+        rule = mc["rules"][0]
+        self.assertEqual(rule["executor"], "mid",
+                         "software-engineer model_conditional budget_lt arm executor must be 'mid'")
+        self.assertEqual(resolve(rule["executor"]), MID)
+        self.assertEqual(rule["advisor"], "strong",
+                         "software-engineer model_conditional budget_lt arm advisor must be 'strong'")
+        self.assertEqual(resolve(rule["advisor"]), STRONG)
+
+    def test_fix_engineer_default_arm_executor_resolves_strong(self):
+        mc, resolve = self._mc("fix-engineer")
+        default = mc["default"]
+        self.assertEqual(default["executor"], "strong",
+                         "fix-engineer model_conditional.default.executor must be alias 'strong'")
+        self.assertEqual(resolve(default["executor"]), STRONG)
+
+    def test_fix_engineer_budget_lt_arm_executor_resolves_mid(self):
+        mc, resolve = self._mc("fix-engineer")
+        rule = mc["rules"][0]
+        self.assertEqual(rule["executor"], "mid",
+                         "fix-engineer model_conditional budget_lt arm executor must be 'mid'")
+        self.assertEqual(resolve(rule["executor"]), MID)
+        self.assertIn(rule.get("advisor"), ("none", None),
+                      "fix-engineer budget_lt arm advisor must remain 'none'")
+
+    def test_frontend_engineer_default_arm_executor_resolves_strong(self):
+        mc, resolve = self._mc("frontend-engineer")
+        default = mc["default"]
+        self.assertEqual(default["executor"], "strong",
+                         "frontend-engineer model_conditional.default.executor must be 'strong'")
+        self.assertEqual(resolve(default["executor"]), STRONG)
+
+    def test_frontend_engineer_budget_lt_arm_resolves(self):
+        mc, resolve = self._mc("frontend-engineer")
+        rule = mc["rules"][0]
+        self.assertEqual(rule["executor"], "mid",
+                         "frontend-engineer model_conditional budget_lt arm executor must be 'mid'")
+        self.assertEqual(resolve(rule["executor"]), MID)
+        self.assertEqual(rule["advisor"], "strong",
+                         "frontend-engineer model_conditional budget_lt arm advisor must be 'strong'")
+        self.assertEqual(resolve(rule["advisor"]), STRONG)
+
+    def test_code_reviewer_budget_lt_arm_executor_resolves_mid(self):
+        mc, resolve = self._mc("code-reviewer")
+        rule = mc["rules"][0]
+        self.assertEqual(rule["executor"], "mid",
+                         "code-reviewer model_conditional budget_lt arm executor must be 'mid'")
+        self.assertEqual(resolve(rule["executor"]), MID)
+        self.assertIn(rule.get("advisor"), ("none", None),
+                      "code-reviewer budget_lt arm advisor must remain 'none'")

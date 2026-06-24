@@ -21,13 +21,13 @@ advisor: strong
 model_conditional:
   default:
     model: opus
-    executor: claude-opus-4-7
+    executor: strong
     advisor: none
   rules:
     - when: { budget_lt: 7 }
       model: sonnet
-      executor: claude-sonnet-4-6
-      advisor: claude-opus-4-7
+      executor: mid
+      advisor: strong
   status: advisory
 memory: project
 maxTurns: 150
