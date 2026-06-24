@@ -339,17 +339,18 @@ fix-engineer stall loop), the orchestrator emits:
 CI status: watch-skipped:operator-cancel
 ```
 
-with an explicit note: "CI status unverified — not a block (advisory). Operator
-chose to proceed without confirmed CI conclusion."
-
-This is advisory — cancelling leaves CI status unverified but does NOT block
-pipeline advancement. Prevents the operator being held hostage on an infinite
-RED-fix loop.
+with an explicit note: "CI status unverified — the advisory watch did not confirm
+a CI conclusion. NOTE: the enforcing CI-green gate at `skills/pipeline/SKILL.md`
+Step 5 runs next and will BLOCK Ship→Deploy unless CI is conclusively green (or
+the operator sets `CLAUDE_CI_GREEN_GATE=off`). Cancelling the watch does not
+bypass the gate."
 
 **Unreadable / no-runs path:**
 
 If `gh pr checks` returns no runs or errors, emit `CI status: watch-skipped:<reason>`
-and proceed. In Slice 1 (advisory), an unreadable status never blocks.
+and proceed. `watch-skipped` leaves CI status unverified for the advisory watch;
+the enforcing CI-green gate at `skills/pipeline/SKILL.md` Step 5 then BLOCKs
+Ship→Deploy on unreadable/non-green status.
 
 ### 6. Annotate PR cost on CI-green
 

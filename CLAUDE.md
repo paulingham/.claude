@@ -65,9 +65,9 @@ May 8 2026 subagent-summary cache fix delivers ~3× `cache_creation` reduction w
 
 `tools:` frontmatter declares per-agent tool allowlist; `pre-agent-allowlist.sh` enforces via `exit 2 + stderr`. Full contract: `protocols/agent-tool-allowlists.md` and `protocols/agent-protocol.md` § Per-Agent Tool Scoping.
 
-### Reversibility Escapes (PreToolUse Agent hooks)
+### Reversibility Escapes (gates and hooks)
 
-Per-session env vars short-circuit each gate to `exit 0`. Full table: `protocols/agent-protocol.md` § Reversibility Escapes (PreToolUse Agent hooks).
+Per-session env vars short-circuit each gate to `exit 0`. Full table: `protocols/agent-protocol.md` § Reversibility Escapes (gates and hooks).
 
 ### Instinct Injection (Path B)
 

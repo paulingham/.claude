@@ -268,3 +268,42 @@ def test_dod_has_enforcing_ci_green_line():
     assert "enforcing gate is tracked separately" not in dod_section, (
         "DoD still says 'enforcing gate is tracked separately' — flip to enforcing"
     )
+
+
+PR_CREATION_SKILL = REPO_ROOT / "skills" / "pr-creation" / "SKILL.md"
+
+
+def test_pr_creation_skill_no_slice1_advisory_stale_text():
+    """AC15 (staleness regression): pr-creation/SKILL.md must not contain
+    Slice-1 advisory language that falsely claims CI-watch cancellation or
+    an unreadable CI status 'never blocks' or 'does NOT block' pipeline
+    advancement.
+
+    These strings directly contradicted the enforcing CI-green gate introduced
+    in Slice 2. This test goes RED if the stale text is reintroduced.
+    """
+    body = PR_CREATION_SKILL.read_text()
+
+    assert "an unreadable status never blocks" not in body, (
+        "pr-creation/SKILL.md still contains Slice-1 stale text: "
+        "'an unreadable status never blocks' — this contradicts the enforcing "
+        "CI-green gate at pipeline/SKILL.md Step 5. Remove or update the sentence."
+    )
+
+    assert "never blocks" not in body, (
+        "pr-creation/SKILL.md still contains 'never blocks' — this is Slice-1 "
+        "advisory language contradicting the enforcing CI-green gate. "
+        "Remove or update the language."
+    )
+
+    assert "does NOT block\npipeline advancement" not in body, (
+        "pr-creation/SKILL.md still contains 'does NOT block pipeline advancement' "
+        "— Slice-1 advisory text contradicting the enforcing CI-green gate."
+    )
+
+    # The cancel/unreadable paths must now reference the enforcing gate
+    assert "enforcing CI-green gate" in body or "enforcing ci-green gate" in body.lower(), (
+        "pr-creation/SKILL.md does not mention the 'enforcing CI-green gate' in the "
+        "context of operator-cancel and unreadable paths — the stale advisory text "
+        "must be replaced with a reference to pipeline/SKILL.md Step 5 enforcement."
+    )
