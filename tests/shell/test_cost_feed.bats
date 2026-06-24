@@ -171,3 +171,24 @@ _realistic_payload() {
   [ -f "$REPO_ROOT/hooks/_lib/cost-helpers.sh" ] && shellcheck "$REPO_ROOT/hooks/_lib/cost-helpers.sh"
   return 0
 }
+
+@test "T20 cost emit block present: non-zero token payload produces agent_role+pipeline_id+total_cost_usd shape" {
+  # B1: pins the agent_role/pipeline_id/total_cost_usd shape that cost_parse.py:10 requires.
+  # RED if the emit block (cost-feed.sh:41-47) is deleted — confirms Option-B keep decision.
+  # Sets up a pipeline state file so pipeline_id is non-empty.
+  echo "active" > "$TMP/.claude/pipeline-state/active-pipeline.md"
+  local input; input="$(_realistic_payload)"
+  run bash -c "echo '$input' | bash $HOOK"
+  [ "$status" -eq 0 ]
+  [ -f "$COSTS" ]
+  # Record must carry all three fields cost_parse.REQUIRED depends on
+  jq -e '.agent_role' "$COSTS" >/dev/null
+  jq -e '.pipeline_id' "$COSTS" >/dev/null
+  jq -e '.total_cost_usd' "$COSTS" >/dev/null
+  # Shape: agent_role must be the subagent_type from the payload
+  grep -q '"agent_role":"software-engineer"' "$COSTS"
+  # pipeline_id must resolve to the active pipeline (not "none")
+  grep -q '"pipeline_id":"active"' "$COSTS"
+  # total_cost_usd must be a non-null number
+  jq -e '.total_cost_usd | type == "number"' "$COSTS" >/dev/null
+}

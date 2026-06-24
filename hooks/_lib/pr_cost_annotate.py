@@ -15,6 +15,11 @@ Public API:
 WHY fail-open: this script edits live PR bodies on every Ship;
 a bug must never block a merge or wedge the Ship phase.
 """
+# WHY: PEP-604 union annotations (X | None) are runtime-evaluated under Python 3.9
+# and crash at import with TypeError. This import defers annotation evaluation
+# (PEP-563), matching the ~40 other _lib files that use the same pattern.
+from __future__ import annotations
+
 import argparse
 import os
 import re

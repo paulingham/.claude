@@ -27,6 +27,11 @@ Pure stdlib only — no third-party deps. Unknown models contribute 0.0 to the
 sum (graceful fallback) and emit a one-line stderr warning per unique unknown
 model id (deduplicated to avoid log spam).
 """
+# WHY: PEP-604 union annotations (X | None) are runtime-evaluated under Python 3.9
+# and crash at import with TypeError. This import defers annotation evaluation
+# (PEP-563), matching the ~40 other _lib files that use the same pattern.
+from __future__ import annotations
+
 import json
 import sys
 from typing import Iterable

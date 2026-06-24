@@ -106,3 +106,39 @@ EOF
   echo "$input" | bash "$HOOK"
   jq -e '.usage_by_model | type == "object"' "$COSTS" >/dev/null
 }
+
+@test "AC5: usage_by_model NON-EMPTY when transcript_usage.py runs under /usr/bin/python3" {
+  # A6: drive cost-tracker.sh with python3 shimmed to /usr/bin/python3 via PATH wrapper.
+  # Verifies that PEP-604 fix works end-to-end through the hook's _ct_read_usage path.
+  # Skips with explicit marker when /usr/bin/python3 is absent or is >= 3.10.
+  local PROD_PY="/usr/bin/python3"
+  if [ ! -f "$PROD_PY" ]; then
+    skip "skip: no <3.10 interpreter available; static guard A1 still gates"
+  fi
+  local py_version
+  py_version=$("$PROD_PY" -c "import sys; print(1 if sys.version_info < (3, 10) else 0)" 2>/dev/null || echo "0")
+  if [ "$py_version" != "1" ]; then
+    skip "skip: no <3.10 interpreter available; static guard A1 still gates"
+  fi
+
+  # Build a PATH-shim dir so the hook's bare `python3` call resolves to /usr/bin/python3.
+  local SHIM_DIR="$TMP/shim_bin"
+  mkdir -p "$SHIM_DIR"
+  cat > "$SHIM_DIR/python3" << SHIMEOF
+#!/usr/bin/env bash
+exec "$PROD_PY" "\$@"
+SHIMEOF
+  chmod +x "$SHIM_DIR/python3"
+
+  local tp="$TMP/transcript.jsonl"
+  _make_transcript "$tp"
+  local input
+  input=$(printf '{"stop_hook_active":false,"transcript_path":"%s"}' "$tp")
+
+  echo "$input" | PATH="$SHIM_DIR:$PATH" bash "$HOOK"
+  [ -f "$COSTS" ]
+  local usage
+  usage=$(jq -r '.usage_by_model | keys | length' "$COSTS")
+  # Non-empty: at least 1 model key present
+  [ "$usage" -gt 0 ]
+}

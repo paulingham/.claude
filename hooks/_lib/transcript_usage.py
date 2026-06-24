@@ -17,6 +17,11 @@ Fail-open: any bad input (missing file, bad JSON, missing fields) is
 tolerated — returns {} rather than raising. Mirrors stuck-detector.py's
 bare-except discipline.
 """
+# WHY: PEP-604 union annotations (X | None) are runtime-evaluated under Python 3.9
+# and crash at import with TypeError. This import defers annotation evaluation
+# (PEP-563), matching the ~40 other _lib files that use the same pattern.
+from __future__ import annotations
+
 import json
 import sys
 from collections import defaultdict
