@@ -270,33 +270,49 @@ EOF
 
 The eval-baseline stamp is appended to every PR body so reviewers see the latest suite pass rate + `harness_ref` SHA without per-PR reruns. See `~/.claude/skills/internal-eval/score/stamp-pr-body.sh`.
 
-### 5b. Watch remote CI (advisory poll — enforcing gate is pipeline/SKILL.md Step 5)
+### 5b. Watch remote CI (Monitor event-stream — enforcing gate is pipeline/SKILL.md Step 5)
 
-After `PR_CREATED`, the orchestrator runs an advisory CI-watch before proceeding to the cost annotator. This sub-phase drives the in-cycle fix loop on RED and emits `watch-skipped:operator-cancel` on operator interruption. It is a polling loop, not the hard stop — the enforcing CI-green gate is at `skills/pipeline/SKILL.md` Step 5 (Deploy entry), which blocks `Ship→Deploy` on any non-conclusively-green status.
+After `PR_CREATED`, the orchestrator runs an advisory CI-watch before proceeding to
+the cost annotator. This sub-phase drives the in-cycle fix loop on RED and emits
+`watch-skipped:operator-cancel` on operator interruption. It subscribes to a Monitor
+event-stream for results — this CI-watch is advisory (not a blocking gate). The enforcing
+CI-green gate is at `skills/pipeline/SKILL.md` Step 5 (Deploy entry), which blocks
+`Ship→Deploy` on any non-conclusively-green status.
 
-**Arm the poll:**
+**Arm the event-stream subscription:**
 
 ```bash
 # Capture headRefOid at arm time — this is the pushed commit SHA.
 # A force-push between arm and conclusion cannot produce a false-green
 # against a commit whose CI was never evaluated.
 HEAD_OID=$(gh pr view <pr-number> --json headRefOid -q '.headRefOid')
-```
-
 # SAFETY: Validate <pr-number> matches ^[0-9]+$ before interpolating; double-quote
 # all interpolated placeholders in gh/git commands (e.g. `gh pr checks "$PR"`,
 # `git ls-remote "$remote" "$branch"`) to prevent word-splitting and injection.
+```
 
-Poll `gh pr checks "$PR"` in a loop until all runs reach a concluded state
-(SUCCESS or FAILURE). On each poll, compare the check-run SHA to the captured
-`headRefOid` — if any check-run SHA does not match, skip it (stale run from a
-previous push, not the current head).
+Subscribe to the Monitor event-stream for `<pr>`. The Monitor emits one structured line per concluded run (`conclusion` + `sha` + PR). The orchestrator blocks on the
+next event rather than spinning — this is an event-stream subscription, not a
+busy-wait loop. Each event line is parsed by `skills/pr-creation/lib/ci-event-decode.sh`,
+which classifies the line as `RED-hint`, `candidate-green`, or exits 2 for any
+unevaluable input (Iron Law 8). Compare the event SHA against the captured `headRefOid`
+— if the SHA does not match, skip it (stale run from a previous push).
+
+**Note: silence is not success.** The orchestrator wraps the Monitor subscription with a
+bounded deadline (Monitor `timeout_ms` / orchestrator-wrapped bounded deadline;
+default floor: 30 minutes). Silence past the budget routes to
+`CI status: watch-skipped:<reason>` — the watch is bounded by the silence deadline, never hanging.
+While the subscription is active, the operator sees:
+"CI-watch armed (event-stream) — awaiting first CI event."
 
 **GREEN path — emit `CI_GREEN`:**
 
-When ≥1 check-run matches the captured `headRefOid` AND all matched runs conclude
-SUCCESS:
-- Emit `CI_GREEN`.
+When ≥1 check-run matches the captured `headRefOid` AND the decoder classifies all
+matched events as `candidate-green`:
+- The GREEN decision is NOT made on the event alone. The candidate-green event triggers
+  an authoritative `ci_status_decision(PR)` live re-check (see `hooks/_lib/ci-status-reader.sh`).
+  Only `ci_status_decision`'s exit 0 emits `CI_GREEN`. A forged or stale event can
+  never produce a false green.
 - Proceed to Step 6 (cost annotator).
 
 If the matched-run set is empty (zero check-runs match the captured `headRefOid` —
@@ -304,18 +320,23 @@ e.g. a force-push made every visible run stale), this is NOT a GREEN signal.
 Route to `CI status: watch-skipped:no-matching-runs` and proceed (same as the
 unreadable / no-runs path). CI_GREEN requires ≥1 matched run.
 
-**RED path — emit `CI_RED`, re-enter fix loop:**
+**RED-hint path — emit `CI_RED`, re-enter fix loop:**
 
-When ≥1 check-run against `headRefOid` concludes FAILURE:
-1. Pull the failing logs: `gh pr checks "$PR" --log-failed`
+When the decoder returns `RED-hint` (≥1 event against `headRefOid` with a FAILURE
+conclusion):
+1. Emit a PushNotification: "CI red on #<pr> — re-entering fix loop in <window>s
+   unless you cancel." The operator has a notify + cancel window to intervene before
+   the fix loop starts. If the operator cancels within the window, emit
+   `watch-skipped:operator-cancel` (see Operator cancel escape hatch below).
+2. Pull the failing logs: `gh pr checks "$PR" --log-failed`
    # SAFETY: Do NOT persist --log-failed output into the PR body, a PR comment,
    # the scratchpad, or an observation — CI failure logs commonly contain secrets
    # in stack traces. The logs feed the in-cycle fix loop only.
-2. Emit `CI_RED`.
-3. Re-enter the in-cycle fix loop: spawn fix-engineer on the **SAME build worktree**
+3. Emit `CI_RED`.
+4. Re-enter the in-cycle fix loop: spawn fix-engineer on the **SAME build worktree**
    (not a fresh one — the build worktree retains the full branch history).
-4. After fix-engineer reports a fix committed and pushed, verify the fix-engineer's
-   claimed/expected SHA actually reached the remote **before re-polling**.
+5. After fix-engineer reports a fix committed and pushed, verify the fix-engineer's
+   claimed/expected SHA actually reached the remote **before re-arming**.
    The orchestrator holds the expected SHA from the fix-engineer's report; confirm
    the remote branch head **equals** that expected SHA:
    ```bash
@@ -323,17 +344,22 @@ When ≥1 check-run against `headRefOid` concludes FAILURE:
    ```
    If `git ls-remote` shows the branch head does NOT equal the fix-engineer's
    claimed SHA, the fix-engineer stalled at push. Surface "fix not on remote —
-   fix-engineer stalled, manual recovery needed" and halt re-polling. (See memory:
+   fix-engineer stalled, manual recovery needed" and halt re-arming. (See memory:
    `ship-must-watch-remote-ci`, `fix-engineer-nested-worktree-side-branch` —
    fix-engineer subagents stall silently at commit/push; never trust self-report.)
-5. Use the `git ls-remote`-confirmed SHA as the new HEAD_OID and re-arm the poll.
-   This threads the single ls-remote-confirmed value through both step-4 verification
-   and step-5 re-arm — there is no second source for the new HEAD_OID.
+6. Use the `git ls-remote`-confirmed SHA as the new HEAD_OID and re-arm the
+   event-stream subscription. This threads the single ls-remote-confirmed value
+   through both step-5 verification and step-6 re-arm — there is no second source
+   for the new HEAD_OID.
+
+**Re-entry latency:** The time-of-failure-event triggers fix-loop re-entry, not the
+next poll-interval tick. Re-entry latency drops from poll-interval to time-of-failure-event.
 
 **Operator cancel escape hatch:**
 
-If the operator interrupts the poll mid-flight (e.g. known CI flake, persistent
-fix-engineer stall loop), the orchestrator emits:
+If the operator cancels within the notify window or interrupts the subscription
+mid-flight (e.g. known CI flake, persistent fix-engineer stall loop), the orchestrator
+emits:
 
 ```
 CI status: watch-skipped:operator-cancel
@@ -347,10 +373,11 @@ bypass the gate."
 
 **Unreadable / no-runs path:**
 
-If `gh pr checks` returns no runs or errors, emit `CI status: watch-skipped:<reason>`
-and proceed. `watch-skipped` leaves CI status unverified for the advisory watch;
-the enforcing CI-green gate at `skills/pipeline/SKILL.md` Step 5 then BLOCKs
-Ship→Deploy on unreadable/non-green status.
+If `gh pr checks` returns no runs or errors, or the decoder exits 2 for every event
+line, emit `CI status: watch-skipped:<reason>` and proceed. `watch-skipped` leaves
+CI status unverified for the advisory watch; the enforcing CI-green gate at
+`skills/pipeline/SKILL.md` Step 5 then BLOCKs Ship→Deploy on unreadable/non-green
+status.
 
 ### 6. Annotate PR cost on CI-green
 
