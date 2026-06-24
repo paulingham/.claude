@@ -130,6 +130,26 @@ def _read_jsonl(path: str) -> list[dict]:
     return records
 
 
+# WHY: sentinel distinguishes "no tagged records found" from a genuine $0.00 run.
+# eval_run_id tagging requires BOTH EVAL_RUN_ID and EVAL_CASE_ID to be set at
+# cost-tracker.sh emit time; absent tagging → USD unavailable, not $0.
+USD_UNAVAILABLE_SENTINEL = object()
+
+
+def _usage_by_model_cost(record: dict) -> float:
+    # WHY: unrolls usage_by_model into flat records for _record_cost_usd (SSOT).
+    return sum(_record_cost_usd({**u, "model": m})
+               for m, u in record.get("usage_by_model", {}).items())
+def _run_records(run_id: str, costs_path: str):
+    return (r for r in _read_jsonl(costs_path) if r.get("eval_run_id") == run_id)
+def estimate_cost_usd_for_run(run_id: str, costs_path: str) -> object:
+    # WHY: filters costs.jsonl by eval_run_id; returns sentinel not $0 when absent.
+    records = list(_run_records(run_id, costs_path))
+    if not records:
+        return USD_UNAVAILABLE_SENTINEL
+    return sum(_usage_by_model_cost(r) for r in records)
+
+
 def estimate_cost_usd_per_pipeline(timings_path: str) -> dict[str, float]:
     """Read a tool-timings JSONL file and group total USD cost by `task_id`.
 

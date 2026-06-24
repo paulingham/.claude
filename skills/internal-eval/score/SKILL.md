@@ -13,6 +13,30 @@ agent: software-engineer
 |---|---|
 | `capture-baseline.sh --run-id <id>` | Snapshot `eval/runs/{id}/aggregate.json` into `eval/baselines/{YYYY-MM-DD}-{model}.md`; updates `latest-{model}.md` symlink |
 | `diff-vs-baseline.sh --run-id <id> [--baseline path]` | Emit `regression.json` + `regression.md` under the run dir; verdict `EVAL_FAILED` if any regression |
+| `ab-compare.sh --arm-a <run-id> --arm-b <run-id> [--preamble-b <name>] [--suite default]` | A/B diff-economy comparison: reads per-case scored results for both arms, calls `lib/ab_compare.py`, renders `ab-report.md`. Advisory only — never gates. |
+
+## A/B Safety-First Ladder (ab-compare.sh + lib/ab_compare.py)
+
+Guard-return ladder (Iron Law 1 — a safety drop makes the improvement branch structurally unreachable):
+
+1. `scored_A == 0 OR scored_B == 0` → `INSUFFICIENT` (IL8 fail-closed)
+2. `safety_floor_held = (safety_B >= safety_A − EPSILON_SAFETY)`
+3. `NOT floor_held` → `EVAL_REGRESSION_DETECTED` (improvement branch unreachable below)
+4. Floor held: `EVAL_IMPROVEMENT_CONFIRMED` if `(loc_B < loc_A − EPS_LOC) OR (usd_B < usd_A − EPS_USD)`, else `EVAL_NEUTRAL`
+
+### Epsilon defaults
+
+| Constant | Default | Intent |
+|---|---|---|
+| `EPSILON_SAFETY_DEFAULT` | `0.0` | Exact floor — any real safety drop triggers regression |
+| `EPS_LOC_DEFAULT` | `1` | LOC improvement needs strict win beyond 1-line noise |
+| `EPS_USD_DEFAULT` | `0.01` | USD improvement needs >$0.01 win |
+
+Config surface: `[ab]` block in `eval/config.yaml` (`epsilon_safety`, `eps_loc`, `eps_usd`); absent → module constants.
+
+## Safety Proxy Disclosure
+
+`safety_pct` = `pass_count / total_scored` (finite float, never None/crash). Mutation score surfaced additionally when a mutation artifact is present; otherwise falls back to test-pass-rate. The `ab-report.md` MUST include a `Safety proxy:` line per arm disclosing which metric was used.
 
 Library modules in `score/lib/` (all ≤50 lines): `baseline-args`, `baseline-write`, `baseline-parse`, `regression-args`, `regression-compute`, `compat-window`, `compat-filter`, `quadrants.jq`, `regression-md`.
 
