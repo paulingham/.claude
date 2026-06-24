@@ -254,12 +254,24 @@ class Step7dSkipsAlreadyPromoted(unittest.TestCase):
         text = SKILL_PATH.read_text()
         section = _extract_step_7d(text)
         self.assertNotEqual(section, "", "Could not locate §7d in skills/learn/SKILL.md")
-        already_promoted = (
-            "promoted:" in section
-            and "skip" in section.lower()
+        # Require 'promoted:' and a no-emit/skip phrase to co-occur in the
+        # SAME sentence — loose two-presence check is a false-green risk (a prose
+        # that names 'promoted:' only in the write-contract and 'skip' only in
+        # absence handling would still pass the loose form).
+        sentences = re.split(r"(?<=[.!?])\s+|\n", section)
+        no_emit_patterns = re.compile(
+            r"does not emit|no draft|skipped|skip.*promoted|not.*emit.*draft",
+            re.IGNORECASE,
         )
-        self.assertTrue(already_promoted,
-                        "§7d must state that items already carrying a 'promoted:' key are skipped")
+        found = any(
+            "promoted:" in s and no_emit_patterns.search(s)
+            for s in sentences
+        )
+        self.assertTrue(
+            found,
+            "§7d must contain a sentence stating that items carrying a "
+            "'promoted:' key are skipped / do not emit a draft",
+        )
 
 
 class Step7dMemoryMdExclusion(unittest.TestCase):
@@ -296,8 +308,23 @@ class Step7dDismissPromotion(unittest.TestCase):
         text = SKILL_PATH.read_text()
         section = _extract_step_7d(text)
         self.assertNotEqual(section, "", "Could not locate §7d in skills/learn/SKILL.md")
-        self.assertIn("dismiss_promotion", section,
-                      "§7d must mention the 'dismiss_promotion:' opt-out key")
+        # Require 'dismiss_promotion' and a no-emit phrase to co-occur in the
+        # SAME sentence — assertIn alone is a false-green (the key could appear
+        # only in the write-contract note without the no-emit contract).
+        sentences = re.split(r"(?<=[.!?])\s+|\n", section)
+        no_emit_patterns = re.compile(
+            r"does not emit|no draft|skip|not.*emit|silences",
+            re.IGNORECASE,
+        )
+        found = any(
+            "dismiss_promotion" in s and no_emit_patterns.search(s)
+            for s in sentences
+        )
+        self.assertTrue(
+            found,
+            "§7d must contain a sentence stating that items carrying "
+            "'dismiss_promotion: true' do not emit a draft",
+        )
 
 
 # ---------------------------------------------------------------------------
