@@ -349,8 +349,8 @@ This step is **project-level, NOT per-group**. Unlike Step 7c which aggregates b
 **Algorithm:**
 
 1. Collect all `deploy_outcome` records. Per `pipeline_id`, keep only the MAX-timestamp record (last-writer-wins: AUTO_ROLLBACK written by deployment-verification supersedes an earlier DEPLOYED written by deploy).
-2. `escape_rate = count(outcome ∈ {ROLLED_BACK, AUTO_ROLLBACK}) / count(deploy_outcome records)`. Denominator = pipelines that reached deploy (`DEPLOYED` / `ROLLED_BACK` / `AUTO_ROLLBACK` / `DEPLOY_FAILED`). `DEPLOY_FAILED` counts in the denominator but NOT the numerator (deploy attempted, never shipped — no regression escape).
-3. Emit `escape_rate`, `n_reverts` (numerator), `n_deploys` (denominator).
+2. Filter the deduplicated records to only those whose `outcome` value is in the four valid enum values `{DEPLOYED, ROLLED_BACK, AUTO_ROLLBACK, DEPLOY_FAILED}`. Records with any other outcome value — including `<unknown>` (written when the producer receives an unrecognised outcome string) — are excluded from BOTH the numerator and the denominator. Optionally surface `n_unparseable = count(records excluded by this filter)` for observability, but `n_unparseable` MUST NOT influence `escape_rate`. `escape_rate = count(outcome ∈ {ROLLED_BACK, AUTO_ROLLBACK}) / count(outcome ∈ {DEPLOYED, ROLLED_BACK, AUTO_ROLLBACK, DEPLOY_FAILED})`. `DEPLOY_FAILED` counts in the denominator but NOT the numerator (deploy attempted, never shipped — no regression escape).
+3. Emit `escape_rate`, `n_reverts` (numerator), `n_deploys` (denominator). If `n_unparseable > 0`, also emit it.
 
 **Absence / skip:** if zero `deploy_outcome` records exist, skip this step and render the Step 9 Deployment Reliability line as "not yet measured — no deployed pipelines observed." The skill MUST NOT raise on zero records and MUST NOT coerce absence to `0.0` or `"no escapes"`. This skip applies ONLY to Step 7c-bis and its Step 9 Deployment Reliability line — the Step 7c per-group cost-quality correlation is a separate step on a different record type (`record_type == "pipeline"`) and is NOT skipped or affected by absent `deploy_outcome` records. The two steps are independent.
 

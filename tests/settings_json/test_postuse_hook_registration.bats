@@ -15,10 +15,21 @@ setup() {
   jq . "$SETTINGS" >/dev/null
 }
 
-@test "PostToolUse no-matcher block contains exactly 6 hooks" {
+@test "PostToolUse no-matcher block contains exactly 7 hooks" {
   local count
   count=$(jq '.hooks.PostToolUse[0].hooks | length' "$SETTINGS")
-  [ "$count" = "6" ]
+  [ "$count" = "7" ]
+}
+
+@test "deploy-outcome-audit.sh appended at index 6 of no-matcher block" {
+  jq -r '.hooks.PostToolUse[0].hooks[6].args[]?' "$SETTINGS" | grep -q 'deploy-outcome-audit.sh'
+}
+
+@test "deploy-outcome-audit.sh hook uses bash -lc wrapper at index 6" {
+  local cmd
+  cmd=$(jq -r '.hooks.PostToolUse[0].hooks[6].command' "$SETTINGS")
+  [ "$cmd" = "bash" ]
+  jq -r '.hooks.PostToolUse[0].hooks[6].args[0]' "$SETTINGS" | grep -q '^-lc$'
 }
 
 @test "new entry references intake-fingerprint-audit.sh" {

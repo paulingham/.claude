@@ -87,43 +87,39 @@ On AUTO_ROLLBACK:
 1. Execute platform rollback (per `/harness:deploy` Step 5)
 2. Verify rollback health check passes
 3. Report: what failed, rollback status, recommended investigation
-4. Persist the AUTO_ROLLBACK outcome (see Step 6 below) — the learning store needs this signal even on failure.
+4. Emit the AUTO_ROLLBACK marker (see Step 6 below) — the hook captures it for the learning store even on failure.
 
-### Step 6: Persist Deploy Outcome (Telemetry)
+### Step 6: Emit Deploy Outcome Marker (Telemetry)
 
-After the verdict is known, append a `deploy_outcome` record as an optional learning signal. This captures the post-deployment outcome as advisory telemetry — no pipeline gate reads or acts on it. The `AUTO_ROLLBACK` outcome written here supersedes any earlier `DEPLOYED` record from `/harness:deploy` for the same `pipeline_id` (the consumer takes the MAX-timestamp `deploy_outcome` per `pipeline_id`). Uses the sandbox-safe `os.open O_APPEND` idiom; raw bash `>>` to observations.jsonl is hook-blocked.
+On every terminal path, print the `[Deploy]` marker so the `hooks/deploy-outcome-audit.sh`
+PostToolUse hook can parse and persist the `deploy_outcome` record automatically.
+The `AUTO_ROLLBACK` marker supersedes any earlier `DEPLOYED` record from `/harness:deploy`
+for the same `pipeline_id` — the consumer keeps only the MAX-timestamp record per
+`pipeline_id` (see `skills/learn/SKILL.md` Step 7c-bis). Emission is automatic via
+`hooks/deploy-outcome-audit.sh`; no manual heredoc or bash step is required.
 
-```bash
-# WHY: if escape_rate stays absent despite a known AUTO_ROLLBACK, grep
-# "record_type":"deploy_outcome" under learning/<hash>/observations.jsonl
-# and compare the project-hash idiom below against skills/learn/SKILL.md Step 1 (Identify Project & Bootstrap Instincts Dir)
-# (fork-cwd hash divergence: verification worktree may resolve a different hash
-# than the pipeline that wrote the pipeline record).
-source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/project-hash.sh"
-PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
-
-python3 - "$PROJECT_HASH" "$TASK_ID" "$ENVIRONMENT" <<'PY'
-import json, os, sys, time
-project_hash, pipeline_id, environment = sys.argv[1:4]
-record = {
-    "record_type": "deploy_outcome",
-    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    "pipeline_id": pipeline_id,
-    "outcome": "AUTO_ROLLBACK",   # advisory telemetry; supersedes any earlier DEPLOYED record
-    "environment": environment,
-}
-base = os.environ.get("CLAUDE_PLUGIN_DATA") or os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
-path = os.path.join(base, "learning", project_hash, "observations.jsonl")
-os.makedirs(os.path.dirname(path), exist_ok=True)
-fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-try:
-    os.write(fd, (json.dumps(record) + "\n").encode("utf-8"))
-finally:
-    os.close(fd)
-PY
+Record schema (for reference; the hook handles persistence):
+```
+record_type: deploy_outcome
+timestamp: <ISO-8601 UTC>
+pipeline_id: <task-id>
+outcome: DEPLOYED | AUTO_ROLLBACK
+environment: <staging|production>
 ```
 
-Invoke Step 6 only when the verdict is `AUTO_ROLLBACK`. Set `TASK_ID` to the current pipeline task-id; set `ENVIRONMENT` to `staging` or `production`. This write is advisory: if it fails, log a warning and continue — a failed telemetry write MUST NOT affect the verification verdict.
+**On DEPLOYMENT_VERIFIED or DEPLOYMENT_VERIFIED_WITH_WARNINGS verdict (maps to DEPLOYED):**
+```
+[Deploy] outcome: DEPLOYED pipeline_id: <TASK_ID> environment: <ENVIRONMENT>
+```
+
+**On AUTO_ROLLBACK verdict:**
+```
+[Deploy] outcome: AUTO_ROLLBACK pipeline_id: <TASK_ID> environment: <ENVIRONMENT>
+```
+
+Substitute `<TASK_ID>` with the current pipeline task-id and `<ENVIRONMENT>` with
+`staging` or `production`. Emission is advisory: the marker line itself carries no
+side effects — the hook handles all I/O. See `hooks/deploy-outcome-audit.sh`.
 
 ## Phase Output
 
