@@ -148,41 +148,40 @@ Before deploying code with pending database migrations:
 - Rollback: route 100% back to stable
 - Use for: high-risk changes, new features with uncertain impact
 
-### Step 8: Persist Deploy Outcome (Telemetry)
+### Step 8: Emit Deploy Outcome Marker (Telemetry)
 
-After the verdict is known, append a `deploy_outcome` record as an optional learning signal. This step captures the post-deployment outcome as advisory telemetry — no pipeline gate reads or acts on it. Uses the sandbox-safe `os.open O_APPEND` idiom; raw bash `>>` to observations.jsonl is hook-blocked.
+On every terminal path, print the `[Deploy]` marker so the `hooks/deploy-outcome-audit.sh`
+PostToolUse hook can parse and persist the `deploy_outcome` record automatically.
+Emission is deterministic — the hook fires on every Skill call and captures the marker
+from the tool response. No manual bash step or inline Python heredoc is required.
 
-```bash
-# WHY: if escape_rate stays absent despite a known rollback, grep
-# "record_type":"deploy_outcome" under learning/<hash>/observations.jsonl
-# and compare the project-hash idiom below against skills/learn/SKILL.md Step 1 (Identify Project & Bootstrap Instincts Dir)
-# (fork-cwd hash divergence: deploy worktree may resolve a different hash than
-# the pipeline that wrote the pipeline record).
-source "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/project-hash.sh"
-PROJECT_HASH=$(_project_hash --fallback "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")")
-
-python3 - "$PROJECT_HASH" "$TASK_ID" "$VERDICT" "$ENVIRONMENT" <<'PY'
-import json, os, sys, time
-project_hash, pipeline_id, outcome, environment = sys.argv[1:5]
-record = {
-    "record_type": "deploy_outcome",
-    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    "pipeline_id": pipeline_id,
-    "outcome": outcome,           # DEPLOYED | DEPLOY_FAILED | ROLLED_BACK
-    "environment": environment,
-}
-base = os.environ.get("CLAUDE_PLUGIN_DATA") or os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
-path = os.path.join(base, "learning", project_hash, "observations.jsonl")
-os.makedirs(os.path.dirname(path), exist_ok=True)
-fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-try:
-    os.write(fd, (json.dumps(record) + "\n").encode("utf-8"))
-finally:
-    os.close(fd)
-PY
+Record schema (for reference; the hook handles persistence):
+```
+record_type: deploy_outcome
+timestamp: <ISO-8601 UTC>
+pipeline_id: <task-id>
+outcome: DEPLOYED | DEPLOY_FAILED | ROLLED_BACK
+environment: <staging|production>
 ```
 
-Set `VERDICT` to the outcome from Step 3/5 (`DEPLOYED`, `DEPLOY_FAILED`, or `ROLLED_BACK`); set `TASK_ID` to the current pipeline task-id; set `ENVIRONMENT` to `staging` or `production`. This write is advisory: if it fails, log a warning and continue — a failed telemetry write MUST NOT affect the deploy verdict.
+**On DEPLOYED verdict:**
+```
+[Deploy] outcome: DEPLOYED pipeline_id: <TASK_ID> environment: <ENVIRONMENT>
+```
+
+**On DEPLOY_FAILED verdict:**
+```
+[Deploy] outcome: DEPLOY_FAILED pipeline_id: <TASK_ID> environment: <ENVIRONMENT>
+```
+
+**On ROLLED_BACK verdict:**
+```
+[Deploy] outcome: ROLLED_BACK pipeline_id: <TASK_ID> environment: <ENVIRONMENT>
+```
+
+Substitute `<TASK_ID>` with the current pipeline task-id and `<ENVIRONMENT>` with
+`staging` or `production`. Emission is advisory: the marker line itself carries no
+side effects — the hook handles all I/O. See `hooks/deploy-outcome-audit.sh`.
 
 ## Phase Output
 
