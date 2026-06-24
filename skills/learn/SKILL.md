@@ -368,6 +368,70 @@ This step is **project-level, NOT per-group**. Unlike Step 7c which aggregates b
 
 **Absence / skip:** if zero records carry a truthy `triggered_by_pipeline_id`, skip this step and render the Step 9 Post-Merge Regression Reliability line as "not yet measured — no post-merge regressions attributed." The skill MUST NOT raise on zero attributed records and MUST NOT coerce the rate to `0.0`. This skip applies ONLY to Step 7c-ter and its Step 9 Post-Merge Regression Reliability line — Step 7c-bis (deploy reliability) and the Step 7c per-group cost-quality correlation are separate steps on different record filters and are NOT affected by absent `triggered_by_pipeline_id` records. The three steps are decoupled and independent.
 
+### 7d. Promote Durable Memories to Repo-Tracked Proposals
+
+Durable lessons accumulate in two solo-local stores — auto-memory `*.md` files and project instincts — but never graduate into repo-tracked controls (tests, guards, doc one-liners). This step scans both stores for promotion candidates, classifies each via a heuristic ladder, and emits one DRAFT intake-classified task prompt per candidate to `pipeline-state/{task-id}/memory-promotion-drafts/`. The drafts are surfaced in the Step 9 Report. Step 7d is a **proposal generator only — never auto-applies changes; the human is the gate.** It never modifies a security/correctness gate directly.
+
+#### Recurrence Gates
+
+**Instinct store:** an instinct is promotion-eligible when EITHER:
+- `evidence_count >= 3` (default N = 3, same as §7b scratch-tool gate), OR
+- `confidence >= 0.8`
+
+**Memory store:** a memory (auto-memory `*.md`) is promotion-eligible when EITHER:
+- Its `name` (kebab-case identifier) appears as a `[[name]]` backlink in **`>= 3` OTHER individual memory files** (default N = 3), OR
+- Its frontmatter carries `durable: true` (explicit engineer opt-in — secondary override).
+
+**Backlink-count exclusions (HIGH-2):** the count is inbound `[[name]]` references from OTHER individual memory files only. It EXCLUDES:
+1. The `MEMORY.md` index file — MEMORY.md backlinks nearly every memory by construction and would make every memory appear durable, flooding the report with noise.
+2. Self-references — a memory citing its own `name` in its own body.
+
+Match the whole kebab-case `[[exact-name]]` token, not a substring, to avoid name-collision miscounts.
+
+#### Suppression Keys (checked BEFORE the recurrence gate)
+
+A memory or instinct is **skipped entirely** (no draft emitted) when its frontmatter carries either of these keys:
+
+- `promoted: "<PR#>"` — the human shipped the promotion PR and manually wrote this marker after merging. Step 7d does NOT auto-detect merged PRs; the marker is a documented manual operator step (see Draft Emission Contract below). Once set, the item never re-surfaces.
+- `dismiss_promotion: true` — the engineer chose not to promote the item. This is the natural inverse of `durable: true`; it silences the proposal without deleting the memory.
+
+Both suppression keys stop all future emission. Step 7d does NOT emit a draft for any memory or instinct carrying `promoted:` or `dismiss_promotion: true`.
+
+#### Classification Ladder
+
+Each promotion-eligible item is classified by a heuristic on the memory's `metadata.type` + body keywords (for memories) or instinct `category` (for instincts):
+
+| Signal | Proposed target |
+|---|---|
+| Body contains `trap`, `fail-open`, `blind spot`, `false-green`, `bypass`; OR instinct `category: fragility` / `anti-pattern` | A **failing test** or **PreToolUse guard** proposal |
+| `type: operational` + body contains `always`, `must`, `never`, `before every`; OR instinct `category: pattern` / `decision` | A **hook** or **SKILL.md checklist-line** proposal |
+| `type: feedback` / `architectural` + body contains `actually`, `not advisory`, `is ENFORCED`, `premise false`; OR instinct `category: discovery` / `warning` | A **protocol-doc one-liner** proposal (factual correction) |
+
+Default bucket when no keyword matches: protocol-doc one-liner (lowest blast radius). The heuristic is a starting estimate — the human re-classifies at `/harness:intake`; a mis-bucket costs nothing.
+
+#### Draft Emission Contract
+
+For each promotion-eligible, non-suppressed item, Step 7d writes one file to `pipeline-state/{task-id}/memory-promotion-drafts/<source-name>.md` containing a ready-to-paste `/harness:intake` prompt. The draft body MUST be ordered:
+
+1. **The source memory's `description` field, verbatim** (the one-liner) — so the draft leads with the description and is scannable at a glance without opening the source file. Description-first ordering is mandatory; bucket and recurrence evidence come after.
+2. The source memory/instinct identifier and store.
+3. The proposed bucket and target type (from the ladder).
+4. The recurrence evidence (backlink count or `evidence_count`).
+5. The instruction: "Re-run this prompt through `/harness:intake` so it inherits its own tier and reviewer gates."
+6. **The operator step (loop-closure):** "After you ship the resulting PR, manually add `promoted: \"#<PR>\"` to this memory's frontmatter so it stops re-surfacing. If you decide NOT to promote it, add `dismiss_promotion: true` instead."
+
+The draft is NEVER auto-executed. Step 7d NEVER emits a draft that modifies a security/correctness gate directly — it proposes a *new* test/guard, leaving any existing-gate change for the human to author.
+
+#### Promoted-Marker Write Contract (manual operator step)
+
+After a human ships a promotion PR, the human **manually** writes `promoted: "#<PR>"` under the `metadata:` section of the source memory file (`~/.claude/projects/{project-hash}/memory/<name>.md`) or the source instinct file (`learning/{project-hash}/instincts/`). Both locations are excluded from the orchestrator code ban (`reflection-protocol.md` § 4: "memory is excluded from orchestrator code ban"), so if the human asks the harness to write the marker, no delegation is required. The canonical path is the human editing the frontmatter directly. Step 7d does NOT auto-detect merged PRs — it only reads the `promoted:` key to decide whether to skip.
+
+#### Absence / Skip
+
+If zero memories and zero instincts clear the recurrence gate (or all eligible items carry suppression keys), Step 7d skips and renders the Step 9 Memory Promotion line as "no durable memories promotable this cycle." The skill MUST NOT raise on an empty memory dir, a memory with no frontmatter, or a malformed `backlinks`/`durable`/`promoted`/`dismiss_promotion` value — treat malformed as not-durable (fail toward not-promoting, the safe direction for a proposal generator). This skip is independent of Steps 7c-bis and 7c-ter.
+
+Never modify `protocols/verdict-catalog.md`, never wire a promoted control directly into a pipeline phase. The draft is a suggestion; the human is the gate.
+
 ### 8. Identify System Improvements (Continuous Self-Improvement)
 
 Beyond instincts, analyze the data for system-level improvement proposals:
@@ -401,6 +465,12 @@ Top instincts by confidence:
   [0.85] Always validate input at controller boundary (domain: security, roles: [software-engineer])
   [0.72] Read types.ts before editing services (domain: workflow, roles: [software-engineer])
   [0.50] Check for N+1 queries in ActiveRecord scopes (domain: performance, roles: [software-engineer, code-reviewer])
+
+Memory Promotion Proposals (durable-memory promotion — awaiting human approval):
+  - {memory-name} ({N} backlinks) → proposed: {target-type}
+  - {instinct-id} (evidence_count: {N}) → proposed: {target-type}
+  -- or, when no durable items clear the gate --
+  no durable memories promotable this cycle.
 
 Deployment Reliability (deploy-phase rollbacks):
   Revert/escape rate: {escape_rate} ({n_reverts} of {n_deploys} deployed pipelines)
