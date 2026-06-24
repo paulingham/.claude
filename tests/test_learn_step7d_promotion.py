@@ -111,12 +111,27 @@ class Step7dGateSafetyAndAutoApply(unittest.TestCase):
         text = SKILL_PATH.read_text()
         section = _extract_step_7d(text)
         self.assertNotEqual(section, "", "Could not locate §7d in skills/learn/SKILL.md")
-        human_gate = (
-            "never auto-applies" in section.lower()
-            or "the human is the gate" in section.lower()
+        # Part 1a: "never auto-applies" MUST appear as a phrase — pinned directly.
+        # Using assertIn (not or-with-alternate) so dropping "never" from the prose
+        # makes this RED immediately (the surviving-mutant fix).
+        self.assertIn("never auto-applies", section.lower(),
+                      "§7d must contain the phrase 'never auto-applies' "
+                      "(safety guarantee — not satisfiable by 'the human is the gate' alone)")
+        # Part 1b: no occurrence of "auto-applies" in the section may appear
+        # WITHOUT an immediately-preceding "never" in the same sentence.
+        # This kills any future edit that drops the negation anywhere in §7d.
+        sentences = re.split(r"(?<=[.!?])\s+|\n", section)
+        unguarded = [
+            s for s in sentences
+            if re.search(r"auto-applies", s, re.IGNORECASE)
+            and not re.search(r"never\s+auto-applies", s, re.IGNORECASE)
+        ]
+        self.assertEqual(
+            unguarded, [],
+            "§7d contains 'auto-applies' without an immediately-preceding 'never' — "
+            "the safety negation must be present in every clause that uses this verb. "
+            "Offending sentences:\n" + "\n".join(unguarded),
         )
-        self.assertTrue(human_gate,
-                        "§7d must state 'never auto-applies' or 'the human is the gate'")
         self.assertIn("never modifies a security/correctness gate", section.lower(),
                       "§7d must state 'never modifies a security/correctness gate'")
 
