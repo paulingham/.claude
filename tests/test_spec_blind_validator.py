@@ -73,9 +73,17 @@ class AgentFrontmatterMatchesSpec(unittest.TestCase):
                 f"agent disallowedTools missing: {tool}")
 
     def test_model_and_executor_advisor(self):
-        self.assertIsNotNone(re.search(r"^model:\s*sonnet\s*$", self.text, re.MULTILINE), "model: sonnet missing")
-        self.assertIsNotNone(re.search(r"^executor:\s*claude-sonnet-4-6\s*$", self.text, re.MULTILINE), "executor missing")
-        self.assertIsNotNone(re.search(r"^advisor:\s*claude-opus-4-7\s*$", self.text, re.MULTILINE), "advisor missing")
+        from model_alias import resolve_model_alias
+        self.assertIsNotNone(re.search(r"^model:\s*sonnet\s*$", self.text, re.MULTILINE),
+                             "model: sonnet missing")
+        self.assertIsNotNone(re.search(r"^executor:\s*mid\s*$", self.text, re.MULTILINE),
+                             "executor must be alias 'mid'")
+        self.assertIsNotNone(re.search(r"^advisor:\s*strong\s*$", self.text, re.MULTILINE),
+                             "advisor must be alias 'strong'")
+        self.assertEqual(resolve_model_alias("mid"), "claude-sonnet-4-6",
+                         "alias 'mid' must resolve to claude-sonnet-4-6")
+        self.assertEqual(resolve_model_alias("strong"), "claude-opus-4-8",
+                         "alias 'strong' must resolve to claude-opus-4-8")
 
     def test_instinct_categories_includes_qa_and_self(self):
         self.assertIsNotNone(re.search(r"^\s*-\s*qa-engineer\s*$", self.text, re.MULTILINE), "qa-engineer missing from instinct_categories")

@@ -286,9 +286,16 @@ class CodeReviewerHasAdvisorPairing(unittest.TestCase):
 
 class SecurityEngineerHasAdvisorPairing(unittest.TestCase):
     def test_security_engineer_has_advisor_pairing(self):
+        from model_alias import resolve_model_alias
         fm = _read_agent_frontmatter("security-engineer")
-        self.assertEqual(fm["executor"], "claude-sonnet-4-6")
-        self.assertEqual(fm["advisor"], "claude-opus-4-7")
+        self.assertEqual(fm["executor"], "mid",
+                         "security-engineer executor must be alias 'mid'")
+        self.assertEqual(resolve_model_alias(fm["executor"]), "claude-sonnet-4-6",
+                         "alias 'mid' must resolve to claude-sonnet-4-6")
+        self.assertEqual(fm["advisor"], "strong",
+                         "security-engineer advisor must be alias 'strong'")
+        self.assertEqual(resolve_model_alias(fm["advisor"]), "claude-opus-4-8",
+                         "alias 'strong' must resolve to claude-opus-4-8")
         self.assertEqual(fm["model"], "opus", "model: opus must be UNCHANGED")
 
 

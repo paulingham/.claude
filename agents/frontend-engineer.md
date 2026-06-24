@@ -19,8 +19,8 @@ tools:
   - mcp_chrome_devtools_list_console_messages
   - mcp_chrome_devtools_list_network_requests
 model: sonnet
-executor: claude-sonnet-4-6
-advisor: claude-opus-4-7
+executor: mid
+advisor: strong
 # advisor-rationale: Sonnet-default executor with Opus advisor for sub-Budget-7 UI work. Budget>=7 spawns route to Opus-solo (model_conditional default arm) for stakes-bearing UI build work. CLAUDE_FORCE_OPUS=1 forces Opus per-spawn (executor_resolver precedence 1).
 model_conditional:
   default:
