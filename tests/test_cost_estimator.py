@@ -336,5 +336,60 @@ class Opus47PricingRowRetainedForHistoricalReplay(unittest.TestCase):
         )
 
 
+class SyntheticModelNonBillable(unittest.TestCase):
+    """<synthetic> is a Claude Code sentinel, not a real billable model.
+
+    It must return $0.00 WITHOUT triggering the unknown-model warning,
+    because it is an expected non-billable sentinel, not an unrecognised model id.
+    A genuinely unknown model id (not in the sentinel set and not in PRICING)
+    must STILL warn and return $0.00 as before.
+    """
+
+    def _capture_stderr_and_cost(self, model_id: str, tokens: dict) -> tuple:
+        """Run estimate_cost_usd for one record, capture stderr, return (cost, stderr)."""
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf):
+            cost = estimate_cost_usd([{"model": model_id, **tokens}])
+        return cost, buf.getvalue()
+
+    _TOKENS = {"input_tokens": 1_000_000, "output_tokens": 500_000}
+
+    def test_synthetic_model_returns_zero_without_warning(self):
+        # WHY: <synthetic> is a Claude Code compaction/injected-turn sentinel.
+        # It carries no real usage and must not pollute stderr with a warning
+        # advising to update PRICING_PER_MILLION — it is expected, not unknown.
+        cost, stderr = self._capture_stderr_and_cost("<synthetic>", self._TOKENS)
+        self.assertEqual(cost, 0.0, "<synthetic> must bill $0.00")
+        self.assertNotIn(
+            "<synthetic>",
+            stderr,
+            "no unknown-model warning must appear for <synthetic> sentinel",
+        )
+
+    def test_genuinely_unknown_model_still_warns(self):
+        # Regression: a real-looking but unrecognised model id must still warn.
+        # The sentinel exclusion must not accidentally suppress real unknowns.
+        cost_estimator._warned_models.discard("claude-hypothetical-x99")
+        cost, stderr = self._capture_stderr_and_cost("claude-hypothetical-x99", self._TOKENS)
+        self.assertEqual(cost, 0.0, "unknown model must bill $0.00")
+        self.assertIn(
+            "claude-hypothetical-x99",
+            stderr,
+            "genuinely unknown model must emit a warning on stderr",
+        )
+
+    def test_non_billable_models_set_exported(self):
+        # The sentinel set must be a module-level frozenset so pr_cost_annotate
+        # can import it (DRY — single source of truth for sentinel membership).
+        self.assertTrue(
+            hasattr(cost_estimator, "_NON_BILLABLE_MODELS"),
+            "_NON_BILLABLE_MODELS must be exported from cost_estimator",
+        )
+        self.assertIsInstance(cost_estimator._NON_BILLABLE_MODELS, frozenset)
+        self.assertIn("<synthetic>", cost_estimator._NON_BILLABLE_MODELS)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -60,6 +60,11 @@ _FAMILY_PREFIX_PRICE = {
 _PER_MILLION = 1_000_000.0
 _warned_models: set[str] = set()
 
+# WHY: Claude Code writes synthetic assistant turns with model == "<synthetic>".
+# This is a compaction/injected-content sentinel — not a real model, carries no
+# billable usage. Exclude from pricing lookup and unknown-model warnings entirely.
+_NON_BILLABLE_MODELS: frozenset = frozenset({"<synthetic>"})
+
 
 def _warn_unknown_model_once(model: str) -> None:
     if model in _warned_models:
@@ -87,9 +92,12 @@ def _token_cost_usd(rates: dict, record: dict) -> float:
 
 def _record_cost_usd(record: dict) -> float:
     model = record.get("model", "")
+    if model in _NON_BILLABLE_MODELS:
+        return 0.0
     rates = PRICING_PER_MILLION.get(_resolve_pricing_key(model) or "")
     if rates is None:
-        if model: _warn_unknown_model_once(model)
+        if model:
+            _warn_unknown_model_once(model)
         return 0.0
     return _token_cost_usd(rates, record)
 
