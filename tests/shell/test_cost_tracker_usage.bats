@@ -135,7 +135,7 @@ SHIMEOF
   local input
   input=$(printf '{"stop_hook_active":false,"transcript_path":"%s"}' "$tp")
 
-  PATH="$SHIM_DIR:$PATH" echo "$input" | PATH="$SHIM_DIR:$PATH" bash "$HOOK"
+  echo "$input" | PATH="$SHIM_DIR:$PATH" bash "$HOOK"
   [ -f "$COSTS" ]
   local usage
   usage=$(jq -r '.usage_by_model | keys | length' "$COSTS")

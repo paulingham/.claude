@@ -14,10 +14,8 @@ future careless deletion is caught at test time, not at eval runtime.
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest
