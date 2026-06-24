@@ -127,8 +127,10 @@ Roll out in two stages to catch issues before org-wide deployment.
 
 ### Known limitations (managed-settings path)
 
-- **Desktop gap**: Claude Desktop does not read the enterprise console managed-settings
-  policy. Engineers on Desktop are not covered by this rollout. See `templates/org-defaults/README.md`.
+- **Cloud-session gap**: Cloud/web sessions (Anthropic VMs, `CLAUDE_CODE_REMOTE=true`) are
+  not covered by this managed-settings rollout — plugins are architecturally unavailable
+  there. App **local** and **SSH** sessions ARE covered; see
+  [§ Using the harness in the Claude app](#using-the-harness-in-the-claude-app) below.
 - **Cloud-runner gap**: A cloud runner without the harness repo committed to its project
   cannot run the bootstrap. `enabledPlugins` alone is inert on cloud without a registered
   marketplace. See `templates/org-defaults/README.md` for cloud coverage options.
@@ -268,9 +270,55 @@ sessions.
 
 ## Out of scope
 
-- Claude Desktop / claude.ai — does not read `~/.claude/` or the plugin store.
+- Claude app **cloud/web sessions** (`CLAUDE_CODE_REMOTE=true`) — plugins are not
+  available for cloud sessions. App local and SSH sessions are in scope; see
+  [§ Using the harness in the Claude app](#using-the-harness-in-the-claude-app).
 - Claude Code cloud runners — ephemeral; use repo-level `CLAUDE.md` + `.mcp.json` per
   project.
+
+## Using the harness in the Claude app
+
+The Claude app presents three distinct session environments with different plugin support:
+
+### Local sessions
+
+**Work out of the box** after the same one-time `gh auth login` + restart that CLI users
+perform. The `SessionStart` bootstrap fires in app local sessions exactly as on the CLI —
+hooks apply to both, and the app's integrated terminal shares the session environment.
+No app-specific config is required. `managed-settings.json` applies when the file is
+present on disk (see Gotchas below).
+
+### SSH sessions
+
+Work the same way as local sessions, with one difference: `gh auth login` must be run on
+the **remote host**, not the user's laptop. Once authenticated on the remote, the
+`SessionStart` bootstrap fires on connect and installs the harness exactly as it would
+locally.
+
+### Cloud / web sessions
+
+**Unsupported by design.** Plugins are not available for cloud sessions (Anthropic VMs
+with `CLAUDE_CODE_REMOTE=true`, no local shell). Coverage for cloud sessions is via
+committing the harness repo to the cloud project and using `cloud-bootstrap.sh` (see
+`templates/org-defaults/README.md` § How cloud coverage works).
+
+### Gotchas
+
+1. **Do NOT add `GITHUB_TOKEN` to the app environment** to "fix" private-repo
+   auto-update. The `SessionStart` bootstrap already injects its own token per git
+   command and strips it from the stored remote so it is never persisted to `.git/config`
+   (see § How installation works above). Native background auto-update is not used for
+   this private repo. Adding a token to the app env only risks leaking it.
+
+2. **The `PreToolUse` nudge** fires on the first `Edit` or `Write` if the harness is
+   absent — the same self-remediation as on the CLI. One-off bypass for a single session:
+   `export HARNESS_OPT_OUT=1` then restart.
+
+3. **Managed fleet caveat.** `managed-settings.json` applies to app local sessions when
+   the file is present on disk. For a personal or single-user install, place the file on
+   disk directly. Whether an enterprise MDM console pushes the policy to the Claude app's
+   on-disk location is an MDM/ops concern and is not verified here — confirm with your MDM
+   team before assuming app coverage in a managed fleet.
 
 ## Troubleshooting
 
