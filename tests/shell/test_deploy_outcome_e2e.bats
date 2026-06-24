@@ -5,6 +5,8 @@
 # B3: marker absent -> exit 0, no record
 # B4: AUTO_ROLLBACK marker writes outcome AUTO_ROLLBACK
 # B5: malformed/oversized marker capped, never crashes
+# B5-cap-readback: out-of-enum valid-charset outcome stored as <unknown> through full hook path
+# B5-missing-pipeline: marker with missing pipeline_id field -> exit 0, no record
 # B5-idem: re-fire identical stdin -> two lines; consumer collapses to one
 
 setup() {
@@ -100,6 +102,40 @@ assert r['environment'] == 'production', r
     "$big_outcome")
   run bash -c "printf '%s' '$input' | '$HOOK'"
   [ "$status" -eq 0 ]
+}
+
+@test "B5-cap-readback out-of-enum valid-charset outcome stored as <unknown> through full hook path" {
+  # WHY: B5 only proved exit 0; this confirms the full path actually writes a
+  # record and that _safe_outcome maps any non-enum value to <unknown> —
+  # the E2E gap flagged in code-review.
+  local input
+  input='{"tool_name":"Skill","tool_response":"[Deploy] outcome: FOOBAR pipeline_id: pipe-x environment: staging","session_id":"sid"}'
+  printf '%s' "$input" | bash "$HOOK"
+
+  local obs
+  obs=$(_find_obs_jsonl)
+  [ -n "$obs" ]
+
+  local record
+  record=$(head -1 "$obs")
+  echo "$record" | python3 -c "
+import json, sys
+r = json.loads(sys.stdin.read())
+assert r['record_type'] == 'deploy_outcome', r
+assert r['outcome'] == '<unknown>', f'expected <unknown>, got {r[\"outcome\"]}'
+assert r['pipeline_id'] == 'pipe-x', r
+"
+}
+
+@test "B5-missing-pipeline marker with empty pipeline_id field exits 0 with no record" {
+  # WHY: the bash hook regex requires [A-Za-z0-9._-]+ (1+ chars) for each field;
+  # a marker with a missing/empty pipeline_id value fails to match and exits 0 safely.
+  local input='{"tool_name":"Skill","tool_response":"[Deploy] outcome: DEPLOYED pipeline_id:  environment: staging","session_id":"sid"}'
+  run bash -c "printf '%s' '$input' | '$HOOK'"
+  [ "$status" -eq 0 ]
+  local obs
+  obs=$(_find_obs_jsonl)
+  [ -z "$obs" ]
 }
 
 @test "B5-idem hook stateless: re-fire identical stdin produces two records; consumer collapses to one" {
