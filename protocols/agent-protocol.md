@@ -490,13 +490,14 @@ agent's `tools:` list is missing entirely, the resolver returns
 `advisory` (no enforcement), so frontmatter omissions become silent —
 always declare the list.
 
-## Reversibility Escapes (PreToolUse Agent hooks)
+## Reversibility Escapes (gates and hooks)
 
 Run-time toggles to short-circuit a specific gate to `exit 0` without editing the hook file or `settings.json`. Use when an enforcement flip mis-classifies a legitimate spawn; investigate, then unset.
 
-| Env var | Hook | Effect when set to `1` |
+| Env var | Gate / Hook | Effect when set |
 |---|---|---|
-| `CLAUDE_DISABLE_TOOL_ALLOWLIST` | `pre-agent-allowlist.sh` | Skip allowlist subset check; no JSONL line; hook exits 0. |
-| `CLAUDE_DISABLE_THINKING_GATE` | `pre-agent-thinking.sh` | Skip thinking-defaults resolver; no `hook-injections.jsonl` line; hook exits 0. |
-| `CLAUDE_DISABLE_ADVISOR_GATE` | `pre-agent-advisor.sh` | Skip advisor-pairing resolver; no `advisor-dispatch.jsonl` line; hook exits 0. |
-| `CLAUDE_DISABLE_INSTINCT_INJECTION` | `instinct-injector.sh` | Skip instinct resolution; no JSONL line; hook exits 0. |
+| `CLAUDE_DISABLE_TOOL_ALLOWLIST` | `pre-agent-allowlist.sh` | Set to `1`. Skip allowlist subset check; no JSONL line; hook exits 0. |
+| `CLAUDE_DISABLE_THINKING_GATE` | `pre-agent-thinking.sh` | Set to `1`. Skip thinking-defaults resolver; no `hook-injections.jsonl` line; hook exits 0. |
+| `CLAUDE_DISABLE_ADVISOR_GATE` | `pre-agent-advisor.sh` | Set to `1`. Skip advisor-pairing resolver; no `advisor-dispatch.jsonl` line; hook exits 0. |
+| `CLAUDE_DISABLE_INSTINCT_INJECTION` | `instinct-injector.sh` | Set to `1`. Skip instinct resolution; no JSONL line; hook exits 0. |
+| `CLAUDE_CI_GREEN_GATE=off` | `skills/pipeline/lib/check-ci-green-gate.sh` | Set to `off`. Bypasses the enforcing CI-green gate at Ship→Deploy entry; emits a loud stderr WARNING naming the override and PR number; exits 0. Use only when CI failure is demonstrably pre-existing and unrelated to the current change. |

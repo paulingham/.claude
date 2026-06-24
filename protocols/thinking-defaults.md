@@ -176,7 +176,7 @@ short-circuits to `exit 0` before invoking the resolver, so no
 mirrors `CLAUDE_DISABLE_TOOL_ALLOWLIST` (see `hooks/pre-agent-allowlist.sh:20`)
 and is the canonical run-time rollback if a future enforcement flip
 denies a legitimate spawn. The variable is documented alongside the
-other PreToolUse Agent escapes in `protocols/agent-protocol.md` § Reversibility Escapes (PreToolUse Agent hooks).
+other reversibility escapes in `protocols/agent-protocol.md` § Reversibility Escapes (gates and hooks).
 
 ## Environment Variables
 
