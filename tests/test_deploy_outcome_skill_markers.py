@@ -6,6 +6,9 @@ C2: deployment-verification SKILL emits markers on BOTH DEPLOYMENT_VERIFIED→DE
     AND AUTO_ROLLBACK paths.
 C3: no SKILL retains raw bash >> or inline os.open heredoc.
 C4: marker field order/keys match hook parser regex (round-trip contract).
+C5: learn SKILL Step 7c-bis denominator explicitly filters to the four valid
+    outcomes {DEPLOYED, ROLLED_BACK, AUTO_ROLLBACK, DEPLOY_FAILED}, excluding
+    <unknown> and any other non-enum value from both numerator and denominator.
 """
 import re
 from pathlib import Path
@@ -13,6 +16,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEPLOY_SKILL = REPO_ROOT / "skills" / "deploy" / "SKILL.md"
 VERIFY_SKILL = REPO_ROOT / "skills" / "deployment-verification" / "SKILL.md"
+LEARN_SKILL = REPO_ROOT / "skills" / "learn" / "SKILL.md"
 
 MARKER_RE = re.compile(
     r'\[Deploy\] outcome: [A-Z_]+ pipeline_id: [^\s]+ environment: [^\s]+'
@@ -78,6 +82,48 @@ def test_c3_verify_skill_no_raw_bash_append() -> None:
     text = _skill_text(VERIFY_SKILL)
     assert ">> observations.jsonl" not in text, \
         "deployment-verification SKILL must not use raw bash >> to observations.jsonl"
+
+
+def test_c5_step7cbis_denominator_excludes_unknown_outcome() -> None:
+    """C5: learn SKILL Step 7c-bis must restrict denominator to 4 valid outcomes.
+
+    A deploy_outcome set containing an <unknown> record must yield an escape_rate
+    computed over ONLY {DEPLOYED, ROLLED_BACK, AUTO_ROLLBACK, DEPLOY_FAILED}.
+    The <unknown> value (and any other non-enum value) must be excluded from
+    both numerator and denominator.
+
+    This is a prose-contract test: assert that the SKILL.md Step 7c-bis Algorithm
+    section explicitly names the 4-outcome filter so agents executing the step
+    cannot include <unknown> records in the denominator.
+    """
+    text = _skill_text(LEARN_SKILL)
+    # Extract the Step 7c-bis algorithm section
+    match = re.search(
+        r"7c-bis\..*?(?=###\s+7c-ter|\Z)",
+        text, re.DOTALL
+    )
+    assert match, "SKILL.md must contain Step 7c-bis section"
+    section = match.group(0)
+
+    # The section must explicitly state that the denominator is restricted to
+    # only the four valid outcome values, excluding unknown/non-enum values.
+    # Accept any of these equivalent phrasings that make the filter unambiguous:
+    has_explicit_filter = any([
+        "outcome ∈ {DEPLOYED, ROLLED_BACK, AUTO_ROLLBACK, DEPLOY_FAILED}" in section,
+        "outcome in {DEPLOYED, ROLLED_BACK, AUTO_ROLLBACK, DEPLOY_FAILED}" in section,
+        ("DEPLOYED" in section and "ROLLED_BACK" in section
+         and "AUTO_ROLLBACK" in section and "DEPLOY_FAILED" in section
+         and ("exclude" in section.lower() or "excluding" in section.lower()
+              or "unknown" in section.lower() or "non-enum" in section.lower()
+              or "only records" in section.lower() or "filter to" in section.lower()
+              or "restricted to" in section.lower())),
+    ])
+    assert has_explicit_filter, (
+        "skills/learn/SKILL.md Step 7c-bis Algorithm must explicitly restrict "
+        "the denominator to the four valid outcomes {DEPLOYED, ROLLED_BACK, "
+        "AUTO_ROLLBACK, DEPLOY_FAILED}, excluding <unknown> and other non-enum "
+        "values from both numerator and denominator. Current section:\n" + section[:800]
+    )
 
 
 def test_c4_marker_shape_matches_hook_parser_regex() -> None:
