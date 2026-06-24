@@ -71,12 +71,21 @@ nudge fires to remind the engineer.
 
 ## Coverage gaps and known limitations
 
-### Desktop gap
+### Cloud-session gap
 
-**Claude Desktop does not read `~/.claude/` or the plugin store.** Neither the enterprise
-console managed-settings policy nor the repo-committed `settings.json` is picked up by
-Claude Desktop. The harness is unavailable on Desktop until Anthropic ships console-to-Desktop
-policy delivery. This gap is accepted (Discussion.md Option A); no workaround exists today.
+**Cloud/web sessions (Anthropic VMs, `CLAUDE_CODE_REMOTE=true`) are not covered** —
+plugins are architecturally unavailable for cloud sessions, and neither `managed-settings`
+nor repo-committed `settings.json` can deliver them there.
+
+App **local sessions** and **SSH sessions** are covered: `managed-settings.json` applies
+when the file is present on disk, hooks fire on session start, and the `SessionStart`
+bootstrap installs the harness exactly as it does for the CLI. The Desktop app's
+integrated terminal shares the session environment — no app-specific configuration is
+required beyond the one-time `gh auth login`.
+
+For a personal or single-user install, place `managed-settings.json` on disk directly.
+Whether an enterprise MDM console pushes the policy to the Claude app's on-disk location
+is an MDM/ops concern not verified here.
 
 ### Cloud-runner gap (no committed repo)
 
