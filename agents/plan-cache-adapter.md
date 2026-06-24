@@ -5,7 +5,7 @@ tools:
   - Read
   - Write
 model: haiku
-executor: claude-haiku-4-5
+executor: cheap
 advisor: none
 # advisor-rationale: Haiku-solo. Adapter is a pure rewrite task — pattern-matching ACs onto a cached template skeleton. Plan paper (arXiv 2506.14852) prescribes Haiku here; Sonnet eliminates the cost savings. Conservative validator + reject-to-MISS keeps Haiku safe (Memory M7).
 maxTurns: 8
