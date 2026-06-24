@@ -7,6 +7,8 @@ are re-surfaced on the next poll. Correctness over efficiency.
 
 ``diff_new_findings`` is a peek+commit convenience for ad-hoc/legacy callers.
 """
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Union
 

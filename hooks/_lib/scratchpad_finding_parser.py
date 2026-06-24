@@ -1,4 +1,6 @@
 """Parse a scratchpad finding file into a typed dict."""
+from __future__ import annotations
+
 import hashlib
 from pathlib import Path
 from typing import TypedDict

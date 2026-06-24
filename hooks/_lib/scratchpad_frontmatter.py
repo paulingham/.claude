@@ -2,6 +2,7 @@
 
 Returns (frontmatter, body) when both delimiters are present, else None.
 """
+from __future__ import annotations
 
 
 def split_frontmatter(text: str) -> tuple[str, str] | None:
