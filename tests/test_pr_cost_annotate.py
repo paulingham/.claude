@@ -473,5 +473,67 @@ class ResolveTranscriptSlugIntegration(unittest.TestCase):
                 msg="only subagents jsonl must yield None from resolve_live_transcript",
             )
 
+class SyntheticSentinelDroppedFromBreakdown(unittest.TestCase):
+    """<synthetic> entries must be excluded from the PR cost breakdown line.
+
+    format_cost_line must omit non-billable sentinel models from the
+    parenthetical breakdown. It must NOT drop legitimate real models
+    that happen to have $0.00 cost (e.g. a real model with tiny usage).
+    """
+
+    _REAL_USAGE = {
+        "input_tokens": 1_000_000,
+        "output_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+    }
+    _SYNTHETIC_USAGE = {
+        "input_tokens": 100,
+        "output_tokens": 50,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+    }
+
+    def test_format_cost_line_drops_synthetic(self):
+        """Mixed usage: real model present, <synthetic> absent from breakdown."""
+        usage = {
+            "claude-opus-4-8": self._REAL_USAGE,
+            "<synthetic>": self._SYNTHETIC_USAGE,
+        }
+        line = format_cost_line(usage)
+        self.assertIn(
+            "claude-opus-4-8",
+            line,
+            msg=f"real model must appear in breakdown: {line!r}",
+        )
+        self.assertNotIn(
+            "<synthetic>",
+            line,
+            msg=f"<synthetic> sentinel must not appear in breakdown: {line!r}",
+        )
+
+    def test_format_cost_line_all_sentinel_renders_sensibly(self):
+        """All-sentinel usage (pathological): must still render a valid cost line."""
+        usage = {"<synthetic>": self._SYNTHETIC_USAGE}
+        line = format_cost_line(usage)
+        # Must be a string starting with the sentinel prefix — no crash.
+        self.assertTrue(
+            line.startswith("**Pipeline cost:**"),
+            msg=f"all-sentinel usage must still produce a valid cost line: {line!r}",
+        )
+        # Must NOT contain the synthetic model name in the output.
+        self.assertNotIn(
+            "<synthetic>",
+            line,
+            msg=f"<synthetic> must not appear even in all-sentinel case: {line!r}",
+        )
+        # Total must be $0.00 (sentinels are non-billable).
+        self.assertIn(
+            "$0.00",
+            line,
+            msg=f"all-sentinel total must be $0.00: {line!r}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

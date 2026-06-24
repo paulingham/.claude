@@ -23,7 +23,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from cost_estimator import estimate_cost_usd
+from cost_estimator import estimate_cost_usd, _NON_BILLABLE_MODELS
 from transcript_usage import sum_usage_by_model
 
 _SENTINEL_PREFIX = "**Pipeline cost:**"
@@ -70,10 +70,16 @@ def _breakdown(parts: list) -> str:
 def format_cost_line(usage_by_model: dict) -> str:
     # WHY: headline = sum of rounded per-model parts so displayed numbers always
     # reconcile; avoids raw-float total rounding differently than per-part sum.
+    # WHY: sentinel models (e.g. <synthetic>) are excluded from the breakdown —
+    # they are Claude Code internal turn markers, not real billable models, and
+    # listing them at $0.00 adds clutter without information.
     base = f"{_SENTINEL_PREFIX} "
     if not usage_by_model:
         return base + "$0.00"
-    parts = [(m, _model_cost_rounded(m, c)) for m, c in usage_by_model.items()]
+    billable = {m: c for m, c in usage_by_model.items() if m not in _NON_BILLABLE_MODELS}
+    if not billable:
+        return base + "$0.00"
+    parts = [(m, _model_cost_rounded(m, c)) for m, c in billable.items()]
     total = round(sum(cost for _, cost in parts), 2)
     return f"{_SENTINEL_PREFIX} ${total:.2f} ({_breakdown(parts)})"
 
