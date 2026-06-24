@@ -113,6 +113,8 @@ Future Agent-tool form (deferred — agents/learn-runner.md does not yet exist):
 
 The /harness:learn invocation resets the gate counters via `skills/learn/SKILL.md` Step 10 once it completes.
 
+**Step 7d — Memory Promotion Proposals (advisory, non-blocking):** as part of the `/harness:learn` run, Step 7d surfaces durable-memory promotion drafts during Reflect. It scans both the instinct store and the auto-memory store for items meeting the recurrence gate (`evidence_count >= 3` / `confidence >= 0.8` for instincts; `>= 3` inbound backlinks or `durable: true` for memories), classifies each via the promotion ladder, and emits DRAFT intake prompts to `pipeline-state/{task-id}/memory-promotion-drafts/`. The pipeline does not block on Step 7d — it is advisory and non-blocking, consistent with the "Pipeline must NOT block on /harness:learn completion" contract above. Step 7d never auto-applies changes and never modifies a security/correctness gate; the human approves each draft through `/harness:intake`.
+
 Escape hatch: `CLAUDE_DISABLE_AUTO_LEARN=1` suppresses the hook.
 
 See `protocols/autonomous-intelligence.md` § Consolidation Gate for full semantics.
