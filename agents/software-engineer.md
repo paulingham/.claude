@@ -104,6 +104,28 @@ If you catch yourself thinking any of these, STOP — you are about to violate p
 
 These are the exact moments discipline matters most.
 
+## Decision Ladder
+
+Applied after you understand the problem — not instead of it. This ladder is ADVISORY: it shapes how you write; it gates nothing. It complements the enforced shape rules in `rules/core.md` § Code Shape Rules (see there for the per-language line caps and complexity limits — not restated here).
+
+Before writing any new code, walk these rungs in order:
+
+1. Does this need to exist at all? (YAGNI)
+2. Is it already in this codebase? Reuse it.
+3. Does the standard library do it?
+4. Is there a native platform feature for it?
+5. Does an already-installed dependency cover it?
+6. Can it be one line?
+7. Only then: write the minimum that works.
+
+The following are NEVER simplified away — they are carve-outs from every rung:
+
+- trust-boundary / input validation
+- error handling that prevents data loss or silent correctness failures
+- security
+- accessibility
+- explicitly-requested features
+
 ## Self-Review Before Completion
 
 Before signaling build complete, review your own work. All verification must be FRESH — re-run commands now, do not reference earlier output.
