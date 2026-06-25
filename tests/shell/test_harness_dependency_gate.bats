@@ -483,6 +483,106 @@ GATE_SCRIPT
 # SLICE 4: Ordering (AC7.2)
 # ==============================================================================
 
+# ==============================================================================
+# SLICE 5: Fix-cycle new tests (CRITICAL-1, CRITICAL-2, stdin edge-cases)
+# ==============================================================================
+
+# Helper: build a fake PATH with all hard deps except jq AND except remove_cmd.
+# WHY: tests CRITICAL-1 fix — gate must not depend on jq.
+_path_without_jq_and() {
+  local remove_cmd="$1"
+  local new_bin; new_bin="$(mktemp -d)"
+  local true_bin; true_bin="$([ -x /usr/bin/true ] && echo /usr/bin/true || echo /bin/true)"
+  for cmd in bash git realpath mktemp python3 python dirname printf sed grep cat; do
+    [ "$cmd" = "$remove_cmd" ] && continue
+    local resolved; resolved="$(command -v "$cmd" 2>/dev/null)"
+    [ -n "$resolved" ] && ln -sf "$resolved" "$new_bin/$cmd" 2>/dev/null || true
+  done
+  ln -sf "$true_bin" "$new_bin/flock" 2>/dev/null || true
+  # jq intentionally omitted
+  echo "$new_bin"
+}
+
+@test "CRIT1-A jq absent + git missing + tool_name:Agent -> exit 2 (CRITICAL-1 fixed; would have been exit 0 before)" {
+  # WHY: old jq-based parse silently produces empty TOOL_NAME on jq-less box → exit 0 (fail-open).
+  # New pure-bash parse correctly extracts "Agent" → gate proceeds → git missing → exit 2.
+  local no_jq_no_git; no_jq_no_git="$(_path_without_jq_and git)"
+  local script; script="$(mktemp /tmp/gate_crit1a.XXXXXX.sh)"
+  cat > "$script" <<GATE_SCRIPT
+#!/usr/bin/env bash
+printf '{"tool_name":"Agent","tool_input":{"subagent_type":"x"}}' | bash "$GATE" 2>&1
+GATE_SCRIPT
+  chmod +x "$script"
+  run env PATH="$no_jq_no_git" bash "$script"
+  rm -f "$script"; rm -rf "$no_jq_no_git"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -qi "BLOCKED"
+}
+
+@test "CRIT1-B jq absent + tool_name:Agent + ALL hard deps present -> exit 0 (no false-positive from pure-bash parser)" {
+  # WHY: confirms the pure-bash parser doesn't cause false blocks when everything is installed.
+  local no_jq; no_jq="$(_path_without_jq_and NOTHING)"
+  local script; script="$(mktemp /tmp/gate_crit1b.XXXXXX.sh)"
+  cat > "$script" <<GATE_SCRIPT
+#!/usr/bin/env bash
+printf '{"tool_name":"Agent","tool_input":{"subagent_type":"software-engineer"}}' | bash "$GATE" 2>&1
+GATE_SCRIPT
+  chmod +x "$script"
+  run env PATH="$no_jq:$PATH" bash "$script"
+  rm -f "$script"; rm -rf "$no_jq"
+  [ "$status" -eq 0 ]
+}
+
+@test "CRIT1-C empty stdin -> exit 0 (treated as non-Agent; conscious decision matches harness convention)" {
+  # WHY: unparseable/empty input → TOOL_NAME="" → non-Agent → exit 0.
+  # This is intentional: an empty stdin is not an Agent spawn.
+  local script; script="$(mktemp /tmp/gate_crit1c.XXXXXX.sh)"
+  cat > "$script" <<GATE_SCRIPT
+#!/usr/bin/env bash
+printf '' | bash "$GATE" 2>&1
+GATE_SCRIPT
+  chmod +x "$script"
+  run env PATH="$FAKE_BIN:$PATH" bash "$script"
+  rm -f "$script"
+  [ "$status" -eq 0 ]
+}
+
+@test "CRIT1-D garbage non-JSON stdin -> exit 0 (treated as non-Agent; conscious decision matches harness convention)" {
+  # WHY: corrupt/non-JSON input → pure-bash regex finds no tool_name → TOOL_NAME="" → exit 0.
+  # Gate must not crash or block on bad input that isn't an Agent spawn.
+  local script; script="$(mktemp /tmp/gate_crit1d.XXXXXX.sh)"
+  cat > "$script" <<GATE_SCRIPT
+#!/usr/bin/env bash
+printf 'not json at all !!!' | bash "$GATE" 2>&1
+GATE_SCRIPT
+  chmod +x "$script"
+  run env PATH="$FAKE_BIN:$PATH" bash "$script"
+  rm -f "$script"
+  [ "$status" -eq 0 ]
+}
+
+@test "CRIT2 sourceable-but-empty hook-profile.sh (check_hook_profile undefined) + hard dep missing -> exit 2 (CRITICAL-2 fixed)" {
+  # WHY: old code called check_hook_profile "minimal" || exit 0 without checking existence.
+  # If hook-profile.sh is empty/truncated, check_hook_profile is undefined → || exit 0 fires → fail-open.
+  # New declare -F guard catches this and exits 2 instead.
+  local fake_profile; fake_profile="$(mktemp /tmp/fake_profile.XXXXXX.sh)"
+  printf '#!/usr/bin/env bash\n# empty — check_hook_profile NOT defined\n' > "$fake_profile"
+  local patched; patched="$(mktemp /tmp/gate_crit2.XXXXXX.sh)"
+  sed "s|hook-profile\.sh|$fake_profile|g" "$GATE" > "$patched"
+  chmod +x "$patched"
+  local no_git; no_git="$(_no_git_path)"
+  local script; script="$(mktemp /tmp/gate_runner_crit2.XXXXXX.sh)"
+  cat > "$script" <<GATE_SCRIPT
+#!/usr/bin/env bash
+printf '{"tool_name":"Agent","tool_input":{"subagent_type":"x"}}' | bash "$patched" 2>&1
+GATE_SCRIPT
+  chmod +x "$script"
+  run env PATH="$no_git" bash "$script"
+  rm -f "$fake_profile" "$patched" "$script"; rm -rf "$no_git"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -qi "BLOCKED"
+}
+
 @test "AC7.2 ORDERING: dep gate index < pipeline-state-guard index in BOTH Agent arrays" {
   command -v python3 || skip "python3 required for ordering check"
   run python3 - "$REPO_ROOT/hooks/hooks.json" <<'PYEOF'

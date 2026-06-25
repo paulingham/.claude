@@ -11,8 +11,10 @@ _ssdc_check_deps() {
   _hdc_probe 2>/dev/null || true
 
   if [ -n "${HDC_MISSING:-}" ]; then
+    # WHY: sanitize before interpolating — defense-in-depth, symmetric with the gate's sanitization.
+    local _ssdc_safe="${HDC_MISSING//[^a-z0-9 ]/_}"
     printf '[harness-dependency-check] MISSING REQUIRED: %s — install Git for Windows AND a Python interpreter, then add "env":{"CLAUDE_CODE_GIT_BASH_PATH":"C:\\Program Files\\Git\\bin\\bash.exe"} to settings.json. See knowledge/windows-setup.md.\n' \
-      "$HDC_MISSING" >&2
+      "$_ssdc_safe" >&2
   fi
 
   if [ -n "${HDC_SOFT_MISSING:-}" ]; then
