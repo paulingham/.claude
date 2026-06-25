@@ -108,7 +108,12 @@ is_what_comment() {
     fi
     # WHY-prefixed intent/contract/warning comments (case-insensitive).
     # Includes SSOT-endorsed categories: contract, warning of consequences, rationale.
-    if printf '%s' "$trimmed" | grep -qiE '^(#|//)[[:space:]]*(WHY|SAFETY|NOTE|HACK|TODO|FIXME|WARNING|IMPORTANT|XXX|REVIEW|CONTRACT|RETURNS|RAISES|THROWS|PRECONDITION|POSTCONDITION):'; then
+    # WHY: DEBT: is forward-compat scaffolding — today the verb-check (below) already
+    # exempts any prefixed comment because the prefix word occupies the first-word slot,
+    # so this exemption only becomes load-bearing if the verb-check is later changed to
+    # strip known prefixes. The `:` stays OUTSIDE the alternation group so a bare
+    # `# DEBT` (no colon) is not specially exempted. Harvested by /harness:debt-ledger.
+    if printf '%s' "$trimmed" | grep -qiE '^(#|//)[[:space:]]*(WHY|SAFETY|NOTE|HACK|TODO|FIXME|WARNING|IMPORTANT|XXX|REVIEW|CONTRACT|RETURNS|RAISES|THROWS|PRECONDITION|POSTCONDITION|DEBT):'; then
         return 1
     fi
     # Doc-comment param/return/type annotations.
