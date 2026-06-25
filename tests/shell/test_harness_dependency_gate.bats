@@ -412,6 +412,25 @@ GATE_SCRIPT
   [ "$status" -ne 0 ]  # grep found nothing = gate is clean
 }
 
+@test "AC3.8 SELF-CONTAINED: gate body has no jq or python call (regression class b — re-acquisition guard)" {
+  # WHY: if someone adds jq or a python call to the gate body, the gate itself becomes
+  # dependent on the very tools it is supposed to detect as missing. This grep-guard
+  # catches that regression statically, faster than the runtime CRIT1-A test.
+  # Excluded: comment lines and the _hdg_block_unevaluable function name (contains no call).
+  local non_comment_lines
+  non_comment_lines="$(grep -Ev '^[[:space:]]*#' "$GATE")"
+  # No jq invocations
+  if echo "$non_comment_lines" | grep -qE '\bjq\b'; then
+    echo "FAIL: gate body calls jq"
+    return 1
+  fi
+  # No $(python ...) or pipe-to-python (bare python/python3/py not preceded by command -v)
+  if echo "$non_comment_lines" | grep -qE '\$\(python|\| python[^3]|\bpython3\b[^)]|\bpython\b[^3 ]'; then
+    echo "FAIL: gate body calls python directly"
+    return 1
+  fi
+}
+
 @test "AC4.1 CLAUDE_DISABLE_DEPENDENCY_GATE=1 -> exit 0 + bypass log line" {
   # Even with git missing, bypass env var makes the gate exit 0
   local no_git; no_git="$(_no_git_path)"

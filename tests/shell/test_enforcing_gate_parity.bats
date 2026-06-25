@@ -163,6 +163,7 @@ _is_live_only_exempt() {
 
 # Helper: extract hook basenames registered in hooks.json
 _hooks_json_basenames() {
+  command -v python3 > /dev/null 2>&1 || skip "python3 required for parity check"
   python3 - "$HOOKS_JSON" <<'PYEOF'
 import json, sys, re
 
@@ -228,6 +229,7 @@ _is_hooks_json_only_allowlist() {
 # --------------------------------------------------------------------------
 
 @test "AC-D2: canary — synthetic hooks.json-only enforcing hook makes reverse assertion RED" {
+  command -v python3 > /dev/null 2>&1 || skip "python3 required for canary test"
   local tmpdir
   tmpdir="$(mktemp -d)"
   local fake_hooks_json="$tmpdir/hooks.json"
