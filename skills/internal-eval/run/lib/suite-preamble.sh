@@ -18,26 +18,37 @@ strip_ladder_from_harness() {
 }
 
 # WHY: deletes from the ## Decision Ladder heading (inclusive) to the line
-# immediately before the next ## heading. Sed address /pattern1/,/pattern2/d
-# with stop-at-but-exclude via addr,/^## /{/^## /!d} is not portable; use a
-# simpler two-pass approach: mark the block then delete it via python3 which
-# is already required by suite-cases-json.sh.
+# immediately before the next ## heading. If the ladder is the last ## section,
+# the block is bounded by the carve-out sentinel (NEVER simplified away) plus
+# its item list: once we see a blank line after the last carve-out item, we
+# stop deleting — protecting any non-heading trailing content that follows.
 _strip_agent_ladder() {
   local path="$1"
   [ -f "$path" ] || return 0
   python3 - "$path" <<'PYEOF'
 import sys
 from pathlib import Path
+CARVE_OUT = "NEVER simplified away"
 p = Path(sys.argv[1])
 lines = p.read_text().splitlines(keepends=True)
 out = []
 in_block = False
+past_carve_out = False
+carve_out_items_seen = 0
 for line in lines:
     if line.rstrip() == "## Decision Ladder":
         in_block = True
         continue
     if in_block and line.startswith("## "):
         in_block = False
+    if in_block and CARVE_OUT in line:
+        past_carve_out = True
+    if in_block and past_carve_out and line.startswith("- "):
+        carve_out_items_seen += 1
+    if in_block and past_carve_out and carve_out_items_seen > 0 and line.strip() == "":
+        in_block = False
+        out.append(line)
+        continue
     if not in_block:
         out.append(line)
 p.write_text("".join(out))

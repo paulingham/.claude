@@ -30,8 +30,13 @@ def _read_costs(costs_path, run_id):
                     continue
                 cid = r.get("eval_case_id", "")
                 entry = by_case.setdefault(cid, {"input_tokens": 0, "output_tokens": 0})
-                entry["input_tokens"] += r.get("input_tokens", 0) or 0
-                entry["output_tokens"] += r.get("output_tokens", 0) or 0
+                def _safe_int(v):
+                    try:
+                        return int(v or 0)
+                    except (TypeError, ValueError):
+                        return 0
+                entry["input_tokens"] += _safe_int(r.get("input_tokens", 0))
+                entry["output_tokens"] += _safe_int(r.get("output_tokens", 0))
     except FileNotFoundError:
         pass
     return by_case

@@ -141,3 +141,44 @@ setup() {
       --tb=short 2>&1
   [ "$status" -eq 0 ]
 }
+
+# ─── B8: ladder-as-last-section does not eat trailing non-heading content ─────
+@test "B8 strip stops at carve-out end; trailing non-heading content preserved" {
+  local wt="$WORK/wt-b8"
+  mkdir -p "$wt/agents"
+
+  # Fixture: Decision Ladder is the LAST ## section, followed by trailing prose
+  cat > "$wt/agents/test-agent.md" <<'EOF'
+## Preamble
+
+Some leading content.
+
+## Decision Ladder
+
+Walk these rungs:
+
+1. Does this need to exist at all? (YAGNI)
+
+The following are NEVER simplified away — they are carve-outs from every rung:
+
+- trust-boundary / input validation
+- explicitly-requested features
+
+This trailing paragraph has no heading and must survive the strip.
+EOF
+
+  source "$SUITE_PREAMBLE"
+  _strip_agent_ladder "$wt/agents/test-agent.md"
+
+  # Ladder block must be gone
+  run grep -c "Decision Ladder" "$wt/agents/test-agent.md" || true
+  [[ "$output" == "0" ]]
+
+  # Trailing non-heading content must survive
+  run grep -c "trailing paragraph" "$wt/agents/test-agent.md" || true
+  [[ "$output" == "1" ]]
+
+  # Preamble must also survive
+  run grep -c "Some leading content" "$wt/agents/test-agent.md" || true
+  [[ "$output" == "1" ]]
+}

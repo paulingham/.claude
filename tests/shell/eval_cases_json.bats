@@ -180,27 +180,39 @@ setup() {
   write_cases_json "$run_a" "$arm_a"
   write_cases_json "$run_b" "$arm_b"
 
-  # Run real ab-compare.sh
+  # Run real ab-compare.sh via EVAL_RUNS_DIR (the shipped interface)
   local ab_script="$REPO_ROOT/skills/internal-eval/score/ab-compare.sh"
-  run bash "$ab_script" --arm-a "$arm_a" --arm-b "$arm_b" \
-    --runs-dir "$runs_dir" 2>/dev/null || true
+  export EVAL_RUNS_DIR="$runs_dir"
+  run bash "$ab_script" --arm-a "$arm_a" --arm-b "$arm_b"
+  [ "$status" -eq 0 ]
 
-  # Check report was written (may fail on USD compute — that's fine)
-  local report="$runs_dir/${arm_a}-vs-${arm_b}/ab-report.md"
-  [ -f "$report" ] || {
-    # ab-compare uses EVAL_RUNS_DIR
-    export EVAL_RUNS_DIR="$runs_dir"
-    run bash "$ab_script" --arm-a "$arm_a" --arm-b "$arm_b"
-    [ "$status" -eq 0 ]
-    local report2="${runs_dir}/${arm_a}-vs-${arm_b}/ab-report.md"
-    [ -f "$report2" ]
-    # Must not say INSUFFICIENT for both arms having pass:true cases
-    run grep -c "INSUFFICIENT" "$report2" || true
-    [[ "$output" != "1" ]] || {
-      run grep "INSUFFICIENT" "$report2"
-      [[ "$output" != *"one or both arms scored 0 cases"* ]]
-    }
+  local report="${runs_dir}/${arm_a}-vs-${arm_b}/ab-report.md"
+  [ -f "$report" ]
+  # Must not say INSUFFICIENT for both arms having pass:true cases
+  run grep -c "INSUFFICIENT" "$report" || true
+  [[ "$output" != "1" ]] || {
+    run grep "INSUFFICIENT" "$report"
+    [[ "$output" != *"one or both arms scored 0 cases"* ]]
   }
+}
+
+@test "A8 string-valued token fields coerced to 0 — no crash, valid cases.json" {
+  local run_dir="$WORK/run8"
+  _make_run_dir "$run_dir" "r1" "case-strtok"
+  _make_result "$run_dir" "case-strtok" "passed"
+
+  # Malformed: token values are strings not ints
+  local costs="$WORK/costs8.jsonl"
+  echo '{"eval_run_id":"r1","eval_case_id":"case-strtok","input_tokens":"99","output_tokens":"42"}' > "$costs"
+  export EVAL_COSTS_JSONL="$costs"
+
+  source "$SUITE_CASES_JSON"
+  run write_cases_json "$run_dir" "r1"
+  [ "$status" -eq 0 ]
+
+  run jq 'type' "$run_dir/cases.json"
+  [ "$status" -eq 0 ]
+  [[ "$output" == '"array"' ]]
 }
 
 @test "A7 missing costs record yields tokens 0 and exits 0" {
