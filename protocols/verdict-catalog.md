@@ -127,6 +127,9 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `EVAL_FAILED` | failure | `internal-eval` | utility | Harness PR blocked; regressions on deterministic cases |
 | `EVAL_BASELINE_CAPTURED` | info | `internal-eval` | utility | Baseline written; subsequent runs diff against it |
 | `INSUFFICIENT_CASES` | info | `internal-eval` | utility | Not enough cases to score; rerun later |
+| `EVAL_IMPROVEMENT_CONFIRMED` | info | `internal-eval` | utility | `ab` mode: arm B reduced diff-economy (LOC/USD) with safety floor held; advisory, never gates |
+| `EVAL_REGRESSION_DETECTED` | info | `internal-eval` | utility | `ab` mode: arm B safety dropped; Iron Law 1 guard-return; advisory, non-gating by design |
+| `EVAL_NEUTRAL` | info | `internal-eval` | utility | `ab` mode: safety held but no significant diff-economy change beyond noise thresholds |
 | `CLEAN` | info | `forensics` | utility | No anomalies found in pipeline trajectory |
 | `ANOMALIES_FOUND` | info | `forensics` | utility | Anomalies surfaced; report written for human review |
 | `INVESTIGATION_INCOMPLETE` | info | `forensics` | utility | More data needed; user instructed |
