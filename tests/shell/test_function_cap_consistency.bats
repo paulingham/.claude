@@ -44,7 +44,7 @@ ALLOWLIST_5=(
   "hooks/_lib/visual_diff.js:102"
   "rules/core.md:25"
   "scripts/README.md:127"
-  "skills/build-implementation/SKILL.md:248"
+  "skills/build-implementation/SKILL.md:250"
   "skills/refactor/SKILL.md:73"
   # Error-excerpt / finding-window line counts, not function shape.
   "agents/pbt-engineer.md:71"
@@ -83,9 +83,9 @@ ALLOWLIST_5=(
   # The NEW per-language contract (Ruby ≤ 5 / TS ≤ 12) — the law, not a fossil.
   "rules/core.md:23"
   "skills/build-implementation/SKILL.md:80"
-  "skills/build-implementation/SKILL.md:252"
-  "skills/build-implementation/SKILL.md:273"
+  "skills/build-implementation/SKILL.md:254"
   "skills/build-implementation/SKILL.md:275"
+  "skills/build-implementation/SKILL.md:277"
   "skills/react-native-patterns/SKILL.md:69"
   "skills/refactor/SKILL.md:36"
 )

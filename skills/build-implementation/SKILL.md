@@ -83,6 +83,8 @@ Follow the ATDD Protocol in `protocols/atdd-procedure.md`:
 
 **Exception cycles** — bug fixes, complex algorithmic logic, and security-sensitive code retain per-behaviour RED-GREEN. See `protocols/atdd-procedure.md` § When per-behaviour TDD Still Applies (Exceptions). For those cases follow `skills/bug-fix/SKILL.md` instead of the batched cycle.
 
+**Decision Ladder (ADVISORY — shapes how you write; gates nothing).** Before writing any new production code, walk these seven rungs: (1) Does this need to exist at all? (YAGNI) (2) Is it already in this codebase? Reuse it. (3) Does the standard library do it? (4) Is there a native platform feature for it? (5) Does an already-installed dependency cover it? (6) Can it be one line? (7) Only then: write the minimum that works. The ladder does not replace understanding the problem — apply it after comprehension, not instead. See `rules/core.md` § Code Shape Rules for the enforced per-language line caps and complexity limits; this note cross-references them rather than restating them.
+
 ### Step 2.5: Edit Format (unified diff for existing files)
 
 Build agents emit **all edits to existing files as unified-diff hunks** applicable via `git apply`. Inspired by Aider's udiff method (https://aider.chat/docs/unified-diffs.html) — the udiff format reduces lazy / placeholder edits by anchoring every change to a verbatim context window.
