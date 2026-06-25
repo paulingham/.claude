@@ -90,6 +90,8 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `SKILL_LINT_FLAGGED` | info | `skill-security-lint` | utility | One or more findings detected (injection / secret / over_broad_tool); advisory — security-engineer folds findings into OWASP AA02/AA03 items; never a hard block |
 | `SMELLS_FOUND` | info | `smell-scan` | utility | ≥1 ranked smell candidate detected (Feature Envy, Data Clumps, etc.); advisory — code-reviewer folds findings into review output as an advisory section; never a hard block |
 | `SMELLS_CLEAN` | info | `smell-scan` | utility | No smell candidates detected, or 0 source files in scope after filtering; advisory; non-blocking |
+| `DEBT_LEDGER_WRITTEN` | info | `debt-ledger` | utility | ≥1 `DEBT:` marker found; ledger rendered grouped by file with ceiling/upgrade-trigger per entry and the `no-trigger` (silent-rot) count; advisory — reader decides whether to pay down debt; never a hard block |
+| `DEBT_LEDGER_CLEAN` | info | `debt-ledger` | utility | Zero `DEBT:` markers in scope after exclusions ("No DEBT markers found"); advisory; non-blocking |
 | `PR_CREATED` | success | `pr-creation` | ship | `/harness:deploy` (if CD configured) |
 | `PR_BLOCKED` | failure | `pr-creation` | ship | Halt; missing approval token or quality-gate failure |
 | `CI_GREEN` | success | `pr-creation` | ship | All `gh pr checks` runs concluded SUCCESS against the pushed head (headRefOid verified); CI-green gate passed — proceed to cost annotator (Step 6) then Deploy. |

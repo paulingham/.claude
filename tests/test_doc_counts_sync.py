@@ -17,11 +17,11 @@ spec.loader.exec_module(sync)
 
 
 class ComputeCounts(unittest.TestCase):
-    """A1: compute_counts returns skills=71 / agents=19 for live repo."""
+    """A1: compute_counts returns skills=72 / agents=19 for live repo."""
 
     def test_compute_counts_matches_ac9_glob_rule(self):
         counts = sync.compute_counts(REPO_ROOT)
-        self.assertEqual(counts["skills"], 71)
+        self.assertEqual(counts["skills"], 72)
         self.assertEqual(counts["agents"], 19)
 
 

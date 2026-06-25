@@ -69,6 +69,19 @@ If a name needs a comment, rename it. If a *constraint* is not obvious from the 
 
 The comment-smell hook blocks only high-confidence narration (bare lowercase-verb prose that restates adjacent code); intent, contract, warning, and rationale comments — ideally prefixed `WHY:`/`WARNING:`/`CONTRACT:`/`FIXME:` etc. — always pass.
 
+### DEBT: markers — deliberate-simplification debt
+
+A `DEBT:` comment records an accepted simplification and the condition that should prompt revisiting it. The grammar is `DEBT: <ceiling>, <upgrade-trigger>`:
+
+- **ceiling** — the accepted complexity / simplification limit (what we deliberately did NOT build).
+- **upgrade-trigger** — the condition that should prompt revisiting it (the second clause, after the comma).
+
+```ruby
+# DEBT: inline cache keyed by prefix, upgrade to an LRU when prefixes > 3
+```
+
+An entry with **no upgrade-trigger** (no second clause after the comma) is silent rot — debt with no exit condition that accumulates invisibly. `DEBT:` is colon-strict (a bare `# DEBT` without the colon is not specially exempted) and is harvested by `/harness:debt-ledger`, an advisory collector that renders the open ledger and flags every `no-trigger` entry.
+
 ## When to Use a Class vs Standalone Function
 
 **Use a class (service object) when ANY of these are true:**
