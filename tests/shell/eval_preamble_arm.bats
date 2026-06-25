@@ -137,6 +137,8 @@ setup() {
 
 # ─── B7: test_decision_ladder_preamble.py still green ─────────────────────────
 @test "B7 test_decision_ladder_preamble.py passes (ladder still in static .md)" {
+  python3 -m pytest --version >/dev/null 2>&1 \
+    || skip "pytest not installed (bats CI job installs only bats+jq; test_decision_ladder_preamble.py is covered by the Python-test-suite CI job)"
   run python3 -m pytest "$REPO_ROOT/tests/test_decision_ladder_preamble.py" -q \
       --tb=short 2>&1
   [ "$status" -eq 0 ]
