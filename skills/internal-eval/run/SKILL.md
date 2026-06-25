@@ -156,6 +156,7 @@ skills/internal-eval/run/run-suite.sh \
   [--harness-ref <sha>] \
   [--concurrency N]   # default 4
   [--resume]
+  [--preamble none|decision-ladder]
 ```
 
 | Flag | Default | Purpose |
@@ -166,6 +167,7 @@ skills/internal-eval/run/run-suite.sh \
 | `--harness-ref` | empty → live | SHA to pin; ONE shared worktree created at suite start and reused across every case (not per-case) |
 | `--concurrency` | `4` | Max parallel `run-case.sh` workers (bash-3.2-compatible pool) |
 | `--resume` | off | Skip any case whose `cases/<id>/result.json` already exists on disk |
+| `--preamble` | `decision-ladder` | `none` strips the Decision Ladder block from the harness worktree's agent + SKILL files before dispatch (arm A); `decision-ladder` leaves them unchanged (arm B). `none` requires `--harness-ref` — refuses to mutate live `~/.claude`. |
 
 ### Outputs (per run)
 
@@ -178,7 +180,25 @@ eval/runs/<run-id>/
     inner/             # inner pipeline state (Story 6 isolation)
   home/<case-id>/      # shadow HOME per case (Story 6 isolation)
   aggregate.json       # written after all cases complete (also on interrupt)
+  cases.json           # scorer-readable projection: [{case, pass, loc_added, loc_removed, input_tokens, output_tokens}, …]
 ```
+
+#### cases.json — scorer input
+
+Written by `lib/suite-cases-json.sh:write_cases_json` at the end of the run (and on signal interrupt). Consumed directly by `score/ab-compare.sh`. Schema per element:
+
+| Key | Type | Source |
+|---|---|---|
+| `case` | string | case directory name |
+| `pass` | bool | `status == "passed"` |
+| `loc_added` | int | `inner/<case>/net-numstat` field 1 (optional; 0 when absent) |
+| `loc_removed` | int | `inner/<case>/net-numstat` field 2 (optional; 0 when absent) |
+| `input_tokens` | int | sum of `costs.jsonl` records with `eval_run_id` + `eval_case_id` matching |
+| `output_tokens` | int | same records, `output_tokens` field |
+
+**net-numstat optional-input contract.** The inner pipeline does NOT yet emit `net-numstat`. A future ship-step writes `${EVAL_RUNS_DIR}/${EVAL_RUN_ID}/inner/${EVAL_CASE_ID}/net-numstat` as `<added>\t<removed>` — all path components are derivable from already-exported env vars with no extra plumbing. Until then, `loc_added` and `loc_removed` are 0 for every case (documented gap; caveats block in the ab-report flags this).
+
+**failed_infra cases ARE included.** They appear in cases.json with `pass:false` and affect the safety denominator — intentional (they represent completed-but-broken runs). This differs from `aggregate.json` pass_rate which excludes infra failures from the denominator.
 
 ### aggregate.json Schema
 
@@ -222,11 +242,39 @@ that queue waiting for a slot. Each worker is an independent
 `bash run-case.sh` invocation — results are written to disk by the worker,
 not piped back.
 
+### A/B Measurement — How to Run (post-merge, operator-explicit)
+
+**BUILD does NOT authorize RUNning the 2-arm measurement.** The operator must explicitly invoke the run — each arm spawns full nested `claude -p /pipeline` calls for every case (~30 min timeout each); 2 arms × n cases ≈ 1-2 hr + large token spend.
+
+Post-merge 2-command recipe (requires `--harness-ref <sha>` pointing to a SHA before the ladder was merged):
+
+```bash
+# Arm A — no decision ladder (control)
+run-suite.sh --run-id ladder-a --suite default --harness-ref <pre-ladder-sha> \
+  --preamble none
+
+# Arm B — with decision ladder (treatment); use live (no --harness-ref needed)
+run-suite.sh --run-id ladder-b --suite default \
+  --preamble decision-ladder
+
+# Compare
+score/ab-compare.sh --arm-a ladder-a --arm-b ladder-b --preamble-b decision-ladder
+```
+
+### Interpreting Results
+
+- **Directional only at n<10.** One case flip = 100/n% safety swing. Results are not distinguishable from single-run LLM variance without replication.
+- **Test-pass-rate proxy.** Without mutation score, safety is binary pass/fail per case — a coarse signal.
+- **LOC gap.** `loc_added`/`loc_removed` are 0 until the inner pipeline emits `net-numstat`. Verdict turns on USD-win or safety only.
+- **Always replicate.** Run at least 3× per arm before acting on a verdict.
+- **If verdict is always NEUTRAL or INSUFFICIENT**, inspect `cases.json` in both run dirs to confirm cases completed and `pass:true` entries exist in at least one arm.
+- **Strip re-validation.** If `agents/software-engineer.md` or `agents/frontend-engineer.md` are restructured (headings added/removed before the `## Decision Ladder` section), re-validate the strip by running B1 and B2 tests manually.
+
 ### Lib Decomposition (Story 7 additions)
 
 | File | Responsibility |
 |---|---|
-| `lib/suite-args.sh` | Flag parser for run-suite (separate from run-case `args.sh`) |
+| `lib/suite-args.sh` | Flag parser for run-suite (separate from run-case `args.sh`); `--preamble` + B5 guard |
 | `lib/suite-resume.sh` | `case_already_done`, `filter_pending_cases` |
 | `lib/suite-aggregate.sh` | Reads per-case result.json, writes aggregate.json |
 | `lib/suite-aggregate.jq` | jq program computing counts + pass_rate |
@@ -236,6 +284,8 @@ not piped back.
 | `lib/suite-state.sh` | `write_suite_state` (suite.json writer) |
 | `lib/suite-dispatch.sh` | `dispatch_case` — launcher the pool calls per case |
 | `lib/suite-main.sh` | `suite_main` orchestrator composing the above |
+| `lib/suite-cases-json.sh` | `write_cases_json` — projects result.json + costs.jsonl into cases.json |
+| `lib/suite-preamble.sh` | `strip_ladder_from_harness` — strips Decision Ladder from wt copies when `--preamble none` |
 
 ### Test Hooks
 

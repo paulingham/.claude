@@ -109,7 +109,11 @@ lines = [
     "## Verdict", "",
 ]
 
-if v == "EVAL_IMPROVEMENT_CONFIRMED":
+# P3 render-time parity guard — compare_arms() still called, py core untouched.
+# WHY: unequal completion biases every metric; render INSUFFICIENT before verdict copy.
+if n_a != n_b:
+    lines.append(f"INSUFFICIENT — case count mismatch (A={n_a}, B={n_b}); comparison biased by unequal completion; re-run.")
+elif v == "EVAL_IMPROVEMENT_CONFIRMED":
     usd_str = f"${abs(dusd):.4f}" if dusd is not None else "N/A"
     lines.append(f"EVAL_IMPROVEMENT_CONFIRMED — arm B cut diff-economy (LOC −{abs(dloc)}, USD −{usd_str}) with safety held ({saf_b}% ≥ {saf_a}%). Advisory only; gates nothing.")
 elif v == "EVAL_REGRESSION_DETECTED":
@@ -119,6 +123,21 @@ elif v == "EVAL_NEUTRAL":
     lines.append(f"EVAL_NEUTRAL — safety held but no diff-economy change beyond noise (LOC Δ {dloc}, USD Δ {usd_str}). Advisory only; gates nothing.")
 else:
     lines.append(f"INSUFFICIENT — one or both arms scored 0 cases (A={n_a}, B={n_b}); no comparison computed. Fail-closed refusal, NOT a 100% pass.")
+
+# P1 caveats — rendered when small-n or no mutation_score; never when both conditions met.
+# WHY: test-pass-rate proxy on n<10 is noise-dominated; one case flip = 100/n% swing.
+small_n = n_a < 10 or n_b < 10
+no_mut = mut_a is None or mut_b is None
+if small_n or no_mut:
+    lines += [
+        "",
+        "## Measurement caveats",
+        "",
+        "- **Directional only** — result not distinguishable from single-run LLM variance at this sample size.",
+        "- **Test-pass-rate proxy** — mutation score absent; one case flip = 100/n % safety swing.",
+        "- **LOC unavailable** — net-numstat not yet emitted by inner pipeline; LOC shown as 0.",
+        "- **Do not act on a single replicate** — re-run at least 3× per arm before drawing conclusions.",
+    ]
 
 print("\n".join(lines))
 PYEOF
