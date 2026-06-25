@@ -439,8 +439,11 @@ class AC15OverBuildSmell(unittest.TestCase):
 class AC16Output(unittest.TestCase):
     def test_ranked_table_has_tag_column(self):
         text = _read_skill()
-        self.assertIn("tag", text,
-                      "SKILL.md ranked table must contain a 'tag' column")
+        self.assertRegex(
+            text,
+            r"\|\s*suggested refactor\s*\|\s*tag\s*\|",
+            "ranked-table schema must add `tag` as the 6th column after `suggested refactor`",
+        )
         for col in ("file:line", "smell", "tier", "why it matters", "suggested refactor"):
             self.assertIn(col, text,
                           f"Original column {col!r} must still be present alongside tag column")

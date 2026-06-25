@@ -180,7 +180,7 @@ Source files after filter: M
 
 ### P1 — High blast-radius, high confidence
 
-| file:line | smell | tier | why it matters | suggested refactor |
+| file:line | smell | tier | why it matters | suggested refactor | tag |
 |-----------|-------|------|----------------|--------------------|
 | ...       | ...   | P1   | ...            | ...                |
 
@@ -245,7 +245,7 @@ Key coverage:
 - Frontmatter `verdict:` is `SMELLS_CLEAN`, body names both `SMELLS_FOUND` and `SMELLS_CLEAN` (AC3).
 - Both verdict rows in `protocols/verdict-catalog.md` with `info` polarity and `smell-scan` emitter (AC4).
 - `/harness:smell-scan` row in `protocols/skill-directory.md` Active Skills section with both verdicts (AC5).
-- README `## Skills (71)` and `# 71 skills` (AC6).
+- README `## Skills (72)` and `# 72 skills` (AC6).
 - All 9 smell names present literally in body (AC7).
 - Anti-Patterns names and excludes long function, long parameter list, deep nesting as OUT (AC8).
 - Advisory/never-blocks framing present (AC9).
