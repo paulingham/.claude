@@ -6,6 +6,16 @@ in the shell that Claude Code uses. On Windows, these are not available by defau
 spawns (exit 2) until bash + a Python interpreter + git are present in the PATH.
 Set `CLAUDE_DISABLE_DEPENDENCY_GATE=1` to override the gate temporarily.
 
+## Important: the truly bash-less case
+
+If Git for Windows is **not yet installed** and `CLAUDE_CODE_GIT_BASH_PATH` is not
+configured, there is no bash available on the machine at all. In that state no hook
+scripts run — including `harness-dependency-gate.sh` and the SessionStart warning.
+The harness will appear to do nothing (silent no-op) rather than showing a warning
+or block. Installing Git for Windows (step 1 below) is therefore the **bootstrap
+prerequisite** that makes everything else — including this gate's own warnings — able
+to run.
+
 ## Required Prerequisites
 
 ### 1. Git for Windows (provides bash + git)
