@@ -2,6 +2,11 @@
 # Orchestrator for run-suite.sh: parses args, sets up harness worktree, writes
 # suite.json, dispatches cases via pool, aggregates, updates suite.json.
 
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/suite-cases-json.sh"
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/suite-preamble.sh"
+
 suite_main() {
   parse_suite_args "$@"
   local run_dir="${EVAL_RUNS_DIR:-$PWD/eval/runs}/$RUN_ID"
@@ -17,6 +22,7 @@ _suite_prologue() {
   write_suite_state "$1/suite.json" "$RUN_ID" "$SUITE" "$MODEL" \
     "${HARNESS_REF:-live}" "$CONCURRENCY" running
   setup_shared_harness "$HARNESS_REF" "$1/harness-wt" >/dev/null || true
+  strip_ladder_from_harness "$1/harness-wt"
 }
 
 _suite_dispatch_all() {
@@ -36,6 +42,7 @@ _suite_pending() {
 _suite_epilogue() {
   local run_dir="$1"
   aggregate_run "$run_dir" "$RUN_ID" "$SUITE" "$MODEL" "${HARNESS_REF:-live}"
+  write_cases_json "$run_dir" "$RUN_ID"
   write_suite_state "$run_dir/suite.json" "$RUN_ID" "$SUITE" "$MODEL" \
     "${HARNESS_REF:-live}" "$CONCURRENCY" completed
 }
@@ -43,6 +50,7 @@ _suite_epilogue() {
 _suite_on_signal() {
   local run_dir="$1"
   aggregate_run "$run_dir" "$RUN_ID" "$SUITE" "$MODEL" "${HARNESS_REF:-live}"
+  write_cases_json "$run_dir" "$RUN_ID"
   write_suite_state "$run_dir/suite.json" "$RUN_ID" "$SUITE" "$MODEL" \
     "${HARNESS_REF:-live}" "$CONCURRENCY" interrupted
   exit 130
