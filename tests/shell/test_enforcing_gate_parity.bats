@@ -57,6 +57,7 @@ HOOKS_DIR="$REPO_ROOT/hooks"
 
 # Helper: extract hook basenames registered in settings.json
 _settings_hook_basenames() {
+  command -v python3 > /dev/null 2>&1 || skip "python3 required for parity check"
   python3 - "$SETTINGS_JSON" <<'PYEOF'
 import json, sys, re
 

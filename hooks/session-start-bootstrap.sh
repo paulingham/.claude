@@ -264,3 +264,9 @@ echo "- NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED."
 # ---------------------------------------------------------------------------
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/session-start-version-check.sh" 2>/dev/null
 declare -F _ssvc_check_version >/dev/null && _ssvc_check_version
+
+# ---------------------------------------------------------------------------
+# Dependency check (Windows prereqs) — sources _lib/session-start-dependency-check.sh
+# ---------------------------------------------------------------------------
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/session-start-dependency-check.sh" 2>/dev/null
+declare -F _ssdc_check_deps >/dev/null && _ssdc_check_deps

@@ -1,11 +1,15 @@
-"""Slice 3: settings.json must register instinct-injector.sh at index 5 and
-the full PreToolUse Agent hook order MUST match the canonical 15-entry snapshot.
+"""Slice 3: settings.json must register instinct-injector.sh at index 6 and
+the full PreToolUse Agent hook order MUST match the canonical 16-entry snapshot.
 
-The instinct-injector hook MUST sit at PreToolUse Agent index 5, AFTER
-pre-agent-allowlist (index 4) and BEFORE verification-freshness-guard
-(index 6), scratchpad-bytes (index 7), depth-guard (index 8),
-runtime-guard (index 11), agentic-security-gate (index 12), and
-intake-backstop (index 13).
+The instinct-injector hook MUST sit at PreToolUse Agent index 6, AFTER
+pre-agent-allowlist (index 5) and BEFORE verification-freshness-guard
+(index 7), scratchpad-bytes (index 8), depth-guard (index 9),
+runtime-guard (index 12), agentic-security-gate (index 13), and
+intake-backstop (index 14).
+
+Index 0 is now harness-dependency-gate (Windows prereq gate, prepended first
+per INV-7: self-contained, fail-closed, must precede pipeline-state-guard
+which calls python3 — see knowledge/windows-setup.md).
 
 Decision hooks (thinking, advisor, allowlist, instinct, freshness-guard)
 cluster contiguously before resource-cap guards (scratchpad-bytes,
@@ -23,6 +27,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 EXPECTED_ORDER = [
+    # WHY: self-contained Windows prereq gate — prepended FIRST (INV-7) so it
+    # runs before pipeline-state-guard.sh which calls python3 at line 36.
+    "harness-dependency-gate",
     "pipeline-state-guard",
     "agent-skill-reminder",
     "pre-agent-thinking",
@@ -30,7 +37,7 @@ EXPECTED_ORDER = [
     "pre-agent-allowlist",
     "instinct-injector",
     # Slice B (prompt-caching-breakpoints) inserts cache-breakpoint-injector
-    # at index 6, shifting verification-freshness-guard to index 7.
+    # at index 7, shifting verification-freshness-guard to index 8.
     "cache-breakpoint-injector",
     "verification-freshness-guard",
     "scratchpad-bytes",
@@ -64,12 +71,13 @@ def _hook_basenames():
 
 
 class SettingsRegistersInstinctInjectorAtIndex5(unittest.TestCase):
-    def test_instinct_injector_registered_at_index_5(self):
+    def test_instinct_injector_registered_at_index_6(self):
         names = _hook_basenames()
         self.assertIn("instinct-injector", names,
                       "instinct-injector.sh not registered on PreToolUse Agent")
-        self.assertEqual(names.index("instinct-injector"), 5,
-                         "instinct-injector.sh must be at index 5")
+        self.assertEqual(names.index("instinct-injector"), 6,
+                         "instinct-injector.sh must be at index 6 "
+                         "(harness-dependency-gate prepended at index 0)")
 
     def test_full_pretoolse_agent_hook_order_matches_snapshot(self):
         self.assertEqual(_hook_basenames(), EXPECTED_ORDER)
