@@ -87,6 +87,12 @@ class AC1LadderPresentAnchoredFramed(unittest.TestCase):
     def test_frontend_engineer_has_seven_rungs(self):
         self._assert_has_all_seven_rungs(FE_MD)
 
+    def test_software_engineer_rungs_in_order(self):
+        self._assert_rungs_in_order(SE_MD)
+
+    def test_frontend_engineer_rungs_in_order(self):
+        self._assert_rungs_in_order(FE_MD)
+
     def _assert_ladder_anchored_near_red_flags(self, path: Path) -> None:
         text = path.read_text()
         red_flags_pos = text.find("Rationalization Red Flags")
