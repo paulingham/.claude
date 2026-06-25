@@ -1,6 +1,6 @@
 ---
 name: "smell-scan"
-description: "Advisory Fowler-catalog smell sweep on changed source files. Detects 8 architectural smells (Feature Envy, Data Clumps, Primitive Obsession, Message Chains, Shotgun Surgery, Divergent Change, Middle Man, Inappropriate Intimacy) via Grep/Read heuristics. Produces a ranked P1/P2/P3 candidate table — advisory only, never a gate."
+description: "Advisory Fowler-catalog smell sweep on changed source files. Detects 9 architectural smells (Feature Envy, Data Clumps, Primitive Obsession, Message Chains, Shotgun Surgery, Divergent Change, Middle Man, Inappropriate Intimacy, Speculative Generality) via Grep/Read heuristics. Produces a ranked P1/P2/P3 candidate table with tag column — advisory only, never a gate."
 verdict: "SMELLS_CLEAN"
 phase: "utility"
 dispatch: "skill-tool"
@@ -46,7 +46,7 @@ Strip from the input list before scanning:
 
 ## Smell Catalog
 
-Eight architectural smells, none owned by shape hooks. Each has a detection heuristic the agent can execute via Grep/Read, a confidence label, and one example.
+Nine architectural smells, none owned by shape hooks. Each has a detection heuristic the agent can execute via Grep/Read, a confidence label, and one example.
 
 | # | Smell | Confidence | Detection Heuristic | Example |
 |---|-------|------------|--------------------|---------| 
@@ -58,6 +58,37 @@ Eight architectural smells, none owned by shape hooks. Each has a detection heur
 | 6 | **Divergent Change** | judgment-call | One file is changed for ≥2 clearly unrelated method-clusters — two distinct concerns living in the same class. P3 only; verify manually. **Requires naming ≥2 unrelated method-clusters** (not just "it's big"). | `UserService` has both payment-processing methods and email-notification methods — separate concerns. |
 | 7 | **Middle Man** | medium | A class/module that consists almost entirely of delegation — most methods just forward to another object. Read the file; if >50% of methods are single-line delegations, flag. | `OrderFacade.create(args) → order_service.create(args)` with no added logic. |
 | 8 | **Inappropriate Intimacy** | judgment-call | Two classes/modules access each other's internal implementation details (private fields, internal helpers) rather than going through a public API. Report-only; requires manual verification of access patterns. | `PaymentProcessor` directly reads `Order._internal_discount_rules`. |
+| 9 | **Speculative Generality** | judgment-call | Abstractions, hooks, or flexibility built for hypothetical future use — YAGNI violations detectable at design surface. P3 by default; P2 only with concrete blast-radius evidence. See § Over-Build / YAGNI Lens for detection sub-tags. | `AbstractBaseProcessor` with one concrete subclass, or a dead `on_before_process` hook with zero callers. |
+
+### Over-Build / YAGNI Lens
+
+Speculative Generality is Fowler's canonical name for YAGNI-over-building. Rather than introducing five separate smell names (which would itself be over-building), this lens uses five detection sub-tags under the single named smell:
+
+| Sub-tag | Meaning | Signal |
+|---------|---------|--------|
+| `yagni:` | Abstraction with a single implementation or a single caller — generalisation without present need. | Interface/abstract class with exactly one concrete subclass; function with one call site. |
+| `delete:` | Unused, speculative, or dead flexibility — hooks, extension points, or configuration knobs with zero callers. | Dead `on_*` hooks, unused strategy variants, unreachable `if feature_flag:` branches. |
+| `stdlib:` | Hand-rolled logic that the standard library already provides. | Custom `flatten()`, `memoize()`, or `retry()` that duplicates `itertools`, `functools`, or equivalent. |
+| `native:` | Dependency that duplicates a platform or framework feature already available. | Vendoring a UUID library in an environment that ships `uuid` natively. |
+| `shrink:` | Same logic achievable in materially fewer lines — measurable delete-to-simplify opportunity. | 30-line pipeline that collapses to 6 lines with a standard combinator. |
+
+**Multi-tag output shape**: when a candidate matches multiple sub-tags, render ONE row per candidate with comma-separated tags in the `tag` column (e.g. `yagni:, delete:`). Do NOT split into one row per tag — that inflates the table.
+
+**Lean already. Ship.**: when no over-build candidates are found under any sub-tag, the clean-case verdict is `SMELLS_CLEAN`. Emit: "Over-build lens: Lean already. Ship."
+
+**Net deletable lines footer**: for each over-build finding include a footer line summarising total deletable lines:
+
+```
+net: -42 lines (estimate)
+```
+
+The integer is an ESTIMATE — directional, not exact (e.g. `net: -12 lines (estimate)`). It signals the order-of-magnitude simplification opportunity, not a guaranteed LOC reduction.
+
+**Ranking**: P3 by default (judgment-call, like Shotgun Surgery and Divergent Change). P2 only when blast-radius is concrete (e.g. the abstraction is consumed across ≥3 modules). Never P1 — over-build does not have the cross-boundary coupling risk that drives P1.
+
+**Advisory; never a gate**: findings from the over-build lens are advisory only. They inform code-reviewer judgment but never independently block the pipeline.
+
+**Shape-hook non-overlap**: the over-build lens operates at the architectural and design surface only. It does NOT report: long function, deep nesting, long parameter list, or WHAT-comments — those are owned by `function-body-check.sh` and `comment-smell-check.sh`. Reporting them here would duplicate enforcement already covered by shape hooks. See § Anti-Patterns.
 
 ## Procedure
 
@@ -113,16 +144,31 @@ Tier assignment uses **blast-radius × confidence**:
 ### Ranked table schema
 
 ```
-| file:line | smell | tier | why it matters | suggested refactor |
+| file:line | smell | tier | why it matters | suggested refactor | tag |
 ```
 
 Each row:
 
-| file:line | smell | tier | why it matters | suggested refactor |
-|-----------|-------|------|----------------|--------------------|
-| `src/order.py:42` | Feature Envy | P1 | `OrderPrinter` accesses 4 `Customer` fields directly — breaks encapsulation, couples changes | Extract Class / Move Method |
+| file:line | smell | tier | why it matters | suggested refactor | tag |
+|-----------|-------|------|----------------|--------------------|----|
+| `src/order.py:42` | Feature Envy | P1 | `OrderPrinter` accesses 4 `Customer` fields directly — breaks encapsulation, couples changes | Extract Class / Move Method | — |
+| `src/proc.py:10` | Speculative Generality | P3 | `AbstractBaseProcessor` has one subclass — no present need for abstraction | Inline Class | `yagni:` |
+
+The `tag` column is ADDITIVE — all 5 original columns (file:line, smell, tier, why it matters, suggested refactor) are preserved. For non-over-build smells use `—` in the `tag` column. For Speculative Generality findings, list matching sub-tags comma-separated (e.g. `yagni:, delete:`).
 
 Fowler refactor names to use in "suggested refactor": Extract Class, Move Method, Replace Data Value with Object, Introduce Parameter Object, Hide Delegate, Extract Module, Inline Class.
+
+### Over-build net footer
+
+When Speculative Generality findings are present, append a summary footer below the ranked table:
+
+```
+net: -12 lines (estimate)
+```
+
+Where the integer is the estimated total deletable lines across all over-build candidates. This is directional — the actual reduction may differ (e.g. `net: -42 lines (estimate)`).
+
+If no over-build findings exist: omit the footer entirely.
 
 ### Advisory findings block
 
@@ -191,7 +237,7 @@ Specific checks:
 
 ### Test coverage
 
-Unit tests live in `tests/test_smell_scan_skill.py` (frontmatter + wire-in assertions AC1–AC14).
+Unit tests live in `tests/test_smell_scan_skill.py` (frontmatter + wire-in assertions AC1–AC17).
 
 Key coverage:
 - SKILL.md exists, frontmatter parses with all required keys (AC1).
@@ -199,8 +245,8 @@ Key coverage:
 - Frontmatter `verdict:` is `SMELLS_CLEAN`, body names both `SMELLS_FOUND` and `SMELLS_CLEAN` (AC3).
 - Both verdict rows in `protocols/verdict-catalog.md` with `info` polarity and `smell-scan` emitter (AC4).
 - `/harness:smell-scan` row in `protocols/skill-directory.md` Active Skills section with both verdicts (AC5).
-- README `## Skills (70)` and `# 70 skills` (AC6).
-- All 8 smell names present literally in body (AC7).
+- README `## Skills (71)` and `# 71 skills` (AC6).
+- All 9 smell names present literally in body (AC7).
 - Anti-Patterns names and excludes long function, long parameter list, deep nesting as OUT (AC8).
 - Advisory/never-blocks framing present (AC9).
 - Ranked table schema header with all 5 columns (AC10).
