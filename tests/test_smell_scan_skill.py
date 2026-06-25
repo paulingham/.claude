@@ -6,7 +6,7 @@ AC3  frontmatter verdict in {SMELLS_FOUND, SMELLS_CLEAN}; body names both verdic
 AC4  verdict-catalog has both info rows attributed to smell-scan emitter
 AC5  skill-directory Active Skills has /harness:smell-scan row with both verdicts
 AC6  README has `## Skills (72)` AND `# 72 skills` (count bump)
-AC7  body names all 8 smell NAMES literally
+AC7  body names all 9 smell NAMES literally
 AC8  Anti-Patterns section excludes shape-hook-owned smells (long function, long param, deep nesting)
 AC9  advisory/never-blocks framing present
 AC10 ranked table schema header present (file:line | smell | tier | why it matters | suggested refactor)

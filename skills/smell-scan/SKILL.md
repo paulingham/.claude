@@ -217,7 +217,7 @@ The skill MUST emit exactly one verdict per invocation.
   - Large class / large file — OUT (shape hook: `CLAUDE_FILE_LINE_LIMIT` 300-line cap)
   - Deep nesting — OUT (shape hook: nesting ≤2 rule)
   - Comments (explanatory) — OUT (shape hook: WHAT-comments blocked)
-  Naming these here would create noise by duplicating enforcement already covered. The 8-smell catalog is the complete scope.
+  Naming these here would create noise by duplicating enforcement already covered. The 9-smell catalog is the complete scope.
 - **Do NOT emit P1/P2 on judgment-call smells**: Shotgun Surgery, Divergent Change, and Inappropriate Intimacy are always P3. Assigning them P1 or P2 inflates confidence beyond what heuristic evidence supports.
 - **Do NOT emit findings on config/doc/test files**: the § Input Contract exclusion list is strict. Scanning `*.md` or `tests/` generates noise with zero actionable signal.
 - **Do NOT fabricate findings**: if evidence is ambiguous, omit or classify P3 with "verify manually". A false-positive P1 is worse than a missed smell.
