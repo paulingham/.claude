@@ -6,7 +6,7 @@ AC3  frontmatter verdict in {SMELLS_FOUND, SMELLS_CLEAN}; body names both verdic
 AC4  verdict-catalog has both info rows attributed to smell-scan emitter
 AC5  skill-directory Active Skills has /harness:smell-scan row with both verdicts
 AC6  README has `## Skills (72)` AND `# 72 skills` (count bump)
-AC7  body names all 8 smell NAMES literally
+AC7  body names all 9 smell NAMES literally
 AC8  Anti-Patterns section excludes shape-hook-owned smells (long function, long param, deep nesting)
 AC9  advisory/never-blocks framing present
 AC10 ranked table schema header present (file:line | smell | tier | why it matters | suggested refactor)
@@ -217,6 +217,7 @@ class AC7SmellNamesInBody(unittest.TestCase):
         "Divergent Change",
         "Middle Man",
         "Inappropriate Intimacy",
+        "Speculative Generality",
     ]
 
     def test_each_smell_name_present(self):
@@ -394,6 +395,84 @@ class AC14CodeReviewerNamedAsInvoker(unittest.TestCase):
         section = match.group(1)
         self.assertIn("code-reviewer", section,
                       "When to Invoke section must name code-reviewer as canonical invoker")
+
+
+class AC15OverBuildSmell(unittest.TestCase):
+    def test_speculative_generality_is_ninth_named_smell(self):
+        text = _read_skill()
+        smell_names = [
+            "Feature Envy",
+            "Data Clumps",
+            "Primitive Obsession",
+            "Message Chains",
+            "Shotgun Surgery",
+            "Divergent Change",
+            "Middle Man",
+            "Inappropriate Intimacy",
+            "Speculative Generality",
+        ]
+        for smell in smell_names:
+            self.assertIn(smell, text,
+                          f"SKILL.md must name smell: {smell!r}")
+        self.assertEqual(len(smell_names), 9,
+                         "There must be exactly 9 named smells (ADD-not-rename guard)")
+
+    def test_five_ponytail_tags_present(self):
+        text = _read_skill()
+        for tag in ("yagni:", "delete:", "stdlib:", "native:", "shrink:"):
+            self.assertIn(tag, text,
+                          f"SKILL.md must contain ponytail tag literally: {tag!r}")
+
+    def test_over_build_is_advisory_never_gate(self):
+        text = _read_skill()
+        match = re.search(
+            r"###\s*Over.Build[^\n]*\n(.+?)(?=\n###\s|\n##\s|\Z)",
+            text, re.DOTALL | re.IGNORECASE)
+        self.assertIsNotNone(match,
+                             "SKILL.md must have a '### Over-Build / YAGNI Lens' subsection")
+        section = match.group(1)
+        self.assertRegex(
+            section.lower(), r"(advisory|never.a.gate|never a gate)",
+            "Over-Build subsection must contain advisory/never-a-gate framing")
+
+
+class AC16Output(unittest.TestCase):
+    def test_ranked_table_has_tag_column(self):
+        text = _read_skill()
+        self.assertRegex(
+            text,
+            r"\|\s*suggested refactor\s*\|\s*tag\s*\|",
+            "ranked-table schema must add `tag` as the 6th column after `suggested refactor`",
+        )
+        for col in ("file:line", "smell", "tier", "why it matters", "suggested refactor"):
+            self.assertIn(col, text,
+                          f"Original column {col!r} must still be present alongside tag column")
+
+    def test_net_lines_footer_present(self):
+        text = _read_skill()
+        self.assertRegex(
+            text, r"net:\s*-?\d*\s*lines",
+            "SKILL.md must specify a 'net: -N lines' footer for over-build findings")
+
+    def test_lean_already_ship_maps_to_smells_clean(self):
+        text = _read_skill()
+        self.assertRegex(
+            text, r"(?i)(lean already|lean.{0,10}ship).{0,200}SMELLS_CLEAN",
+            "SKILL.md must map 'Lean already. Ship.' clean case to SMELLS_CLEAN")
+
+
+class AC17NonOverlap(unittest.TestCase):
+    def test_over_build_excludes_shape_hook_smells(self):
+        text = _read_skill()
+        match = re.search(
+            r"###\s*Over.Build[^\n]*\n(.+?)(?=\n###\s|\n##\s|\Z)",
+            text, re.DOTALL | re.IGNORECASE)
+        self.assertIsNotNone(match,
+                             "SKILL.md must have a '### Over-Build / YAGNI Lens' subsection")
+        section = match.group(1).lower()
+        for shape_smell in ("long function", "deep nesting", "long param", "what-comment"):
+            self.assertIn(shape_smell, section,
+                          f"Over-Build subsection must name shape-hook smell as OUT: {shape_smell!r}")
 
 
 if __name__ == "__main__":
