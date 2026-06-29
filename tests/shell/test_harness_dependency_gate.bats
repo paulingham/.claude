@@ -602,6 +602,78 @@ GATE_SCRIPT
   echo "$output" | grep -qi "BLOCKED"
 }
 
+# ==============================================================================
+# SLICE 6: Feature probe isolation (AC3-runtime-invariant, AC3-probe-unchanged,
+#          AC4-orthogonal-leakage, AC4-purity-still-green)
+# ==============================================================================
+
+@test "AC3-runtime-invariant: all hard deps present but rtk/gh/typescript-language-server absent -> gate exits 0 (feature tools never block)" {
+  # WHY: this is the behavioural RED-ON-REVERT test. If someone wires feature tools into
+  # HDC_MISSING, the gate would exit 2 here. Proves gate isolation from feature tools.
+  local bin_no_feature; bin_no_feature="$(mktemp -d)"
+  # Copy all hard-dep tools but deliberately omit rtk, gh, typescript-language-server
+  for cmd in bash git realpath mktemp python3 dirname printf sed grep cat; do
+    local resolved; resolved="$(command -v "$cmd" 2>/dev/null)"
+    [ -n "$resolved" ] && ln -sf "$resolved" "$bin_no_feature/$cmd" 2>/dev/null || true
+  done
+  local true_bin; true_bin="$([ -x /usr/bin/true ] && echo /usr/bin/true || echo /bin/true)"
+  ln -sf "$true_bin" "$bin_no_feature/flock" 2>/dev/null || true
+  # rtk, gh, typescript-language-server intentionally absent
+  local script; script="$(mktemp /tmp/gate_feature_absent.XXXXXX.sh)"
+  cat > "$script" <<GATE_SCRIPT
+#!/usr/bin/env bash
+printf '{"tool_name":"Agent","tool_input":{"subagent_type":"software-engineer"}}' | bash "$GATE" 2>&1
+GATE_SCRIPT
+  chmod +x "$script"
+  run env PATH="$bin_no_feature" bash "$script"
+  rm -f "$script"; rm -rf "$bin_no_feature"
+  # MUST exit 0 — feature tools are advisory, never block
+  [ "$status" -eq 0 ]
+}
+
+@test "AC3-probe-unchanged: declare -f _hdc_probe contains 6 original detection calls and no _hdc_feature/HDC_FEATURE reference" {
+  # WHY: proves _hdc_probe was not modified by the feature probe addition
+  local probe_text; probe_text="$(bash -c ". '$PROBE_LIB'; declare -f _hdc_probe")"
+  # Must contain the 6 original detection calls
+  echo "$probe_text" | grep -q "_hdc_require bash"
+  echo "$probe_text" | grep -q "_hdc_require git"
+  echo "$probe_text" | grep -q "_hdc_require realpath"
+  echo "$probe_text" | grep -q "_hdc_require mktemp"
+  echo "$probe_text" | grep -q "_hdc_probe_python"
+  echo "$probe_text" | grep -q "_hdc_soft_check"
+  # Must NOT reference feature vars
+  if echo "$probe_text" | grep -qE '_hdc_feature|HDC_FEATURE'; then
+    echo "FAIL: _hdc_probe references _hdc_feature or HDC_FEATURE — the function was modified"
+    return 1
+  fi
+}
+
+@test "AC4-orthogonal-leakage: HDC_FEATURE_PRESENT/HDC_FEATURE_MISSING appear ONLY in _hdc_feature_probe body" {
+  # WHY: proves no global-scope leakage into _hdc_probe, _hdc_require, _hdc_probe_python, _hdc_soft_check
+  # This is NOT a dup of AC1.8 (which greps source purity) — this greps function bodies for leakage.
+  for fn in _hdc_probe _hdc_require _hdc_probe_python _hdc_soft_check; do
+    local fn_text; fn_text="$(bash -c ". '$PROBE_LIB'; declare -f $fn 2>/dev/null")"
+    if echo "$fn_text" | grep -qE 'HDC_FEATURE_PRESENT|HDC_FEATURE_MISSING'; then
+      echo "FAIL: $fn contains HDC_FEATURE_PRESENT or HDC_FEATURE_MISSING — orthogonal leakage"
+      return 1
+    fi
+  done
+}
+
+@test "AC4-purity-still-green: appending _hdc_feature_probe did not add harness-paths/log.sh source or python/jq calls" {
+  # Re-runs the same logic as AC1.8 to confirm the APPEND didn't break source purity
+  run grep -Ev '^[[:space:]]*#' "$PROBE_LIB"
+  local non_comment_lines="$output"
+  if echo "$non_comment_lines" | grep -qE 'source.*harness-paths|source.*log\.sh|\. .*harness-paths|\. .*log\.sh'; then
+    echo "FAIL: probe lib now sources harness-paths or log.sh (broken by _hdc_feature_probe append)"
+    return 1
+  fi
+  if echo "$non_comment_lines" | grep -qE '\$\(python|\| python[^3]'; then
+    echo "FAIL: probe lib now calls python (broken by _hdc_feature_probe append)"
+    return 1
+  fi
+}
+
 @test "AC7.2 ORDERING: dep gate index < pipeline-state-guard index in BOTH Agent arrays" {
   command -v python3 || skip "python3 required for ordering check"
   run python3 - "$REPO_ROOT/hooks/hooks.json" <<'PYEOF'
