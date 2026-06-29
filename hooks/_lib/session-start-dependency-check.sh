@@ -41,14 +41,23 @@ _ssdc_purpose() {
   esac
 }
 
-# Fix hint for a missing dep (only rtk and dippy have gate vars).
-_ssdc_fix_hint() {
+# Grounded install commands per tool — one place, no duplication.
+# WHY: flock returns "" (advisory; macOS lacks it, safe to ignore — no install step).
+# WHY: CLAUDE_REQUIRE_PARRY and CLAUDE_REQUIRE_HCOM do NOT exist — never printed here;
+#      hcom and parry-guard have real install commands instead.
+_ssdc_install_cmd() {
   case "$1" in
-    git)     echo "Fix: install Git (Windows: see knowledge/windows-setup.md), then restart the session." ;;
-    python)  echo "Fix: install Python 3, then restart the session." ;;
-    rtk)     echo "install: set CLAUDE_REQUIRE_RTK=1, re-run setup.sh" ;;
-    dippy)   echo "install: set CLAUDE_REQUIRE_DIPPY=1, re-run setup.sh" ;;
-    *)       echo "re-run setup.sh" ;;
+    rtk)                        echo "set CLAUDE_REQUIRE_RTK=1 and re-run setup.sh" ;;
+    dippy)                      echo "set CLAUDE_REQUIRE_DIPPY=1 and re-run setup.sh" ;;
+    hcom)                       echo "curl -fsSL https://get.hcom.dev | sh   (or npm i -g hcom)" ;;
+    parry-guard)                echo "cargo install --git https://github.com/vaporif/parry --features candle --no-default-features   (needs Rust)" ;;
+    pyright)                    echo "npm install -g pyright" ;;
+    typescript-language-server) echo "npm install -g typescript-language-server" ;;
+    gh)                         echo "brew install gh   (or see https://cli.github.com)" ;;
+    git)                        echo "install Git (Windows: see knowledge/windows-setup.md), then restart the session" ;;
+    python)                     echo "install Python 3, then restart the session" ;;
+    flock)                      echo "" ;;
+    *)                          echo "" ;;
   esac
 }
 
@@ -92,13 +101,13 @@ _ssdc_report_required() {
       names_csv="${names_csv%, }"
       printf '[harness-deps] Required present: %s.\n' "$names_csv" >&2
     fi
-    local mdep purpose hint
+    local mdep purpose cmd
     for mdep in "${missing_deps[@]}"; do
       purpose="$(_ssdc_purpose "$mdep")"
-      hint="$(_ssdc_fix_hint "$mdep")"
+      cmd="$(_ssdc_install_cmd "$mdep")"
       # WHY: sanitize missing dep name before interpolation — defense-in-depth.
       local _safe="${mdep//[^a-z0-9 ]/_}"
-      printf '[harness-deps] Required MISSING: %s - %s. %s\n' "$_safe" "$purpose" "$hint" >&2
+      printf '[harness-deps] Required MISSING: %s - %s. Install: %s\n' "$_safe" "$purpose" "$cmd" >&2
     done
   fi
 }
@@ -122,16 +131,16 @@ _ssdc_report_tooling() {
     present_csv="${present_list// /, }"
   fi
 
-  # Build missing summary with inline purpose and fix hint.
-  # WHY: rtk and dippy have real gate vars; _ssdc_fix_hint returns the install line for them
-  # and "re-run setup.sh" for others — reused here to keep hint strings DRY (one place).
-  # NEVER print CLAUDE_REQUIRE_PARRY or CLAUDE_REQUIRE_HCOM — those gate vars do not exist.
-  local missing_summary="" tool purpose hint
+  # Build missing summary: purpose + grounded install command per tool.
+  # WHY: _ssdc_install_cmd is the single source for install text (DRY).
+  # NEVER print CLAUDE_REQUIRE_PARRY or CLAUDE_REQUIRE_HCOM — those gate vars do not exist;
+  # hcom and parry-guard have real install commands in _ssdc_install_cmd instead.
+  local missing_summary="" tool purpose cmd
   for tool in rtk gh hcom dippy parry-guard typescript-language-server pyright; do
     if echo " ${missing_list} " | grep -q " ${tool} "; then
       purpose="$(_ssdc_purpose "$tool")"
-      hint="$(_ssdc_fix_hint "$tool")"
-      missing_summary="${missing_summary}${tool} (${purpose} - ${hint}); "
+      cmd="$(_ssdc_install_cmd "$tool")"
+      missing_summary="${missing_summary}${tool} (${purpose} - install: ${cmd}); "
     fi
   done
   missing_summary="${missing_summary%; }"

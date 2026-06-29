@@ -195,10 +195,10 @@ SCRIPT
   echo "$output" | grep -q "concurrent pipeline writes"
 }
 
-@test "AC2-tooling-purpose: tooling line contains purpose text for missing tools" {
-  # Remove rtk from PATH so it shows as missing with purpose text.
-  local no_rtk; no_rtk="$(_path_without rtk)"
-  local script; script="$(mktemp /tmp/ssdc_tooling_purpose.XXXXXX.sh)"
+@test "AC2-tooling-hcom-install: hcom missing -> Tooling line contains get.hcom.dev install cmd" {
+  # RED-ON-REVERT: if hcom reverts to "re-run setup.sh", this fails.
+  local no_tools; no_tools="$(_path_without rtk)"
+  local script; script="$(mktemp /tmp/ssdc_hcom_install.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
@@ -206,11 +206,76 @@ SCRIPT
 _ssdc_check_deps
 SCRIPT
   chmod +x "$script"
-  run env PATH="$no_rtk" bash "$script" 2>&1
-  rm -f "$script"; rm -rf "$no_rtk"
+  run env PATH="$no_tools" bash "$script" 2>&1
+  rm -f "$script"; rm -rf "$no_tools"
   [ "$status" -eq 0 ]
-  # hcom is not on PATH on most boxes; its purpose must appear in missing summary
+  # hcom is not on PATH on most boxes; grounded install cmd must appear
   echo "$output" | grep -q "inter-agent messaging"
+  echo "$output" | grep -q "get.hcom.dev"
+}
+
+@test "AC2-tooling-parry-install: parry-guard missing -> Tooling line contains 'cargo install'" {
+  local no_tools; no_tools="$(_path_without rtk)"
+  local script; script="$(mktemp /tmp/ssdc_parry_install.XXXXXX.sh)"
+  cat > "$script" <<SCRIPT
+#!/usr/bin/env bash
+. "$PROBE_LIB"
+. "$WARNER_LIB"
+_ssdc_check_deps
+SCRIPT
+  chmod +x "$script"
+  run env PATH="$no_tools" bash "$script" 2>&1
+  rm -f "$script"; rm -rf "$no_tools"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "cargo install"
+}
+
+@test "AC2-tooling-pyright-install: pyright missing -> Tooling line contains 'npm install -g pyright'" {
+  local no_pyright; no_pyright="$(_path_without pyright)"
+  local script; script="$(mktemp /tmp/ssdc_pyright_install.XXXXXX.sh)"
+  cat > "$script" <<SCRIPT
+#!/usr/bin/env bash
+. "$PROBE_LIB"
+. "$WARNER_LIB"
+_ssdc_check_deps
+SCRIPT
+  chmod +x "$script"
+  run env PATH="$no_pyright" bash "$script" 2>&1
+  rm -f "$script"; rm -rf "$no_pyright"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "npm install -g pyright"
+}
+
+@test "AC2-tooling-gh-install: gh missing -> Tooling line contains cli.github.com, NOT 're-run setup.sh'" {
+  # WHY: gh is NOT installed by setup.sh; it is an assumed prereq.
+  # RED-ON-REVERT: if gh reverts to "re-run setup.sh", this fails.
+  # WHY: _path_without gh removes gh from a constructed bin dir. We verify via
+  # _ssdc_install_cmd directly (unit test) rather than a full integration PATH
+  # trick because the Tooling summary line may also contain rtk/dippy missing
+  # hints (which DO say "re-run setup.sh") on the same line, making a
+  # grep-for-"gh"-then-grep-"re-run" check unreliable.
+  local script; script="$(mktemp /tmp/ssdc_gh_install.XXXXXX.sh)"
+  cat > "$script" <<SCRIPT
+#!/usr/bin/env bash
+. "$PROBE_LIB"
+. "$WARNER_LIB"
+# Unit-test the install cmd map directly: gh must point at cli.github.com
+cmd="\$(_ssdc_install_cmd gh)"
+echo "gh_cmd=\$cmd"
+if echo "\$cmd" | grep -q "re-run setup.sh"; then
+  echo "FAIL: gh install cmd said re-run setup.sh" >&2
+  exit 1
+fi
+if ! echo "\$cmd" | grep -q "cli.github.com"; then
+  echo "FAIL: gh install cmd missing cli.github.com" >&2
+  exit 1
+fi
+SCRIPT
+  chmod +x "$script"
+  run env PATH="$FAKE_BIN:$PATH" bash "$script" 2>&1
+  rm -f "$script"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "cli.github.com"
 }
 
 @test "AC2-gates-no-fake-vars: report never contains CLAUDE_REQUIRE_PARRY or CLAUDE_REQUIRE_HCOM" {
