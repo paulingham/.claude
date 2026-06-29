@@ -79,7 +79,7 @@ ALLOWLIST_5=(
   "skills/epic-breakdown/SKILL.md:53"
   "skills/epic-breakdown/SKILL.md:74"
   # Diff-size threshold for the "Micro" task class, not function shape.
-  "skills/pipeline/SKILL.md:88"
+  "skills/pipeline/SKILL.md:97"
   # The NEW per-language contract (Ruby ≤ 5 / TS ≤ 12) — the law, not a fossil.
   "rules/core.md:23"
   "skills/build-implementation/SKILL.md:80"
@@ -114,6 +114,9 @@ ALLOWLIST_8=(
   "hooks/function-body-check.sh:72"
   # Maestro YAML flows are exempt from the function/file limits.
   "skills/react-native-patterns/SKILL.md:198"
+  # T3H detector worked-example ("~8 lines → T3H eligible") — a diff-size
+  # threshold illustration, not a function-shape law.
+  "skills/intake/SKILL.md:71"
 )
 
 # Shared sweep surface for both prose sweeps.
