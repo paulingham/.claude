@@ -117,11 +117,21 @@ SCRIPT
   echo "$stderr" | grep -q "Required"
 }
 
-@test "AC1-line-budget: healthy box report is at most 6 lines" {
-  # WHY: compact report is important since it runs on every SessionStart.
-  # Healthy box: 1 header + 1 Required all-present + 0 Optional (flock present, silent)
-  # + 1 Tooling line = 3-4 lines. Cap at 6.
-  local script; script="$(mktemp /tmp/ssdc_compact_test.XXXXXX.sh)"
+@test "AC1-line-budget-all-present: fully-healthy hermetic box -> at most 3 lines" {
+  # WHY: the compact-healthy-box guarantee only holds when ALL feature tools are present
+  # (no "Tools missing:" lines, present-tools collapse to one line).
+  # RED-ON-REVERT: if the report stops collapsing when all present, this fails.
+  # HERMETIC: prepend a bin where ALL 7 feature tools + flock are stubbed, ahead of the
+  # system PATH so command -v picks up the stubs regardless of host tool installation.
+  # This is host-independent and CI-safe — CI runners don't have rtk/hcom/dippy/etc.
+  local all_present_bin; all_present_bin="$(mktemp -d)"
+  # flock: stub present
+  ln -sf "$TRUE_BIN" "$all_present_bin/flock"
+  # Stub ALL 7 feature tools present (overrides system absent tools)
+  for t in rtk gh hcom dippy parry-guard typescript-language-server pyright; do
+    ln -sf "$TRUE_BIN" "$all_present_bin/$t"
+  done
+  local script; script="$(mktemp /tmp/ssdc_budget_all.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
@@ -129,11 +139,49 @@ SCRIPT
 _ssdc_check_deps 2>&1 | wc -l
 SCRIPT
   chmod +x "$script"
-  run env PATH="$FAKE_BIN:$PATH" bash "$script"
-  rm -f "$script"
+  # WHY: prepend all_present_bin before system PATH so stubs take precedence.
+  # bash is still found from system PATH — this is safe.
+  run env PATH="$all_present_bin:$PATH" bash "$script"
+  rm -f "$script"; rm -rf "$all_present_bin"
   [ "$status" -eq 0 ]
   local line_count="${output// /}"
-  [ "$line_count" -le 6 ]
+  # Expected: 1 header + 1 Required all-present + 1 Tools present = 3 lines.
+  # No Optional line (flock stubbed present), no Tools missing lines (all stubbed).
+  [ "$line_count" -le 3 ]
+}
+
+@test "AC1-line-budget-worst-case: no feature tools present -> bounded at most 11 lines" {
+  # WHY: documents the worst-case line budget honestly so CI never surprises us again.
+  # Worst case: header(1) + Required(1) + Optional(1 — flock absent) +
+  # 7 Tools missing lines = 10 lines. Cap at 11 for safety.
+  # HERMETIC: use a no_features_bin that has NO feature tools and NO flock; prepend it
+  # ahead of system PATH so it shadows any system-installed feature tools.
+  local no_features_bin; no_features_bin="$(mktemp -d)"
+  # Include all commands the scripts need, including wc for the pipeline.
+  # WHY: use a PATH-only-no_features_bin so feature tools are provably absent.
+  for cmd in bash git realpath mktemp python3 python jq dirname printf sed grep cat wc; do
+    local resolved; resolved="$(command -v "$cmd" 2>/dev/null)"
+    [ -n "$resolved" ] && ln -sf "$resolved" "$no_features_bin/$cmd" 2>/dev/null || true
+  done
+  # flock intentionally absent — triggers Optional line (worst-case path)
+  # No feature tools — none added
+  local script; script="$(mktemp /tmp/ssdc_budget_worst.XXXXXX.sh)"
+  cat > "$script" <<SCRIPT
+#!/usr/bin/env bash
+. "$PROBE_LIB"
+. "$WARNER_LIB"
+_ssdc_check_deps 2>&1 | wc -l
+SCRIPT
+  chmod +x "$script"
+  # WHY: use ONLY no_features_bin (no system PATH suffix) so feature tools are absent.
+  # bash is resolved via absolute path — pass it explicitly to env.
+  local real_bash; real_bash="$(command -v bash)"
+  run env PATH="$no_features_bin" "$real_bash" "$script"
+  rm -f "$script"; rm -rf "$no_features_bin"
+  [ "$status" -eq 0 ]
+  local line_count="${output// /}"
+  # header(1) + Required(1) + Optional(1) + 7 Tools missing = 10 lines max.
+  [ "$line_count" -le 11 ]
 }
 
 # ==============================================================================
