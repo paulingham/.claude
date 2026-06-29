@@ -108,8 +108,8 @@ Canonical bare path (relative to HARNESS_DATA): `pipeline-state/{task-id}/intake
 Persist the following 12 forensic-schema fields (read by `hooks/intake-fingerprint-audit.sh`):
 
 ```yaml
-tier_emitted: T0|T1|T2|T3|T4|T5|T6
-tier_initial: T0|T1|T2|T3|T4|T5|T6        # Phase 1 raw output (pre-Phase-2 upshift)
+tier_emitted: T0|T1|T2|T3|T3H|T4|T5|T6
+tier_initial: T0|T1|T2|T3|T3H|T4|T5|T6        # Phase 1 raw output (pre-Phase-2 upshift)
 detector_phase: rules|fallthrough
 detector_confidence: high|medium|low
 user_phrasing_signals: []                  # YAML list of matched phrasing tokens

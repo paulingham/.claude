@@ -14,7 +14,7 @@ Today `/harness:intake` recognises 8 task classifications but emits only `(budge
 
 Three rules govern routing:
 
-1. **Class first, budget second.** Fingerprint the work into one of seven tiers (T0-T6) based on **what files change** and **how they change**, not what the user said. Budget informs *intra-tier* shape (e.g. multi-slice Build), not *which tier*.
+1. **Class first, budget second.** Fingerprint the work into one of seven tiers (T0-T6) plus the T3H sub-lane based on **what files change** and **how they change**, not what the user said. Budget informs *intra-tier* shape (e.g. multi-slice Build), not *which tier*.
 2. **Downshift requires positive signal.** A pipeline only drops below standard (T4+) if a detector explicitly fires. Absent that, default is the current full-pipeline shape. Safety bias: never under-dispatch.
 3. **Bidirectional override with forensics.** `[force-pipeline]` user token forces upshift; `[force-class:Tn]` forces downshift. Both log to `metrics/{session}/intake-overrides.jsonl`.
 
@@ -26,11 +26,12 @@ Three rules govern routing:
 | **T1** | Doc-only | README/CLAUDE.md edits, protocol updates, comments | **Lightweight worktree subagent** (tracked-doc edits) |
 | **T2** | Config-only | settings.json keys, agent frontmatter, hook entry syntax (NOT hook script bodies) | **`/harness:harness-config`** |
 | **T3** | Mechanical sweep | rename, find/replace, lint-fix, import-sort, dependency bump | **`/harness:batch-pipeline`** |
+| **T3H** | Trivial code change | ≤1 code file, ≤15 changed lines, no tests, no security keyword, internal-shape-only | `/harness:pipeline` (trimmed: Build + diff-only code-review + Ship) |
 | **T4** | Bug fix | Failing test + targeted fix | `/harness:pipeline` (lightweight) |
 | **T5** | Standard feature | New AC, single-slice, isolated module | `/harness:pipeline` (standard) |
 | **T6** | Critical / cross-cutting | Auth, payment, security, multi-repo, system-wide | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |
 
-T0-T3 are fast paths. T4-T6 are today's `/harness:pipeline`, unchanged.
+T0-T3 are fast paths. T3H is a trimmed continue-tier for trivial code changes. T4-T6 are today's `/harness:pipeline`, unchanged.
 
 ## Fingerprint (the auto-detection step)
 

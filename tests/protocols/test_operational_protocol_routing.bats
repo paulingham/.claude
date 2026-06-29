@@ -46,11 +46,11 @@ setup() {
     | grep -qE 'Step 1\.5'
 }
 
-@test "Routing section has exactly 7 tier rows (T0..T6)" {
+@test "Routing section has exactly 8 tier rows (T0..T6, T3H)" {
   local count
   count=$(awk '/^## Work-Class Routing \(Overview\)$/,/^## Error Recovery Principles$/' "$TARGET" \
-    | grep -cE '^\|[[:space:]]*\*\*T[0-6]\*\*')
-  [ "$count" -eq 7 ]
+    | grep -cE '^\|[[:space:]]*\*\*(T[0-6]|T3H)\*\*')
+  [ "$count" -eq 8 ]
 }
 
 @test "Routing section has tier T0 row" {

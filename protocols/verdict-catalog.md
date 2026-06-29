@@ -17,7 +17,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 
 | Verdict | Polarity | Emitter skill | Phase | Downstream branch |
 |---------|----------|---------------|-------|-------------------|
-| `ROUTED` | info | `intake` | intake | `/harness:pipeline`, `/harness:tech-spike`, `/harness:epic-breakdown`, or direct answer — payload includes `tier: T0..T6` (set by `/harness:intake` Step 1.5) |
+| `ROUTED` | info | `intake` | intake | `/harness:pipeline`, `/harness:tech-spike`, `/harness:epic-breakdown`, or direct answer — payload includes `tier: T0..T6, T3H` (set by `/harness:intake` Step 1.5) |
 | `STORIES_READY` | info | `epic-breakdown` | plan | One `/harness:pipeline` per story |
 | `ESTIMATED` | info | `estimation` | plan | Pipeline continues with budget |
 | `STORY_READY` | info | `story-writing` | plan | `/harness:build-implementation` |
@@ -182,7 +182,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 
 ## Notes
 
-- `ROUTED` carries a `tier: T0..T6` field in its payload, set by the `/harness:intake` Step 1.5 fingerprint (per `protocols/work-class-routing.md`). The field gates downstream dispatch: T0-T3 exit `/harness:pipeline`; T4-T6 proceed.
+- `ROUTED` carries a `tier: T0..T6, T3H` field in its payload, set by the `/harness:intake` Step 1.5 fingerprint (per `protocols/work-class-routing.md`). The field gates downstream dispatch: T0-T3 exit `/harness:pipeline`; T3H and T4-T6 proceed (T3H continues through the trimmed lane: Build + diff-only code-review + Ship).
 - `WRONG_SKILL` and `EXTRACTION_BLOCKED` appear in two emitters each (microservices-scaffold + module-extraction; module-extraction + service-extraction). The audit step accepts a verdict shared across multiple emitters as long as every entry's emitter list resolves to a real skill.
 - `ORCHESTRATOR_APPLY_REQUIRED` is emitted by the `fix-engineer` agent (via its spawn output), not a skill — agents emit verdicts through their structured output rather than a `verdict:` frontmatter field. The catalog tracks it for forensic completeness; the verdict-consistency audit step skips reverse-direction enforcement for agent-emitted entries (`Emitter skill` does not need to resolve to a `skills/<name>/SKILL.md` when it names an agent).
 - `RECON_COMPLETE` and `RECON_NULL` are emitted by the `architect-context-recon` agent (Stage 1 of Plan Phase Dispatch), same agent-emitted-verdict pattern as `ORCHESTRATOR_APPLY_REQUIRED`. The catalog tracks them for forensic completeness.

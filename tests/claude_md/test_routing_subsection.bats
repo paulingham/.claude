@@ -47,11 +47,11 @@ setup() {
   [ "$routing_line" -lt "$deliv_line" ]
 }
 
-@test "Routing subsection contains a 7-row tier table" {
+@test "Routing subsection contains an 8-row tier table" {
   local count
   count=$(awk '/^### Work-Class Routing \(T0-T6\)$/,/^### Delivery Pipeline$/' "$TARGET" \
-    | grep -cE '^\|[[:space:]]*\*\*T[0-6]\*\*')
-  [ "$count" -eq 7 ]
+    | grep -cE '^\|[[:space:]]*\*\*(T[0-6]|T3H)\*\*')
+  [ "$count" -eq 8 ]
 }
 
 @test "/intake row has pinned fingerprint phrasing (protocols/skill-directory.md)" {
