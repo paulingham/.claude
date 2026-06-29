@@ -2,7 +2,7 @@
 # Verbose session-start dependency report — test suite.
 bats_require_minimum_version 1.5.0
 # AC1: report is unconditional — printed on every SessionStart (no env var required)
-# AC2: plain-English format — Required / Optional / Tooling groups
+# AC2: plain-English format — Required / Optional / Tools groups (one line per missing tool)
 # AC3: feature advisory — HDC_MISSING unaffected; feature tools never block
 #
 # Hermetic setup mirrors test_harness_dependency_gate.bats shadow-PATH scaffolding.
@@ -195,8 +195,8 @@ SCRIPT
   echo "$output" | grep -q "concurrent pipeline writes"
 }
 
-@test "AC2-tooling-hcom-install: hcom missing -> Tooling line contains get.hcom.dev install cmd" {
-  # RED-ON-REVERT: if hcom reverts to "re-run setup.sh", this fails.
+@test "AC2-tools-hcom-line: hcom missing -> own 'Tools missing: hcom' line with get.hcom.dev" {
+  # RED-ON-REVERT: if hcom reverts to "re-run setup.sh" or is collapsed into a shared line, this fails.
   local no_tools; no_tools="$(_path_without rtk)"
   local script; script="$(mktemp /tmp/ssdc_hcom_install.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
@@ -209,12 +209,13 @@ SCRIPT
   run env PATH="$no_tools" bash "$script" 2>&1
   rm -f "$script"; rm -rf "$no_tools"
   [ "$status" -eq 0 ]
-  # hcom is not on PATH on most boxes; grounded install cmd must appear
-  echo "$output" | grep -q "inter-agent messaging"
-  echo "$output" | grep -q "get.hcom.dev"
+  # hcom is not on PATH on most boxes; must appear on its own line
+  echo "$output" | grep "Tools missing: hcom" | grep -q "inter-agent messaging"
+  echo "$output" | grep "Tools missing: hcom" | grep -q "get.hcom.dev"
 }
 
-@test "AC2-tooling-parry-install: parry-guard missing -> Tooling line contains 'cargo install'" {
+@test "AC2-tools-parry-line: parry-guard missing -> own 'Tools missing: parry-guard' line with cargo install + rustup.rs" {
+  # RED-ON-REVERT: if parry-guard's rustup.rs hint is removed, this fails.
   local no_tools; no_tools="$(_path_without rtk)"
   local script; script="$(mktemp /tmp/ssdc_parry_install.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
@@ -227,10 +228,11 @@ SCRIPT
   run env PATH="$no_tools" bash "$script" 2>&1
   rm -f "$script"; rm -rf "$no_tools"
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q "cargo install"
+  echo "$output" | grep "Tools missing: parry-guard" | grep -q "cargo install"
+  echo "$output" | grep "Tools missing: parry-guard" | grep -q "rustup.rs"
 }
 
-@test "AC2-tooling-pyright-install: pyright missing -> Tooling line contains 'npm install -g pyright'" {
+@test "AC2-tools-pyright-line: pyright missing -> own 'Tools missing: pyright' line with npm install -g pyright" {
   local no_pyright; no_pyright="$(_path_without pyright)"
   local script; script="$(mktemp /tmp/ssdc_pyright_install.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
@@ -243,7 +245,39 @@ SCRIPT
   run env PATH="$no_pyright" bash "$script" 2>&1
   rm -f "$script"; rm -rf "$no_pyright"
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q "npm install -g pyright"
+  echo "$output" | grep "Tools missing: pyright" | grep -q "npm install -g pyright"
+}
+
+@test "AC2-tools-present-line: healthy box has 'Tools present:' line (not 'Tooling present:')" {
+  # RED-ON-REVERT: if the label reverts to 'Tooling present:', this fails.
+  local bin_with_all; bin_with_all="$(mktemp -d)"
+  for f in "$FAKE_BIN"/*; do
+    [ -e "$f" ] && ln -sf "$(readlink "$f" 2>/dev/null || echo "$f")" "$bin_with_all/$(basename "$f")" 2>/dev/null || true
+  done
+  for t in rtk gh hcom dippy parry-guard typescript-language-server pyright; do
+    ln -sf "$TRUE_BIN" "$bin_with_all/$t"
+  done
+  local script; script="$(mktemp /tmp/ssdc_tools_present.XXXXXX.sh)"
+  cat > "$script" <<SCRIPT
+#!/usr/bin/env bash
+. "$PROBE_LIB"
+. "$WARNER_LIB"
+_ssdc_check_deps
+SCRIPT
+  chmod +x "$script"
+  run env PATH="$bin_with_all:$PATH" bash "$script" 2>&1
+  rm -f "$script"; rm -rf "$bin_with_all"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "Tools present:"
+  if echo "$output" | grep -q "Tooling present:"; then
+    echo "FAIL: old 'Tooling present:' label appeared — should be 'Tools present:'"
+    return 1
+  fi
+  # No 'Tools missing:' lines on a fully-healthy box
+  if echo "$output" | grep -q "Tools missing:"; then
+    echo "FAIL: 'Tools missing:' appeared on fully-healthy box"
+    return 1
+  fi
 }
 
 @test "AC2-tooling-gh-install: gh missing -> Tooling line contains cli.github.com, NOT 're-run setup.sh'" {
@@ -320,8 +354,8 @@ SCRIPT
   fi
 }
 
-@test "AC2-gates-rtk-missing-inline: rtk missing -> Tooling line contains CLAUDE_REQUIRE_RTK inline" {
-  # RED-ON-REVERT: if rtk install hint is moved off the Tooling line, this fails.
+@test "AC2-gates-rtk-missing-line: rtk missing -> 'Tools missing: rtk' line contains CLAUDE_REQUIRE_RTK" {
+  # RED-ON-REVERT: if rtk install hint is removed from its own missing line, this fails.
   local bin_no_rtk; bin_no_rtk="$(_path_without rtk)"
   local script; script="$(mktemp /tmp/ssdc_gates_rtk_missing.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
@@ -334,17 +368,17 @@ SCRIPT
   run env PATH="$bin_no_rtk" bash "$script" 2>&1
   rm -f "$script"; rm -rf "$bin_no_rtk"
   [ "$status" -eq 0 ]
-  # Hint must appear in the Tooling line, not a separate gates: line
-  echo "$output" | grep -i "Tooling" | grep -q "CLAUDE_REQUIRE_RTK"
+  # Hint must appear on the rtk-specific missing line
+  echo "$output" | grep "Tools missing: rtk" | grep -q "CLAUDE_REQUIRE_RTK"
   if echo "$output" | grep -q "^\[harness-deps\] gates:"; then
-    echo "FAIL: separate gates: line appeared — hint must be inline in Tooling"
+    echo "FAIL: separate gates: line appeared — hint must be on Tools missing line"
     return 1
   fi
 }
 
-@test "M1-dippy-missing-inline: dippy missing + rtk present -> Tooling line contains CLAUDE_REQUIRE_DIPPY, not CLAUDE_REQUIRE_RTK" {
-  # WHY: M1 missing limb — mirrors AC2-gates-rtk-missing-inline for dippy.
-  # RED-ON-REVERT: if dippy install hint is removed from the Tooling line, this fails.
+@test "M1-dippy-missing-line: dippy missing + rtk present -> 'Tools missing: dippy' line has CLAUDE_REQUIRE_DIPPY, no rtk line" {
+  # WHY: M1 missing limb — mirrors AC2-gates-rtk-missing-line for dippy.
+  # RED-ON-REVERT: if dippy install hint is removed from its own missing line, this fails.
   local bin_with_rtk_no_dippy; bin_with_rtk_no_dippy="$(_path_without dippy)"
   ln -sf "$TRUE_BIN" "$bin_with_rtk_no_dippy/rtk"
   local script; script="$(mktemp /tmp/ssdc_gates_dippy_missing.XXXXXX.sh)"
@@ -358,11 +392,11 @@ SCRIPT
   run env PATH="$bin_with_rtk_no_dippy" bash "$script" 2>&1
   rm -f "$script"; rm -rf "$bin_with_rtk_no_dippy"
   [ "$status" -eq 0 ]
-  # dippy hint must appear inline in Tooling line
-  echo "$output" | grep -i "Tooling" | grep -q "CLAUDE_REQUIRE_DIPPY"
-  # rtk is present so its hint must NOT appear
-  if echo "$output" | grep -i "Tooling" | grep -q "CLAUDE_REQUIRE_RTK"; then
-    echo "FAIL: Tooling line named CLAUDE_REQUIRE_RTK but rtk was present"
+  # dippy hint must appear on its own missing line
+  echo "$output" | grep "Tools missing: dippy" | grep -q "CLAUDE_REQUIRE_DIPPY"
+  # rtk is present — no "Tools missing: rtk" line should exist
+  if echo "$output" | grep -q "Tools missing: rtk"; then
+    echo "FAIL: 'Tools missing: rtk' appeared but rtk was present"
     return 1
   fi
   # No separate gates: line

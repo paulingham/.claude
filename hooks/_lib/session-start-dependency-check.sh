@@ -50,7 +50,7 @@ _ssdc_install_cmd() {
     rtk)                        echo "set CLAUDE_REQUIRE_RTK=1 and re-run setup.sh" ;;
     dippy)                      echo "set CLAUDE_REQUIRE_DIPPY=1 and re-run setup.sh" ;;
     hcom)                       echo "curl -fsSL https://get.hcom.dev | sh   (or npm i -g hcom)" ;;
-    parry-guard)                echo "cargo install --git https://github.com/vaporif/parry --features candle --no-default-features   (needs Rust)" ;;
+    parry-guard)                echo "cargo install --git https://github.com/vaporif/parry --features candle --no-default-features   (requires Rust; see https://rustup.rs)" ;;
     pyright)                    echo "npm install -g pyright" ;;
     typescript-language-server) echo "npm install -g typescript-language-server" ;;
     gh)                         echo "brew install gh   (or see https://cli.github.com)" ;;
@@ -125,31 +125,22 @@ _ssdc_report_tooling() {
   local present_list="${HDC_FEATURE_PRESENT:-}"
   local missing_list="${HDC_FEATURE_MISSING:-}"
 
-  # Build comma-separated present names
-  local present_csv=""
+  # Present tools: collapse to one line (healthy box stays ~3 lines total).
   if [ -n "$present_list" ]; then
-    present_csv="${present_list// /, }"
+    local present_csv; present_csv="${present_list// /, }"
+    printf '[harness-deps] Tools present: %s.\n' "$present_csv" >&2
   fi
 
-  # Build missing summary: purpose + grounded install command per tool.
+  # Missing tools: one line each with purpose + grounded install command.
   # WHY: _ssdc_install_cmd is the single source for install text (DRY).
   # NEVER print CLAUDE_REQUIRE_PARRY or CLAUDE_REQUIRE_HCOM — those gate vars do not exist;
   # hcom and parry-guard have real install commands in _ssdc_install_cmd instead.
-  local missing_summary="" tool purpose cmd
+  local tool purpose cmd
   for tool in rtk gh hcom dippy parry-guard typescript-language-server pyright; do
     if echo " ${missing_list} " | grep -q " ${tool} "; then
       purpose="$(_ssdc_purpose "$tool")"
       cmd="$(_ssdc_install_cmd "$tool")"
-      missing_summary="${missing_summary}${tool} (${purpose} - install: ${cmd}); "
+      printf '[harness-deps] Tools missing: %s - %s. Install: %s\n' "$tool" "$purpose" "$cmd" >&2
     fi
   done
-  missing_summary="${missing_summary%; }"
-
-  if [ -n "$present_csv" ] && [ -n "$missing_summary" ]; then
-    printf '[harness-deps] Tooling present: %s. Missing: %s.\n' "$present_csv" "$missing_summary" >&2
-  elif [ -n "$present_csv" ]; then
-    printf '[harness-deps] Tooling: all present (%s).\n' "$present_csv" >&2
-  elif [ -n "$missing_summary" ]; then
-    printf '[harness-deps] Tooling: none present. Missing: %s.\n' "$missing_summary" >&2
-  fi
 }
