@@ -3,6 +3,11 @@
 The harness's behaviour is tuned through env vars in `settings.json` (or a project's
 `.claude/settings.json`). This page covers the knobs an engineer is most likely to reach for.
 
+> **See also:** The full list of developer-facing feature toggles (`CLAUDE_PIPELINE_MODE`,
+> `CLAUDE_DISABLE_*`, `CLAUDE_VISIBLE_TEAMS`, `CLAUDE_PLAN_CACHE_MODE`, `CLAUDE_ENABLE_TRACE`)
+> is in the [README `## Configuration` section](../README.md#configuration). Set these in
+> your `settings.json` env block (or export in your shell for session-local overrides).
+
 ## Hook profiles
 
 Set `CLAUDE_HOOK_PROFILE`:
