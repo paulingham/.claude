@@ -38,6 +38,7 @@ TOGGLE_ALLOWLIST = (
     "CLAUDE_DISABLE_WORKTREE_REAPER",
     "CLAUDE_VISIBLE_TEAMS",
     "CLAUDE_PLAN_CACHE_MODE",
+    "ENABLE_TOOL_SEARCH",
 )
 
 # Hardcoded fallback defaults (mirrors repo settings.json env block).
@@ -52,6 +53,60 @@ _FALLBACK_DEFAULTS: dict[str, str] = {
     "CLAUDE_DISABLE_WORKTREE_REAPER": "0",
     "CLAUDE_VISIBLE_TEAMS": "0",
     "CLAUDE_PLAN_CACHE_MODE": "shadow",
+    "ENABLE_TOOL_SEARCH": "true",
+}
+
+# Hardcoded fallback docs (verbatim _doc_ strings from repo settings.json env block).
+# WHY: fallback-created files must be self-documenting even when SSOT is unreadable.
+_FALLBACK_DOCS: dict[str, str] = {
+    "CLAUDE_PIPELINE_MODE": (
+        "Pipeline execution mode. Values: autonomous (no human gates) | interactive"
+        " (pauses at decision points). Default: autonomous. Values are case-sensitive."
+        " Edit here (user layer) — managed no longer pins this key."
+    ),
+    "CLAUDE_ENABLE_TRACE": (
+        "Enable prompt-tracing for agent spawns. Values: 0 (off) | 1 (on). Default: 0."
+        " Use 1 to debug agent prompt construction. 0/1 exact. Edit here (user layer)"
+        " — managed no longer pins this key. Per-session alternative: /harness:debug-trace on"
+        " (overrides both static layers for the current session)."
+    ),
+    "CLAUDE_DISABLE_SANDBOX_VERIFY": (
+        "Disable Final-Gate sandbox-verify engineer. Values: 0 (runs) | 1 (skipped)."
+        " Default: 0. 0/1 exact."
+    ),
+    "CLAUDE_DISABLE_VLM_CRITIC": (
+        "Disable Final-Gate visual-diff critic. Values: 0 (runs) | 1 (skipped)."
+        " Default: 0. 0/1 exact."
+    ),
+    "CLAUDE_DISABLE_SWE_PRUNER": (
+        "Disable SWE-bench candidate pruner. Values: 0 (runs) | 1 (skipped)."
+        " Default: 0. 0/1 exact."
+    ),
+    "CLAUDE_DISABLE_INSTINCT_INJECTION": (
+        "Disable instinct injection into agent prompts. Values: 0 (injects) | 1 (skipped)."
+        " Default: 0. 0/1 exact."
+    ),
+    "CLAUDE_DISABLE_WORKTREE_REAPER": (
+        "Disable the worktree reaper (SessionStart cleanup of stale worktrees)."
+        " Values: 0 (runs) | 1 (skipped). Default: 0. 0/1 exact."
+    ),
+    "CLAUDE_VISIBLE_TEAMS": (
+        "Enable visible team dispatch (tmux panes) instead of parallel subagents."
+        " Values: 0 (parallel subagents) | 1 (visible teams). Default: 0. 0/1 exact."
+    ),
+    "CLAUDE_PLAN_CACHE_MODE": (
+        "Plan-cache mode. Values: off | shadow (record, no reuse) | on (reuse cached plan)."
+        " Default: shadow. Values are case-sensitive (e.g. shadow not Shadow)."
+    ),
+    "ENABLE_TOOL_SEARCH": (
+        "Pin explicit. Default already defers all MCP tools behind ToolSearch (lowest"
+        " upfront-token cost). `auto` was REJECTED at intake because its 10%-context-window"
+        " threshold mode loads small servers upfront — INCREASES tool-definition tokens vs"
+        " default. This pin guards against a future Claude Code default flip. Source:"
+        " https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search. Requires"
+        " Sonnet 4+ or Opus 4+ (Haiku unsupported). See"
+        " protocols/_proposals/2026-05-15-mcp-tool-config.md for full rationale."
+    ),
 }
 
 def _target_path() -> Path:
@@ -89,7 +144,7 @@ def _read_ssot_defaults() -> tuple[dict[str, str], dict[str, str]]:
     result = _parse_ssot_file(harness_root() / "settings.json")
     if result is not None:
         return result
-    return _FALLBACK_DEFAULTS.copy(), {}
+    return _FALLBACK_DEFAULTS.copy(), _FALLBACK_DOCS.copy()
 
 def _load_existing(path: Path) -> dict | None:
     try:
@@ -150,7 +205,13 @@ def _write_atomic(path: Path, data: dict) -> None:
 def _seed_absent(target: Path, defaults: dict, docs: dict) -> None:
     _write_atomic(target, {"env": _build_seed_block(defaults, docs)})
 
+def _shape_valid(data: dict) -> bool:
+    return isinstance(data, dict) and isinstance(data.get("env", {}), dict)
+
 def _merge_and_write(target: Path, data: dict, defaults: dict, docs: dict) -> None:
+    if not _shape_valid(data):
+        _LOG.warning("seed_user_settings: unexpected JSON shape in %s — skipping", target)
+        return
     env = data.setdefault("env", {})
     if _merge_into_env(env, defaults, docs):
         _write_atomic(target, data)

@@ -5,7 +5,6 @@ so they never mutate the real ~/.claude/settings.json.
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import sys
@@ -25,7 +24,7 @@ BREAK_GLASS_KEYS = {
     "CLAUDE_DISABLE_RUNTIME_STATE_GUARD",
 }
 
-# The 9 allowlisted toggle keys (order-preserving source of truth for tests).
+# The 10 allowlisted toggle keys (order-preserving source of truth for tests).
 TOGGLE_KEYS = [
     "CLAUDE_PIPELINE_MODE",
     "CLAUDE_ENABLE_TRACE",
@@ -36,18 +35,8 @@ TOGGLE_KEYS = [
     "CLAUDE_DISABLE_WORKTREE_REAPER",
     "CLAUDE_VISIBLE_TEAMS",
     "CLAUDE_PLAN_CACHE_MODE",
+    "ENABLE_TOOL_SEARCH",
 ]
-
-
-def _load_module():
-    """Load seed_user_settings without importlib cache pollution between tests."""
-    spec = importlib.util.spec_from_file_location(
-        "seed_user_settings",
-        REPO_ROOT / "hooks" / "_lib" / "seed_user_settings.py",
-    )
-    mod = importlib.util.loader.create_module(spec)
-    spec.loader.exec_module(mod)
-    return mod
 
 
 def _import_seed(env_overrides: dict | None = None):
@@ -233,14 +222,13 @@ class TestFailClosed(unittest.TestCase):
         self.assertEqual(self.path.read_bytes(), before)
 
     def test_failclosed_line_reverted_goes_red(self):
-        """Iron-Law-8: removing the except JSONDecodeError guard causes a write to bad JSON.
+        """Iron-Law-8: removing the _load_existing except guard causes a crash or write.
 
-        This test is structured so that WITHOUT the guard, seed_main would
-        attempt to open/write the file and either raise or produce garbage JSON.
-        WITH the guard, bad JSON → early return, bytes unchanged.
-        We verify the guard is exercised by checking bytes are unchanged.
-        If someone removes `except (json.JSONDecodeError, OSError): return`,
-        the module would crash or write, and read_bytes() would differ.
+        _load_existing catches (json.JSONDecodeError, OSError) and returns None;
+        _seed_present then logs a warning and returns without writing.
+        WITH the guard: bad JSON → None → early return, bytes unchanged.
+        WITHOUT the guard: bad JSON → exception propagates → crash or write,
+        read_bytes() would differ or raise.
         """
         before = self.path.read_bytes()
         _run_seed(self.path)
@@ -288,8 +276,14 @@ class TestSSOTDriftGuard(unittest.TestCase):
     """AC6: allowlist == repo settings.json dev-toggle set; SSOT reads correctly."""
 
     def test_allowlist_equals_repo_settings_toggle_set(self):
-        """Drift guard: every key in TOGGLE_ALLOWLIST exists in repo settings.json
-        with its value and _doc_ sibling — and no allowlist key is absent from repo.
+        """Bidirectional drift guard: allowlist ↔ repo settings.json dev-toggle set.
+
+        Forward: every key in TOGGLE_ALLOWLIST exists in repo settings.json env
+        with a value and a _doc_ sibling.
+        Reverse: every non-_doc_ key K in repo env where _doc_<K> also exists
+        (i.e. every dev toggle) is in TOGGLE_ALLOWLIST — catches a new toggle
+        added to settings.json but forgotten in the allowlist.
+        Also asserts _FALLBACK_DOCS keys == _FALLBACK_DEFAULTS keys == TOGGLE_ALLOWLIST.
         """
         settings = json.loads((REPO_ROOT / "settings.json").read_text())
         env = settings.get("env", {})
@@ -301,11 +295,36 @@ class TestSSOTDriftGuard(unittest.TestCase):
             sys.path.insert(0, path)
         try:
             import seed_user_settings as mod
+            allowlist_set = set(mod.TOGGLE_ALLOWLIST)
+
+            # Forward: allowlist ⊆ repo env (with _doc_ sibling).
             for key in mod.TOGGLE_ALLOWLIST:
                 self.assertIn(key, env,
                               f"allowlist key {key!r} missing from repo settings.json env")
                 self.assertIn(f"_doc_{key}", env,
                               f"_doc_{key!r} sibling missing from repo settings.json env")
+
+            # Reverse: repo dev-toggles (keys with _doc_ sibling) ⊆ allowlist.
+            repo_dev_toggles = {
+                k for k in env
+                if not k.startswith("_doc_") and f"_doc_{k}" in env
+            }
+            for key in repo_dev_toggles:
+                self.assertIn(
+                    key, allowlist_set,
+                    f"repo dev-toggle {key!r} has a _doc_ sibling but is absent from"
+                    " TOGGLE_ALLOWLIST — new devs would never receive it",
+                )
+
+            # Fallback maps must stay in sync with TOGGLE_ALLOWLIST.
+            self.assertEqual(
+                set(mod._FALLBACK_DEFAULTS.keys()), allowlist_set,
+                "_FALLBACK_DEFAULTS keys must equal TOGGLE_ALLOWLIST",
+            )
+            self.assertEqual(
+                set(mod._FALLBACK_DOCS.keys()), allowlist_set,
+                "_FALLBACK_DOCS keys must equal TOGGLE_ALLOWLIST",
+            )
         finally:
             if added:
                 sys.path.remove(path)
@@ -336,6 +355,8 @@ class TestSSOTDriftGuard(unittest.TestCase):
                     "_doc_CLAUDE_VISIBLE_TEAMS": "d8",
                     "CLAUDE_PLAN_CACHE_MODE": "off",
                     "_doc_CLAUDE_PLAN_CACHE_MODE": "d9",
+                    "ENABLE_TOOL_SEARCH": "true",
+                    "_doc_ENABLE_TOOL_SEARCH": "d10",
                 }
             }
             (fixture_path / "settings.json").write_text(json.dumps(fixture_settings))
@@ -348,6 +369,66 @@ class TestSSOTDriftGuard(unittest.TestCase):
             self.assertEqual(env.get("CLAUDE_PIPELINE_MODE"), "interactive")
             self.assertEqual(env.get("CLAUDE_ENABLE_TRACE"), "1")
             self.assertEqual(env.get("CLAUDE_PLAN_CACHE_MODE"), "off")
+
+
+class TestFallbackCreateIncludesDocs(unittest.TestCase):
+    """Fix 2: fallback path must produce _doc_ siblings, not just toggle values."""
+
+    def setUp(self):
+        self.path = _make_absent_path()
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_fallback_create_includes_docs(self):
+        """When SSOT settings.json is absent, seed must still write all 9 _doc_ siblings."""
+        with tempfile.TemporaryDirectory() as empty_root:
+            # empty_root has no settings.json — forces the fallback path.
+            _run_seed(self.path, plugin_root=empty_root)
+            self.assertTrue(self.path.exists(), "seed must create the file via fallback")
+            data = json.loads(self.path.read_text())
+            env = data.get("env", {})
+            for key in TOGGLE_KEYS:
+                self.assertIn(key, env, f"toggle {key!r} missing from fallback-created file")
+                doc_key = f"_doc_{key}"
+                self.assertIn(doc_key, env,
+                              f"{doc_key!r} missing from fallback-created file; "
+                              "fallback must populate _FALLBACK_DOCS")
+
+
+class TestNonDictShapeLeavesFileUntouched(unittest.TestCase):
+    """Fix 3: valid JSON with wrong shape must not be written or crash."""
+
+    def _write_file(self, content: str) -> Path:
+        fd, name = tempfile.mkstemp(suffix=".json")
+        with os.fdopen(fd, "w") as f:
+            f.write(content)
+        return Path(name)
+
+    def tearDown(self):
+        pass
+
+    def test_list_root_leaves_file_untouched(self):
+        """JSON root is a list, not a dict → shape guard returns without writing."""
+        path = self._write_file("[1, 2, 3]")
+        try:
+            before = path.read_bytes()
+            _run_seed(path)
+            self.assertEqual(path.read_bytes(), before,
+                             "list-root file must be byte-identical after seed")
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_string_env_leaves_file_untouched(self):
+        """env key is a string instead of a dict → shape guard returns without writing."""
+        path = self._write_file('{"env": "not-a-dict"}')
+        try:
+            before = path.read_bytes()
+            _run_seed(path)
+            self.assertEqual(path.read_bytes(), before,
+                             "string-env file must be byte-identical after seed")
+        finally:
+            path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
