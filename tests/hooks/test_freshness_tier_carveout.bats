@@ -168,3 +168,44 @@ tier_emitted: T1
   [ "$status" -eq 0 ]
   [[ "$output" == *"tier=T1"* ]]
 }
+
+# --- A4: T3H falls through freshness; does NOT auto-pass --------------------
+# WHY: pins quality-gate-checks.sh:264 equality branch (== T0 || == T1) UNTOUCHED.
+# T3H has a code surface → must NOT short-circuit to PASS; must require evidence.
+# T0 and T1 still auto-pass (regression check).
+
+@test "test_T3H_falls_through_freshness_does_not_autopass" {
+  # T3H: extractor returns T3H; _qg_check_freshness does NOT auto-pass
+  write_intake t3h-task '---
+tier_emitted: T3H
+---'
+  # No verification-evidence.json exists → if T3H incorrectly auto-passed
+  # the gate would return 0; it must return 1 (evidence required).
+  run env -u CLAUDE_DISABLE_FRESHNESS_QG \
+    CLAUDE_PIPELINE_TASK_ID=t3h-task \
+    bash -c "cd '$TMP_DIR' && source '$CHECKS_SH' && _qg_check_freshness"
+  # T3H must NOT auto-pass (status must be non-zero — evidence required)
+  [ "$status" -ne 0 ]
+  # The output must NOT contain the docs-only auto-pass message
+  [[ "$output" != *"docs-only"* ]]
+
+  # Regression guard: T0 still auto-passes
+  write_intake t0-task '---
+tier_emitted: T0
+---'
+  run env -u CLAUDE_DISABLE_FRESHNESS_QG \
+    CLAUDE_PIPELINE_TASK_ID=t0-task \
+    bash -c "cd '$TMP_DIR' && source '$CHECKS_SH' && _qg_check_freshness"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"docs-only"* ]]
+
+  # Regression guard: T1 still auto-passes
+  write_intake t1-task '---
+tier_emitted: T1
+---'
+  run env -u CLAUDE_DISABLE_FRESHNESS_QG \
+    CLAUDE_PIPELINE_TASK_ID=t1-task \
+    bash -c "cd '$TMP_DIR' && source '$CHECKS_SH' && _qg_check_freshness"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"docs-only"* ]]
+}

@@ -931,7 +931,7 @@ reads `tier_emitted` from `$state_dir/{task-id}/intake.md` using the
 
 ```
 // Extract tier from intake.md (same sed pattern as _qg_extract_intake_tier)
-tier=$(sed -n -E 's/^[[:space:]]*tier_emitted:[[:space:]]*"?(T[0-6])"?[[:space:]]*$/\1/p' \
+tier=$(sed -n -E 's/^[[:space:]]*tier_emitted:[[:space:]]*"?(T[0-6]|T3H)"?[[:space:]]*$/\1/p' \
   $state_dir/{task-id}/intake.md | head -n 1)
 
 // Step 1: Create tasks (4 always; 5th only when tier==T6)
