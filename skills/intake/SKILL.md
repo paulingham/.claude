@@ -63,7 +63,7 @@ Run the regex/glob detectors from `protocols/work-class-routing.md` § Fingerpri
   1. exactly ≤1 predicted CODE file in scope
   2. ≤15 changed lines (exact, no tilde)
   3. NO test file in scope
-  4. NO security keyword in change-target context: `auth|token|secret|payment|session|crypto|password|billing|oauth|jwt`
+  4. NO security keyword in change-target context: `auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature`
   5. `contract_eligible == true` (Option-A CONTRACT RULE — see below)
 
   **CONTRACT RULE (Option A):** T3H contract-eligible IFF Contracts Touched is (none) OR ONLY internal JSON shapes where ALL of: NOT published in OpenAPI/Swagger; NOT proto/event-schema; NOT versioned/public schema file; NOT cross-repo consumed. ANY OpenAPI path / DB schema / public function signature / proto / cross-repo contract / versioned-public schema → round UP to T4. When in doubt, round UP.
@@ -79,7 +79,7 @@ ANY of these force T4+ regardless of Phase 1 verdict (set `safety_override_fired
 - Predicted scope includes `hooks/*.sh` body changes (not entry-syntax-only)
 - Predicted scope touches `rules/core.md`, `protocols/atdd-procedure.md`, or `protocols/verdict-catalog.md` — **any touch upshifts to T6** (conservative — Iron-Law-surface floor per plan § HIGH-1)
 - Predicted scope includes any test file
-- User prompt contains `auth` / `payment` / `token` / `secret` / `crypto` / `password` / `session` in change-target context
+- User prompt contains `auth` / `payment` / `token` / `secret` / `crypto` / `password` / `session` / `billing` / `oauth` / `jwt` / `cors` / `csrf` / `cookie` / `admin` / `rbac` / `cert` / `signature` in change-target context
 - Predicted scope includes `auth/*` / `secrets/*` / `*crypto*` / `*.env`
 
 If safety override fires, set `tier_emitted: T6` (or T4 minimum for non-Iron-Law-surface safety), `detector_phase: rules`, `detector_confidence: high`.

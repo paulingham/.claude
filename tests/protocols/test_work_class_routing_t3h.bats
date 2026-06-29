@@ -5,6 +5,8 @@
 # C5: Contract discrimination: proto/versioned/cross-repo/DB/public-sig each force T4;
 #     internal-json-shape alone does not.
 # C6: "when in doubt round UP" clause present.
+# LOCKSTEP: keyword list is identical (17 terms) at Phase-1 detector, Phase-2 prose,
+#           and forensics backstop. Prevents Finding-1-style drift from recurring.
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
@@ -35,6 +37,30 @@ setup() {
 # C6 — "when in doubt round UP" clause present
 @test "test_when_in_doubt_rounds_up" {
   grep -qE 'When in doubt.*round.*UP|when in doubt.*round.*up' "$ROUTING"
+}
+
+# LOCKSTEP — canonical 17-keyword list present at Phase-1 detector, Phase-2 prose,
+#            and forensics backstop; all three must match the full set.
+@test "test_canonical_17_keyword_list_in_phase1_detector" {
+  # WHY: pins the full canonical list; RED if any keyword is absent from Phase-1 detector.
+  CANONICAL='auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature'
+  grep -qF "$CANONICAL" "$ROUTING"
+}
+
+@test "test_keyword_list_lockstep_phase2_prose_matches_canonical" {
+  # WHY: Phase-2 prose must carry the same 17 keywords as the canonical list.
+  # Checks each keyword appears in the Phase-2 safety override bullet.
+  for kw in auth payment token secret crypto password session billing oauth jwt cors csrf cookie admin rbac cert signature; do
+    grep -qE "User prompt contains.*${kw}|${kw}.*change-target" "$ROUTING" || \
+      { echo "Phase-2 prose missing keyword: ${kw}"; return 1; }
+  done
+}
+
+@test "test_keyword_list_lockstep_forensics_backstop_matches_canonical" {
+  # WHY: the Quality safety analysis table forensics backstop row must carry the
+  # full 17-keyword canonical list so drift is impossible.
+  CANONICAL='auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature'
+  grep -qF "$CANONICAL" "$ROUTING"
 }
 
 # E5 — verdict-catalog.md prose says T3H proceeds (continues), not exits

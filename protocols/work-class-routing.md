@@ -66,7 +66,7 @@ detectors:
       - "exactly ≤1 predicted CODE file in scope"
       - "≤15 changed lines (exact, no tilde)"
       - "NO test file in scope"
-      - "NO security keyword in change-target context: auth|token|secret|payment|session|crypto|password|billing|oauth|jwt"
+      - "NO security keyword in change-target context: auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature"
       - "contract_eligible == true (Option-A CONTRACT RULE)"
     CONTRACT_RULE_OPTION_A:
       eligible_IFF:
@@ -96,7 +96,7 @@ ANY of these force T4+ regardless of detector match:
 - Predicted scope includes `hooks/*.sh` body changes (not entry-syntax-only)
 - Predicted scope includes `rules/core.md` Iron Law surface (see § rules/core.md special handling)
 - Predicted scope includes any test file (Tier 1 tests, ATDD guarantees)
-- User prompt contains `auth` | `payment` | `token` | `secret` | `crypto` | `password` | `session` in change-target context
+- User prompt contains `auth` | `payment` | `token` | `secret` | `crypto` | `password` | `session` | `billing` | `oauth` | `jwt` | `cors` | `csrf` | `cookie` | `admin` | `rbac` | `cert` | `signature` in change-target context
 - Predicted scope includes `auth/*`, `secrets/*`, `*crypto*`, `*.env`, or files matching configured security-sensitive paths
 
 Phase-2 safety override ALWAYS wins and upshifts on any safety-sensitive path/keyword regardless of a T3H match.
@@ -200,7 +200,7 @@ Read by `/harness:forensics` to detect:
 | Hook script edit classified as T2 config | T2 detector excludes hook `.sh` body changes; only entry syntax allowed |
 | Tier 1 test edit classified as T3 sweep | Safety override on test files → forces T4+ |
 | Mechanical sweep silently broke behaviour | T3 still runs Code Review (diff-only) + Final Gate verify (smoke). Skipped phases are Plan/Plan-Validation/QA/Accept — not behaviour validation |
-| Trivial-code edit hides a security change → Phase-2 keyword/path override upshifts to T4+ | Phase-2 safety override ALWAYS wins: any `auth|token|secret|payment|session|crypto|password|billing|oauth|jwt` keyword or security-sensitive path in the change-target context forces T4+ even when all five T3H conditions would otherwise fire. The escape-rate telemetry (`tier_emitted:T3H` in deploy_outcome companion) surfaces any residual misclassification post-deploy. |
+| Trivial-code edit hides a security change → Phase-2 keyword/path override upshifts to T4+ | Phase-2 safety override ALWAYS wins: any `auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature` keyword or security-sensitive path in the change-target context forces T4+ even when all five T3H conditions would otherwise fire. The escape-rate telemetry (`tier_emitted:T3H` in deploy_outcome companion) surfaces any residual misclassification post-deploy. |
 | Plan got skipped for work that needed it | T4-T6 plan unchanged. T3 inherits plan from the user prompt (which IS the plan for a sweep). T1/T2 require no plan because the change is the spec |
 | Fingerprint hides real complexity | Plan-phase re-fingerprint catches scope creep; upshifts mid-pipeline |
 

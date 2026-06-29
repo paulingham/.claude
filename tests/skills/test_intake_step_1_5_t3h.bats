@@ -4,10 +4,37 @@
 # C1: T3H_trivial_code detector block exists with all 5 conjunctive conditions.
 # C2: Published OpenAPI contract → contract_eligible=false → round up to T4.
 # C3: Motivating worked example (internal JSON shape, 1 handler, no OpenAPI) → T3H.
+# LOCKSTEP: canonical 17-keyword list identical at Phase-1 detector and Phase-2
+#           prose in SKILL.md; both must match work-class-routing.md (cross-file).
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   INTAKE_SKILL="$REPO_ROOT/skills/intake/SKILL.md"
+}
+
+# LOCKSTEP — canonical 17-keyword list present in Phase-1 detector and Phase-2 prose
+@test "test_canonical_17_keyword_list_in_skill_phase1_detector" {
+  # WHY: pins the full canonical list; RED if any keyword is absent from Phase-1.
+  CANONICAL='auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature'
+  grep -qF "$CANONICAL" "$INTAKE_SKILL"
+}
+
+@test "test_skill_phase2_prose_contains_all_17_keywords" {
+  # WHY: Phase-2 prose must carry the same 17 keywords to prevent drift.
+  for kw in auth payment token secret crypto password session billing oauth jwt cors csrf cookie admin rbac cert signature; do
+    grep -qE "User prompt contains.*${kw}|${kw}.*change-target" "$INTAKE_SKILL" || \
+      { echo "SKILL.md Phase-2 prose missing keyword: ${kw}"; return 1; }
+  done
+}
+
+@test "test_skill_keyword_list_lockstep_with_routing_protocol" {
+  # WHY: cross-file lockstep check — both SKILL.md and work-class-routing.md must
+  # carry the identical canonical 17-keyword string (no drift between files).
+  REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+  ROUTING="$REPO_ROOT/protocols/work-class-routing.md"
+  CANONICAL='auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature'
+  grep -qF "$CANONICAL" "$INTAKE_SKILL"
+  grep -qF "$CANONICAL" "$ROUTING"
 }
 
 # C1 — all 5 conjunctive conditions named in the T3H_trivial_code detector block
