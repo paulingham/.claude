@@ -7,6 +7,9 @@
 #
 # python3 absent → exit 0 (fail-OPEN: missing seed is behaviour-preserving).
 # Always exits 0 — never blocks SessionStart.
+#
+# enforces: protocols/autonomous-intelligence.md:2. Session Memory
+# protects: user-settings configurability
 
 command -v python3 >/dev/null 2>&1 || exit 0
 exec python3 "${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/seed_user_settings.py"
