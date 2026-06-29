@@ -1,0 +1,38 @@
+#!/usr/bin/env bats
+# Slice-C detector-spec tests for protocols/work-class-routing.md
+#
+# C4: Phase-2 safety override sentence present and explicit.
+# C5: Contract discrimination: proto/versioned/cross-repo/DB/public-sig each force T4;
+#     internal-json-shape alone does not.
+# C6: "when in doubt round UP" clause present.
+
+setup() {
+  REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+  ROUTING="$REPO_ROOT/protocols/work-class-routing.md"
+}
+
+# C4 — Phase-2 safety override explicitly stated to always win and upshift
+@test "test_safety_override_upshifts_T3H_match" {
+  grep -qE 'Phase.2 safety override ALWAYS wins|safety override.*always.*upshift|Phase-2.*safety.*upshift.*T3H' "$ROUTING"
+}
+
+# C5 — each cross-repo/versioned/public/proto/DB/public-sig contract type forces T4,
+#       and internal-json-shape alone is explicitly excluded from that list.
+#       The round_up_to_T4_when_ANY YAML key lists all T4-forcing contract types.
+@test "test_contract_internal_vs_public_discrimination" {
+  # The T3H_trivial_code detector block names all T4-forcing contract types in
+  # the round_up_to_T4_when_ANY list.
+  grep -qE 'round_up_to_T4_when_ANY' "$ROUTING"
+  grep -qE '"proto"' "$ROUTING"
+  grep -qE 'versioned-public schema|versioned.*public.*schema' "$ROUTING"
+  grep -qE '"cross-repo contract"' "$ROUTING"
+  grep -qE '"DB schema"' "$ROUTING"
+  grep -qE '"public function signature"' "$ROUTING"
+  # Internal JSON shape alone must NOT force T4 (it's T3H-eligible)
+  grep -qE 'internal.*JSON.*shape|JSON.*shape.*internal|internal.*JSON' "$ROUTING"
+}
+
+# C6 — "when in doubt round UP" clause present
+@test "test_when_in_doubt_rounds_up" {
+  grep -qE 'When in doubt.*round.*UP|when in doubt.*round.*up' "$ROUTING"
+}

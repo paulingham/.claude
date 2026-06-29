@@ -59,6 +59,16 @@ Run the regex/glob detectors from `protocols/work-class-routing.md` § Fingerpri
 - `T1_doc_only` — ALL paths match `*.md` / `*.txt` / `*.rst` / `docs/*` / `README*`; no code/config/shell-script body change
 - `T2_config_only` — ALL paths match `settings.json` / `*.yml` / `*.yaml` / `*.toml` / `agents/*.md` frontmatter-only
 - `T3_mechanical_sweep` — uniform transformation across at least 3 files (rename / replace / lint-fix / version bump / import sort)
+- `T3H_trivial_code` — fires ONLY when ALL of the following hold (else round UP to T4):
+  1. exactly ≤1 predicted CODE file in scope
+  2. ≤15 changed lines (exact, no tilde)
+  3. NO test file in scope
+  4. NO security keyword in change-target context: `auth|token|secret|payment|session|crypto|password|billing|oauth|jwt`
+  5. `contract_eligible == true` (Option-A CONTRACT RULE — see below)
+
+  **CONTRACT RULE (Option A):** T3H contract-eligible IFF Contracts Touched is (none) OR ONLY internal JSON shapes where ALL of: NOT published in OpenAPI/Swagger; NOT proto/event-schema; NOT versioned/public schema file; NOT cross-repo consumed. ANY OpenAPI path / DB schema / public function signature / proto / cross-repo contract / versioned-public schema → round UP to T4. When in doubt, round UP.
+
+  Worked example: "change how a JSON response is serialized, one internal handler, no OpenAPI change, ~8 lines → T3H eligible". Counter-example: "same payload declared in openapi.yaml → T4".
 
 If a detector resolves with high confidence, emit that tier as `tier_emitted` and `tier_initial`, set `detector_phase: rules`, `detector_confidence: high`.
 
@@ -73,6 +83,8 @@ ANY of these force T4+ regardless of Phase 1 verdict (set `safety_override_fired
 - Predicted scope includes `auth/*` / `secrets/*` / `*crypto*` / `*.env`
 
 If safety override fires, set `tier_emitted: T6` (or T4 minimum for non-Iron-Law-surface safety), `detector_phase: rules`, `detector_confidence: high`.
+
+Phase-2 safety override ALWAYS wins and upshifts on any safety-sensitive path/keyword regardless of a T3H match.
 
 #### Phase 3 — Haiku tiebreaker (DEFERRED in this pipeline)
 
@@ -95,6 +107,7 @@ Always emit one of:
 ```
 [Intake] Tier: T0 (reason: rules; phase: 1; confidence: high)
 [Intake] Tier: T1 (reason: rules; phase: 1; confidence: high)
+[Intake] Tier: T3H (reason: rules; phase: 1; confidence: high)
 [Intake] Tier: T6 (reason: rules; phase: 2; confidence: high)
 [Intake] Tier: T4 (reason: fallthrough; phase: 1; confidence: low)
 ```
