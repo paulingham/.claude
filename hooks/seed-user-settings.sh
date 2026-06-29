@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # seed-user-settings — SessionStart hook.
 #
-# Seeds 9 developer-facing toggles + _doc_ siblings into the user-level
+# Seeds 10 developer-facing toggles + _doc_ siblings into the user-level
 # settings.json so toggles moved to the user layer by PR #245 are editable.
 # Delegates all logic to seed_user_settings.py (merge-only, fail-closed).
 #

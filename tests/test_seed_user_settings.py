@@ -117,7 +117,7 @@ def _run_seed(settings_path: Path, plugin_root: str | None = None) -> None:
 
 
 class TestCreateFileWhenAbsent(unittest.TestCase):
-    """AC1: target absent → write 9 toggles + _doc_ siblings."""
+    """AC1: target absent → write 10 toggles + _doc_ siblings."""
 
     def setUp(self):
         self.path = _make_absent_path()
@@ -125,7 +125,7 @@ class TestCreateFileWhenAbsent(unittest.TestCase):
     def tearDown(self):
         self.path.unlink(missing_ok=True)
 
-    def test_creates_file_with_nine_toggles_and_docs_when_absent(self):
+    def test_creates_file_with_ten_toggles_and_docs_when_absent(self):
         _run_seed(self.path)
         self.assertTrue(self.path.exists(), "seed must create the file")
         data = json.loads(self.path.read_text())
@@ -454,7 +454,7 @@ class TestFallbackCreateIncludesDocs(unittest.TestCase):
         self.path.unlink(missing_ok=True)
 
     def test_fallback_create_includes_docs(self):
-        """When SSOT settings.json is absent, seed must still write all 9 _doc_ siblings."""
+        """When SSOT settings.json is absent, seed must still write all 10 _doc_ siblings."""
         with tempfile.TemporaryDirectory() as empty_root:
             # empty_root has no settings.json — forces the fallback path.
             _run_seed(self.path, plugin_root=empty_root)

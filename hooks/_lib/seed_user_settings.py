@@ -1,4 +1,4 @@
-"""Seed 9 developer-facing toggles into the user-level settings.json.
+"""Seed 10 developer-facing toggles into the user-level settings.json.
 
 Target path resolution (mirrors bootstrap_settings.py:41):
   CLAUDE_SETTINGS_PATH override (test seam) else
@@ -24,7 +24,7 @@ from harness_paths import harness_root  # noqa: E402
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 _LOG = logging.getLogger(__name__)
 
-# The 9 allowlisted toggle keys (the ONLY keys this seed may write).
+# The 10 allowlisted toggle keys (the ONLY keys this seed may write).
 # Break-glass keys (CLAUDE_DISABLE_QUALITY_GATE, CLAUDE_DISABLE_TOOL_ALLOWLIST,
 # CLAUDE_INTAKE_BACKSTOP, CLAUDE_DISABLE_FRESHNESS_GUARD,
 # CLAUDE_DISABLE_RUNTIME_STATE_GUARD) are intentionally absent.
