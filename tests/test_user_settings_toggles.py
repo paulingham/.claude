@@ -128,6 +128,38 @@ def test_behavior_preserving_defaults():
     )
 
 
+def test_managed_env_contains_exactly_eight_keys():
+    """AC2 exact-count guard: managed-settings.json env must contain EXACTLY the 8
+    expected keys — no more, no fewer.
+
+    The absence assertions for CLAUDE_PIPELINE_MODE and CLAUDE_ENABLE_TRACE catch those
+    two specific vars if re-added, but any OTHER newly-pinned key would silently pass
+    those checks.  This test locks the full set so any addition (or removal) is caught
+    regardless of which key changes.
+    """
+    env = _load_managed_env()
+    expected = {
+        "CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS",
+        "CLAUDE_HOOK_PROFILE",
+        "ENABLE_TOOL_SEARCH",
+        "CLAUDE_CODE_SUBAGENT_MODEL",
+        "CLAUDE_SUBAGENT_MAX_DEPTH",
+        "CLAUDE_SUBAGENT_MAX_RUNTIME",
+        "CLAUDE_TEAMMATE_MAX_RUNTIME",
+        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS",
+    }
+    actual = set(env.keys())
+    extra = actual - expected
+    missing = expected - actual
+    assert not extra, (
+        f"managed-settings.json env has unexpected key(s): {extra}. "
+        "Feature toggles belong at the user layer, not pinned in managed settings."
+    )
+    assert not missing, (
+        f"managed-settings.json env is missing expected key(s): {missing}."
+    )
+
+
 def test_iron_law_gates_absent_from_user_settings():
     """AC-e: Iron-Law/correctness gate vars must NOT appear in user settings env."""
     env = _load_user_env()
