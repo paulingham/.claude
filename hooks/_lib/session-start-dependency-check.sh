@@ -122,12 +122,16 @@ _ssdc_report_tooling() {
     present_csv="${present_list// /, }"
   fi
 
-  # Build missing summary with inline purpose
-  local missing_summary="" tool purpose
+  # Build missing summary with inline purpose and fix hint.
+  # WHY: rtk and dippy have real gate vars; _ssdc_fix_hint returns the install line for them
+  # and "re-run setup.sh" for others — reused here to keep hint strings DRY (one place).
+  # NEVER print CLAUDE_REQUIRE_PARRY or CLAUDE_REQUIRE_HCOM — those gate vars do not exist.
+  local missing_summary="" tool purpose hint
   for tool in rtk gh hcom dippy parry-guard typescript-language-server pyright; do
     if echo " ${missing_list} " | grep -q " ${tool} "; then
       purpose="$(_ssdc_purpose "$tool")"
-      missing_summary="${missing_summary}${tool} (${purpose}); "
+      hint="$(_ssdc_fix_hint "$tool")"
+      missing_summary="${missing_summary}${tool} (${purpose} - ${hint}); "
     fi
   done
   missing_summary="${missing_summary%; }"
@@ -139,18 +143,4 @@ _ssdc_report_tooling() {
   elif [ -n "$missing_summary" ]; then
     printf '[harness-deps] Tooling: none present. Missing: %s.\n' "$missing_summary" >&2
   fi
-
-  _ssdc_maybe_print_gates_line
-}
-
-_ssdc_maybe_print_gates_line() {
-  # WHY: emit gates: line ONLY when rtk or dippy is missing.
-  # Only rtk and dippy have real gate vars. CLAUDE_REQUIRE_PARRY and CLAUDE_REQUIRE_HCOM
-  # do NOT exist — never print them.
-  # WHY: derive presence from HDC_FEATURE_MISSING (set by _hdc_feature_probe, already called)
-  # rather than a third independent command -v — single detection source.
-  local _missing=" ${HDC_FEATURE_MISSING:-} " gate_vars=""
-  [[ "$_missing" == *" rtk "*   ]] && gate_vars="${gate_vars:+$gate_vars }CLAUDE_REQUIRE_RTK"
-  [[ "$_missing" == *" dippy "* ]] && gate_vars="${gate_vars:+$gate_vars }CLAUDE_REQUIRE_DIPPY"
-  [ -n "$gate_vars" ] && printf '[harness-deps] gates: %s (set =1 to force install)\n' "$gate_vars" >&2 || true
 }

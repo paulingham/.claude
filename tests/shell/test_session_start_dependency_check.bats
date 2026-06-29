@@ -235,14 +235,10 @@ SCRIPT
   fi
 }
 
-@test "AC2-gates-conditional-both-present: rtk AND dippy both present -> NO gates: line" {
-  local bin_with_rtk_dippy; bin_with_rtk_dippy="$(mktemp -d)"
-  for f in "$FAKE_BIN"/*; do
-    [ -e "$f" ] && ln -sf "$(readlink "$f" 2>/dev/null || echo "$f")" "$bin_with_rtk_dippy/$(basename "$f")" 2>/dev/null || true
-  done
-  ln -sf "$TRUE_BIN" "$bin_with_rtk_dippy/rtk"
-  ln -sf "$TRUE_BIN" "$bin_with_rtk_dippy/dippy"
-  local script; script="$(mktemp /tmp/ssdc_gates_both_present.XXXXXX.sh)"
+@test "AC2-no-separate-gates-line: report never has a standalone 'gates:' line" {
+  # RED-ON-REVERT: if _ssdc_maybe_print_gates_line is re-added, this fails.
+  # Gate-var hints now appear inline in the Tooling missing summary, not on a separate line.
+  local script; script="$(mktemp /tmp/ssdc_no_gates_line.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
@@ -250,16 +246,17 @@ SCRIPT
 _ssdc_check_deps
 SCRIPT
   chmod +x "$script"
-  run env PATH="$bin_with_rtk_dippy:$PATH" bash "$script" 2>&1
-  rm -f "$script"; rm -rf "$bin_with_rtk_dippy"
+  run env PATH="$FAKE_BIN:$PATH" bash "$script" 2>&1
+  rm -f "$script"
   [ "$status" -eq 0 ]
-  if echo "$output" | grep -q "gates:"; then
-    echo "FAIL: gates: line appeared even though rtk AND dippy are both present"
+  if echo "$output" | grep -q "^\[harness-deps\] gates:"; then
+    echo "FAIL: standalone gates: line appeared — install hints must be inline in Tooling"
     return 1
   fi
 }
 
-@test "AC2-gates-conditional-rtk-missing: rtk missing -> gates: line present naming CLAUDE_REQUIRE_RTK" {
+@test "AC2-gates-rtk-missing-inline: rtk missing -> Tooling line contains CLAUDE_REQUIRE_RTK inline" {
+  # RED-ON-REVERT: if rtk install hint is moved off the Tooling line, this fails.
   local bin_no_rtk; bin_no_rtk="$(_path_without rtk)"
   local script; script="$(mktemp /tmp/ssdc_gates_rtk_missing.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
@@ -272,13 +269,17 @@ SCRIPT
   run env PATH="$bin_no_rtk" bash "$script" 2>&1
   rm -f "$script"; rm -rf "$bin_no_rtk"
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q "gates:"
-  echo "$output" | grep "gates:" | grep -q "CLAUDE_REQUIRE_RTK"
+  # Hint must appear in the Tooling line, not a separate gates: line
+  echo "$output" | grep -i "Tooling" | grep -q "CLAUDE_REQUIRE_RTK"
+  if echo "$output" | grep -q "^\[harness-deps\] gates:"; then
+    echo "FAIL: separate gates: line appeared — hint must be inline in Tooling"
+    return 1
+  fi
 }
 
-@test "M1-dippy-missing-alone: dippy missing + rtk present -> gates: line names CLAUDE_REQUIRE_DIPPY only" {
-  # WHY: M1 missing limb — mirrors AC2-gates-conditional-rtk-missing for dippy.
-  # RED-ON-REVERT: if dippy detection is removed from _ssdc_maybe_print_gates_line, this fails.
+@test "M1-dippy-missing-inline: dippy missing + rtk present -> Tooling line contains CLAUDE_REQUIRE_DIPPY, not CLAUDE_REQUIRE_RTK" {
+  # WHY: M1 missing limb — mirrors AC2-gates-rtk-missing-inline for dippy.
+  # RED-ON-REVERT: if dippy install hint is removed from the Tooling line, this fails.
   local bin_with_rtk_no_dippy; bin_with_rtk_no_dippy="$(_path_without dippy)"
   ln -sf "$TRUE_BIN" "$bin_with_rtk_no_dippy/rtk"
   local script; script="$(mktemp /tmp/ssdc_gates_dippy_missing.XXXXXX.sh)"
@@ -292,10 +293,16 @@ SCRIPT
   run env PATH="$bin_with_rtk_no_dippy" bash "$script" 2>&1
   rm -f "$script"; rm -rf "$bin_with_rtk_no_dippy"
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q "gates:"
-  echo "$output" | grep "gates:" | grep -q "CLAUDE_REQUIRE_DIPPY"
-  if echo "$output" | grep "gates:" | grep -q "CLAUDE_REQUIRE_RTK"; then
-    echo "FAIL: gates: line named CLAUDE_REQUIRE_RTK but rtk was present"
+  # dippy hint must appear inline in Tooling line
+  echo "$output" | grep -i "Tooling" | grep -q "CLAUDE_REQUIRE_DIPPY"
+  # rtk is present so its hint must NOT appear
+  if echo "$output" | grep -i "Tooling" | grep -q "CLAUDE_REQUIRE_RTK"; then
+    echo "FAIL: Tooling line named CLAUDE_REQUIRE_RTK but rtk was present"
+    return 1
+  fi
+  # No separate gates: line
+  if echo "$output" | grep -q "^\[harness-deps\] gates:"; then
+    echo "FAIL: separate gates: line appeared"
     return 1
   fi
 }
