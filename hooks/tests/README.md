@@ -27,7 +27,7 @@ be deleted.
 | test-hooks.sh | — | QUARANTINED — 90p/18f (stale count + assertion drift; text-pinned by project-hash.bats:144,149) |
 | test-intake-backstop.sh | tests/shell/bridge_intake_backstop.bats | BRIDGED |
 | test-main-branch-guard.sh | tests/shell/bridge_main_branch_guard.bats | BRIDGED |
-| test-managed-settings.sh | — | QUARANTINED — plugin-delivery + env keys drift (11p/2f) |
+| test-managed-settings.sh | — | QUARANTINED — plugin-delivery drift only (A2/A4 delivery keys may still drift on fresh install); env-keys drift (A3 11→9) resolved by slice-toggle-layering |
 | test-nested-pipeline-isolation.sh | — | QUARANTINED — trajectory file routing drift (25p/3f) |
 | test-pipeline-analytics.sh | tests/shell/bridge_pipeline_analytics.bats | BRIDGED |
 | test-pipeline-entry-guard.sh | tests/shell/bridge_pipeline_entry_guard.bats | BRIDGED |

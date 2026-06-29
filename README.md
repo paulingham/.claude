@@ -201,6 +201,41 @@ Deploy runs post-deploy verification with automatic rollback.
 
 ---
 
+## Configuration
+
+Behaviour is tunable via `settings.json` at the user level. Settings files are resolved in precedence order: managed (org policy) → user → project. Feature toggles belong at the **user layer** so each developer can adjust them without touching org policy.
+
+### Settings file locations
+
+| Platform | Path |
+|----------|------|
+| macOS / Linux | `~/.claude/settings.json` |
+| Windows | `%USERPROFILE%\.claude\settings.json` |
+
+Set `CLAUDE_CONFIG_DIR` to override the default location on any platform.
+
+### Developer-facing toggles
+
+All values are **case-sensitive**. Enum values such as `shadow` must be lowercase exactly (e.g. `shadow` not `Shadow`); binary toggles require `0` or `1` exactly.
+
+| Setting | What it does | Values | Default | Layer |
+|---------|-------------|--------|---------|-------|
+| `CLAUDE_PIPELINE_MODE` | Pipeline execution mode | `autonomous` \| `interactive` | `autonomous` | user |
+| `CLAUDE_ENABLE_TRACE` | Enable prompt-tracing for agent spawns | `0` \| `1` | `0` | user |
+| `CLAUDE_DISABLE_SANDBOX_VERIFY` | Disable Final-Gate sandbox-verify engineer | `0` \| `1` | `0` | user |
+| `CLAUDE_DISABLE_VLM_CRITIC` | Disable Final-Gate visual-diff critic | `0` \| `1` | `0` | user |
+| `CLAUDE_DISABLE_SWE_PRUNER` | Disable SWE-bench candidate pruner | `0` \| `1` | `0` | user |
+| `CLAUDE_DISABLE_INSTINCT_INJECTION` | Disable instinct injection into agent prompts | `0` \| `1` | `0` | user |
+| `CLAUDE_DISABLE_WORKTREE_REAPER` | Disable the worktree reaper (stale-worktree cleanup) | `0` \| `1` | `0` | user |
+| `CLAUDE_VISIBLE_TEAMS` | Use visible team dispatch (tmux panes) instead of parallel subagents | `0` \| `1` | `0` | user |
+| `CLAUDE_PLAN_CACHE_MODE` | Plan-cache mode | `off` \| `shadow` \| `on` | `shadow` | user |
+
+### Enforcement flow
+
+The intake → pipeline enforcement flow is **always-on and not configurable** — there is no workflow off-switch. An emergency recovery escape exists for situations where the harness itself has become inoperable, but it is intentionally undocumented as a routine setting and should not be used in normal operation.
+
+---
+
 ## Skills (72)
 
 Skills are the procedural workflows the orchestrator invokes per phase — `/harness:intake`,
