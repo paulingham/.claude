@@ -23,9 +23,9 @@ setup() {
   [ "$s10" -lt "$s1" ]
 }
 
-@test "test_step_1_0_names_all_seven_tier_routes" {
+@test "test_step_1_0_names_all_eight_tier_routes" {
   local tier
-  for tier in T0 T1 T2 T3 T4 T5 T6; do
+  for tier in T0 T1 T2 T3 T3H T4 T5 T6; do
     grep -qE "${tier}\b" "$PIPELINE_SKILL" || { echo "missing tier: ${tier}"; return 1; }
   done
 }
