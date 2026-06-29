@@ -243,7 +243,7 @@ PROBE_SCRIPT
 # SLICE 2: SessionStart Warner (AC2.1–AC2.4)
 # ==============================================================================
 
-@test "AC2.1 warner loud remediation: missing git -> stderr has Git for Windows + CLAUDE_CODE_GIT_BASH_PATH, rc 0" {
+@test "AC2.1 warner loud remediation: missing git -> stderr has 'Required MISSING: git' + windows-setup.md fix hint, rc 0" {
   local no_git; no_git="$(_no_git_path)"
   local script; script="$(mktemp /tmp/warner_test.XXXXXX.sh)"
   cat > "$script" <<WARNER_SCRIPT
@@ -257,8 +257,8 @@ WARNER_SCRIPT
   run env PATH="$no_git" bash "$script"
   rm -f "$script"; rm -rf "$no_git"
   [ "$status" -eq 0 ]
-  echo "$output" | grep -qi "git"
-  echo "$output" | grep -qi "CLAUDE_CODE_GIT_BASH_PATH"
+  echo "$output" | grep -qi "Required MISSING: git"
+  echo "$output" | grep -qi "knowledge/windows-setup.md"
 }
 
 @test "AC2.2 warner soft advisory: only flock missing -> stderr has flock advisory, rc 0" {
@@ -279,8 +279,10 @@ WARNER_SCRIPT
   echo "$output" | grep -qi "advisory"
 }
 
-@test "AC2.3 warner silent when all present" {
-  local script; script="$(mktemp /tmp/warner_silent.XXXXXX.sh)"
+@test "AC2.3 warner prints report when all present (report is always-on)" {
+  # WHY: report is unconditional — always printed on SessionStart so engineers
+  # always see dep status. The silent-when-healthy behaviour is superseded.
+  local script; script="$(mktemp /tmp/warner_present.XXXXXX.sh)"
   cat > "$script" <<WARNER_SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
@@ -291,7 +293,7 @@ WARNER_SCRIPT
   run env PATH="$FAKE_BIN:$PATH" bash "$script"
   rm -f "$script"
   [ "$status" -eq 0 ]
-  [ -z "$output" ]
+  echo "$output" | grep -q "Required: all present"
 }
 
 @test "AC2.4 bootstrap sources warner behind declare -F guard" {

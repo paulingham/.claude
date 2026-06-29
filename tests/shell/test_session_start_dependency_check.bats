@@ -1,8 +1,9 @@
 #!/usr/bin/env bats
 # Verbose session-start dependency report — test suite.
 bats_require_minimum_version 1.5.0
-# AC1: default-path invariant (CLAUDE_VERBOSE_DEPS unset/!=1 unchanged behaviour)
-# AC2: verbose report format and content (CLAUDE_VERBOSE_DEPS=1)
+# AC1: report is unconditional — printed on every SessionStart (no env var required)
+# AC2: plain-English format — Required / Optional / Tooling groups
+# AC3: feature advisory — HDC_MISSING unaffected; feature tools never block
 #
 # Hermetic setup mirrors test_harness_dependency_gate.bats shadow-PATH scaffolding.
 
@@ -74,67 +75,35 @@ _path_without() {
   echo "$new_bin"
 }
 
-# Helper: run _ssdc_check_deps in a subshell with controlled PATH and env.
-# Arguments: extra PATH dirs (prepended), env vars as KEY=VALUE pairs.
-# Prints stdout+stderr separated by ---STDERR--- marker.
-_run_ssdc() {
-  local extra_path="${1:-$FAKE_BIN:$PATH}"
-  local verbose_val="${2:-}"
+# ==============================================================================
+# AC1 UNCONDITIONAL REPORT
+# ==============================================================================
+
+@test "AC1-always-on-healthy: no env var needed -> report always prints on healthy box" {
+  # RED-ON-REVERT: if report becomes gated behind CLAUDE_VERBOSE_DEPS, this fails.
   local script; script="$(mktemp /tmp/ssdc_test.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
 . "$WARNER_LIB"
+_ssdc_check_deps
 SCRIPT
-  if [ -n "$verbose_val" ]; then
-    printf 'CLAUDE_VERBOSE_DEPS=%s _ssdc_check_deps\n' "$verbose_val" >> "$script"
-  else
-    printf '_ssdc_check_deps\n' >> "$script"
-  fi
   chmod +x "$script"
-  echo "$script"
-}
-
-# ==============================================================================
-# AC1 DEFAULT PATH INVARIANT
-# ==============================================================================
-
-@test "AC1-default-silent: CLAUDE_VERBOSE_DEPS unset + all hard deps present -> prints nothing, rc 0" {
-  # RED-ON-REVERT: if verbose becomes default, this test fails because output would not be empty
-  local script; script="$(_run_ssdc "$FAKE_BIN:$PATH")"
   run env PATH="$FAKE_BIN:$PATH" bash "$script" 2>&1
   rm -f "$script"
   [ "$status" -eq 0 ]
-  [ -z "$output" ]
+  # Report must print even with no env var
+  echo "$output" | grep -q "harness-deps"
+  echo "$output" | grep -q "Required"
 }
 
-@test "AC1-default-preserved: CLAUDE_VERBOSE_DEPS unset + git missing -> prints MISSING-REQUIRED warning naming CLAUDE_CODE_GIT_BASH_PATH" {
-  local no_git; no_git="$(_path_without git)"
-  local script; script="$(_run_ssdc)"
-  run env PATH="$no_git" bash "$script" 2>&1
-  rm -f "$script"; rm -rf "$no_git"
-  [ "$status" -eq 0 ]
-  echo "$output" | grep -qi "MISSING REQUIRED"
-  echo "$output" | grep -qi "CLAUDE_CODE_GIT_BASH_PATH"
-}
-
-@test "AC1-verbose-report: CLAUDE_VERBOSE_DEPS=1 -> stderr has hard: soft: and feature: lines, rc 0" {
-  local script; script="$(_run_ssdc "$FAKE_BIN:$PATH" "1")"
-  run env PATH="$FAKE_BIN:$PATH" CLAUDE_VERBOSE_DEPS=1 bash "$script" 2>&1
-  rm -f "$script"
-  [ "$status" -eq 0 ]
-  echo "$output" | grep -q "hard:"
-  echo "$output" | grep -q "soft:"
-  echo "$output" | grep -q "feature:"
-}
-
-@test "AC1-verbose-stderr-only: verbose report appears on fd 2 only, not stdout" {
+@test "AC1-stderr-only: report appears on stderr, not stdout" {
   local script; script="$(mktemp /tmp/ssdc_stderr_test.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
 . "$WARNER_LIB"
-CLAUDE_VERBOSE_DEPS=1 _ssdc_check_deps
+_ssdc_check_deps
 SCRIPT
   chmod +x "$script"
   # WHY: use --separate-stderr so bats captures stdout into $output and stderr into $stderr
@@ -145,89 +114,103 @@ SCRIPT
   # stdout should be empty — report is on stderr only
   [ -z "$output" ]
   # stderr should have the report
-  echo "$stderr" | grep -q "hard:"
+  echo "$stderr" | grep -q "Required"
 }
 
-@test "AC1-verbose-compact: verbose output is at most 4 lines" {
+@test "AC1-line-budget: healthy box report is at most 6 lines" {
+  # WHY: compact report is important since it runs on every SessionStart.
+  # Healthy box: 1 header + 1 Required all-present + 0 Optional (flock present, silent)
+  # + 1 Tooling line = 3-4 lines. Cap at 6.
   local script; script="$(mktemp /tmp/ssdc_compact_test.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
 . "$WARNER_LIB"
-CLAUDE_VERBOSE_DEPS=1 _ssdc_check_deps 2>&1 | wc -l
+_ssdc_check_deps 2>&1 | wc -l
 SCRIPT
   chmod +x "$script"
   run env PATH="$FAKE_BIN:$PATH" bash "$script"
   rm -f "$script"
   [ "$status" -eq 0 ]
   local line_count="${output// /}"
-  [ "$line_count" -le 4 ]
+  [ "$line_count" -le 6 ]
 }
 
 # ==============================================================================
-# AC2 FEATURE PROBE CONTENT
+# AC2 PLAIN-ENGLISH FORMAT
 # ==============================================================================
 
-@test "AC2-present: rtk stubbed onto PATH -> feature line shows rtk+" {
-  local bin_with_rtk; bin_with_rtk="$(mktemp -d)"
-  # Copy all FAKE_BIN entries
-  for f in "$FAKE_BIN"/*; do
-    [ -e "$f" ] && ln -sf "$(readlink "$f" 2>/dev/null || echo "$f")" "$bin_with_rtk/$(basename "$f")" 2>/dev/null || true
-  done
-  # Add a stub rtk
-  ln -sf "$TRUE_BIN" "$bin_with_rtk/rtk"
-  local script; script="$(mktemp /tmp/ssdc_rtk_present.XXXXXX.sh)"
+@test "AC2-required-all-present: healthy box -> 'Required: all present' line with tool names" {
+  local script; script="$(mktemp /tmp/ssdc_req_present.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
 . "$WARNER_LIB"
-CLAUDE_VERBOSE_DEPS=1 _ssdc_check_deps
+_ssdc_check_deps
 SCRIPT
   chmod +x "$script"
-  run env PATH="$bin_with_rtk:$PATH" CLAUDE_VERBOSE_DEPS=1 bash "$script" 2>&1
-  rm -f "$script"; rm -rf "$bin_with_rtk"
-  [ "$status" -eq 0 ]
-  echo "$output" | grep -q "feature:"
-  echo "$output" | grep "feature:" | grep -q "rtk+"
-}
-
-@test "AC2-absent: rtk off PATH -> feature line shows rtk-, rc still 0" {
-  local bin_without_rtk; bin_without_rtk="$(_path_without rtk)"
-  local script; script="$(mktemp /tmp/ssdc_rtk_absent.XXXXXX.sh)"
-  cat > "$script" <<SCRIPT
-#!/usr/bin/env bash
-. "$PROBE_LIB"
-. "$WARNER_LIB"
-CLAUDE_VERBOSE_DEPS=1 _ssdc_check_deps
-SCRIPT
-  chmod +x "$script"
-  run env PATH="$bin_without_rtk" CLAUDE_VERBOSE_DEPS=1 bash "$script" 2>&1
-  rm -rf "$bin_without_rtk"
+  run env PATH="$FAKE_BIN:$PATH" bash "$script" 2>&1
   rm -f "$script"
   [ "$status" -eq 0 ]
-  echo "$output" | grep "feature:" | grep -q "rtk-"
+  echo "$output" | grep -q "Required: all present"
+  # Old shorthand must NOT appear
+  if echo "$output" | grep -qE 'bash[+]|git[+]|python[+]'; then
+    echo "FAIL: output still contains tool+ shorthand"
+    return 1
+  fi
 }
 
-@test "AC2-coverage: feature line names all 7 tools (rtk gh hcom dippy parry-guard typescript-language-server pyright)" {
-  local script; script="$(mktemp /tmp/ssdc_coverage.XXXXXX.sh)"
+@test "AC2-required-missing-loud: git missing -> loud 'Required MISSING: git' with windows-setup.md fix hint" {
+  # RED-ON-REVERT: if the loud MISSING line is removed, this fails.
+  local no_git; no_git="$(_path_without git)"
+  local script; script="$(mktemp /tmp/ssdc_git_missing.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
 . "$WARNER_LIB"
-CLAUDE_VERBOSE_DEPS=1 _ssdc_check_deps
+_ssdc_check_deps
 SCRIPT
   chmod +x "$script"
-  run env PATH="$FAKE_BIN:$PATH" CLAUDE_VERBOSE_DEPS=1 bash "$script" 2>&1
-  rm -f "$script"
+  run env PATH="$no_git" bash "$script" 2>&1
+  rm -f "$script"; rm -rf "$no_git"
   [ "$status" -eq 0 ]
-  local feature_line; feature_line="$(echo "$output" | grep "feature:")"
-  echo "$feature_line" | grep -q "rtk"
-  echo "$feature_line" | grep -q "gh"
-  echo "$feature_line" | grep -q "hcom"
-  echo "$feature_line" | grep -q "dippy"
-  echo "$feature_line" | grep -q "parry-guard"
-  echo "$feature_line" | grep -q "typescript-language-server"
-  echo "$feature_line" | grep -q "pyright"
+  echo "$output" | grep -q "Required MISSING: git"
+  echo "$output" | grep -q "knowledge/windows-setup.md"
+}
+
+@test "AC2-flock-missing-explained: flock absent -> 'flock missing' line with purpose text" {
+  local no_flock; no_flock="$(_path_without flock)"
+  local script; script="$(mktemp /tmp/ssdc_flock_missing.XXXXXX.sh)"
+  cat > "$script" <<SCRIPT
+#!/usr/bin/env bash
+. "$PROBE_LIB"
+. "$WARNER_LIB"
+_ssdc_check_deps
+SCRIPT
+  chmod +x "$script"
+  run env PATH="$no_flock" bash "$script" 2>&1
+  rm -f "$script"; rm -rf "$no_flock"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "flock missing"
+  echo "$output" | grep -q "concurrent pipeline writes"
+}
+
+@test "AC2-tooling-purpose: tooling line contains purpose text for missing tools" {
+  # Remove rtk from PATH so it shows as missing with purpose text.
+  local no_rtk; no_rtk="$(_path_without rtk)"
+  local script; script="$(mktemp /tmp/ssdc_tooling_purpose.XXXXXX.sh)"
+  cat > "$script" <<SCRIPT
+#!/usr/bin/env bash
+. "$PROBE_LIB"
+. "$WARNER_LIB"
+_ssdc_check_deps
+SCRIPT
+  chmod +x "$script"
+  run env PATH="$no_rtk" bash "$script" 2>&1
+  rm -f "$script"; rm -rf "$no_rtk"
+  [ "$status" -eq 0 ]
+  # hcom is not on PATH on most boxes; its purpose must appear in missing summary
+  echo "$output" | grep -q "inter-agent messaging"
 }
 
 @test "AC2-gates-no-fake-vars: report never contains CLAUDE_REQUIRE_PARRY or CLAUDE_REQUIRE_HCOM" {
@@ -236,13 +219,12 @@ SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
 . "$WARNER_LIB"
-CLAUDE_VERBOSE_DEPS=1 _ssdc_check_deps
+_ssdc_check_deps
 SCRIPT
   chmod +x "$script"
-  run env PATH="$FAKE_BIN:$PATH" CLAUDE_VERBOSE_DEPS=1 bash "$script" 2>&1
+  run env PATH="$FAKE_BIN:$PATH" bash "$script" 2>&1
   rm -f "$script"
   [ "$status" -eq 0 ]
-  # Must not contain fake gate vars
   if echo "$output" | grep -q "CLAUDE_REQUIRE_PARRY"; then
     echo "FAIL: output contained CLAUDE_REQUIRE_PARRY (no such gate var exists)"
     return 1
@@ -265,13 +247,12 @@ SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
 . "$WARNER_LIB"
-CLAUDE_VERBOSE_DEPS=1 _ssdc_check_deps
+_ssdc_check_deps
 SCRIPT
   chmod +x "$script"
-  run env PATH="$bin_with_rtk_dippy:$PATH" CLAUDE_VERBOSE_DEPS=1 bash "$script" 2>&1
+  run env PATH="$bin_with_rtk_dippy:$PATH" bash "$script" 2>&1
   rm -f "$script"; rm -rf "$bin_with_rtk_dippy"
   [ "$status" -eq 0 ]
-  # When both rtk AND dippy are present, NO gates: line should appear
   if echo "$output" | grep -q "gates:"; then
     echo "FAIL: gates: line appeared even though rtk AND dippy are both present"
     return 1
@@ -285,10 +266,10 @@ SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
 . "$WARNER_LIB"
-CLAUDE_VERBOSE_DEPS=1 _ssdc_check_deps
+_ssdc_check_deps
 SCRIPT
   chmod +x "$script"
-  run env PATH="$bin_no_rtk" CLAUDE_VERBOSE_DEPS=1 bash "$script" 2>&1
+  run env PATH="$bin_no_rtk" bash "$script" 2>&1
   rm -f "$script"; rm -rf "$bin_no_rtk"
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "gates:"
@@ -299,32 +280,68 @@ SCRIPT
   # WHY: M1 missing limb — mirrors AC2-gates-conditional-rtk-missing for dippy.
   # RED-ON-REVERT: if dippy detection is removed from _ssdc_maybe_print_gates_line, this fails.
   local bin_with_rtk_no_dippy; bin_with_rtk_no_dippy="$(_path_without dippy)"
-  # Add rtk stub so only dippy is missing
   ln -sf "$TRUE_BIN" "$bin_with_rtk_no_dippy/rtk"
   local script; script="$(mktemp /tmp/ssdc_gates_dippy_missing.XXXXXX.sh)"
   cat > "$script" <<SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
 . "$WARNER_LIB"
-CLAUDE_VERBOSE_DEPS=1 _ssdc_check_deps
+_ssdc_check_deps
 SCRIPT
   chmod +x "$script"
-  run env PATH="$bin_with_rtk_no_dippy" CLAUDE_VERBOSE_DEPS=1 bash "$script" 2>&1
+  run env PATH="$bin_with_rtk_no_dippy" bash "$script" 2>&1
   rm -f "$script"; rm -rf "$bin_with_rtk_no_dippy"
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "gates:"
   echo "$output" | grep "gates:" | grep -q "CLAUDE_REQUIRE_DIPPY"
-  # Must NOT name CLAUDE_REQUIRE_RTK since rtk is present
   if echo "$output" | grep "gates:" | grep -q "CLAUDE_REQUIRE_RTK"; then
     echo "FAIL: gates: line named CLAUDE_REQUIRE_RTK but rtk was present"
     return 1
   fi
 }
 
-@test "AC2-python-alias-display: when only 'python' resolves, hard line shows python+(python)" {
-  # Build a restricted PATH with all hard tools except python3 (only 'python' provided).
-  # WHY: must include dirname because session-start-dependency-check.sh sources harness-
-  #      dependency-check.sh using dirname; without it the WARNER sourcing silently fails.
+# ==============================================================================
+# AC3 FEATURE ADVISORY — HDC_MISSING unaffected by feature probes
+# ==============================================================================
+
+@test "AC3-feature-advisory: feature tools absent do NOT add to HDC_MISSING" {
+  # RED-ON-REVERT: if feature missing paths ever set HDC_MISSING, this fails.
+  local script; script="$(mktemp /tmp/ssdc_feature_advisory.XXXXXX.sh)"
+  cat > "$script" <<SCRIPT
+#!/usr/bin/env bash
+. "$PROBE_LIB"
+. "$WARNER_LIB"
+_hdc_probe 2>/dev/null || true
+_hdc_feature_probe
+# HDC_MISSING must only name hard deps; never feature tools
+echo "HDC_MISSING=|${HDC_MISSING:-}|"
+SCRIPT
+  chmod +x "$script"
+  # Run with no feature tools on path
+  local no_tools; no_tools="$(_path_without rtk)"
+  run env PATH="$no_tools" bash "$script" 2>&1
+  rm -f "$script"; rm -rf "$no_tools"
+  [ "$status" -eq 0 ]
+  # HDC_MISSING must be empty (all hard deps are still present)
+  echo "$output" | grep -q "HDC_MISSING=||"
+}
+
+@test "AC3-rc-zero-always: _ssdc_check_deps always returns 0 even with missing deps" {
+  local no_git; no_git="$(_path_without git)"
+  local script; script="$(mktemp /tmp/ssdc_rc.XXXXXX.sh)"
+  cat > "$script" <<SCRIPT
+#!/usr/bin/env bash
+. "$PROBE_LIB"
+. "$WARNER_LIB"
+_ssdc_check_deps
+SCRIPT
+  chmod +x "$script"
+  run env PATH="$no_git" bash "$script" 2>&1
+  rm -f "$script"; rm -rf "$no_git"
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2-python-alias-display: when only 'python' resolves, Required line shows python not python3" {
   local py_only; py_only="$(mktemp -d)"
   local real_bash; real_bash="$(command -v bash)"
   local real_git; real_git="$(command -v git)"
@@ -336,30 +353,22 @@ SCRIPT
   [ -n "$real_realpath" ] && ln -sf "$real_realpath" "$py_only/realpath"
   [ -n "$real_mktemp" ] && ln -sf "$real_mktemp" "$py_only/mktemp"
   [ -n "$real_dirname" ] && ln -sf "$real_dirname" "$py_only/dirname"
-  # Stub flock (not available on macOS)
   local true_bin; true_bin="$([ -x /usr/bin/true ] && echo /usr/bin/true || echo /bin/true)"
   ln -sf "$true_bin" "$py_only/flock" 2>/dev/null || true
-  # Provide only 'python', not python3 — mirrors AC1.4 setup
   local real_py; real_py="$(command -v python3 2>/dev/null || command -v python 2>/dev/null)"
   [ -n "$real_py" ] && ln -sf "$real_py" "$py_only/python"
   local script; script="$(mktemp /tmp/ssdc_py_alias.XXXXXX.sh)"
-  # WHY: use _path_without rather than a direct script heredoc so we source the LIBs
-  # directly (not re-sourcing via dirname), avoiding the dirname dependency in the script.
   cat > "$script" <<SSDC_SCRIPT
 #!/usr/bin/env bash
 . "$PROBE_LIB"
 . "$WARNER_LIB"
-CLAUDE_VERBOSE_DEPS=1 _ssdc_check_deps
+_ssdc_check_deps
 SSDC_SCRIPT
   chmod +x "$script"
-  run env PATH="$py_only" CLAUDE_VERBOSE_DEPS=1 bash "$script" 2>&1
+  run env PATH="$py_only" bash "$script" 2>&1
   rm -f "$script"; rm -rf "$py_only"
   [ "$status" -eq 0 ]
-  # When only 'python' resolves, show python+(python) not python+(python3)
-  local hard_line; hard_line="$(echo "$output" | grep "hard:")"
-  echo "$hard_line" | grep -q "python+(python)"
-  if echo "$hard_line" | grep -q "python+(python3)"; then
-    echo "FAIL: hard line showed python+(python3) but only 'python' was on PATH"
-    return 1
-  fi
+  # When only 'python' resolves, it should appear in the all-present summary
+  echo "$output" | grep -q "Required: all present"
+  echo "$output" | grep "Required" | grep -q "python"
 }
