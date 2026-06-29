@@ -8,7 +8,7 @@
 # python3 absent → exit 0 (fail-OPEN: missing seed is behaviour-preserving).
 # Always exits 0 — never blocks SessionStart.
 #
-# enforces: protocols/autonomous-intelligence.md:2. Session Memory
+# enforces: CLAUDE.md:Runtime State Location
 # protects: user-settings configurability
 
 command -v python3 >/dev/null 2>&1 || exit 0
