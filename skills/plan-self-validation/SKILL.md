@@ -88,8 +88,8 @@ task_id: {task-id}
 phase: plan-validation
 mode: light
 verdict: PLAN_APPROVED | PLAN_HOLES | ROUTING_UPSHIFTED | PLAN_FEASIBILITY_REJECTED
-tier_initial: T0|T1|T2|T3|T4|T5|T6
-tier_replanned: T0|T1|T2|T3|T4|T5|T6
+tier_initial: T0|T1|T2|T3|T3H|T4|T5|T6
+tier_replanned: T0|T1|T2|T3|T3H|T4|T5|T6
 routing_upshifted: true|false
 timestamp: {ISO 8601}
 ---

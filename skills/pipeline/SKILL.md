@@ -49,6 +49,7 @@ Before any pipeline work, read `tier_emitted` from `$state_dir/{task-id}/intake.
 | **T1** (Doc-only) | Re-route to lightweight worktree subagent (tracked-doc edits) | Pipeline halts (NO state file created) |
 | **T2** (Config-only) | Re-route to `/harness:harness-config` | Pipeline halts (NO state file created) |
 | **T3** (Mechanical sweep) | Re-route to `/harness:batch-pipeline` | Pipeline halts (NO state file created) |
+| **T3H** (Trivial code change) | Continue to trimmed lane (Build + diff-only standard code-reviewer + Ship; SKIP Plan, Plan-Validation, Security-Review) | Pipeline proceeds (state file created) |
 | **T4** (Bug fix) | Continue to Step 1 (lightweight pipeline) | Pipeline proceeds |
 | **T5** (Standard feature) | Continue to Step 1 (standard pipeline) | Pipeline proceeds |
 | **T6** (Critical / cross-cutting) | Continue to Step 1 (heavy: Best-of-N or PDR-RTV) | Pipeline proceeds |
@@ -60,12 +61,19 @@ Status line — always emit one of:
 [Pipeline] Tier guard: T1 → lightweight worktree subagent (tracked-doc edits)
 [Pipeline] Tier guard: T2 → /harness:harness-config
 [Pipeline] Tier guard: T3 → /harness:batch-pipeline
+[Pipeline] Tier guard: T3H → /harness:pipeline (trimmed lane)
 [Pipeline] Tier guard: T4 → /harness:pipeline (lightweight)
 [Pipeline] Tier guard: T5 → /harness:pipeline (standard)
 [Pipeline] Tier guard: T6 → /harness:pipeline (heavy)
 ```
 
-For T0-T3, **Pipeline halts (NO state file created)** — the dispatch target (direct answer / `/harness:harness-config` / `/harness:batch-pipeline` / lightweight worktree subagent) is invoked instead. Pipeline state file (`$state_dir/{task-id}/pipeline.md`) is created only at Step 2c (which runs for T4-T6 only). This Step 1.0 is the cost-discipline lever — T1 doc edits no longer burn ~12-15 subagent spawns through a full pipeline shape.
+T3H is a CONTINUE tier: it creates a pipeline state file and runs the trimmed lane — Build (full TDD, Iron Law 1 failing-test-first) + diff-only standard code-reviewer + Ship + Reflect. Plan, Plan-Validation, and Security-Review are skipped because the change is ≤1 file / ≤15 changed lines / no tests / no security surface / internal-shape-only. Iron Law 1 still applies inside Build.
+
+**Scope-overflow abort (T3H → T4 upshift):** If the build engineer's actual diff exceeds 1 file OR 15 changed lines mid-build, ABORT the trimmed lane and upshift to T4 — re-enter the standard pipeline at Plan (so the change receives Plan + Plan-Validation + Security-Review). The prediction is not ground truth; the diff is.
+
+**Reflect + telemetry:** T3H STILL runs Reflect (Iron Law 7) and emits the deploy_outcome companion record carrying tier_emitted: T3H so /harness:forensics computes a T3H-specific escape rate.
+
+For T0-T3, **Pipeline halts (NO state file created)** — the dispatch target (direct answer / `/harness:harness-config` / `/harness:batch-pipeline` / lightweight worktree subagent) is invoked instead. Pipeline state file (`$state_dir/{task-id}/pipeline.md`) is created only at Step 2c (which runs for T3H and T4-T6). This Step 1.0 is the cost-discipline lever — T1 doc edits no longer burn ~12-15 subagent spawns through a full pipeline shape.
 
 T4 and T5 both route into the standard (non-heavy) pipeline (neither uses the T6 heavy Build variants); the fingerprinter does not emit T5 today (Phase 3 deferred).
 
@@ -85,11 +93,12 @@ If `tier_emitted` is missing from intake.md (legacy intake or fingerprint error)
 | Planning | `/harness:epic-breakdown` | Plan only (produces stories for future pipelines) |
 
 **Pipeline scale tiers:**
+- **T3H (trimmed lane)**: ≤1 file, ≤15 changed lines, internal-shape-only → Build (full TDD) + diff-only standard code-reviewer + Ship + Reflect. SKIP Plan, Plan-Validation, Security-Review.
 - **Micro**: 1 file, less than 5 lines changed, no behavior change → Plan + Plan Validation + Build (incl. code-review) + Security Review + Ship
 - **Small**: 1-3 files, isolated change → Plan + Plan Validation + Build (incl. code-review) + Security Review + Verify + Ship
 - **Medium/Large**: Full pipeline. No phase is skipped.
 
-All tiers include Plan + Plan Validation. The `/harness:learn` system may create instincts to adjust this per project/pattern.
+All T4-T6 tiers include Plan + Plan Validation. The `/harness:learn` system may create instincts to adjust this per project/pattern.
 
 ### Step 2: Pre-flight Checks (MANDATORY before pipeline state is created)
 

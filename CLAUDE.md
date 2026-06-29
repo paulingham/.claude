@@ -130,6 +130,7 @@ Orchestrator coordinates; never writes code/tests. Flow, dispatch mechanisms, or
 | **T1** | Doc-only | Lightweight worktree subagent (tracked-doc edits) |
 | **T2** | Config-only | `/harness:harness-config` |
 | **T3** | Mechanical sweep | `/harness:batch-pipeline` |
+| **T3H** | Trivial code change | `/harness:pipeline` (trimmed: Build + diff-only code-review + Ship) |
 | **T4** | Bug fix | `/harness:pipeline` (lightweight) |
 | **T5** | Standard feature | `/harness:pipeline` (standard) |
 | **T6** | Critical / cross-cutting | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |

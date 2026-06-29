@@ -56,3 +56,11 @@ setup() {
 @test "Step 2d-bis tier-gate for bestofn/pdr_rtv at T6" {
   grep -E 'bestofn.*T6|T6.*bestofn|pdr_rtv.*T6|T6.*pdr_rtv' "$INTAKE_SKILL"
 }
+
+@test "tier_emitted enum line includes T3H" {
+  grep -E '^tier_emitted:' "$INTAKE_SKILL" | grep -qE 'T3H'
+}
+
+@test "tier_initial enum line includes T3H" {
+  grep -E '^tier_initial:' "$INTAKE_SKILL" | grep -qE 'T3H'
+}

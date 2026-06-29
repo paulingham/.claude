@@ -14,7 +14,7 @@ Today `/harness:intake` recognises 8 task classifications but emits only `(budge
 
 Three rules govern routing:
 
-1. **Class first, budget second.** Fingerprint the work into one of seven tiers (T0-T6) based on **what files change** and **how they change**, not what the user said. Budget informs *intra-tier* shape (e.g. multi-slice Build), not *which tier*.
+1. **Class first, budget second.** Fingerprint the work into one of seven tiers (T0-T6) plus the T3H sub-lane based on **what files change** and **how they change**, not what the user said. Budget informs *intra-tier* shape (e.g. multi-slice Build), not *which tier*.
 2. **Downshift requires positive signal.** A pipeline only drops below standard (T4+) if a detector explicitly fires. Absent that, default is the current full-pipeline shape. Safety bias: never under-dispatch.
 3. **Bidirectional override with forensics.** `[force-pipeline]` user token forces upshift; `[force-class:Tn]` forces downshift. Both log to `metrics/{session}/intake-overrides.jsonl`.
 
@@ -26,11 +26,12 @@ Three rules govern routing:
 | **T1** | Doc-only | README/CLAUDE.md edits, protocol updates, comments | **Lightweight worktree subagent** (tracked-doc edits) |
 | **T2** | Config-only | settings.json keys, agent frontmatter, hook entry syntax (NOT hook script bodies) | **`/harness:harness-config`** |
 | **T3** | Mechanical sweep | rename, find/replace, lint-fix, import-sort, dependency bump | **`/harness:batch-pipeline`** |
+| **T3H** | Trivial code change | ≤1 code file, ≤15 changed lines, no tests, no security keyword, internal-shape-only | `/harness:pipeline` (trimmed: Build + diff-only code-review + Ship) |
 | **T4** | Bug fix | Failing test + targeted fix | `/harness:pipeline` (lightweight) |
 | **T5** | Standard feature | New AC, single-slice, isolated module | `/harness:pipeline` (standard) |
 | **T6** | Critical / cross-cutting | Auth, payment, security, multi-repo, system-wide | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |
 
-T0-T3 are fast paths. T4-T6 are today's `/harness:pipeline`, unchanged.
+T0-T3 are fast paths. T3H is a trimmed continue-tier for trivial code changes. T4-T6 are today's `/harness:pipeline`, unchanged.
 
 ## Fingerprint (the auto-detection step)
 
@@ -59,6 +60,33 @@ detectors:
       - "Pattern phrases match any of: 'rename X to Y' | 'replace all' | 'convert to' | 'lint-fix' | 'bump version' | 'import sort'"
       - "Predicted changed files >= 3 AND change shape is identical across files"
       - "NO security-sensitive file in scope"
+
+  T3H_trivial_code:
+    AND:
+      - "exactly ≤1 predicted CODE file in scope"
+      - "≤15 changed lines (exact, no tilde)"
+      - "NO test file in scope"
+      - "NO security keyword in change-target context: auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature"
+      - "contract_eligible == true (Option-A CONTRACT RULE)"
+    CONTRACT_RULE_OPTION_A:
+      eligible_IFF:
+        - "Contracts Touched is (none)"
+        - "OR ONLY internal JSON shapes where ALL of:"
+        - "  NOT published in OpenAPI/Swagger"
+        - "  NOT proto/event-schema"
+        - "  NOT versioned/public schema file"
+        - "  NOT cross-repo consumed"
+      round_up_to_T4_when_ANY:
+        - "OpenAPI path"
+        - "DB schema"
+        - "public function signature"
+        - "proto"
+        - "cross-repo contract"
+        - "versioned-public schema"
+      default: "When in doubt, round UP to T4"
+    example:
+      T3H_eligible: "change how a JSON response is serialized, one internal handler, no OpenAPI change, ~8 lines → T3H eligible"
+      T4_instead: "same payload declared in openapi.yaml → T4"
 ```
 
 ### Phase 2 — Safety override (always runs, never downshifts)
@@ -68,8 +96,10 @@ ANY of these force T4+ regardless of detector match:
 - Predicted scope includes `hooks/*.sh` body changes (not entry-syntax-only)
 - Predicted scope includes `rules/core.md` Iron Law surface (see § rules/core.md special handling)
 - Predicted scope includes any test file (Tier 1 tests, ATDD guarantees)
-- User prompt contains `auth` | `payment` | `token` | `secret` | `crypto` | `password` | `session` in change-target context
+- User prompt contains `auth` | `payment` | `token` | `secret` | `crypto` | `password` | `session` | `billing` | `oauth` | `jwt` | `cors` | `csrf` | `cookie` | `admin` | `rbac` | `cert` | `signature` in change-target context
 - Predicted scope includes `auth/*`, `secrets/*`, `*crypto*`, `*.env`, or files matching configured security-sensitive paths
+
+Phase-2 safety override ALWAYS wins and upshifts on any safety-sensitive path/keyword regardless of a T3H match.
 
 ### Phase 3 — Haiku tiebreaker (~500 tokens, only on ambiguity)
 
@@ -170,6 +200,7 @@ Read by `/harness:forensics` to detect:
 | Hook script edit classified as T2 config | T2 detector excludes hook `.sh` body changes; only entry syntax allowed |
 | Tier 1 test edit classified as T3 sweep | Safety override on test files → forces T4+ |
 | Mechanical sweep silently broke behaviour | T3 still runs Code Review (diff-only) + Final Gate verify (smoke). Skipped phases are Plan/Plan-Validation/QA/Accept — not behaviour validation |
+| Trivial-code edit hides a security change → Phase-2 keyword/path override upshifts to T4+ | Phase-2 safety override ALWAYS wins: any `auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature` keyword or security-sensitive path in the change-target context forces T4+ even when all five T3H conditions would otherwise fire. The escape-rate telemetry (`tier_emitted:T3H` in deploy_outcome companion) surfaces any residual misclassification post-deploy. |
 | Plan got skipped for work that needed it | T4-T6 plan unchanged. T3 inherits plan from the user prompt (which IS the plan for a sweep). T1/T2 require no plan because the change is the spec |
 | Fingerprint hides real complexity | Plan-phase re-fingerprint catches scope creep; upshifts mid-pipeline |
 

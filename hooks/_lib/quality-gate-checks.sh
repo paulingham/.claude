@@ -196,7 +196,7 @@ _qg_extract_intake_tier() {
   # to line-start so `tier_initial:` cannot match.
   local intake="$1"
   [[ -f "$intake" ]] || return 0
-  sed -n -E 's/^[[:space:]]*tier_emitted:[[:space:]]*"?(T[0-6])"?[[:space:]]*$/\1/p; s/^[[:space:]]*tier:[[:space:]]*"?(T[0-6])"?[[:space:]]*$/\1/p' \
+  sed -n -E 's/^[[:space:]]*tier_emitted:[[:space:]]*"?(T[0-6]|T3H)"?[[:space:]]*$/\1/p; s/^[[:space:]]*tier:[[:space:]]*"?(T[0-6]|T3H)"?[[:space:]]*$/\1/p' \
     "$intake" | head -n 1
 }
 

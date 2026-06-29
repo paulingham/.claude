@@ -18,7 +18,7 @@ from pipeline_entry_guard import decide
 from pipeline_state_paths import find_pipeline_files
 
 _INTAKE_TIER_RE = re.compile(
-    r'^\s*(?:tier_emitted|tier):\s*"?(T[0-6])"?\s*$',
+    r'^\s*(?:tier_emitted|tier):\s*"?(T[0-6]|T3H)"?\s*$',
     re.MULTILINE,
 )
 _PATH_COMPONENT_RE = re.compile(r"[^A-Za-z0-9_-]")

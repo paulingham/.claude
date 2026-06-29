@@ -47,8 +47,8 @@ setup() {
     | grep -qF 'protocols/work-class-routing.md'
 }
 
-@test "ROUTED row carries the tier T0..T6 payload addendum" {
-  grep -E '^\| `ROUTED`' "$TARGET" | grep -qE 'tier: T0\.\.T6'
+@test "ROUTED row carries the tier T0..T6, T3H payload addendum" {
+  grep -E '^\| `ROUTED`' "$TARGET" | grep -qE 'tier: T0\.\.T6, T3H'
 }
 
 @test "Notes section contains a bullet documenting the tier field on ROUTED" {

@@ -295,3 +295,30 @@ def test_intake_tier_path_traversal_blocked(monkeypatch, tmp_path):
     # Traversal attempt — must return "" not raise
     result = _intake_tier("../../etc/passwd")
     assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# A1: entry guard admits T3H tier as continue (allow)
+# ---------------------------------------------------------------------------
+
+def test_entry_guard_admits_T3H_as_continue(monkeypatch, tmp_path):
+    """CLI _INTAKE_TIER_RE parses tier_emitted: T3H; decide() → allow.
+
+    WHY: pins pipeline_entry_guard_cli.py:21 alternation (T[0-6]|T3H).
+    decide() grants allow for any non-empty intake_tier — no change needed
+    to pipeline_entry_guard.py; only the regex at :21 must widen.
+    """
+    from pipeline_entry_guard_cli import _parse_tier, _INTAKE_TIER_RE  # noqa: F401
+    import re
+
+    # Verify the regex at :21 captures T3H
+    pattern = _INTAKE_TIER_RE
+    intake_text = "tier_emitted: T3H\n"
+    m = pattern.search(intake_text)
+    assert m is not None, "_INTAKE_TIER_RE did not match 'tier_emitted: T3H'"
+    assert m.group(1) == "T3H"
+
+    # Verify decide() allows when intake_tier is "T3H"
+    result = decide(_ctx(role="software-engineer", intake_tier="T3H"))
+    assert result["action"] == "allow"
+    assert result["signal"] == "intake_tier"

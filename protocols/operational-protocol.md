@@ -36,6 +36,7 @@ Task class is orthogonal to the Complexity Budget. Tier (T0..T6) determines whic
 | **T1** | Doc-only | README/CLAUDE.md edits, protocol updates, comments | Orchestrator direct edit (Iron Law 3 exception) |
 | **T2** | Config-only | settings.json keys, agent frontmatter, hook entry syntax (NOT hook script bodies) | `/harness:harness-config` |
 | **T3** | Mechanical sweep | rename, find/replace, lint-fix, import-sort, dependency bump | `/harness:batch-pipeline` |
+| **T3H** | Trivial code change | ≤1 code file, ≤15 changed lines, no tests, no security keyword, internal-shape-only | `/harness:pipeline` (trimmed: Build + diff-only code-review + Ship) |
 | **T4** | Bug fix | Failing test + targeted fix | `/harness:pipeline` (lightweight) |
 | **T5** | Standard feature | New AC, single-slice, isolated module | `/harness:pipeline` (standard) |
 | **T6** | Critical / cross-cutting | Auth, payment, security, multi-repo, system-wide | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |
