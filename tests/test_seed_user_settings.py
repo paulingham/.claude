@@ -179,6 +179,79 @@ class TestMergeNeverClobber(unittest.TestCase):
         for key in TOGGLE_KEYS:
             self.assertIn(key, result["env"])
 
+    def test_partial_merge_adds_doc_siblings(self):
+        """Partial merge must write _doc_ siblings alongside each added toggle.
+
+        test_only_missing_keys_added asserts toggle keys appear but NOT their
+        _doc_ siblings. This test independently exercises _insert_doc so that
+        a broken doc-path goes RED here even if the key-path stays GREEN.
+        """
+        data = {"env": {"CLAUDE_ENABLE_TRACE": "1"}}
+        self.path.write_text(json.dumps(data))
+        _run_seed(self.path)
+        result = json.loads(self.path.read_text())
+        env = result["env"]
+        for key in TOGGLE_KEYS:
+            doc_key = f"_doc_{key}"
+            self.assertIn(doc_key, env,
+                          f"{doc_key!r} missing after partial-merge; "
+                          "_insert_doc must add _doc_ siblings in the merge path")
+
+    def test_orphaned_doc_sibling_restored(self):
+        """Toggle present but its _doc_ deleted → seed must restore the _doc_.
+
+        _insert_doc skips only when doc_key is already in env. When a user
+        deletes a _doc_ sibling while keeping the toggle value, the next
+        seed run must restore it without touching the toggle value.
+        """
+        pivot_key = "CLAUDE_PIPELINE_MODE"
+        doc_key = f"_doc_{pivot_key}"
+        data = {"env": {pivot_key: "interactive"}}
+        self.path.write_text(json.dumps(data))
+        _run_seed(self.path)
+        result = json.loads(self.path.read_text())
+        env = result["env"]
+        self.assertEqual(env[pivot_key], "interactive",
+                         "pre-existing toggle value must not be overwritten")
+        self.assertIn(doc_key, env,
+                      f"{doc_key!r} must be restored when toggle exists but _doc_ was absent")
+
+
+class TestToggleCount(unittest.TestCase):
+    """Exact-count guard: TOGGLE_ALLOWLIST must have exactly 10 entries.
+
+    Prevents both accidental addition (11th toggle sneaks in) and
+    accidental deletion (one drops silently). The SSOT drift test catches
+    set-membership drift; this catches cardinality drift.
+    """
+
+    def test_toggle_allowlist_has_exactly_10_entries(self):
+        """Implementation TOGGLE_ALLOWLIST must have exactly 10 keys."""
+        sys.modules.pop("seed_user_settings", None)
+        lib_path = str(REPO_ROOT / "hooks" / "_lib")
+        added = lib_path not in sys.path
+        if added:
+            sys.path.insert(0, lib_path)
+        try:
+            import seed_user_settings as mod
+            self.assertEqual(
+                len(mod.TOGGLE_ALLOWLIST), 10,
+                f"TOGGLE_ALLOWLIST must have exactly 10 entries; "
+                f"got {len(mod.TOGGLE_ALLOWLIST)}: {list(mod.TOGGLE_ALLOWLIST)}",
+            )
+        finally:
+            if added:
+                sys.path.remove(lib_path)
+            sys.modules.pop("seed_user_settings", None)
+
+    def test_test_toggle_keys_has_exactly_10_entries(self):
+        """Test-file TOGGLE_KEYS must stay in sync with the implementation count."""
+        self.assertEqual(
+            len(TOGGLE_KEYS), 10,
+            f"TOGGLE_KEYS in the test file must have exactly 10 entries; "
+            f"got {len(TOGGLE_KEYS)}: {TOGGLE_KEYS}",
+        )
+
 
 class TestIdempotent(unittest.TestCase):
     """AC3: second run produces no write when file is already fully seeded."""
