@@ -47,8 +47,9 @@ else
   fail "A2 plugin delivery keys missing or malformed"
 fi
 
-# A3 — env has exactly the 9 required keys, no CLAUDE_PIPELINE_TASK_ID, no _doc_*,
-#      and CLAUDE_PIPELINE_MODE must NOT be pinned in managed (it moved to user layer)
+# A3 — env has exactly the 8 required keys, no CLAUDE_PIPELINE_TASK_ID, no _doc_*,
+#      CLAUDE_PIPELINE_MODE must NOT be pinned (moved to user layer),
+#      and CLAUDE_ENABLE_TRACE must NOT be pinned (moved to user layer — debug convenience)
 echo "A3: env keys"
 if python3 - "$FILE" <<'PYEOF'
 import json, sys
@@ -59,7 +60,6 @@ required = {
     "CLAUDE_HOOK_PROFILE",
     "ENABLE_TOOL_SEARCH",
     "CLAUDE_CODE_SUBAGENT_MODEL",
-    "CLAUDE_ENABLE_TRACE",
     "CLAUDE_SUBAGENT_MAX_DEPTH",
     "CLAUDE_SUBAGENT_MAX_RUNTIME",
     "CLAUDE_TEAMMATE_MAX_RUNTIME",
@@ -69,11 +69,12 @@ missing = required - set(env.keys())
 assert not missing, f"env missing keys: {missing}"
 assert "CLAUDE_PIPELINE_TASK_ID" not in env, "env must NOT contain CLAUDE_PIPELINE_TASK_ID"
 assert "CLAUDE_PIPELINE_MODE" not in env, "managed env must NOT pin CLAUDE_PIPELINE_MODE"
+assert "CLAUDE_ENABLE_TRACE" not in env, "managed env must NOT pin CLAUDE_ENABLE_TRACE (user-layer toggle)"
 doc_keys = [k for k in env if k.startswith("_doc_")]
 assert not doc_keys, f"env must NOT contain _doc_* keys: {doc_keys}"
 PYEOF
 then
-  pass "A3 env has 9 required keys, no CLAUDE_PIPELINE_TASK_ID, no _doc_*, CLAUDE_PIPELINE_MODE absent"
+  pass "A3 env has 8 required keys, no CLAUDE_PIPELINE_TASK_ID, no _doc_*, CLAUDE_PIPELINE_MODE absent, CLAUDE_ENABLE_TRACE absent"
 else
   fail "A3 env keys check failed"
 fi

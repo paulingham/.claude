@@ -31,9 +31,14 @@ NINE_TOGGLES = [
 ]
 
 IRON_LAW_GATES = [
+    # Correctness-gate break-glass set — must NEVER be developer-documented.
+    # Expand here when new undocumented escapes are added; keep both surfaces covered
+    # (user settings env AND README Configuration section).
     "CLAUDE_DISABLE_QUALITY_GATE",
     "CLAUDE_DISABLE_TOOL_ALLOWLIST",
     "CLAUDE_INTAKE_BACKSTOP",
+    "CLAUDE_DISABLE_FRESHNESS_GUARD",
+    "CLAUDE_DISABLE_RUNTIME_STATE_GUARD",
 ]
 
 
@@ -62,6 +67,20 @@ def test_pipeline_mode_absent_from_managed_settings():
     assert "CLAUDE_PIPELINE_MODE" not in env, (
         "CLAUDE_PIPELINE_MODE must NOT appear in managed-settings.json env "
         "(it moved to the user layer to be developer-configurable)"
+    )
+
+
+def test_enable_trace_absent_from_managed_settings():
+    """AC-b mirror: CLAUDE_ENABLE_TRACE is absent from managed-settings.json env.
+
+    Trace is a debug convenience, not a safety gate. Pinning it in managed silently
+    overrides any user-layer setting (managed > user precedence). It must stay in the
+    user layer only so developers can actually configure it.
+    """
+    env = _load_managed_env()
+    assert "CLAUDE_ENABLE_TRACE" not in env, (
+        "CLAUDE_ENABLE_TRACE must NOT appear in managed-settings.json env "
+        "(it moved to the user layer — managed pin silently overrides user setting)"
     )
 
 
@@ -129,7 +148,7 @@ def test_readme_configuration_section_present():
 
 def test_readme_configuration_always_on_statement():
     """AC-f (part 2): README Configuration section contains always-on statement
-    (phrases 'always-on' AND ('not configurable' or ('no' and 'off-switch')))."""
+    (phrases 'always-on' AND ('not configurable' or 'no workflow off-switch'))."""
     content = README.read_text()
     config_idx = content.find("## Configuration")
     assert config_idx >= 0, "## Configuration section not found in README"
@@ -137,13 +156,13 @@ def test_readme_configuration_always_on_statement():
     section = content[config_idx:next_h2] if next_h2 >= 0 else content[config_idx:]
     has_always_on = "always-on" in section
     has_not_configurable = "not configurable" in section
-    has_no_off_switch = ("no" in section and "off-switch" in section)
+    has_no_off_switch = "no workflow off-switch" in section
     assert has_always_on, (
         "README Configuration section must contain 'always-on'"
     )
     assert has_not_configurable or has_no_off_switch, (
         "README Configuration section must state the flow is not configurable "
-        "(contain 'not configurable' or 'no'+'off-switch')"
+        "(contain 'not configurable' or 'no workflow off-switch')"
     )
 
 
