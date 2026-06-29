@@ -64,6 +64,72 @@ extract_tier() {
 
 # --- A3: Python regex uses alternation, not H? --------------------------------
 
+# --- E2: alternation accepts exactly 8 valid tokens, rejects H?-style tokens ---
+
+@test "test_alternation_accepts_only_eight_valid_tokens" {
+  # WHY: anti-H? guard — proves BOTH extractors accept {T0..T6,T3H} and reject
+  # T0H/T6H/T3.5/T7/garbage. Any regression to (T[0-6]H?) widens acceptance
+  # to T0H..T6H (except T3H already valid — but T0H/T2H/T4H/T5H/T6H would all
+  # sneak through). This test catches that regression.
+
+  # 1. Shell extractor — _qg_extract_intake_tier
+  local valid_tiers="T0 T1 T2 T3 T3H T4 T5 T6"
+  for tier in $valid_tiers; do
+    write_intake "e2-valid-$tier" "tier_emitted: $tier"
+    result=$(extract_tier "$TMP_DIR/pipeline-state/e2-valid-$tier/intake.md")
+    [ "$result" = "$tier" ] || { echo "FAIL: shell extractor rejected valid tier $tier"; return 1; }
+  done
+
+  local invalid_tiers="T0H T6H T3.5 T7 RUBBISH T3h t3h"
+  for tier in $invalid_tiers; do
+    write_intake "e2-invalid-$tier" "tier_emitted: $tier"
+    result=$(extract_tier "$TMP_DIR/pipeline-state/e2-invalid-$tier/intake.md")
+    [ -z "$result" ] || { echo "FAIL: shell extractor accepted invalid tier $tier -> $result"; return 1; }
+  done
+
+  # 2. Python regex — pipeline_entry_guard_cli.py _INTAKE_TIER_RE
+  local py_script="$TMP_DIR/check_eight_tokens.py"
+  cat > "$py_script" <<'PYEOF'
+import sys, re, ast
+
+cli_path = sys.argv[1]
+src = open(cli_path).read()
+tree = ast.parse(src)
+pattern_str = None
+for node in ast.walk(tree):
+    if isinstance(node, ast.Assign):
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == "_INTAKE_TIER_RE":
+                call = node.value
+                if isinstance(call, ast.Call) and call.args:
+                    arg = call.args[0]
+                    if isinstance(arg, ast.Constant):
+                        pattern_str = arg.value
+
+if pattern_str is None:
+    print("ERROR: could not extract _INTAKE_TIER_RE"); sys.exit(1)
+
+r = re.compile(pattern_str, re.MULTILINE)
+
+valid = ["T0", "T1", "T2", "T3", "T3H", "T4", "T5", "T6"]
+for tok in valid:
+    m = r.search(f"tier_emitted: {tok}")
+    if not m or m.group(1) != tok:
+        print(f"FAIL: valid token {tok!r} not accepted"); sys.exit(1)
+
+invalid = ["T0H", "T6H", "T3.5", "T7", "RUBBISH", "T3h", "t3h"]
+for tok in invalid:
+    m = r.search(f"tier_emitted: {tok}")
+    if m:
+        print(f"FAIL: invalid token {tok!r} accepted as {m.group(1)!r}"); sys.exit(1)
+
+print("OK")
+PYEOF
+  run python3 "$py_script" "$GUARD_CLI"
+  [ "$status" -eq 0 ]
+  [[ "$output" == "OK" ]]
+}
+
 @test "test_entry_guard_cli_rejects_T0H_through_T6H" {
   # WHY: validates pipeline_entry_guard_cli.py:21 uses (T[0-6]|T3H) not (T[0-6]H?)
   # Write python script to temp file so bats `run` can capture exit status cleanly.

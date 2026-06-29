@@ -3,6 +3,7 @@
 # Feeds a synthetic intake state file → fires the hook → asserts the JSONL line
 # lands with shape-conformant content (all 13 keys, valid enums).
 # Resolves MEDIUM-5 by exercising the intake → hook → JSONL contract end-to-end.
+# Slice E — E1: enum at :76 widens to include T3H.
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
@@ -73,7 +74,9 @@ required = ["timestamp", "task_id", "tier_emitted", "tier_initial",
 missing = [k for k in required if k not in rec]
 assert not missing, "missing keys: " + repr(missing)
 assert rec["task_id"] == "integration-test", "task_id mismatch: " + repr(rec["task_id"])
-assert rec["tier_emitted"] in {"T0","T1","T2","T3","T4","T5","T6","<unknown>"}
+# E1: T3H added to the valid-tier enum (pins slice-e AC1).
+# WHY: a T3H tier_emitted value would have failed here before this edit.
+assert rec["tier_emitted"] in {"T0","T1","T2","T3","T3H","T4","T5","T6","<unknown>"}
 assert rec["detector_phase"] in {"rules","fallthrough","<unknown>"}
 sys.exit(0)
 PY

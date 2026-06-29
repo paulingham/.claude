@@ -36,3 +36,21 @@ setup() {
 @test "test_when_in_doubt_rounds_up" {
   grep -qE 'When in doubt.*round.*UP|when in doubt.*round.*up' "$ROUTING"
 }
+
+# E5 — verdict-catalog.md prose says T3H proceeds (continues), not exits
+@test "test_verdict_catalog_prose_says_T3H_continues" {
+  # WHY: pins E-3 prose — the Notes section bullet at ~:185 must confirm T3H
+  # continues through the pipeline (trimmed lane), distinguishing it from
+  # T0-T3 which EXIT. Ensures catalog and routing spec agree on T3H disposition.
+  CATALOG="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)/protocols/verdict-catalog.md"
+
+  # Assert: a Notes bullet must say T3H proceeds or continues
+  grep -qE 'T3H.*(proceed|continue)|(proceed|continue).*T3H' "$CATALOG"
+
+  # Assert: T3H is NOT the subject of an "exit" verb
+  # (i.e. "T3H exit" or "T3H and ... exit" must not appear)
+  # WHY: the pattern "T3H.*exit" would match prose like "T3H exits the pipeline"
+  # which contradicts the routing spec. The existing "T0-T3 exit ... T3H proceed"
+  # prose has T3H AFTER the exit clause (not as its subject), so this check is safe.
+  ! grep -qE 'T3H[^;.]*exit' "$CATALOG"
+}
