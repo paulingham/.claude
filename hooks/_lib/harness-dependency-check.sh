@@ -50,9 +50,10 @@ _hdc_soft_check() {
   HDC_SOFT_MISSING="${HDC_SOFT_MISSING:+$HDC_SOFT_MISSING }$cmd"
 }
 
-# _hdc_feature_probe — advisory feature-tool detection. Sets two NEW vars:
+# _hdc_feature_probe — advisory feature-tool detection. Sets three vars:
 #   HDC_FEATURE_PRESENT — space-separated names of tools found
 #   HDC_FEATURE_MISSING — space-separated names of tools absent
+#   HDC_FEATURE_MARKS   — ordered "tool+" / "tool-" marks in canonical order (for display)
 # Feature absence is ADVISORY: never touches HDC_MISSING, never affects _hdc_probe's return.
 # Detection via `command -v` ONLY (no python, no jq, no sourcing anything).
 # WHY: parry-guard and hcom have no gate var (CLAUDE_REQUIRE_PARRY / CLAUDE_REQUIRE_HCOM
@@ -60,12 +61,15 @@ _hdc_soft_check() {
 _hdc_feature_probe() {
   HDC_FEATURE_PRESENT=""
   HDC_FEATURE_MISSING=""
+  HDC_FEATURE_MARKS=""
   local tool
   for tool in rtk gh hcom dippy parry-guard typescript-language-server pyright; do
     if command -v "$tool" > /dev/null 2>&1; then
       HDC_FEATURE_PRESENT="${HDC_FEATURE_PRESENT:+$HDC_FEATURE_PRESENT }$tool"
+      HDC_FEATURE_MARKS="${HDC_FEATURE_MARKS:+$HDC_FEATURE_MARKS }${tool}+"
     else
       HDC_FEATURE_MISSING="${HDC_FEATURE_MISSING:+$HDC_FEATURE_MISSING }$tool"
+      HDC_FEATURE_MARKS="${HDC_FEATURE_MARKS:+$HDC_FEATURE_MARKS }${tool}-"
     fi
   done
 }

@@ -70,26 +70,19 @@ _ssdc_format_soft_line() {
 }
 
 _ssdc_format_feature_line() {
-  local parts="" tool mark
-  for tool in rtk gh hcom dippy parry-guard typescript-language-server pyright; do
-    if command -v "$tool" > /dev/null 2>&1; then
-      mark="${tool}+"
-    else
-      mark="${tool}-"
-    fi
-    parts="${parts:+$parts }$mark"
-  done
-  printf 'feature: %s' "$parts"
+  # WHY: HDC_FEATURE_MARKS is set by _hdc_feature_probe (called by _ssdc_print_verbose_report
+  # before this function). Consuming it here keeps the 7-tool list in exactly one place.
+  printf 'feature: %s' "${HDC_FEATURE_MARKS:-}"
 }
 
 _ssdc_maybe_print_gates_line() {
   # WHY: emit gates: line ONLY when rtk or dippy is missing — keeps output <=4 lines.
   # Only rtk and dippy have real gate vars. CLAUDE_REQUIRE_PARRY and CLAUDE_REQUIRE_HCOM
   # do NOT exist — never print them.
-  local rtk_missing=0 dippy_missing=0 gate_vars=""
-  command -v rtk   > /dev/null 2>&1 || rtk_missing=1
-  command -v dippy > /dev/null 2>&1 || dippy_missing=1
-  [ "$rtk_missing"   -eq 1 ] && gate_vars="${gate_vars:+$gate_vars }CLAUDE_REQUIRE_RTK"
-  [ "$dippy_missing" -eq 1 ] && gate_vars="${gate_vars:+$gate_vars }CLAUDE_REQUIRE_DIPPY"
+  # WHY: derive presence from HDC_FEATURE_MISSING (set by _hdc_feature_probe, already called)
+  # rather than a third independent command -v — single detection source.
+  local _missing=" ${HDC_FEATURE_MISSING:-} " gate_vars=""
+  [[ "$_missing" == *" rtk "*   ]] && gate_vars="${gate_vars:+$gate_vars }CLAUDE_REQUIRE_RTK"
+  [[ "$_missing" == *" dippy "* ]] && gate_vars="${gate_vars:+$gate_vars }CLAUDE_REQUIRE_DIPPY"
   [ -n "$gate_vars" ] && printf '[harness-deps] gates: %s (set =1 to force install)\n' "$gate_vars" >&2 || true
 }

@@ -648,13 +648,13 @@ GATE_SCRIPT
   fi
 }
 
-@test "AC4-orthogonal-leakage: HDC_FEATURE_PRESENT/HDC_FEATURE_MISSING appear ONLY in _hdc_feature_probe body" {
+@test "AC4-orthogonal-leakage: HDC_FEATURE_PRESENT/HDC_FEATURE_MISSING/HDC_FEATURE_MARKS appear ONLY in _hdc_feature_probe body" {
   # WHY: proves no global-scope leakage into _hdc_probe, _hdc_require, _hdc_probe_python, _hdc_soft_check
   # This is NOT a dup of AC1.8 (which greps source purity) — this greps function bodies for leakage.
   for fn in _hdc_probe _hdc_require _hdc_probe_python _hdc_soft_check; do
     local fn_text; fn_text="$(bash -c ". '$PROBE_LIB'; declare -f $fn 2>/dev/null")"
-    if echo "$fn_text" | grep -qE 'HDC_FEATURE_PRESENT|HDC_FEATURE_MISSING'; then
-      echo "FAIL: $fn contains HDC_FEATURE_PRESENT or HDC_FEATURE_MISSING — orthogonal leakage"
+    if echo "$fn_text" | grep -qE 'HDC_FEATURE_PRESENT|HDC_FEATURE_MISSING|HDC_FEATURE_MARKS'; then
+      echo "FAIL: $fn contains HDC_FEATURE_PRESENT, HDC_FEATURE_MISSING, or HDC_FEATURE_MARKS — orthogonal leakage"
       return 1
     fi
   done

@@ -54,7 +54,7 @@ teardown() {
   unset CLAUDE_HOOK_PROFILE CLAUDE_SESSION_ID HOME
   unset CLAUDE_VERBOSE_DEPS
   unset HDC_MISSING HDC_SOFT_MISSING HDC_PYTHON
-  unset HDC_FEATURE_PRESENT HDC_FEATURE_MISSING
+  unset HDC_FEATURE_PRESENT HDC_FEATURE_MISSING HDC_FEATURE_MARKS
 }
 
 # Helper: build a fake PATH directory with all required commands EXCEPT remove_cmd.
@@ -293,6 +293,32 @@ SCRIPT
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "gates:"
   echo "$output" | grep "gates:" | grep -q "CLAUDE_REQUIRE_RTK"
+}
+
+@test "M1-dippy-missing-alone: dippy missing + rtk present -> gates: line names CLAUDE_REQUIRE_DIPPY only" {
+  # WHY: M1 missing limb — mirrors AC2-gates-conditional-rtk-missing for dippy.
+  # RED-ON-REVERT: if dippy detection is removed from _ssdc_maybe_print_gates_line, this fails.
+  local bin_with_rtk_no_dippy; bin_with_rtk_no_dippy="$(_path_without dippy)"
+  # Add rtk stub so only dippy is missing
+  ln -sf "$TRUE_BIN" "$bin_with_rtk_no_dippy/rtk"
+  local script; script="$(mktemp /tmp/ssdc_gates_dippy_missing.XXXXXX.sh)"
+  cat > "$script" <<SCRIPT
+#!/usr/bin/env bash
+. "$PROBE_LIB"
+. "$WARNER_LIB"
+CLAUDE_VERBOSE_DEPS=1 _ssdc_check_deps
+SCRIPT
+  chmod +x "$script"
+  run env PATH="$bin_with_rtk_no_dippy" CLAUDE_VERBOSE_DEPS=1 bash "$script" 2>&1
+  rm -f "$script"; rm -rf "$bin_with_rtk_no_dippy"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "gates:"
+  echo "$output" | grep "gates:" | grep -q "CLAUDE_REQUIRE_DIPPY"
+  # Must NOT name CLAUDE_REQUIRE_RTK since rtk is present
+  if echo "$output" | grep "gates:" | grep -q "CLAUDE_REQUIRE_RTK"; then
+    echo "FAIL: gates: line named CLAUDE_REQUIRE_RTK but rtk was present"
+    return 1
+  fi
 }
 
 @test "AC2-python-alias-display: when only 'python' resolves, hard line shows python+(python)" {
