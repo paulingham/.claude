@@ -19,7 +19,8 @@ def _child_env(tf_path: Path) -> dict:
 
 def _run_bootstrap_suite(env: dict) -> None:
     subprocess.run(
-        [sys.executable, "-m", "unittest", "tests.test_bootstrap"],
+        [sys.executable, "-m", "unittest", "tests.test_bootstrap",
+         "tests.test_seed_user_settings"],
         env=env, cwd=str(REPO_ROOT), check=True, timeout=60)
 
 

@@ -817,6 +817,19 @@
             "timeout": 10000
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [
+              "-lc",
+              "h=\"${CLAUDE_PLUGIN_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/seed-user-settings.sh\"; [ -x \"$h\" ] && exec \"$h\" || exit 0"
+            ],
+            "timeout": 10000
+          }
+        ]
       }
     ],
     "Stop": [
