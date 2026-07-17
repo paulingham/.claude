@@ -3,7 +3,8 @@ language (blocks/prevents/rejects/enforces/exit 2) without an adjacent
 advisory qualifier in the same sentence.
 
 Watch-list (exactly 5 advisory controls) and their first-mention docs:
-  - verification-freshness-guard -> rules/core.md
+  - verification-freshness-guard -> rules/safety.md (Iron Law 2 moved here in
+    the Phase B gear-tier split; rules/core.md is now a thin @-include index)
   - pre-agent-thinking           -> CLAUDE.md, protocols/thinking-defaults.md
   - pre-agent-advisor            -> CLAUDE.md (token: "Opus-advisor pairing"),
                                     protocols/advisor-mode.md
@@ -146,7 +147,7 @@ def _enclosing_sentence(text: str, start: int) -> str:
 
 _WATCH_LIST = {
     "verification-freshness-guard": [
-        ("verification-freshness-guard", "rules/core.md"),
+        ("verification-freshness-guard", "rules/safety.md"),
     ],
     "pre-agent-thinking": [
         ("pre-agent-thinking", "CLAUDE.md"),
@@ -314,7 +315,9 @@ class LabelPresenceProtocols(unittest.TestCase):
         "protocols/advisor-mode.md",
         "protocols/autonomous-intelligence.md",
         "protocols/cost-discipline.md",
-        "rules/core.md",
+        # Iron Law 2 (verification-freshness-guard) carries the label; it
+        # lives in rules/safety.md after the Phase B gear-tier split.
+        "rules/safety.md",
     ]
 
     def test_protocols_advisory_controls_labelled(self):
@@ -337,23 +340,29 @@ class LabelPresenceProtocols(unittest.TestCase):
 
 
 class IronLawTags(unittest.TestCase):
-    """AC3: rules/core.md Iron Laws must carry [ENFORCED] or [ASPIRATIONAL]
-    tags per the following mapping:
-      1 -> [ASPIRATIONAL]
-      2 -> [ASPIRATIONAL]
-      3 -> [ENFORCED]
-      4 -> [ENFORCED]
-      5 -> [ASPIRATIONAL]
-      6 -> [ASPIRATIONAL]
-      7 -> [ASPIRATIONAL]
+    """AC3: the Iron Laws (now split across rules/safety.md and
+    rules/pipeline-rigour.md per the Phase B gear-tier split) must carry
+    [ENFORCED] or [ASPIRATIONAL] tags per the following mapping:
+      1 -> [ASPIRATIONAL]  (pipeline-rigour.md)
+      2 -> [ASPIRATIONAL]  (safety.md)
+      3 -> [ENFORCED]      (safety.md)
+      4 -> [ENFORCED]      (safety.md)
+      5 -> [ASPIRATIONAL]  (pipeline-rigour.md)
+      6 -> [ASPIRATIONAL]  (safety.md)
+      7 -> [ASPIRATIONAL]  (pipeline-rigour.md)
+      8 -> [ASPIRATIONAL]  (safety.md)
 
     Each tag is asserted via a multiline regex of the form
     '^N. [TAG]' to be strict enough to catch a flipped tag while
-    lenient enough to survive markdown formatting.
+    lenient enough to survive markdown formatting. The body checked is the
+    concatenation of both law-tier files, since the split is non-contiguous
+    by design (see rules/core.md's index note).
     """
 
     def _body(self) -> str:
-        return (REPO_ROOT / "rules" / "core.md").read_text(encoding="utf-8")
+        safety = (REPO_ROOT / "rules" / "safety.md").read_text(encoding="utf-8")
+        rigour = (REPO_ROOT / "rules" / "pipeline-rigour.md").read_text(encoding="utf-8")
+        return safety + "\n" + rigour
 
     def test_iron_laws_enforced_aspirational_tags(self):
         body = self._body()
@@ -378,8 +387,8 @@ class IronLawTags(unittest.TestCase):
         self.assertEqual(
             failures,
             [],
-            "Iron Law tag mismatches in rules/core.md:\n"
-            + "\n".join(failures),
+            "Iron Law tag mismatches across rules/safety.md + "
+            "rules/pipeline-rigour.md:\n" + "\n".join(failures),
         )
 
 

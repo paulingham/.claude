@@ -2,50 +2,10 @@
 
 Always-loaded by every agent on every spawn. The smallest set of facts every spawn needs to operate correctly. Detailed protocols live in `protocols/<topic>.md` and are pulled in by skills/agents only when the phase needs them.
 
-## Iron Laws
+This file is a thin index over the two law-tier files below. Iron Laws are globally numbered 1-8 across both files — `rules/safety.md` carries the non-contiguous universal subset (2, 3, 4, 6, 8) enforced in every gear, and `rules/pipeline-rigour.md` carries the non-contiguous Build/Pipeline-only subset (1, 5, 7).
 
-These are absolutes. No exceptions. No "just this once."
-
-1. [ASPIRATIONAL] **NO ACCEPTANCE CRITERION SHIPS WITHOUT (a) a failing-then-passing test for that AC in the diff and (b) mutation score ≥ 70% on changed lines.** (Full ATDD cycle: `protocols/atdd-procedure.md`.)
-2. [ASPIRATIONAL] **NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.** Stale test output from earlier in the session is not evidence — re-run before claiming done. (Enforcement: `hooks/verification-freshness-guard.sh`, log-only at v2.1.141, blocks once `permissionDecision` ships on Agent matcher.) (ADVISORY — NOT ENFORCED — schema-gap)
-3. [ENFORCED] **THE ORCHESTRATOR NEVER WRITES SOURCE CODE.** The orchestrator coordinates agents; it does not Edit, Write, or shell-pipe into protected locations. A protected location is any path that is git-tracked OR a net-new file inside a git-tracked directory — this blocks creating brand-new `agents/*.md`, `hooks/*.sh`, `protocols/*.md` source on main, not only editing existing files. Allowlisted orchestrator-state (`.md` under `pipeline-state/`; `.token` files; `verification-evidence.json`; `learning/**/*.jsonl`; worktree paths) is exempt. Doc/state edits to tracked `.md` files must be delegated to a lightweight worktree subagent. (Detail: `protocols/agent-protocol.md`; enforcement: `hooks/_lib/is-protected-path.sh`.)
-4. [ENFORCED] **REPO_ROOT HEAD STAYS ON `main` FOR THE ENTIRE DURATION OF EVERY PIPELINE RUN.** All HEAD-mutating git commands run via worktree delegation (`git -C "$WORKTREE" …` or `(cd "$WORKTREE" && …)`). Bare `git checkout`, `git switch`, `git reset --hard`, `git merge`, `git rebase`, `gh pr create` are blocked by `hooks/main-branch-guard.sh`. (Allowed/forbidden surface: `protocols/agent-protocol.md` § Main-Branch Invariant.)
-5. [ASPIRATIONAL] **NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.** Every pipeline phase runs the corresponding skill; verdicts gate advancement. (Detail: `protocols/pipeline-protocol.md`.)
-6. [ASPIRATIONAL] **FINDINGS SURFACED DURING REVIEW ARE FIXED IN THIS PIPELINE.** Never filed as follow-ups. Never surfaced as questions to the user. The pipeline does not ship known-incomplete fixes. Escalate ONLY when the required fix is architecturally large (>~100 LOC, cross-service) or outside the current task's layer. (Detail: `protocols/pipeline-protocol.md` § In-Cycle Fix Rule.)
-7. [ASPIRATIONAL] **EVERY PIPELINE PRODUCES AN OBSERVATION.** No exceptions — successes and failures both. The continuous learning loop depends on data volume. (Format and pipeline: `protocols/reflection-protocol.md` § Capture Pipeline Observation, `protocols/autonomous-intelligence.md` § Observation Capture.)
-8. [ASPIRATIONAL] **A SECURITY OR CORRECTNESS GATE THAT CANNOT EVALUATE ITS CONDITION FAILS CLOSED.** A gate is any check whose verdict admits or stops work — a hook, a pipeline phase verdict, a guard clause on a protected operation (NOT ordinary control flow). When a gate hits an unevaluable input — empty input, missing file, unbound variable, tool error, or absent dependency — it must halt or refuse to proceed, never silently allow. Each gate ships two tests: (a) one that goes RED when the gate's fail-closed line is reverted (proving the test exercises the gate), and (b) one that feeds an unevaluable input and asserts the gate refuses. This is a per-gate design discipline, not one control — its surface is the gate's own tests. (Concrete fail-closed precedent: `hooks/_lib/is-protected-path.sh` and the three guard clauses in `protocols/agent-protocol.md` § Main-Branch Invariant at the `git branch -D` / empty-path / `python3`-absent branches.)
-
-## Code Shape Rules
-
-Every code-touching agent enforces continuously.
-
-- **Naming is the primary cohesion gate:** can't name a unit without "and" → split; can't give an extract an honest name → do NOT extract.
-- **Per-language hard block on new/changed code:** Ruby methods > 5 lines blocked (exit 2); TypeScript/JS functions > 12 lines blocked; Python/Go fallback cap retained. Legacy is advisory.
-- **One thing per function.** If you cannot name it without a conjunction ("X and Y"), split.
-- **Cyclomatic complexity ≤ 5.** Nesting ≤ 2 — guard clauses or extraction, not deeper if/else.
-- **DRY on 2nd occurrence.** Extract immediately when logic recurs.
-- **≤ 4 params** per function. More signals a missing abstraction.
-- **Single public entry point** per class (`.call`/`.run`/`.execute`).
-- **Entanglement escape valve:** if understanding unit A requires reading unit B, bring them together — this is HOW to fix a flagged function, not a bypass.
-- **Comments carry WHY only.** New/changed WHAT-comments in source are blocked (exit 2) by hook; doc-comments, license headers, and `# WHY:`/`# SAFETY:` prefixes are always allowed.
-- **Don't complect** (Hickey): one concern per unit; complected code defeats reasoning and breaks reliability.
-- **Classes/files:** one responsibility, no hard size number — size is a smell that triggers the naming check. Safety-net cap: `CLAUDE_FILE_LINE_LIMIT` (default 300). Per-glob overrides via `.claude/shape-overrides.json` still apply.
-
-Full standards (naming, SOLID, error handling, dependency resolution, security baseline, test mix): `protocols/engineering-invariants.md`.
-
-## Worktree + Commit Protocol
-
-- **Write-capable subagents** (software-engineer, frontend-engineer, qa-engineer, database-engineer, infrastructure-engineer): `isolation: "worktree"` — MANDATORY.
-- **Read-only subagents** (code-reviewer, security-engineer, product-reviewer, architect): no worktree.
-- **Team teammates** manage their own feature branches (e.g. `build/{task-id}-{slice}`) and commit before completing.
-- **Every agent commits** before completing — uncommitted work cannot be merged. WIP commits use `WIP:` prefix.
-- **No `git add -A` / `git add .`** — stage specific files to avoid sensitive-file leakage.
-
-Full protocol: `protocols/agent-protocol.md`.
-
-## Pipeline Phase Order
-
-`Plan → Plan Validation → Build (incl. code-review as final step) → Security Review → Final Gate (Verify + Test + Accept + Patch Critique) → Ship → Deploy → Reflect`. No phase skipped. Every phase has a corresponding skill. Code-review is no longer its own phase — it runs as the final step of Build (the value-add is "second model with different priors", not a separate phase boundary). Security review remains a separate phase (orthogonal concern). Reflect always runs (§ Iron Law 7). Build has three dispatch variants — standard, Best-of-N, and PDR-RTV — selected by `/harness:intake` flags with precedence `pdr_rtv > bestofn > standard`. Detail: `protocols/pipeline-protocol.md`.
+@rules/safety.md
+@rules/pipeline-rigour.md
 
 ## Where to Look Next
 

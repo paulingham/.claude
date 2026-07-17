@@ -1,5 +1,8 @@
-"""Slice 1: rules/core.md Iron Law 2 (line 10) gains an append-only parenthetical
-naming the new hook and the Path-B → Path-A flip target.
+"""Slice 1: Iron Law 2 gains an append-only parenthetical naming the new hook
+and the Path-B -> Path-A flip target.
+
+Law 2 lives in rules/safety.md after the Phase B gear-tier split
+(rules/core.md is now a thin @-include index).
 
 The base sentence MUST be preserved verbatim (append-only edit). The parenthetical
 must name:
@@ -11,7 +14,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CORE = REPO_ROOT / "rules" / "core.md"
+CORE = REPO_ROOT / "rules" / "safety.md"
 
 BASE_TEXT = (
     "**NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.** "

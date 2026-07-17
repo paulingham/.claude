@@ -1,8 +1,11 @@
-"""Regression: rules/ stub layer collapsed to core.md only; verdict-catalog in protocols/.
+"""Regression: rules/ stub layer collapsed to core.md (+ WS-B gear-tier split); verdict-catalog in protocols/.
 
-Asserts the structural invariants after WS-C:
+Asserts the structural invariants after WS-C, updated for the Phase B
+gear-aware rules split (rules/core.md becomes a thin index over
+rules/safety.md + rules/pipeline-rigour.md; see rules/core.md itself):
 1. protocols/verdict-catalog.md exists and rules/verdict-catalog.md does NOT.
-2. rules/ contains exactly {"core.md"} — none of the 12 stubs remain.
+2. rules/ contains exactly {"core.md", "safety.md", "pipeline-rigour.md"} —
+   none of the 12 pre-WS-C stubs remain, and no other file has crept in.
 3. The live harness-audit verdict resolver reads the catalog from its new location
    in protocols/ and resolves cleanly (exit code 0).
 """
@@ -35,16 +38,18 @@ def test_verdict_catalog_not_in_rules():
 
 
 # ---------------------------------------------------------------------------
-# 2. Collapse invariant: rules/ contains exactly core.md
+# 2. Collapse invariant: rules/ contains exactly the WS-C core.md plus the
+#    Phase B gear-tier split (safety.md + pipeline-rigour.md).
 # ---------------------------------------------------------------------------
 
 def test_rules_contains_only_core_md():
-    """rules/ must contain exactly one file: core.md."""
+    """rules/ must contain exactly core.md, safety.md, and pipeline-rigour.md."""
     rules_dir = REPO_ROOT / "rules"
     assert rules_dir.is_dir(), "rules/ directory missing"
     contents = set(os.listdir(rules_dir))
-    assert contents == {"core.md"}, (
-        f"rules/ must contain exactly {{core.md}}, found: {sorted(contents)}"
+    assert contents == {"core.md", "safety.md", "pipeline-rigour.md"}, (
+        f"rules/ must contain exactly {{core.md, safety.md, pipeline-rigour.md}}, "
+        f"found: {sorted(contents)}"
     )
 
 
