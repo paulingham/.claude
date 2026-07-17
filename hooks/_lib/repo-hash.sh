@@ -28,6 +28,6 @@ _repo_hash() {
 
 _plan_cache_key() {
   command -v jq >/dev/null 2>&1 || return 1
-  jq -cn --arg tc "$1" --arg rh "$2" --arg tr "$3" --arg cr "$4" \
-    '{critical:$cr, repo_hash:$rh, task_class:$tc, tier:$tr}' | _sha256_hash
+  jq -cn --arg tc "$1" --arg rh "$2" --arg gr "$3" --arg cr "$4" \
+    '{critical:$cr, repo_hash:$rh, task_class:$tc, gear:$gr}' | _sha256_hash
 }

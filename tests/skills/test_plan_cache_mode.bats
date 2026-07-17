@@ -49,11 +49,11 @@ teardown() {
   source "$LIB"
   local rh key dir
   rh=$(_repo_hash)
-  key=$(_plan_cache_key feature "$rh" T5 false)
+  key=$(_plan_cache_key feature "$rh" BUILD false)
   dir=$(_plan_cache_dir)
   mkdir -p "$dir"
   printf 'stub\n' >"$dir/$key.md"
-  run _plan_cache_lookup feature T5 false
+  run _plan_cache_lookup feature BUILD false
   [ "$status" -eq 0 ]
   [[ "$output" == *'"verdict":"PLAN_CACHE_MISS"'* ]]
   [[ "$output" == *'"reason":"shadow-mode"'* ]]
@@ -68,7 +68,7 @@ teardown() {
   source "$LIB"
   local rh key dir plan
   rh=$(_repo_hash)
-  key=$(_plan_cache_key feature "$rh" T5 false)
+  key=$(_plan_cache_key feature "$rh" BUILD false)
   dir=$(_plan_cache_dir)
   plan="pipeline-state/demo-task/plan.md"
   mkdir -p "$(dirname "$plan")"
@@ -81,12 +81,12 @@ task_id: demo-task
 ## Codebase Ground-Truth Citations
 ## Pre-Mortem
 EOF
-  run _plan_cache_write_template "$plan" "$key" feature T5 false "$rh" demo-task
+  run _plan_cache_write_template "$plan" "$key" feature BUILD false "$rh" demo-task
   [ "$status" -eq 0 ]
   [ -f "$dir/$key.md" ]
   grep -qE "^cache_key: $key$" "$dir/$key.md"
   grep -qE "^task_class: feature$" "$dir/$key.md"
-  grep -qE "^tier: T5$" "$dir/$key.md"
+  grep -qE "^gear: BUILD$" "$dir/$key.md"
   grep -qE "^critical: false$" "$dir/$key.md"
   grep -qE "^repo_hash: $rh$" "$dir/$key.md"
   grep -qE "^source_pipeline: demo-task$" "$dir/$key.md"
@@ -101,12 +101,12 @@ EOF
   # shellcheck source=/dev/null
   source "$LIB"
   local rh key dir plan
-  rh=$(_repo_hash); key=$(_plan_cache_key feature "$rh" T5 false); dir=$(_plan_cache_dir)
+  rh=$(_repo_hash); key=$(_plan_cache_key feature "$rh" BUILD false); dir=$(_plan_cache_dir)
   plan="pipeline-state/demo-task/plan.md"
   mkdir -p "$(dirname "$plan")"
   printf -- '---\n---\n## Slices\n## Alternatives Considered\n## Codebase Ground-Truth Citations\n## Pre-Mortem\n' >"$plan"
-  _plan_cache_write_template "$plan" "$key" feature T5 false "$rh" demo-task
-  _plan_cache_write_template "$plan" "$key" feature T5 false "$rh" demo-task
+  _plan_cache_write_template "$plan" "$key" feature BUILD false "$rh" demo-task
+  _plan_cache_write_template "$plan" "$key" feature BUILD false "$rh" demo-task
   local count
   count=$(grep -c "^cache_key: " "$dir/$key.md")
   [ "$count" -eq 1 ]
@@ -133,10 +133,10 @@ plain line 2" ]
   # shellcheck source=/dev/null
   source "$LIB"
   local rh key dir
-  rh=$(_repo_hash); key=$(_plan_cache_key feature "$rh" T5 false); dir=$(_plan_cache_dir)
+  rh=$(_repo_hash); key=$(_plan_cache_key feature "$rh" BUILD false); dir=$(_plan_cache_dir)
   mkdir -p "$dir"
   printf 'stub\n' >"$dir/$key.md"
-  run _plan_cache_lookup feature T5 false
+  run _plan_cache_lookup feature BUILD false
   [ "$status" -eq 0 ]
   [[ "$output" == *'"reason":"disabled"'* ]]
   # cache key in the disabled emit is empty — no lookup occurred.
@@ -149,7 +149,7 @@ plain line 2" ]
   # shellcheck source=/dev/null
   source "$LIB"
   local rh key dir tmpl plan
-  rh=$(_repo_hash); key=$(_plan_cache_key feature "$rh" T5 false); dir=$(_plan_cache_dir)
+  rh=$(_repo_hash); key=$(_plan_cache_key feature "$rh" BUILD false); dir=$(_plan_cache_dir)
   tmpl="$dir/$key.md"; plan="pipeline-state/demo-task/plan.md"
   mkdir -p "$(dirname "$plan")"
   printf -- '---\nlast_adapt_outcome: null\nlast_adapted_at: null\n---\n' >"$tmpl"

@@ -17,10 +17,6 @@ from log_allowlist_session import sanitize_session
 from pipeline_entry_guard import decide
 from pipeline_state_paths import find_pipeline_files
 
-_INTAKE_TIER_RE = re.compile(
-    r'^\s*(?:tier_emitted|tier):\s*"?(T[0-6]|T3H)"?\s*$',
-    re.MULTILINE,
-)
 _PATH_COMPONENT_RE = re.compile(r"[^A-Za-z0-9_-]")
 
 
@@ -32,6 +28,32 @@ def _sanitize_path_component(value: str) -> str:
 def _pipeline_state_dir() -> str:
     """3-step: HARNESS_DATA > harness_data() fallback, then /pipeline-state."""
     return str(Path(resolved_harness_data()) / "pipeline-state")
+
+
+def _state_dir() -> Path:
+    """CLAUDE_STATE_DIR override > HARNESS_DATA/state — mirrors state-dir.sh."""
+    override = os.environ.get("CLAUDE_STATE_DIR")
+    if override:
+        return Path(override)
+    return Path(resolved_harness_data()) / "state"
+
+
+def _read_state_file(path: Path, state_dir: Path) -> str:
+    """Read path; '' if unreadable or path escapes state_dir (ValueError guards traversal)."""
+    try:
+        path.resolve().relative_to(state_dir.resolve())
+        return path.read_text(encoding="utf-8").strip()
+    except (OSError, ValueError):
+        return ""
+
+
+def _gear_signal(sid: str) -> str:
+    """Read gear-${sid} state (gear-select.sh); '' on any failure — truthiness only."""
+    if not sid:
+        return ""
+    state_dir = _state_dir()
+    path = state_dir / f"gear-{_sanitize_path_component(sid)}"
+    return _read_state_file(path, state_dir)
 
 
 def _metrics_dir() -> Path:
@@ -60,41 +82,10 @@ def _has_active_pipeline() -> bool:
         return False
 
 
-def _intake_candidates(task_id_safe: str, ws_safe: str, state_dir: Path) -> list:
-    """Build ordered list of candidate intake.md paths."""
-    candidates = []
-    if ws_safe:
-        candidates.append(
-            state_dir / "workstreams" / ws_safe / task_id_safe / "intake.md"
-        )
-    candidates.append(state_dir / task_id_safe / "intake.md")
-    return candidates
-
-
-def _parse_tier(path: Path, state_dir: Path) -> str:
-    """Read path, return Tn tier string or '' if not found or path escapes state_dir."""
-    try:
-        resolved = path.resolve()
-        resolved.relative_to(state_dir.resolve())  # raises ValueError if outside
-        text = path.read_text(encoding="utf-8")
-        m = _INTAKE_TIER_RE.search(text)
-        return m.group(1) if m else ""
-    except (OSError, ValueError):
-        return ""
-
-
-def _intake_tier(task_id: str) -> str:
-    """Extract Tn tier from intake.md for task_id; return '' on any failure."""
-    if not task_id:
-        return ""
-    task_id_safe = _sanitize_path_component(task_id)
-    ws_safe = _sanitize_path_component(os.environ.get("CLAUDE_WORKSTREAM", ""))
-    state_dir = Path(_pipeline_state_dir())
-    for path in _intake_candidates(task_id_safe, ws_safe, state_dir):
-        tier = _parse_tier(path, state_dir)
-        if tier:
-            return tier
-    return ""
+def _resolve_sid(data: dict) -> str:
+    """Reliable-channel sid: stdin .session_id > $CLAUDE_SESSION_ID > '' (session-id.sh precedence)."""
+    sid = data.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "")
+    return _sanitize_path_component(sid) if sid else ""
 
 
 def _write_jsonl_record(path: Path, record: dict) -> None:
@@ -146,7 +137,7 @@ def main() -> None:
         "role": role,
         "task_id": task_id,
         "has_active_pipeline": _has_active_pipeline(),
-        "intake_tier": _intake_tier(task_id),
+        "gear": _gear_signal(_resolve_sid(data)),
         "disabled": disabled,
     }
     result = decide(ctx)

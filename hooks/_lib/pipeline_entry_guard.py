@@ -21,8 +21,8 @@ def _entry_signal(ctx: dict) -> str | None:
         return "task_id"
     if ctx.get("has_active_pipeline"):
         return "active_pipeline"
-    if ctx.get("intake_tier"):
-        return "intake_tier"
+    if ctx.get("gear"):
+        return "gear"
     return None
 
 
@@ -34,7 +34,7 @@ def decide(ctx: dict) -> dict:
     2. disabled        → bypass
     3. task_id         → allow(task_id)
     4. active_pipeline → allow(active_pipeline)
-    5. intake_tier     → allow(intake_tier)
+    5. gear            → allow(gear)
     6. else            → block
     """
     role = ctx.get("role", "")

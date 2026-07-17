@@ -12,7 +12,7 @@ setup() {
   git config user.email t@e.com
   git config user.name t
   mkdir -p src pipeline-state/demo-task learning/test-xyz/plans
-  printf 'task_id: demo-task\ntier: T5\ntask_class: feature\ncritical: false\n' \
+  printf 'task_id: demo-task\ngear: BUILD\ntask_class: feature\ncritical: false\n' \
     > pipeline-state/demo-task/intake.md
   printf 'doc\n' >CLAUDE.md
   printf 'src\n' >src/a.txt
@@ -35,7 +35,7 @@ teardown() {
   export CLAUDE_PLAN_CACHE_MODE=shadow
   # shellcheck source=/dev/null
   source "$LIB"
-  run _plan_cache_lookup feature T5 false
+  run _plan_cache_lookup feature BUILD false
   [ "$status" -eq 0 ]
   [[ "$output" == *'"verdict":"PLAN_CACHE_MISS"'* ]]
   [[ "$output" == *'"reason":"no-template"'* ]]
@@ -69,7 +69,7 @@ teardown() {
   export CLAUDE_PLAN_CACHE_MODE=off
   # shellcheck source=/dev/null
   source "$LIB"
-  run _plan_cache_lookup feature T5 false
+  run _plan_cache_lookup feature BUILD false
   [ "$status" -eq 0 ]
   [[ "$output" == *'"reason":"disabled"'* ]]
 }
@@ -83,11 +83,11 @@ teardown() {
   # Compute key the same way the helper does, then plant the file.
   local rh key dir
   rh=$(_repo_hash)
-  key=$(_plan_cache_key feature "$rh" T5 false)
+  key=$(_plan_cache_key feature "$rh" BUILD false)
   dir=$(_plan_cache_dir)
   mkdir -p "$dir"
   printf 'stub\n' >"$dir/$key.md"
-  run _plan_cache_lookup feature T5 false
+  run _plan_cache_lookup feature BUILD false
   [ "$status" -eq 0 ]
   [[ "$output" == *'"reason":"shadow-mode"'* ]]
 }
@@ -100,12 +100,12 @@ teardown() {
   source "$LIB"
   # Override _plan_cache_key in the bats shell to simulate jq-missing failure.
   _plan_cache_key() { return 1; }
-  run _plan_cache_lookup feature T5 false
+  run _plan_cache_lookup feature BUILD false
   [ "$status" -ne 0 ]
 }
 
 # B5 — skill documents the canonical pipeline-state reader contract.
-# The lookup lib takes (task_class, tier, critical) directly; task_id
+# The lookup lib takes (task_class, gear, critical) directly; task_id
 # discovery via _psp_find_active_pipelines is the orchestrator's job at
 # call-site, per SKILL.md.
 @test "B5 skill uses pipeline-state union helper" {

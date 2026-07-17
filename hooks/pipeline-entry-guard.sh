@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # pipeline-entry-guard — PreToolUse:Agent hook.
 # Warns when a write-capable Build/Test agent is spawned without a verified
-# pipeline-entry signal (task_id, active pipeline, or intake tier).
+# pipeline-entry signal (task_id, active pipeline, or gear).
 # Ships Path-B advisory: log + warn, spawn NOT blocked (exit 0).
 # Promotion criterion: flip to enforcing (exit code change) once N=10 sessions confirm zero
 # false-positive blocks (see promotion comment block below).

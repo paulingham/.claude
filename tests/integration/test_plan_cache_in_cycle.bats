@@ -31,13 +31,13 @@ setup() {
   export CLAUDE_SESSION_ID=test-session-c7
   export CLAUDE_PLAN_CACHE_MODE=on
   source "$LIB"
-  KEY=$(_plan_cache_key feature "$(_repo_hash)" T5 false)
+  KEY=$(_plan_cache_key feature "$(_repo_hash)" BUILD false)
   TEMPLATE="$TMP_DIR/learning/test-xyz/plans/$KEY.md"
   cat >"$TEMPLATE" <<EOF
 ---
 cache_key: $KEY
 task_class: feature
-tier: T5
+gear: BUILD
 critical: false
 repo_hash: abc
 created_at: 2026-05-01T00:00:00Z
