@@ -6,7 +6,7 @@ AC3  SKILL.md exists + frontmatter parses (name, description, verdict, phase, di
      no-trigger rot concept present; exclusion dirs named; empty-tree -> DEBT_LEDGER_CLEAN
 AC4  verdict-catalog has BOTH rows (info polarity, emitter debt-ledger, phase utility)
      skill-directory Active Skills has /harness:debt-ledger row with both verdicts
-     README skill count == 72
+     README skill count == 73
 """
 import re
 import unittest
@@ -201,12 +201,12 @@ class AC4ReadmeCount(unittest.TestCase):
         return README.read_text()
 
     def test_readme_skills_72_heading(self):
-        self.assertRegex(self._readme(), r"(?m)^## Skills \(72\)$",
-                         "README must have `## Skills (72)` heading")
+        self.assertRegex(self._readme(), r"(?m)^## Skills \(73\)$",
+                         "README must have `## Skills (73)` heading")
 
     def test_readme_72_skills_comment(self):
-        self.assertRegex(self._readme(), r"#\s*72\s+skills",
-                         "README must have `# 72 skills` comment")
+        self.assertRegex(self._readme(), r"#\s*73\s+skills",
+                         "README must have `# 73 skills` comment")
 
 
 if __name__ == "__main__":
