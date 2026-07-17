@@ -20,8 +20,17 @@ source "${HOOK_DIR}/_lib/harness-paths.sh"
 source "${HOOK_DIR}/_lib/state-dir.sh"
 # shellcheck source=/dev/null
 source "${HOOK_DIR}/_lib/check-bypass-gate.sh"
+# shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/gear-gate.sh"
+# shellcheck source=/dev/null
+source "${HOOK_DIR}/_lib/session-id.sh"
 
 check_bypass_gate "CLAUDE_DISABLE_PHASE_BOUNDARY_COMPRESS" && exit 0
+# Pipeline bookkeeping — no phase boundaries exist in the PAIR gear. This
+# hook is CLI-invoked (no stdin JSON), so sid resolves via $CLAUDE_SESSION_ID
+# (resolve_session_id's env fallback leg) — the same channel gear-select.sh
+# uses when its stdin JSON carries a session_id.
+check_gear_gate "$(resolve_session_id "")" || exit 0
 
 PHASE_FROM="${1:-unknown}"
 PHASE_TO="${2:-unknown}"

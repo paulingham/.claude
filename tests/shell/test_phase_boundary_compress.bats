@@ -22,6 +22,17 @@ teardown() {
   [ -d "$TMP" ] && rm -rf "$TMP"
 }
 
+# Runs the hook under a gear pinned in state for THIS invocation. The hook
+# resolves its own sid via resolve_session_id(""), which falls back to the
+# $CLAUDE_SESSION_ID env var (already pinned to a known value in setup()) —
+# so the fixture writes gear-<CLAUDE_SESSION_ID> directly; no PID-guessing
+# needed now that the gate is keyed by session id, not PPID.
+_run_hook_with_gear() {
+  local gear="$1"; shift
+  printf '%s\n' "$gear" > "$CLAUDE_STATE_DIR/gear-${CLAUDE_SESSION_ID}"
+  run "$HOOK" "$@"
+}
+
 # ---------------------------------------------------------------------------
 # AC4 — Escape hatch: CLAUDE_DISABLE_PHASE_BOUNDARY_COMPRESS=1 → exit 0, no emit
 # ---------------------------------------------------------------------------
@@ -164,6 +175,7 @@ teardown() {
     "$REPO_ROOT/skills/pipeline/SKILL.md"
     "$REPO_ROOT/tests/shell/test_phase_boundary_compress.bats"
     "$REPO_ROOT/tests/test_phase_boundary_tokens.py"
+    "$REPO_ROOT/tests/shell/test_gear_gate.bats"
   )
 
   # Collect all matching files (full paths)
@@ -186,4 +198,33 @@ teardown() {
     echo "$remaining"
     false
   }
+}
+
+# ---------------------------------------------------------------------------
+# Phase B WS2 — gear-gate: no-op in PAIR, run in BUILD/PIPELINE/absent
+# ---------------------------------------------------------------------------
+
+@test "GG1 gear=PAIR -> hook no-ops (exit 0, no metrics file, no output)" {
+  _run_hook_with_gear "PAIR" "build" "security-review"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ ! -f "$CLAUDE_PLUGIN_DATA/metrics/$CLAUDE_SESSION_ID/phase-boundary.jsonl" ]
+}
+
+@test "GG2 gear=BUILD -> hook runs its logic (metrics file written)" {
+  _run_hook_with_gear "BUILD" "build" "security-review"
+  [ "$status" -eq 0 ]
+  [ -f "$CLAUDE_PLUGIN_DATA/metrics/$CLAUDE_SESSION_ID/phase-boundary.jsonl" ]
+}
+
+@test "GG3 gear=PIPELINE -> hook runs its logic (metrics file written)" {
+  _run_hook_with_gear "PIPELINE" "build" "security-review"
+  [ "$status" -eq 0 ]
+  [ -f "$CLAUDE_PLUGIN_DATA/metrics/$CLAUDE_SESSION_ID/phase-boundary.jsonl" ]
+}
+
+@test "GG4 gear state absent -> hook runs its logic (fail-safe, metrics file written)" {
+  run "$HOOK" "build" "security-review"
+  [ "$status" -eq 0 ]
+  [ -f "$CLAUDE_PLUGIN_DATA/metrics/$CLAUDE_SESSION_ID/phase-boundary.jsonl" ]
 }

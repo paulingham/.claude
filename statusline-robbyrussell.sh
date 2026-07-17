@@ -56,5 +56,34 @@ if [ -n "$ctx_pct" ]; then
     fi
 fi
 
+# Gear segment (Phase A/B three-gear classifier). Additive/no-op when no
+# gear-<session_id> marker exists yet — never blocks the rest of the line.
+# Keyed by session_id, NOT PPID: gear-select.sh (a UserPromptSubmit hook)
+# and this statusline invocation are different subprocesses with different
+# PPIDs, so a PPID-keyed read could never see what gear-select wrote (see
+# hooks/_lib/gear-gate.sh header for the full rationale). Session id is the
+# one value stable across the whole session, carried in this same stdin
+# payload as .session_id.
+gear_info=""
+session_id=$(echo "$input" | jq -r '.session_id // empty' 2>/dev/null)
+gear=""
+if [ -n "$session_id" ]; then
+    gear=$(
+      source "${HARNESS_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/state-dir.sh" 2>/dev/null && \
+        _state_read "gear-${session_id}" 2>/dev/null
+    )
+fi
+if [ -n "$gear" ]; then
+    case "$gear" in
+        PAIR) gear_color="\033[36m" ;;
+        BUILD) gear_color="\033[33m" ;;
+        PIPELINE) gear_color="\033[35m" ;;
+        *) gear_color="" ;;
+    esac
+    if [ -n "$gear_color" ]; then
+        gear_info=" ${gear_color}⚙ ${gear}\033[0m"
+    fi
+fi
+
 # Use printf with %b for segments containing escape codes so ANSI colors render
-printf "\033[1;32m➜\033[0m \033[36m%s\033[0m%s%b%b" "$current_dir" "$git_info" "$model_info" "$ctx_info"
+printf "\033[1;32m➜\033[0m \033[36m%s\033[0m%s%b%b%b" "$current_dir" "$git_info" "$model_info" "$ctx_info" "$gear_info"

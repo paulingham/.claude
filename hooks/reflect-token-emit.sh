@@ -17,6 +17,15 @@ set -u
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/gear-gate.sh"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/_lib/session-id.sh"
+
+# Reflect-phase bookkeeping — the Reflect phase only exists in the Pipeline
+# gear. CLI-invoked (no stdin JSON): sid resolves via $CLAUDE_SESSION_ID.
+check_gear_gate "$(resolve_session_id "")" || exit 0
+
 DEVIATION_ID="${1:-}"
 if [[ -z "$DEVIATION_ID" ]]; then
   echo "reflect-token-emit: deviation_id required" >&2

@@ -16,6 +16,12 @@ trap 'log_hook_event $?' EXIT
 
 set -uo pipefail
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/hook-profile.sh"
+# Cosmetic-only in PAIR/minimal — no write-boundary or fail-closed law rides on
+# this, so it is safe to skip entirely rather than fail toward running it.
+check_hook_profile "standard" || exit 0
+
 check_bypass_gate "CLAUDE_DISABLE_NO_SHELL_READ" && exit 0
 
 # shellcheck source=/dev/null

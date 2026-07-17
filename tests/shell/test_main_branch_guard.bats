@@ -428,3 +428,55 @@ _run_guard_capture() {
   run _run_guard Bash 'git checkout -- foo.sh'
   [ "$status" -eq 0 ]
 }
+
+# ---------------------------------------------------------------------------
+# Phase B WS1.1 — false-positive fix: parse the actual git subcommand being
+# invoked, not raw substring text. Heredoc/multi-line string BODIES that
+# happen to contain "git checkout main"-shaped text must not be treated as
+# an executed clause. Real destructive clauses (leading, or after &&/;/|)
+# MUST still block. (AC2.63-AC2.68)
+# ---------------------------------------------------------------------------
+
+@test "AC2.63 read-only command mentioning 'main' in text is allowed" {
+  run _run_guard Bash 'echo "stay on main"'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.64 read-only command mentioning 'merge' in text is allowed" {
+  run _run_guard Bash 'echo "will merge later"'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.65 for-loop over a var literally named hook is allowed" {
+  run _run_guard Bash 'for hook in a b c; do echo "$hook"; done'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.66 grep pattern containing a guard filename is allowed" {
+  run _run_guard Bash 'ls hooks/ | grep -E "main-branch-guard"'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.67 heredoc body containing 'git checkout main' text is allowed (not an executed clause)" {
+  run _run_guard Bash 'cat > /tmp/x.sh << "EOF"
+git checkout main
+EOF'
+  [ "$status" -eq 0 ]
+}
+
+@test "AC2.68 real bare git reset --hard is still blocked (revert-detection RED per Iron Law 8)" {
+  run _run_guard Bash 'git reset --hard origin/main'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.69 heredoc body forbidden text combined with a real leading forbidden clause still blocks at the leading clause" {
+  run _run_guard Bash 'git checkout foo && cat > /tmp/x.sh << "EOF"
+just data
+EOF'
+  [ "$status" -eq 2 ]
+}
+
+@test "AC2.70 worktree-delegated git still allowed (cd <registered-wt> && ...)" {
+  run _run_guard Bash "cd $TMP_WT && git checkout -b foo"
+  [ "$status" -eq 0 ]
+}

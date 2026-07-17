@@ -24,3 +24,10 @@ _state_write() {
   local name="$1"
   ( umask 077 && cat > "$(_state_path "$name")" )
 }
+
+_state_read() {
+  local name="$1"
+  local path; path=$(_state_path "$name")
+  [[ -f "$path" ]] || return 1
+  cat "$path"
+}

@@ -28,10 +28,23 @@ COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/nul
 
 # --- detectors --------------------------------------------------------------
 
-# A pytest invocation, word-boundaried so `mypytestthing` does not match.
-# Matches `pytest ...` or `python -m pytest ...`.
+# A pytest INVOCATION — pytest occupying command position, not merely
+# appearing as text (a grep pattern, a quoted/printed string, a comment).
+# Command position = leading token of the whole command, or the leading
+# token immediately after a clause separator (&&, ||, ;, |) or a command
+# substitution opener ($(). Splits on those separators first (each becomes
+# its own candidate clause), then anchors the match to the START of each
+# candidate — so `grep -E "pytest-suite-guard"` or `print("about pytest")`
+# no longer match: in both, pytest is preceded by a quote/word inside an
+# argument, not at clause-start.
 _psg_has_pytest() {
-  printf '%s' "$1" | grep -Eq '(^|[^[:alnum:]_./-])(python[0-9.]*[[:space:]]+-m[[:space:]]+)?pytest($|[^[:alnum:]_])'
+  local cmd clause
+  cmd=$(printf '%s' "$1" | sed -E 's/(&&|\|\||[;|]|\$\()/\n/g')
+  while IFS= read -r clause; do
+    clause=$(printf '%s' "$clause" | sed -E 's/^[[:space:]]*\(?[[:space:]]*//')
+    printf '%s' "$clause" | grep -Eq '^(python[0-9.]*[[:space:]]+-m[[:space:]]+)?pytest($|[^[:alnum:]_])' && return 0
+  done <<< "$cmd"
+  return 1
 }
 
 # A specific test-file path arg: `tests/....py`, `*_test.py`, or `test_*.py`.

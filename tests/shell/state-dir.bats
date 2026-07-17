@@ -91,3 +91,19 @@ _stat_mode() {
   [ "$mode" = "600" ]
   [ "$(cat "$TMP_DIR/.claude/state/marker")" = "content" ]
 }
+
+@test "H3.5 _state_read echoes the content written by _state_write" {
+  export HOME="$TMP_DIR"
+  unset CLAUDE_STATE_DIR
+  run bash -c "source '$LIB'; _ensure_state_dir; printf 'PAIR\n' | _state_write 'gear-123'; _state_read 'gear-123'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "PAIR" ]
+}
+
+@test "H3.6 _state_read on a missing marker fails without printing anything" {
+  export HOME="$TMP_DIR"
+  unset CLAUDE_STATE_DIR
+  run bash -c "source '$LIB'; _ensure_state_dir; _state_read 'does-not-exist'"
+  [ "$status" -ne 0 ]
+  [ -z "$output" ]
+}
