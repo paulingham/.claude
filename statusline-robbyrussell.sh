@@ -56,5 +56,24 @@ if [ -n "$ctx_pct" ]; then
     fi
 fi
 
+# Gear segment (Phase A three-gear classifier). Additive/no-op when no
+# gear-${PPID} marker exists yet — never blocks the rest of the line.
+gear_info=""
+gear=$(
+  source "${HARNESS_ROOT:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}/hooks/_lib/state-dir.sh" 2>/dev/null && \
+    _state_read "gear-${PPID}" 2>/dev/null
+)
+if [ -n "$gear" ]; then
+    case "$gear" in
+        PAIR) gear_color="\033[36m" ;;
+        BUILD) gear_color="\033[33m" ;;
+        PIPELINE) gear_color="\033[35m" ;;
+        *) gear_color="" ;;
+    esac
+    if [ -n "$gear_color" ]; then
+        gear_info=" ${gear_color}⚙ ${gear}\033[0m"
+    fi
+fi
+
 # Use printf with %b for segments containing escape codes so ANSI colors render
-printf "\033[1;32m➜\033[0m \033[36m%s\033[0m%s%b%b" "$current_dir" "$git_info" "$model_info" "$ctx_info"
+printf "\033[1;32m➜\033[0m \033[36m%s\033[0m%s%b%b%b" "$current_dir" "$git_info" "$model_info" "$ctx_info" "$gear_info"
