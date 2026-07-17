@@ -167,14 +167,14 @@ _json_escape() {
 
 # --- Session state write ----------------------------------------------------
 
-@test "G6.1 gear_select writes the chosen gear to state-dir gear-<PPID>" {
+@test "G6.1 gear_select writes the chosen gear to state-dir gear-<sid> (no session_id -> local-\$\$ fallback)" {
   run bash -c "source '$LIB'; printf '{\"prompt\": \"what does this do\"}' | gear_select"
   [ "$status" -eq 0 ]
   [ "$output" = "PAIR" ]
-  state_file="$HOME/.claude/state/gear-$$"
-  # gear_select runs in a subshell under `run bash -c`; the written marker
-  # is keyed by that subshell's PPID, which we cannot predict exactly, so
-  # assert at least one gear-* file was written with the right content.
+  # No session_id in the payload -> resolve_session_id falls back to
+  # local-$$, keyed by the gear_select subshell's own PID (unpredictable
+  # from here), so assert at least one gear-* file was written with the
+  # right content — same tolerance the old PPID-keyed test used.
   found=0
   for f in "$HOME"/.claude/state/gear-*; do
     [ -e "$f" ] || continue
@@ -183,6 +183,14 @@ _json_escape() {
     fi
   done
   [ "$found" -eq 1 ]
+}
+
+@test "G6.2 gear_select writes the chosen gear to the EXACT state-dir gear-<session_id> key when session_id is present" {
+  run bash -c "source '$LIB'; printf '{\"prompt\": \"what does this do\", \"session_id\": \"sess-explicit-key\"}' | gear_select"
+  [ "$status" -eq 0 ]
+  [ "$output" = "PAIR" ]
+  [ -f "$HOME/.claude/state/gear-sess-explicit-key" ]
+  [ "$(cat "$HOME/.claude/state/gear-sess-explicit-key")" = "PAIR" ]
 }
 
 # --- Revert-detection: RED when classifier logic is reverted ---------------

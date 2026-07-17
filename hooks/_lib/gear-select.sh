@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Phase A three-gear classifier — the "when" half of the gear architecture.
-# Reads {"prompt": "..."} on stdin, echoes PAIR|BUILD|PIPELINE, and mirrors
-# the choice to session state the same way the statusline bridges ctx-percent.
+# Reads {"prompt": "...", "session_id": "..."} on stdin, echoes
+# PAIR|BUILD|PIPELINE, and mirrors the choice to session state keyed by
+# session id (NOT PPID — see hooks/_lib/gear-gate.sh header for why: this
+# hook and every gear-gated hook that later reads the marker are different
+# subprocesses with different PPIDs, so a PPID-keyed write can never
+# round-trip to a PPID-keyed read across the session).
 #
 # Polarity is INVERTED vs the legacy T0-T6 fingerprint: default is the
 # lightest gear (PAIR), escalating only on positive evidence. A gate that
@@ -13,6 +17,8 @@
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/state-dir.sh"
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/session-id.sh"
 
 _gear_select_extract_prompt() {
   # Pulls the value of a top-level "prompt" JSON string key without jq.
@@ -58,13 +64,13 @@ _gear_select_classify() {
 }
 
 _gear_select_persist() {
-  local gear="$1"
+  local gear="$1" sid="$2"
   _ensure_state_dir 2>/dev/null || return 0
-  printf '%s\n' "$gear" | _state_write "gear-${PPID}" 2>/dev/null || true
+  printf '%s\n' "$gear" | _state_write "gear-${sid}" 2>/dev/null || true
 }
 
 gear_select() {
-  local input gear prompt
+  local input gear prompt sid
   input=$(cat 2>/dev/null) || { printf 'PIPELINE'; return 0; }
   if [[ -z "$input" ]]; then
     printf 'PIPELINE'
@@ -82,6 +88,14 @@ gear_select() {
 
   gear=$(_gear_select_has_override "$prompt_lower") || gear=$(_gear_select_classify "$prompt_lower")
 
-  _gear_select_persist "$gear"
+  sid=$(resolve_session_id "$input")
+  _gear_select_persist "$gear" "$sid"
   printf '%s' "$gear"
 }
+
+# When sourced (unit tests call gear_select directly), expose the function
+# but do not auto-run. When executed directly (the real UserPromptSubmit
+# hook invocation), read stdin and classify.
+if [[ "${BASH_SOURCE[0]:-$0}" == "${0}" ]]; then
+  gear_select
+fi
