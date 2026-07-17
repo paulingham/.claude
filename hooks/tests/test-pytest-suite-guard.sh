@@ -57,6 +57,15 @@ expect_cmd "unrelated command ls -la -> allow (exit 0)" 0 "ls -la"
 expect_cmd "word-boundary: mypytestthing -> allow (exit 0)" 0 "mypytestthing --run"
 echo ""
 
+# -- Phase B WS1.2 — false positives: "pytest" as TEXT, not an invocation ----
+echo "-- false-positive fixes (Phase B WS1.2) --"
+expect_cmd "grep pattern naming pytest-suite-guard -> allow (exit 0)" 0 'ls hooks/ | grep -E "pytest-suite-guard"'
+expect_cmd "python3 script whose printed string mentions pytest -> allow (exit 0)" 0 'python3 -c "print(\"about pytest\")"'
+expect_cmd "comment-only mention of pytest -> allow (exit 0)" 0 '# this script does not run pytest'
+expect_cmd "bare unbounded pytest tests/ -> still block (exit 2)" 2 "pytest tests/"
+expect_cmd "pytest with --timeout scoped -> still allow (exit 0)" 0 "pytest tests/foo.py --timeout=60"
+echo ""
+
 # -- RULE 1: unbounded whole-suite pytest -> block ---------------------------
 echo "-- RULE 1 blocks --"
 expect_cmd "pytest tests/ -> block (exit 2)" 2 "pytest tests/"

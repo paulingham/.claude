@@ -26,8 +26,17 @@ _mbd_strip_filter_tails() {
   printf '%s' "$cmd"
 }
 
+# Splits on real shell control operators (&&, ||, ;, |) ONLY. A literal
+# newline already present in the command (heredoc body, multi-line string)
+# is NOT a control operator and must stay inside its enclosing clause —
+# otherwise heredoc/string CONTENT that merely resembles a forbidden clause
+# (e.g. `git checkout main` inside a heredoc body) is wrongly treated as an
+# executed command. Uses a NUL-unsafe-but-command-safe \x01 sentinel instead
+# of \n so real separators are distinguishable from pre-existing newlines;
+# the consumer reads clauses delimited by \x01, not by line.
 split_clauses() {
-  printf '%s' "$1" | awk 'BEGIN{RS=""} { gsub(/\|\||&&|;|\|/, "\n"); print }'
+  printf '%s' "$1" | awk 'BEGIN{RS=""} { gsub(/\|\||&&|;|\|/, "\x01"); printf "%s", $0 }'
+  printf '\x01'
 }
 _mbd_fetch_dst_remote_only() {
   printf '%s' "$1" | awk '
@@ -234,7 +243,7 @@ is_forbidden_clause() {
 }
 _mbd_any_clause_forbidden() {
   local clause
-  while IFS= read -r clause; do
+  while IFS= read -r -d $'\x01' clause; do
     [[ -n "$clause" ]] && is_forbidden_clause "$clause" && return 0
   done < <(split_clauses "$1")
   return 1
