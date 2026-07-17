@@ -45,7 +45,7 @@ _subagent_context_gear() {
   printf '%s' "${gear//$'\n'/}"
 }
 
-_subagent_context_emit() {
+_subagent_context_build() {
   local safety_path pipeline_rigour_path context gear sid
   safety_path="$(dirname "${BASH_SOURCE[0]}")/../rules/safety.md"
   pipeline_rigour_path="$(dirname "${BASH_SOURCE[0]}")/../rules/pipeline-rigour.md"
@@ -62,18 +62,23 @@ _subagent_context_emit() {
 $(cat "$pipeline_rigour_path")"
   fi
 
+  printf '%s' "$context"
+}
+
+_subagent_context_to_json() {
+  local context="$1"
   if command -v jq >/dev/null 2>&1; then
     jq -n --arg ctx "$context" \
       '{hookSpecificOutput: {hookEventName: "SubagentStart", additionalContext: $ctx}}'
-  else
-    # jq-free degradation: escape for JSON string embedding by hand.
-    local escaped="${context//\\/\\\\}"
-    escaped="${escaped//\"/\\\"}"
-    escaped="${escaped//$'\n'/\\n}"
-    printf '{"hookSpecificOutput":{"hookEventName":"SubagentStart","additionalContext":"%s"}}\n' "$escaped"
+    return 0
   fi
+  # jq-free degradation: escape for JSON string embedding by hand.
+  local escaped="${context//\\/\\\\}"
+  escaped="${escaped//\"/\\\"}"
+  escaped="${escaped//$'\n'/\\n}"
+  printf '{"hookSpecificOutput":{"hookEventName":"SubagentStart","additionalContext":"%s"}}\n' "$escaped"
 }
 
-_subagent_context_emit
+_subagent_context_to_json "$(_subagent_context_build)"
 
 exit 0
