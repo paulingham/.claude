@@ -120,20 +120,15 @@ Every spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your ful
 
 Orchestrator coordinates; never writes code/tests. Flow, dispatch mechanisms, orchestrator boundaries: `protocols/pipeline-overview.md` § How the System Works.
 
-### Work-Class Routing (T0-T6)
+### Gear Routing (PAIR/BUILD/PIPELINE)
 
-`/harness:intake` Step 1.5 (Fingerprint) classifies every request into seven tiers. T0-T3 bypass `/harness:pipeline`; T4-T6 enter at progressively heavier dispatch. Full protocol: `protocols/work-class-routing.md`.
+`gear-select.sh` classifies each request into PAIR (default)/BUILD/PIPELINE and writes `gear-${sid}`; the orchestrator reads it — no tier computation. Full protocol: `protocols/work-class-routing.md`.
 
-| Tier | Class | Dispatch target |
-|---|---|---|
-| **T0** | Question / Spike | Direct answer or `/harness:tech-spike` |
-| **T1** | Doc-only | Lightweight worktree subagent (tracked-doc edits) |
-| **T2** | Config-only | `/harness:harness-config` |
-| **T3** | Mechanical sweep | `/harness:batch-pipeline` |
-| **T3H** | Trivial code change | `/harness:pipeline` (trimmed: Build + diff-only code-review + Ship) |
-| **T4** | Bug fix | `/harness:pipeline` (lightweight) |
-| **T5** | Standard feature | `/harness:pipeline` (standard) |
-| **T6** | Critical / cross-cutting | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |
+| Gear | Default? | Class | Dispatch target |
+|---|---|---|---|
+| **PAIR** | Yes | Question / doc / config / mechanical / trivial code | Direct answer, `/harness:tech-spike`, worktree subagent (tracked-doc edits), `/harness:harness-config`, or `/harness:batch-pipeline` |
+| **BUILD** | No — escalate on evidence | Bug fix / standard feature | `/harness:pipeline` (lightweight-to-standard) |
+| **PIPELINE** | No — escalate on evidence | Critical / cross-cutting | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |
 
 ### Delivery Pipeline
 
