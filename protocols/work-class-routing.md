@@ -128,6 +128,16 @@ Catches the failure mode: user says "tidy up the docs" but architect's plan actu
 - **`critical` flag** still computes and shapes intra-gear dispatch (Best-of-N/PDR-RTV eligibility inside PIPELINE).
 - **`bestofn` and `pdr_rtv` flags** only fire inside **PIPELINE** AND budget>=7. BUILD forces both flags false regardless of critical or budget. `bestofn` also requires `critical==true`; the `[best-of-n]` override token bypasses the gear+budget gate. SSOT: `hooks/_lib/bestofn_gate.py`.
 
+## Appendix: legacy tier fingerprint detector spec (still consumed by `skills/intake/SKILL.md` Step 1.5)
+
+`skills/intake/SKILL.md` Step 1.5 still runs a tier fingerprint (T0-T6, T3H) and writes `tier_emitted`/`tier_initial` to `intake.md` frontmatter, which `hooks/_lib/intake-fingerprint-emit.py` reads verbatim and appends to `metrics/{session}/intake-overrides.jsonl` forensics. That fingerprint's detector spec — including this canonical safety-override keyword list — lives here because Step 1.5 names this file as its literal source ("Run the regex/glob detectors from `protocols/work-class-routing.md` § Fingerprint Phase 1"). Migrating this appendix requires migrating the hook's field names and its ~45 pinned tests in the same change; deferred to a dedicated wave.
+
+**Canonical safety-override keyword list (lockstep with `skills/intake/SKILL.md` Phase-2 prose):** `auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature`
+
+Phase-2 safety override always wins and upshifts to T4+ regardless of a T3H-shaped match: any of the above keywords appearing in change-target context, or scope touching `hooks/*.sh` body changes, `rules/core.md`/`protocols/atdd-procedure.md`/`protocols/verdict-catalog.md`, any test file, or `auth/*`/`secrets/*`/`*crypto*`/`*.env`.
+
+`round_up_to_T4_when_ANY` contract-eligibility rule (Option-A CONTRACT RULE): a T3H-shaped change rounds up to T4 if it touches an OpenAPI path, a "DB schema", a "public function signature", a "proto", a "cross-repo contract", or a versioned-public schema. An internal JSON shape not published in OpenAPI/Swagger, not proto/event-schema, not versioned/public, and not cross-repo-consumed remains T3H-eligible. When in doubt, round UP.
+
 ## Where to look next
 
 | Need | File |
