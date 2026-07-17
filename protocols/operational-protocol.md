@@ -28,18 +28,13 @@ The Fibonacci/story-points mapping was removed in May 2026. The budget number IS
 
 ## Work-Class Routing (Overview)
 
-Task class is orthogonal to the Complexity Budget. Tier (T0..T6) determines which dispatch shape a task receives; Complexity Budget controls intra-tier shape (e.g. multi-slice Build at T5, Best-of-N vs PDR-RTV at T6). The auto-detection happens at `/harness:intake` Step 1.5 (Fingerprint), runs BEFORE Step 2 (Complexity Budget).
+Task class is orthogonal to the Complexity Budget. Gear (PAIR/BUILD/PIPELINE) determines which dispatch shape a task receives; Complexity Budget controls intra-gear shape (e.g. multi-slice Build inside BUILD, Best-of-N vs PDR-RTV inside PIPELINE). Auto-detection happens on `UserPromptSubmit` via `hooks/_lib/gear-select.sh`, before `/harness:intake` Step 1.5 or Step 2 (Complexity Budget) even run — the orchestrator reads the persisted gear, it does not compute it.
 
-| Tier | Class | Examples | Dispatch target |
-|---|---|---|---|
-| **T0** | Question / Spike | "How does X work?", "Investigate Y" | Direct answer or `/harness:tech-spike` |
-| **T1** | Doc-only | README/CLAUDE.md edits, protocol updates, comments | Orchestrator direct edit (Iron Law 3 exception) |
-| **T2** | Config-only | settings.json keys, agent frontmatter, hook entry syntax (NOT hook script bodies) | `/harness:harness-config` |
-| **T3** | Mechanical sweep | rename, find/replace, lint-fix, import-sort, dependency bump | `/harness:batch-pipeline` |
-| **T3H** | Trivial code change | ≤1 code file, ≤15 changed lines, no tests, no security keyword, internal-shape-only | `/harness:pipeline` (trimmed: Build + diff-only code-review + Ship) |
-| **T4** | Bug fix | Failing test + targeted fix | `/harness:pipeline` (lightweight) |
-| **T5** | Standard feature | New AC, single-slice, isolated module | `/harness:pipeline` (standard) |
-| **T6** | Critical / cross-cutting | Auth, payment, security, multi-repo, system-wide | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |
+| Gear | Default? | Class | Examples | Dispatch target |
+|---|---|---|---|---|
+| **PAIR** | Yes | Question / doc / config / mechanical / trivial code | "How does X work?", README edits, settings.json keys, rename sweeps | Direct answer, `/harness:tech-spike`, worktree subagent (tracked-doc edits), `/harness:harness-config`, or `/harness:batch-pipeline` |
+| **BUILD** | No — escalate on evidence | Bug fix / standard feature | Failing test + targeted fix, new AC in an isolated module | `/harness:pipeline` (lightweight-to-standard) |
+| **PIPELINE** | No — escalate on evidence | Critical / cross-cutting | Auth, payment, security, multi-repo, system-wide | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |
 
 Source of truth: protocols/work-class-routing.md
 
