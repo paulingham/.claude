@@ -42,7 +42,7 @@ ALLOWLIST_5=(
   "hooks/_lib/plan-cache-lookup.sh:76"
   "hooks/_lib/sandbox_e2b_client.py:96"
   "hooks/_lib/visual_diff.js:102"
-  "rules/core.md:25"
+  "rules/safety.md:22"
   "scripts/README.md:127"
   "skills/build-implementation/SKILL.md:250"
   "skills/refactor/SKILL.md:73"
@@ -81,7 +81,7 @@ ALLOWLIST_5=(
   # Diff-size threshold for the "Micro" task class, not function shape.
   "skills/pipeline/SKILL.md:97"
   # The NEW per-language contract (Ruby ≤ 5 / TS ≤ 12) — the law, not a fossil.
-  "rules/core.md:23"
+  "rules/safety.md:20"
   "skills/build-implementation/SKILL.md:80"
   "skills/build-implementation/SKILL.md:254"
   "skills/build-implementation/SKILL.md:275"
@@ -183,20 +183,22 @@ remaining_after_allowlist() {
   fi
 }
 
-@test "D3: per-language contract present in rules/core.md (Ruby 5 / TS 12 + naming-primary-gate)" {
+@test "D3: per-language contract present in rules/safety.md (Ruby 5 / TS 12 + naming-primary-gate)" {
   cd "$REPO_ROOT"
-  grep -qE 'Ruby methods? > 5 lines' rules/core.md
-  grep -qE 'TypeScript/JS functions > 12 lines' rules/core.md
-  grep -qiE 'Naming is the primary cohesion gate' rules/core.md
+  # Phase B gear-tier split moved Code Shape Rules out of rules/core.md
+  # (now a thin @-include index) into rules/safety.md (universal subset).
+  grep -qE 'Ruby methods? > 5 lines' rules/safety.md
+  grep -qE 'TypeScript/JS functions > 12 lines' rules/safety.md
+  grep -qiE 'Naming is the primary cohesion gate' rules/safety.md
 }
 
 @test "D4: Simplicity + Comments sections present in the SSOT (engineering-invariants.md)" {
   cd "$REPO_ROOT"
   grep -qE '^## Simplicity' protocols/engineering-invariants.md
   grep -qE '^## Comments' protocols/engineering-invariants.md
-  # core.md mirror carries the one-liners too.
-  grep -qiE "don.t complect|don.t-complect" rules/core.md
-  grep -qiE 'WHY' rules/core.md
+  # rules/safety.md mirror carries the one-liners too (Phase B gear-tier split).
+  grep -qiE "don.t complect|don.t-complect" rules/safety.md
+  grep -qiE 'WHY' rules/safety.md
 }
 
 @test "D5: comment rule in the 5 build-agent checklists + comment hook wired in both registries" {

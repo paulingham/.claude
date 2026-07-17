@@ -1,6 +1,7 @@
 """Iron Law 8 — Fail-closed gate design discipline.
 
-Asserts that rules/core.md carries Law 8 with:
+Asserts that rules/safety.md (rules/core.md's Phase B gear-tier split target
+for the universal-subset laws) carries Law 8 with:
   - Honest [ASPIRATIONAL] tag (not [ENFORCED])
   - Correct headline text ("A SECURITY OR CORRECTNESS GATE THAT CANNOT EVALUATE")
   - All five trigger conditions named
@@ -24,7 +25,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _core_text() -> str:
-    return (REPO_ROOT / "rules" / "core.md").read_text(encoding="utf-8")
+    """Law 8 lives in rules/safety.md after the Phase B gear-tier split
+    (rules/core.md is now a thin @-include index)."""
+    return (REPO_ROOT / "rules" / "safety.md").read_text(encoding="utf-8")
 
 
 def _routing_text() -> str:

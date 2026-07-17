@@ -16,11 +16,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class IronLaw3UpdatedInRulesCore(unittest.TestCase):
-    """E1: rules/core.md Iron Law 3 describes protected-location concept."""
+    """E1: rules/safety.md Iron Law 3 describes protected-location concept.
+
+    Law 3 lives in rules/safety.md after the Phase B gear-tier split
+    (rules/core.md is now a thin @-include index)."""
 
     @classmethod
     def setUpClass(cls):
-        cls._text = (REPO_ROOT / "rules" / "core.md").read_text()
+        cls._text = (REPO_ROOT / "rules" / "safety.md").read_text()
 
     def test_headline_verbatim(self):
         self.assertIn(

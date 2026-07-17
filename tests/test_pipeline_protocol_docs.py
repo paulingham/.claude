@@ -1,9 +1,10 @@
-"""Slice 3 AC10 — pipeline-protocol.md and core.md document PDR-RTV.
+"""Slice 3 AC10 — pipeline-protocol.md and pipeline-rigour.md document PDR-RTV.
 
 `protocols/pipeline-protocol.md` § Build Phase Dispatch Variants
 documents the routing precedence (`pdr_rtv > bestofn > standard`).
-`rules/core.md` § Pipeline Phase Order summary mentions PDR-RTV as a
-Build dispatch variant.
+`rules/pipeline-rigour.md` § Pipeline Phase Order summary mentions PDR-RTV as
+a Build dispatch variant (this section moved out of rules/core.md, which is
+now a thin @-include index, in the Phase B gear-tier split).
 """
 import re
 import unittest
@@ -12,7 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PIPELINE_PROTOCOL_DETAIL = (
     REPO_ROOT / "protocols" / "pipeline-protocol.md")
-CORE_RULES = REPO_ROOT / "rules" / "core.md"
+CORE_RULES = REPO_ROOT / "rules" / "pipeline-rigour.md"
 
 
 class BuildDispatchVariantsDocumentsPdrRtv(unittest.TestCase):
@@ -50,7 +51,7 @@ class BuildDispatchVariantsDocumentsPdrRtv(unittest.TestCase):
             content, re.DOTALL | re.MULTILINE)
         self.assertIsNotNone(
             match,
-            "rules/core.md must contain '## Pipeline Phase Order' section")
+            "rules/pipeline-rigour.md must contain '## Pipeline Phase Order' section")
         section = match.group(1)
         self.assertIn(
             "PDR-RTV", section,

@@ -7,7 +7,9 @@ assertions from:
   1. The user-facing proposal file
      (protocols/_proposals/2026-05-14-iron-law-2-freshness-hook.md), which is
      the public contract for operator copy + reason enum + promotion criterion.
-  2. rules/core.md Iron Law 2 (the documentation contract for the marker).
+  2. rules/safety.md Iron Law 2 (the documentation contract for the marker;
+     Law 2 lives here after the Phase B gear-tier split — rules/core.md is
+     now a thin @-include index).
   3. agents/patch-critic.md (the documentation contract for the APPEND).
   4. The hook's BLACK-BOX executable interface
      (hooks/verification-freshness-guard.sh invoked with stdin JSON envelope).
@@ -26,7 +28,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROPOSAL = REPO_ROOT / "protocols" / "_proposals" / "2026-05-14-iron-law-2-freshness-hook.md"
-RULES_CORE = REPO_ROOT / "rules" / "core.md"
+RULES_CORE = REPO_ROOT / "rules" / "safety.md"
 PATCH_CRITIC_MD = REPO_ROOT / "agents" / "patch-critic.md"
 HOOK = REPO_ROOT / "hooks" / "verification-freshness-guard.sh"
 
@@ -170,12 +172,12 @@ class TestHookNoOpOnNonGatedRole(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Test 3: rules/core.md Iron Law 2 documentation marker is present.
+# Test 3: rules/safety.md Iron Law 2 documentation marker is present.
 #
-# Public-spec invariant (AC1.2): rules/core.md Iron Law 2 line must reference
-# the hook path, the v2.1.141 version stamp, and the permissionDecision
-# upgrade gate. This is the operator-facing breadcrumb from the iron law to
-# the enforcement mechanism.
+# Public-spec invariant (AC1.2): the Iron Law 2 line (rules/safety.md after
+# the Phase B gear-tier split) must reference the hook path, the v2.1.141
+# version stamp, and the permissionDecision upgrade gate. This is the
+# operator-facing breadcrumb from the iron law to the enforcement mechanism.
 # ---------------------------------------------------------------------------
 
 class TestIronLaw2MarkerInvariant(unittest.TestCase):
@@ -188,7 +190,7 @@ class TestIronLaw2MarkerInvariant(unittest.TestCase):
         ]
         self.assertEqual(
             len(matching_lines), 1,
-            "rules/core.md must contain exactly one 'NO COMPLETION CLAIMS' "
+            "rules/safety.md must contain exactly one 'NO COMPLETION CLAIMS' "
             "line (Iron Law 2)")
         iron_law_2_line = matching_lines[0]
 
