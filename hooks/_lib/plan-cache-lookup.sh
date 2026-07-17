@@ -16,7 +16,7 @@ source "$_PLAN_CACHE_LIB_DIR/project-hash.sh"
 source "$_PLAN_CACHE_LIB_DIR/repo-hash.sh"
 # Note: pipeline-state-paths.sh (_psp_find_active_pipelines) is sourced and
 # invoked by the orchestrator at lookup time to discover task_id; the lib
-# itself takes (task_class, tier, critical) and does not need that import.
+# itself takes (task_class, gear, critical) and does not need that import.
 
 _plan_cache_mode() {
   # Slice F: default flipped off → shadow (LOW-eng-3 satisfied — slices B-E
@@ -34,14 +34,14 @@ _plan_cache_dir() {
   printf '%s/learning/%s/plans\n' "${HOME:-$PWD}" "$hash"
 }
 
-# _plan_cache_lookup task_class tier critical -> JSON verdict on stdout.
+# _plan_cache_lookup task_class gear critical -> JSON verdict on stdout.
 # task_id is discovered from the active pipeline via _psp_find_active_pipelines.
 _plan_cache_lookup() {
-  local task_class="$1" tier="$2" critical="$3"
+  local task_class="$1" gear="$2" critical="$3"
   local mode key dir
   mode=$(_plan_cache_mode)
   [[ "$mode" == "off" ]] && { _plan_cache_emit_miss disabled ""; return; }
-  key=$(_plan_cache_key "$task_class" "$(_repo_hash)" "$tier" "$critical") || return 1
+  key=$(_plan_cache_key "$task_class" "$(_repo_hash)" "$gear" "$critical") || return 1
   dir=$(_plan_cache_dir)
   [[ -f "$dir/$key.md" ]] || { _plan_cache_emit_miss no-template "$key"; return; }
   # Slice C: HIT dispatch is in place but driven by the orchestrator wiring
@@ -86,9 +86,9 @@ _plan_cache_hit_status_line() {
 # the orchestrator caches the current pipeline's plan.md under
 # learning/{project-hash}/plans/{key}.md so future pipelines with the same
 # task signature get a HIT in mode=on. Atomic (tmp+mv), idempotent.
-# Args: PLAN_PATH KEY TASK_CLASS TIER CRITICAL REPO_HASH SOURCE_TASK_ID.
+# Args: PLAN_PATH KEY TASK_CLASS GEAR CRITICAL REPO_HASH SOURCE_TASK_ID.
 _plan_cache_write_template() {
-  local plan="$1" key="$2" task_class="$3" tier="$4" critical="$5"
+  local plan="$1" key="$2" task_class="$3" gear="$4" critical="$5"
   local repo_hash="$6" source_task_id="$7"
   local dir tmp out now
   dir=$(_plan_cache_dir)
@@ -96,19 +96,19 @@ _plan_cache_write_template() {
   out="$dir/$key.md"
   tmp="$(mktemp -t plan-cache-tmpl-XXXXXX)"
   now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  _plan_cache_render_template "$plan" "$key" "$task_class" "$tier" \
+  _plan_cache_render_template "$plan" "$key" "$task_class" "$gear" \
     "$critical" "$repo_hash" "$source_task_id" "$now" >"$tmp" && mv "$tmp" "$out"
 }
 
 # Renders a cached template: frontmatter (per plan.md § On-disk template schema)
 # + body copied from the source plan.md without its own frontmatter block.
 _plan_cache_render_template() {
-  local plan="$1" key="$2" task_class="$3" tier="$4" critical="$5"
+  local plan="$1" key="$2" task_class="$3" gear="$4" critical="$5"
   local repo_hash="$6" source_task_id="$7" now="$8"
   printf -- '---\n'
   printf 'cache_key: %s\n' "$key"
   printf 'task_class: %s\n' "$task_class"
-  printf 'tier: %s\n' "$tier"
+  printf 'gear: %s\n' "$gear"
   printf 'critical: %s\n' "$critical"
   printf 'repo_hash: %s\n' "$repo_hash"
   printf 'created_at: %s\n' "$now"

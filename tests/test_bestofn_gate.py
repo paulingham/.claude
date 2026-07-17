@@ -63,29 +63,56 @@ class NoOverrideTokenDisables(unittest.TestCase):
 
 
 class TierBudgetGating(unittest.TestCase):
-    """RED stubs for AC1: tier+budget gate enforcement."""
+    """RED stubs for AC1: gear+budget gate enforcement."""
 
-    def test_t5_critical_high_budget_disables(self):
-        # T5 + critical + budget=10: must return False (tier gate blocks it)
-        self.assertFalse(should_dispatch_bestofn(True, "feature", 10, "", "T5"))
-
-    def test_t6_critical_budget6_disables(self):
-        # T6 + critical + budget=6: must return False (budget<7 gate blocks it)
-        self.assertFalse(should_dispatch_bestofn(True, "feature", 6, "", "T6"))
-
-    def test_t6_critical_budget7_enables(self):
-        # T6 + critical + budget=7: happy path — all gates pass
-        self.assertTrue(should_dispatch_bestofn(True, "feature", 7, "", "T6"))
-
-    def test_override_bypasses_tier_gate_at_t4(self):
-        # [best-of-n] override must bypass tier+budget gate entirely
-        self.assertTrue(
-            should_dispatch_bestofn(False, "bug", 2, "[best-of-n]", "T4")
+    def test_build_critical_high_budget_disables(self):
+        # BUILD + critical + budget=10: must return False (gear gate blocks it)
+        self.assertFalse(
+            should_dispatch_bestofn(True, "feature", 10, "", gear="BUILD")
         )
 
-    def test_t6_budget7_non_critical_disables(self):
-        # T6 + budget=7 + critical=False: must return False (critical clause)
-        self.assertFalse(should_dispatch_bestofn(False, "feature", 7, "", "T6"))
+    def test_pipeline_critical_budget6_disables(self):
+        # PIPELINE + critical + budget=6: must return False (budget<7 gate blocks it)
+        self.assertFalse(
+            should_dispatch_bestofn(True, "feature", 6, "", gear="PIPELINE")
+        )
+
+    def test_pipeline_critical_budget7_enables(self):
+        # PIPELINE + critical + budget=7: happy path — all gates pass
+        self.assertTrue(
+            should_dispatch_bestofn(True, "feature", 7, "", gear="PIPELINE")
+        )
+
+    def test_override_bypasses_gear_gate_at_build(self):
+        # [best-of-n] override must bypass gear+budget gate entirely
+        self.assertTrue(
+            should_dispatch_bestofn(False, "bug", 2, "[best-of-n]", gear="BUILD")
+        )
+
+    def test_pipeline_budget7_non_critical_disables(self):
+        # PIPELINE + budget=7 + critical=False: must return False (critical clause)
+        self.assertFalse(
+            should_dispatch_bestofn(False, "feature", 7, "", gear="PIPELINE")
+        )
+
+
+class GearValueMirrorsLegacyTierT6(unittest.TestCase):
+    """Gear-value happy path mirroring the retired tier=='T6' behaviour exactly."""
+
+    def test_gear_pipeline_critical_budget7_enables(self):
+        self.assertTrue(
+            should_dispatch_bestofn(True, "feature", 7, "", gear="PIPELINE")
+        )
+
+    def test_gear_build_critical_budget7_disables(self):
+        self.assertFalse(
+            should_dispatch_bestofn(True, "feature", 7, "", gear="BUILD")
+        )
+
+    def test_gear_pair_critical_budget7_disables(self):
+        self.assertFalse(
+            should_dispatch_bestofn(True, "feature", 7, "", gear="PAIR")
+        )
 
 
 if __name__ == "__main__":

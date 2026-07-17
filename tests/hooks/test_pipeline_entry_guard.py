@@ -17,7 +17,7 @@ from pipeline_entry_guard import decide
 from pipeline_entry_guard_cli import (
     _write_bypass_ledger,
     _write_advisory_ledger,
-    _intake_tier,
+    _gear_signal,
 )
 
 
@@ -32,7 +32,7 @@ HOOKS_JSON = HOOKS_DIR / "hooks.json"
 _NO_SIGNALS = {
     "task_id": "",
     "has_active_pipeline": False,
-    "intake_tier": "",
+    "gear": "",
     "disabled": False,
 }
 
@@ -113,20 +113,20 @@ def test_signal_active_pipeline_allows():
 
 
 # ---------------------------------------------------------------------------
-# AC-5: intake_tier signal allows
+# AC-5: gear signal allows
 # ---------------------------------------------------------------------------
 
-def test_signal_intake_tier_allows():
-    result = decide(_ctx(role="software-engineer", intake_tier="T5"))
+def test_signal_gear_allows():
+    result = decide(_ctx(role="software-engineer", gear="BUILD"))
     assert result["action"] == "allow"
-    assert result["signal"] == "intake_tier"
+    assert result["signal"] == "gear"
 
 
-@pytest.mark.parametrize("tier", ["T1", "T6"])
-def test_signal_intake_tier_allows_any_tier(tier):
-    result = decide(_ctx(role="software-engineer", intake_tier=tier))
+@pytest.mark.parametrize("gear", ["PAIR", "PIPELINE"])
+def test_signal_gear_allows_any_gear(gear):
+    result = decide(_ctx(role="software-engineer", gear=gear))
     assert result["action"] == "allow"
-    assert result["signal"] == "intake_tier"
+    assert result["signal"] == "gear"
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +143,7 @@ def test_bypass_overrides_even_with_all_signals():
         role="software-engineer",
         task_id="t",
         has_active_pipeline=True,
-        intake_tier="T5",
+        gear="BUILD",
         disabled=True,
     ))
     assert result["action"] == "bypass"
@@ -199,13 +199,13 @@ def test_task_id_beats_active_pipeline():
     assert result["signal"] == "task_id"
 
 
-def test_task_id_beats_intake_tier():
-    result = decide(_ctx(role="software-engineer", task_id="t", intake_tier="T5"))
+def test_task_id_beats_gear():
+    result = decide(_ctx(role="software-engineer", task_id="t", gear="BUILD"))
     assert result["signal"] == "task_id"
 
 
-def test_active_pipeline_beats_intake_tier():
-    result = decide(_ctx(role="software-engineer", task_id="", has_active_pipeline=True, intake_tier="T5"))
+def test_active_pipeline_beats_gear():
+    result = decide(_ctx(role="software-engineer", task_id="", has_active_pipeline=True, gear="BUILD"))
     assert result["signal"] == "active_pipeline"
 
 
@@ -260,65 +260,62 @@ def test_ledger_write_failure_is_fail_safe(monkeypatch, capsys):
 
 
 # ---------------------------------------------------------------------------
-# AC-13: _intake_tier reads real temp files (tier: and tier_emitted: forms)
+# AC-13: _gear_signal reads gear-${sid} state written by gear-select.sh
 # ---------------------------------------------------------------------------
 
-def test_intake_tier_reads_tier_short_form(monkeypatch, tmp_path):
-    state_dir = tmp_path / "pipeline-state"
-    task_dir = state_dir / "my-task-id"
-    task_dir.mkdir(parents=True)
-    (task_dir / "intake.md").write_text('tier: "T4"\n')
+def test_gear_signal_reads_state_file(monkeypatch, tmp_path):
+    state_dir = tmp_path / "state"
+    state_dir.mkdir(parents=True)
+    (state_dir / "gear-my-session-id").write_text("BUILD\n")
     monkeypatch.setenv("HARNESS_DATA", str(tmp_path))
+    monkeypatch.delenv("CLAUDE_STATE_DIR", raising=False)
     monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
-    monkeypatch.delenv("CLAUDE_WORKSTREAM", raising=False)
-    assert _intake_tier("my-task-id") == "T4"
+    assert _gear_signal("my-session-id") == "BUILD"
 
 
-def test_intake_tier_reads_tier_emitted_form(monkeypatch, tmp_path):
-    state_dir = tmp_path / "pipeline-state"
-    task_dir = state_dir / "my-task-id"
-    task_dir.mkdir(parents=True)
-    (task_dir / "intake.md").write_text('tier_emitted: "T6"\n')
-    monkeypatch.setenv("HARNESS_DATA", str(tmp_path))
-    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
-    monkeypatch.delenv("CLAUDE_WORKSTREAM", raising=False)
-    assert _intake_tier("my-task-id") == "T6"
+def test_gear_signal_honours_claude_state_dir_override(monkeypatch, tmp_path):
+    state_dir = tmp_path / "custom-state"
+    state_dir.mkdir(parents=True)
+    (state_dir / "gear-my-session-id").write_text("PIPELINE\n")
+    monkeypatch.setenv("CLAUDE_STATE_DIR", str(state_dir))
+    assert _gear_signal("my-session-id") == "PIPELINE"
 
 
-def test_intake_tier_path_traversal_blocked(monkeypatch, tmp_path):
-    """A task_id of ../../etc/passwd must not read outside state_dir."""
-    state_dir = tmp_path / "pipeline-state"
+def test_gear_signal_missing_file_returns_empty(monkeypatch, tmp_path):
+    state_dir = tmp_path / "state"
     state_dir.mkdir(parents=True)
     monkeypatch.setenv("HARNESS_DATA", str(tmp_path))
+    monkeypatch.delenv("CLAUDE_STATE_DIR", raising=False)
     monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
-    monkeypatch.delenv("CLAUDE_WORKSTREAM", raising=False)
+    assert _gear_signal("no-such-session") == ""
+
+
+def test_gear_signal_empty_sid_returns_empty(monkeypatch, tmp_path):
+    monkeypatch.setenv("HARNESS_DATA", str(tmp_path))
+    monkeypatch.delenv("CLAUDE_STATE_DIR", raising=False)
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+    assert _gear_signal("") == ""
+
+
+def test_gear_signal_path_traversal_blocked(monkeypatch, tmp_path):
+    """A sid of ../../etc/passwd must not read outside state_dir."""
+    state_dir = tmp_path / "state"
+    state_dir.mkdir(parents=True)
+    monkeypatch.setenv("HARNESS_DATA", str(tmp_path))
+    monkeypatch.delenv("CLAUDE_STATE_DIR", raising=False)
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
     # Traversal attempt — must return "" not raise
-    result = _intake_tier("../../etc/passwd")
+    result = _gear_signal("../../etc/passwd")
     assert result == ""
 
 
 # ---------------------------------------------------------------------------
-# A1: entry guard admits T3H tier as continue (allow)
+# A1: entry guard admits any non-empty gear value as continue (allow)
 # ---------------------------------------------------------------------------
 
-def test_entry_guard_admits_T3H_as_continue(monkeypatch, tmp_path):
-    """CLI _INTAKE_TIER_RE parses tier_emitted: T3H; decide() → allow.
-
-    WHY: pins pipeline_entry_guard_cli.py:21 alternation (T[0-6]|T3H).
-    decide() grants allow for any non-empty intake_tier — no change needed
-    to pipeline_entry_guard.py; only the regex at :21 must widen.
-    """
-    from pipeline_entry_guard_cli import _parse_tier, _INTAKE_TIER_RE  # noqa: F401
-    import re
-
-    # Verify the regex at :21 captures T3H
-    pattern = _INTAKE_TIER_RE
-    intake_text = "tier_emitted: T3H\n"
-    m = pattern.search(intake_text)
-    assert m is not None, "_INTAKE_TIER_RE did not match 'tier_emitted: T3H'"
-    assert m.group(1) == "T3H"
-
-    # Verify decide() allows when intake_tier is "T3H"
-    result = decide(_ctx(role="software-engineer", intake_tier="T3H"))
+def test_entry_guard_admits_any_gear_value(monkeypatch, tmp_path):
+    """decide() grants allow for any non-empty gear signal — value truthiness
+    only, matching the retired intake_tier contract's "any Tn allows" shape."""
+    result = decide(_ctx(role="software-engineer", gear="PIPELINE"))
     assert result["action"] == "allow"
-    assert result["signal"] == "intake_tier"
+    assert result["signal"] == "gear"

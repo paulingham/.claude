@@ -1,6 +1,6 @@
 ---
 name: "plan-cache-lookup"
-description: "Plan-phase Stage 0 gate that checks the local plan-template cache for a matching (task_class, repo_hash, tier, critical) key. Slice B ships MISS-only: emits PLAN_CACHE_MISS with a structured reason (no-template, disabled, shadow-mode) and lets the orchestrator fall through to recon + architect. The HIT path (Haiku adapter + structural validator) lands in Slice C. CLAUDE_PLAN_CACHE_MODE defaults to off in Slice B for partial-merge safety; Slice F flips the default to shadow."
+description: "Plan-phase Stage 0 gate that checks the local plan-template cache for a matching (task_class, repo_hash, gear, critical) key. Slice B ships MISS-only: emits PLAN_CACHE_MISS with a structured reason (no-template, disabled, shadow-mode) and lets the orchestrator fall through to recon + architect. The HIT path (Haiku adapter + structural validator) lands in Slice C. CLAUDE_PLAN_CACHE_MODE defaults to off in Slice B for partial-merge safety; Slice F flips the default to shadow."
 verdict: PLAN_CACHE_MISS
 phase: plan
 dispatch: subagent
@@ -24,7 +24,7 @@ Stage 0 of Plan Phase Dispatch. Computes a cache key from the current pipeline's
 - **Environment**:
   - `CLAUDE_PLAN_CACHE_MODE` ∈ `{off, shadow, on}`; unset → `off` in Slice B (flipped to `shadow` in Slice F).
   - `CLAUDE_PROJECT_HASH` — env-first override for the cache namespace (mirrors `hooks/observation-capture.sh:30-38`); unset → `_project_hash --fallback "$(basename "$(pwd)")"`.
-- **Task signature**: `(task_class, repo_hash, tier, critical)` — the cache key (sha256 of canonical JSON). `repo_hash` is computed by `_repo_hash` (`hooks/_lib/repo-hash.sh`), leaf-content-blind by design (HIGH-eng-1 in plan.md Citation #11).
+- **Task signature**: `(task_class, repo_hash, gear, critical)` — the cache key (sha256 of canonical JSON). `repo_hash` is computed by `_repo_hash` (`hooks/_lib/repo-hash.sh`), leaf-content-blind by design (HIGH-eng-1 in plan.md Citation #11).
 
 ## Procedure
 
@@ -49,10 +49,10 @@ Call `_plan_cache_dir`. Resolution order (env-first, mirroring `hooks/observatio
 
 ### Step 3 — Compute cache key + look up template
 
-Call `_plan_cache_lookup task_class tier critical`. The function:
+Call `_plan_cache_lookup task_class gear critical`. The function:
 
 1. Calls `_repo_hash` (from `hooks/_lib/repo-hash.sh`) — `sha256(git ls-tree --name-only -r HEAD <stable-dirs>) ⊕ sha256(CLAUDE.md)`.
-2. Calls `_plan_cache_key task_class repo_hash tier critical` — sha256 of canonical-JSON `{critical, repo_hash, task_class, tier}` (jq's `-cn --arg` builder fixes key order).
+2. Calls `_plan_cache_key task_class repo_hash gear critical` — sha256 of canonical-JSON `{critical, repo_hash, task_class, gear}` (jq's `-cn --arg` builder fixes key order).
 3. Checks `[[ -f "$cache_dir/$key.md" ]]`.
 4. Branches (this `_plan_cache_lookup` entry point covers the off / shadow-mode branches only; the on-mode HIT path is in place in Slice C and is driven by the orchestrator via the four steps in § HIT Path Dispatch below — NOT through this lookup function):
    - File absent → emit `PLAN_CACHE_MISS reason=no-template`.
@@ -60,7 +60,7 @@ Call `_plan_cache_lookup task_class tier critical`. The function:
 
 ### Step 4 — Read pipeline state when callers need task_id
 
-When the orchestrator wires this skill in Slice D, the caller MUST locate the active pipeline file via `_psp_find_active_pipelines` (NOT a bare `[ -f ]` test). The skill body's reference to `_psp_find_active_pipelines` documents this contract — Slice D's wiring will route `task_id`, `task_class`, `tier`, and `critical` into the entry call by reading the active intake/plan state located through this helper.
+When the orchestrator wires this skill in Slice D, the caller MUST locate the active pipeline file via `_psp_find_active_pipelines` (NOT a bare `[ -f ]` test). The skill body's reference to `_psp_find_active_pipelines` documents this contract — Slice D's wiring will route `task_id`, `task_class`, `gear`, and `critical` into the entry call by reading the active intake/plan state located through this helper.
 
 ## HIT Path Dispatch
 
