@@ -57,7 +57,7 @@ class ParseFrontmatterTest(unittest.TestCase):
                 "safety_override_fired: false\n"
                 "predicted_files: []\n"
                 "fingerprint_cost_tokens: 0\n"
-                "criticality_filtered_by_tier: false\n"
+                "criticality_filtered_by_gear: false\n"
                 "---\n"
             )
         fields, err = mod.parse_frontmatter(self.path)
@@ -168,7 +168,7 @@ class EmitJsonlSchemaTest(unittest.TestCase):
                     "safety_override_fired: false\n"
                     "predicted_files: []\n"
                     "fingerprint_cost_tokens: 0\n"
-                    "criticality_filtered_by_tier: false\n"
+                    "criticality_filtered_by_gear: false\n"
                     "---\n"
                 )
             metrics_dir = os.path.join(tmp, "metrics")

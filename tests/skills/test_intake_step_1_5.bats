@@ -45,7 +45,7 @@ setup() {
     gear_emitted gear_initial detector_phase detector_confidence \
     user_phrasing_signals phrasing_honoured override_token \
     safety_override_fired predicted_files fingerprint_cost_tokens \
-    criticality_filtered_by_tier task_id; do
+    criticality_filtered_by_gear task_id; do
     grep -qE "\`${f}\`|${f}:" "$INTAKE_SKILL" || { echo "missing field: ${f}"; return 1; }
   done
 }

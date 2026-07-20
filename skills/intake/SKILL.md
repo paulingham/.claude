@@ -104,7 +104,7 @@ override_token: "[force-pipeline]"|null
 safety_override_fired: true|false          # true only when [force-pipeline] upshifts PAIR/BUILD to PIPELINE
 predicted_files: []                        # YAML list of explicit user-named files
 fingerprint_cost_tokens: 0                 # Always 0 — gear-select.sh is a $0 regex classifier
-criticality_filtered_by_tier: true|false   # Step 2d post-gear-read critical filter
+criticality_filtered_by_gear: true|false   # Step 2d post-gear-read critical filter
 task_id: {task-id}
 ```
 
@@ -217,7 +217,7 @@ Emit `critical: true` when ANY of these apply to the task (not merely the files 
 
 A keyword match alone is not sufficient; the tag reflects the actual scope. If the change only *touches* auth code but is not *about* auth behaviour (e.g. a copy change in an auth screen, a log format tweak), do not tag.
 
-**Gear filter (post-gear-read)**: when `gear == PAIR` AND `safety_override_fired == false`, the `critical: true` claim from user phrasing or keywords is **rejected** — emit `critical: false` and set `criticality_filtered_by_tier: true` in the frontmatter. Rationale: PAIR routes target docs/config/question-shaped work where a misclassified `critical` flag would burn heavy-pipeline cost on cosmetic work. The `[force-pipeline]` override protects against an auth keyword in a PAIR-shaped change: if it fires (`safety_override_fired: true`), `critical: true` survives unchanged.
+**Gear filter (post-gear-read)**: when `gear == PAIR` AND `safety_override_fired == false`, the `critical: true` claim from user phrasing or keywords is **rejected** — emit `critical: false` and set `criticality_filtered_by_gear: true` in the frontmatter. Rationale: PAIR routes target docs/config/question-shaped work where a misclassified `critical` flag would burn heavy-pipeline cost on cosmetic work. The `[force-pipeline]` override protects against an auth keyword in a PAIR-shaped change: if it fires (`safety_override_fired: true`), `critical: true` survives unchanged.
 
 Always print one of:
 

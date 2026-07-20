@@ -25,7 +25,7 @@ override_token: null
 safety_override_fired: false
 predicted_files: ["src/foo.ts"]
 fingerprint_cost_tokens: 0
-criticality_filtered_by_tier: false
+criticality_filtered_by_gear: false
 ---
 
 # Intake state
@@ -48,7 +48,7 @@ teardown() {
   for field in gear_emitted gear_initial detector_phase detector_confidence \
                user_phrasing_signals phrasing_honoured override_token \
                safety_override_fired predicted_files fingerprint_cost_tokens \
-               criticality_filtered_by_tier task_id; do
+               criticality_filtered_by_gear task_id; do
     grep -qE "^${field}:" "$intake_md" || { echo "missing field: ${field}"; return 1; }
   done
 
