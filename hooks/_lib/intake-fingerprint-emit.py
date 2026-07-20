@@ -18,12 +18,12 @@ import sys
 from harness_paths import harness_data, resolved_harness_data
 
 REQUIRED_KEYS = [
-    "tier_emitted", "tier_initial", "detector_phase", "detector_confidence",
+    "gear_emitted", "gear_initial", "detector_phase", "detector_confidence",
     "user_phrasing_signals", "phrasing_honoured", "override_token",
     "safety_override_fired", "predicted_files", "fingerprint_cost_tokens",
 ]
 SENTINELS = {
-    "tier_emitted": "<unknown>", "tier_initial": "<unknown>",
+    "gear_emitted": "<unknown>", "gear_initial": "<unknown>",
     "detector_phase": "<unknown>", "detector_confidence": "<unknown>",
     "user_phrasing_signals": [], "phrasing_honoured": False,
     "override_token": None, "safety_override_fired": False,

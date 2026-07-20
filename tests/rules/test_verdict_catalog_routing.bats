@@ -1,9 +1,10 @@
 #!/usr/bin/env bats
-# Slice A — AC4 (rows + Notes)
+# GEAR MIGRATION — protocols/verdict-catalog.md
 # Asserts protocols/verdict-catalog.md (a) contains a `ROUTING_UPSHIFTED` row with
 # the correct shape and emitter, (b) the row is positioned after `PLAN_HOLES`
-# and before `BUILD_COMPLETE`, (c) the `ROUTED` row carries the `tier: T0..T6`
-# payload addendum, and (d) the Notes section documents the tier field.
+# and before `BUILD_COMPLETE`, (c) the `ROUTED` row carries the `gear:
+# PAIR|BUILD|PIPELINE` payload addendum, and (d) the Notes section documents
+# the gear field.
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
@@ -47,18 +48,18 @@ setup() {
     | grep -qF 'protocols/work-class-routing.md'
 }
 
-@test "ROUTED row carries the tier T0..T6, T3H payload addendum" {
-  grep -E '^\| `ROUTED`' "$TARGET" | grep -qE 'tier: T0\.\.T6, T3H'
+@test "ROUTED row carries the gear PAIR|BUILD|PIPELINE payload addendum" {
+  grep -E '^\| `ROUTED`' "$TARGET" | grep -qE 'gear: PAIR\|BUILD\|PIPELINE'
 }
 
-@test "Notes section contains a bullet documenting the tier field on ROUTED" {
+@test "Notes section contains a bullet documenting the gear field on ROUTED" {
   awk '/^## Notes$/,EOF' "$TARGET" \
-    | grep -qE '^- `ROUTED` carries a `tier:'
+    | grep -qE '^- `ROUTED` carries a `gear:'
 }
 
-@test "Notes-section bullet references the Step 1.5 fingerprint" {
+@test "Notes-section bullet references the Step 1.5 gear read" {
   awk '/^## Notes$/,EOF' "$TARGET" \
-    | grep -E '^- `ROUTED` carries a `tier:' \
+    | grep -E '^- `ROUTED` carries a `gear:' \
     | grep -qF 'Step 1.5'
 }
 

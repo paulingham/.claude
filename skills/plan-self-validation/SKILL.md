@@ -28,28 +28,27 @@ This skill is NOT used in interactive mode — interactive mode asks the user.
 
 ### Step 0: Re-fingerprint sanity check (MANDATORY before rubric)
 
-Before scoring the rubric, re-run the fingerprint detectors from `protocols/work-class-routing.md` § Fingerprint against the architect plan's `## Affected Files` section. The intake fingerprint runs on the user prompt; the architect's Plan reveals the actual scope. Catches the failure mode where the user says "tidy docs" but the plan touches source files.
+Before scoring the rubric, re-check the architect plan's `## Affected Files` section against the safety-upshift floor from `protocols/work-class-routing.md` § Fingerprint. The gear read at intake happens against the user prompt; the architect's Plan reveals the actual scope. Catches the failure mode where the user says "tidy docs" but the plan touches source files.
 
 **Steps**:
 
-1. Read `tier_initial` from `$state_dir/{task-id}/intake.md` frontmatter (set by `/harness:intake` Step 1.5 Fingerprint).
+1. Read `gear_initial` from `$state_dir/{task-id}/intake.md` frontmatter (set by `/harness:intake` Step 1.5 Gear Read).
 2. Read the architect plan's `## Affected Files` list.
-3. **Re-run Phase 1 detectors** (T1_doc_only / T2_config_only / T3_mechanical_sweep glob/regex matchers) against that list.
-4. **Re-run Phase 2 safety override** including the rules/core.md path-pattern check: if any affected file matches `rules/core.md` / `protocols/atdd-procedure.md` / `protocols/verdict-catalog.md` / `hooks/*.sh` body / `auth/*` / `secrets/*` / `*crypto*` / `*.env` / test files / auth-payment-crypto keywords → upshift to T6 (or T4 minimum for non-Iron-Law-surface). This is the HIGH-1 conservative check.
-5. Compute `tier_replanned` from steps 3-4.
+3. **Re-apply the rules/core.md safety-upshift floor**: if any affected file matches `rules/core.md` / `protocols/atdd-procedure.md` / `protocols/verdict-catalog.md` / `hooks/*.sh` body / `auth/*` / `secrets/*` / `*crypto*` / `*.env` / test files / auth-payment-crypto keywords → upshift to `PIPELINE`. This is the HIGH-1 conservative check — it stays a hard floor regardless of the retired T0-T6 detector cascade.
+4. Compute `gear_replanned` from step 3 (`PIPELINE` if the floor fired, otherwise unchanged from `gear_initial`).
 
 **Verdict**:
 
-- If `tier_replanned > tier_initial` → emit `ROUTING_UPSHIFTED`, set `routing_upshifted: true`, write the state file, halt validation. Pipeline re-dispatches downstream phases at the new tier.
-- If `tier_replanned <= tier_initial` → set `routing_upshifted: false`, proceed to Step 1.
+- If `gear_replanned` is heavier than `gear_initial` (i.e. `gear_initial` was `PAIR`/`BUILD` and the floor upshifted to `PIPELINE`) → emit `ROUTING_UPSHIFTED`, set `routing_upshifted: true`, write the state file, halt validation. Pipeline re-dispatches downstream phases at the new gear.
+- If `gear_replanned == gear_initial` → set `routing_upshifted: false`, proceed to Step 1.
 
 **Monotonic-once invariant**: re-fingerprint upshift is **monotonic-once** per pipeline (Memory M10 / plan R3). If the state file already shows `routing_upshifted: true`, Step 0 refuses to fire again — a second upshift indicates the upstream re-dispatch failed to take effect, and the pipeline halts with operator escalation. Downshifts at this stage are not honoured.
 
 **Status line**:
 
 ```
-[PlanSelfValidation] Re-fingerprint: T{n}->T{m}        (upshift detected)
-[PlanSelfValidation] Re-fingerprint: unchanged          (T{n} preserved)
+[PlanSelfValidation] Re-fingerprint: BUILD->PIPELINE   (upshift detected)
+[PlanSelfValidation] Re-fingerprint: unchanged         (BUILD preserved)
 ```
 
 ### Step 1: Read the Plan
@@ -74,7 +73,7 @@ For each rubric item, write a one-line verdict (`OK` / `HOLE: {what is missing}`
 ### Step 3: Verdict
 
 - **Inline Feasibility Finding is FEASIBILITY_REJECTED** → `PLAN_FEASIBILITY_REJECTED`. Before scoring the rubric, inspect plan.md for a line matching `FEASIBILITY: FEASIBILITY_REJECTED` (the architect's inline finding from the light-gate path). If found: surface the reject-brief to the user verbatim; write `feasibility_drift` to the state file (`architect_said: FEASIBILITY_REJECTED`, `reviewers_concluded: FEASIBILITY_REJECTED`, `overturned: false`); emit `PLAN_FEASIBILITY_REJECTED` and stop. Do NOT proceed to PLAN_APPROVED/PLAN_HOLES logic — this skill is a self-judgment only (overturn to FEASIBLE is heavy-gate only). If the inline finding says `FEASIBILITY: FEASIBLE` or is absent, proceed below.
-- **Step 0 upshift detected** → `ROUTING_UPSHIFTED`. Write the upshift fields (`tier_initial`, `tier_replanned`, `routing_upshifted: true`) to `$state_dir/{task-id}/plan-validation.md` and return. The pipeline re-dispatches downstream phases at the new tier.
+- **Step 0 upshift detected** → `ROUTING_UPSHIFTED`. Write the upshift fields (`gear_initial`, `gear_replanned`, `routing_upshifted: true`) to `$state_dir/{task-id}/plan-validation.md` and return. The pipeline re-dispatches downstream phases at the new gear.
 - **All items OK** → `PLAN_APPROVED`. Write a one-line confirmation to `$state_dir/{task-id}/plan-validation.md` and return.
 - **One or more HOLE entries** → `PLAN_HOLES`. Write the hole list to `$state_dir/{task-id}/plan-validation.md` and return. The pipeline returns the plan to architect with the hole list for ONE revision pass. If holes persist after that pass, the pipeline escalates to heavy challengers (product-reviewer + software-engineer team) per `protocols/pipeline-protocol.md`.
 
@@ -88,8 +87,8 @@ task_id: {task-id}
 phase: plan-validation
 mode: light
 verdict: PLAN_APPROVED | PLAN_HOLES | ROUTING_UPSHIFTED | PLAN_FEASIBILITY_REJECTED
-tier_initial: T0|T1|T2|T3|T3H|T4|T5|T6
-tier_replanned: T0|T1|T2|T3|T3H|T4|T5|T6
+gear_initial: PAIR|BUILD|PIPELINE
+gear_replanned: PAIR|BUILD|PIPELINE
 routing_upshifted: true|false
 timestamp: {ISO 8601}
 ---
@@ -120,7 +119,7 @@ timestamp: {ISO 8601}
 Verdict: PLAN_APPROVED | PLAN_HOLES | ROUTING_UPSHIFTED | PLAN_FEASIBILITY_REJECTED
 Mode: light
 Holes: {N}
-Tier: T{initial}->T{replanned}  (when ROUTING_UPSHIFTED)
+Gear: {initial}->{replanned}  (when ROUTING_UPSHIFTED)
 Next: Build (if APPROVED) | Architect revision (if HOLES) | Pipeline re-dispatch (if ROUTING_UPSHIFTED)
 ```
 

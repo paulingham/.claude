@@ -48,71 +48,44 @@ Entry point for all user work requests. Classifies the work, estimates complexit
 
 **No user prompt.** Plan Validation challengers receive the routing rationale and can flip it if wrong.
 
-### Step 1.5: Fingerprint (MANDATORY — runs before Complexity Budget)
+### Step 1.5: Gear Read (MANDATORY — runs before Complexity Budget)
 
-Fingerprint the work into one of seven tiers (T0..T6) per `protocols/work-class-routing.md`. Tier determines dispatch shape; Complexity Budget (Step 2) shapes intra-tier dispatch. Detector cascade ships **Phase 1 + Phase 2 + fallthrough** in this pipeline. **Phase 3 deferred** — see § Phase 3 Status in `pipeline-state/integrate-work-class-routing/plan.md` for the rationale.
+Read the gear (PAIR|BUILD|PIPELINE) already classified for this session per `protocols/work-class-routing.md`. Gear determines dispatch shape; Complexity Budget (Step 2) shapes intra-gear dispatch. Classification itself already happened earlier in the turn — `hooks/_lib/gear-select.sh` runs as a UserPromptSubmit hook and persists the verdict to state key `gear-<sid>` before this skill ever executes. Step 1.5 does NOT re-derive the gear; it reads the persisted value and carries it into `intake.md`.
 
-#### Phase 1 — Rule-based pass (no model call, $0)
+#### Read the persisted gear
 
-Run the regex/glob detectors from `protocols/work-class-routing.md` § Fingerprint Phase 1 against predicted file paths and user prompt:
+Resolve `sid` the same way `hooks/_lib/session-id.sh`'s `resolve_session_id` does (stdin `.session_id` > `$CLAUDE_SESSION_ID` > local fallback), then read state key `gear-<sid>` — the identical read `hooks/_lib/gear-gate.sh:39` and `hooks/_lib/pipeline_entry_guard_cli.py::_gear_signal` perform:
 
-- `T1_doc_only` — ALL paths match `*.md` / `*.txt` / `*.rst` / `docs/*` / `README*`; no code/config/shell-script body change
-- `T2_config_only` — ALL paths match `settings.json` / `*.yml` / `*.yaml` / `*.toml` / `agents/*.md` frontmatter-only
-- `T3_mechanical_sweep` — uniform transformation across at least 3 files (rename / replace / lint-fix / version bump / import sort)
-- `T3H_trivial_code` — fires ONLY when ALL of the following hold (else round UP to T4):
-  1. exactly ≤1 predicted CODE file in scope
-  2. ≤15 changed lines (exact, no tilde)
-  3. NO test file in scope
-  4. NO security keyword in change-target context: `auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature`
-  5. `contract_eligible == true` (Option-A CONTRACT RULE — see below)
+```
+gear=$(_state_read "gear-${sid}" 2>/dev/null) || gear="PIPELINE"
+```
 
-  **CONTRACT RULE (Option A):** T3H contract-eligible IFF Contracts Touched is (none) OR ONLY internal JSON shapes where ALL of: NOT published in OpenAPI/Swagger; NOT proto/event-schema; NOT versioned/public schema file; NOT cross-repo consumed. ANY OpenAPI path / DB schema / public function signature / proto / cross-repo contract / versioned-public schema → round UP to T4. When in doubt, round UP.
+**Missing-gear fail-safe**: if the state key is absent, unreadable, or empty (gear-select.sh never ran for this session, or its write failed), default to `gear: PIPELINE` — fail SAFE means fail HEAVY here, mirroring `gear-select.sh`'s own fail-safe polarity, never silently dropping to the lightest gear.
 
-  Worked example: "change how a JSON response is serialized, one internal handler, no OpenAPI change, ~8 lines → T3H eligible". Counter-example: "same payload declared in openapi.yaml → T4".
-
-If a detector resolves with high confidence, emit that tier as `tier_emitted` and `tier_initial`, set `detector_phase: rules`, `detector_confidence: high`.
-
-#### Phase 2 — Safety override (always runs, never downshifts)
-
-ANY of these force T4+ regardless of Phase 1 verdict (set `safety_override_fired: true`):
-
-- Predicted scope includes `hooks/*.sh` body changes (not entry-syntax-only)
-- Predicted scope touches `rules/core.md`, `protocols/atdd-procedure.md`, or `protocols/verdict-catalog.md` — **any touch upshifts to T6** (conservative — Iron-Law-surface floor per plan § HIGH-1)
-- Predicted scope includes any test file
-- User prompt contains `auth` / `payment` / `token` / `secret` / `crypto` / `password` / `session` / `billing` / `oauth` / `jwt` / `cors` / `csrf` / `cookie` / `admin` / `rbac` / `cert` / `signature` in change-target context
-- Predicted scope includes `auth/*` / `secrets/*` / `*crypto*` / `*.env`
-
-If safety override fires, set `tier_emitted: T6` (or T4 minimum for non-Iron-Law-surface safety), `detector_phase: rules`, `detector_confidence: high`.
-
-Phase-2 safety override ALWAYS wins and upshifts on any safety-sensitive path/keyword regardless of a T3H match.
-
-#### Phase 3 — Haiku tiebreaker (DEFERRED in this pipeline)
-
-When Phase 1 is ambiguous AND Phase 2 did not fire, fall through with `tier_emitted: T4`, `detector_phase: fallthrough`, `detector_confidence: low`, `fingerprint_cost_tokens: 0`. Spec `protocols/work-class-routing.md:89` documents fallthrough-to-T4 as accepted mitigation. **Phase 3 deferred** to a follow-up pipeline.
-
-The fingerprinter currently emits only T0–T4 and T6; **T5 is reserved for the deferred Phase 3** (Haiku tiebreaker). The pipeline routes both T4 and T5 into the standard (non-heavy) pipeline — neither uses the T6 Best-of-N/PDR-RTV variants (they may still differ in Plan depth) — see `protocols/work-class-routing.md`.
+**Why `gear-select.sh` escalates to PIPELINE (informational — classification already happened, this step only reads it):** the security-signal alternation is the canonical 17-keyword list — `auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature` — kept lockstep with `protocols/work-class-routing.md` and `hooks/_lib/gear-select.sh::_gear_select_classify` so the three surfaces can never drift apart.
 
 #### Override discipline
 
 | Token in user prompt | Effect |
 |---|---|
-| (default) | Auto-detect per Phase 1, then Phase 2, then fallthrough |
-| `[force-pipeline]` | Force T4+ regardless of fingerprint (`override_token: "[force-pipeline]"`) |
-| `[force-class:Tn]` | Force specific tier (`override_token: "[force-class:Tn]"`) — but Phase 2 safety override still wins on safety-sensitive paths |
+| (default) | Carry forward the gear already resolved by `gear-select.sh` |
+| `[force-pipeline]` | Force `gear: PIPELINE` regardless of the persisted value (`override_token: "[force-pipeline]"`) |
+| one-word NL override (`just pair`, `build it`, `full pipeline`, ...) | Already resolved by `gear-select.sh` itself (see `hooks/_lib/gear-select.sh::_gear_select_has_override`) before this step runs — Step 1.5 simply reads the resulting gear, it does not re-parse the prompt |
+
+`[force-class:Tn]` is retired with the T0-T6 fingerprint — the tier enum no longer exists to force a value into.
 
 #### Status line
 
-Always emit one of:
+Always emit exactly one of:
 
 ```
-[Intake] Tier: T0 (reason: rules; phase: 1; confidence: high)
-[Intake] Tier: T1 (reason: rules; phase: 1; confidence: high)
-[Intake] Tier: T3H (reason: rules; phase: 1; confidence: high)
-[Intake] Tier: T6 (reason: rules; phase: 2; confidence: high)
-[Intake] Tier: T4 (reason: fallthrough; phase: 1; confidence: low)
+[Intake] Gear: PAIR (reason: gear-select)
+[Intake] Gear: BUILD (reason: gear-select)
+[Intake] Gear: PIPELINE (reason: gear-select)
+[Intake] Gear: PIPELINE (reason: fallback; gear state unreadable)
 ```
 
-Reason enum: `rules` | `fallthrough` (Phase 3 `haiku` reserved for follow-up). Phase enum: `1` | `2`. Confidence enum: `high` | `medium` | `low`.
+Reason enum: `gear-select` (normal read) | `fallback` (missing-gear fail-safe fired) | `override` (`[force-pipeline]` fired).
 
 #### Persistence to `$state_dir/{task-id}/intake.md` frontmatter
 
@@ -121,17 +94,17 @@ Canonical bare path (relative to HARNESS_DATA): `pipeline-state/{task-id}/intake
 Persist the following 12 forensic-schema fields (read by `hooks/intake-fingerprint-audit.sh`):
 
 ```yaml
-tier_emitted: T0|T1|T2|T3|T3H|T4|T5|T6
-tier_initial: T0|T1|T2|T3|T3H|T4|T5|T6        # Phase 1 raw output (pre-Phase-2 upshift)
-detector_phase: rules|fallthrough
-detector_confidence: high|medium|low
+gear_emitted: PAIR|BUILD|PIPELINE
+gear_initial: PAIR|BUILD|PIPELINE          # value read from gear-<sid> before any override
+detector_phase: rules|fallthrough          # rules = gear-select.sh regex classified it (the normal path)
+detector_confidence: high|medium|low       # high whenever detector_phase == rules
 user_phrasing_signals: []                  # YAML list of matched phrasing tokens
 phrasing_honoured: true|false
-override_token: "[force-pipeline]"|"[force-class:Tn]"|null
-safety_override_fired: true|false
+override_token: "[force-pipeline]"|null
+safety_override_fired: true|false          # true only when [force-pipeline] upshifts PAIR/BUILD to PIPELINE
 predicted_files: []                        # YAML list of explicit user-named files
-fingerprint_cost_tokens: 0                 # Always 0 in this pipeline — Phase 3 deferred
-criticality_filtered_by_tier: true|false   # Step 2d post-fingerprint critical filter
+fingerprint_cost_tokens: 0                 # Always 0 — gear-select.sh is a $0 regex classifier
+criticality_filtered_by_tier: true|false   # Step 2d post-gear-read critical filter
 task_id: {task-id}
 ```
 
@@ -244,7 +217,7 @@ Emit `critical: true` when ANY of these apply to the task (not merely the files 
 
 A keyword match alone is not sufficient; the tag reflects the actual scope. If the change only *touches* auth code but is not *about* auth behaviour (e.g. a copy change in an auth screen, a log format tweak), do not tag.
 
-**Tier filter (post-fingerprint)**: when `tier ∈ {T1, T2}` AND `safety_override_fired == false`, the `critical: true` claim from user phrasing or keywords is **rejected** — emit `critical: false` and set `criticality_filtered_by_tier: true` in the frontmatter. Rationale: T1/T2 routes target docs/config edits where a misclassified `critical` flag would burn heavy-pipeline cost on cosmetic work. Safety override (Phase 2) protects against an auth keyword in a T1-shaped change: if it fires, `critical: true` survives unchanged.
+**Gear filter (post-gear-read)**: when `gear == PAIR` AND `safety_override_fired == false`, the `critical: true` claim from user phrasing or keywords is **rejected** — emit `critical: false` and set `criticality_filtered_by_tier: true` in the frontmatter. Rationale: PAIR routes target docs/config/question-shaped work where a misclassified `critical` flag would burn heavy-pipeline cost on cosmetic work. The `[force-pipeline]` override protects against an auth keyword in a PAIR-shaped change: if it fires (`safety_override_fired: true`), `critical: true` survives unchanged.
 
 Always print one of:
 
@@ -259,14 +232,14 @@ Persist the flag to `$state_dir/{task-id}/intake.md` frontmatter as `critical: t
 
 Derive two Build-phase dispatch flags. Both are persisted to `$state_dir/{task-id}/intake.md` frontmatter and read by `/harness:pipeline` Step 3 at Build dispatch time. Routing precedence is `pdr_rtv > bestofn > standard` per `protocols/pipeline-protocol.md` § Build Phase Dispatch Variants.
 
-**Tier gate (post-fingerprint)**: both `bestofn` and `pdr_rtv` only fire at **T6**. At T4/T5, force both flags to `false` regardless of derivation — heavy Build variants exist for critical/cross-cutting work, not for standard features or bug fixes. Spec `protocols/work-class-routing.md:193` is the source of truth.
+**Gear gate (post-gear-read)**: both `bestofn` and `pdr_rtv` only fire at **gear == PIPELINE**. At `gear == BUILD`, force both flags to `false` regardless of derivation — heavy Build variants exist for critical/cross-cutting work, not for standard features or bug fixes. Spec `protocols/work-class-routing.md:193` is the source of truth.
 
 #### Best-of-N Flag
 
 Derive `bestofn`:
-`bestofn = (tier == T6 AND budget >= 7 AND critical) OR user_override`
+`bestofn = (gear == PIPELINE AND budget >= 7 AND critical) OR user_override`
 
-Where `user_override` is true when the user's request contains the literal token `[best-of-n]` (case-insensitive). The override bypasses the tier+budget gate entirely. The tier+budget+critical conjunction is the SSOT — `hooks/_lib/bestofn_gate.py::should_dispatch_bestofn` implements this predicate exactly.
+Where `user_override` is true when the user's request contains the literal token `[best-of-n]` (case-insensitive). The override bypasses the gear+budget gate entirely. The gear+budget+critical conjunction is the SSOT — `hooks/_lib/bestofn_gate.py::should_dispatch_bestofn` implements this predicate exactly.
 
 #### PDR-RTV Flag
 
@@ -281,7 +254,7 @@ PDR-RTV is mutually exclusive with Best-of-N at dispatch time (when both fire, P
 
 Always print one of:
 ```
-[Intake] Best-of-N: enabled (reason: T6+budget>=7+critical)
+[Intake] Best-of-N: enabled (reason: PIPELINE+budget>=7+critical)
 ```
 or:
 ```

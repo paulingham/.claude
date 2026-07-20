@@ -16,17 +16,17 @@ The autonomous conductor for the delivery pipeline. Takes a task, determines whi
 
 ## Golden Path (Happy Case)
 
-The linear happy-case sequence for a standard feature (T4/T5, budget 7–9, non-critical). Conditional
+The linear happy-case sequence for a standard feature (gear BUILD, budget 7–9, non-critical). Conditional
 branches (multi-repo, scaffolding, Best-of-N/PDR-RTV, recovery loops) are noted but off this path.
 
-1. **Tier Guard** (Step 1.0) — read `tier_emitted` from intake.md → T4/T5/T6 continue; T0–T3 re-route out.
+1. **Gear Guard** (Step 1.0) — read `gear_emitted` from intake.md → BUILD/PIPELINE continue; PAIR halts + re-routes out.
 2. **Classify + Pre-flight** (Steps 1–2) — pipeline scale; CLAUDE.md + greenfield checks.
 3. **Create Pipeline State** (Step 2c) — write `pipeline.md` (the SSOT).
 4. **Plan Cache Lookup** (Step 2c-bis) — MISS (default) → continue to spec-grounding + architect.
 5. **Spec-Grounding** (Step 2c-ter) — EARS-tag ACs against codebase evidence (non-blocking).
 6. **Recon + Architect** — context recon → architect produces plan.md.
 7. **Plan Validation** (Step 2d) — challengers (product-reviewer + software-engineer) → PLAN_APPROVED.
-8. **Build** (Step 3) — software-engineer in a worktree (TDD). *Standard dispatch for T4/T5; T6 critical uses Best-of-N / PDR-RTV — see Build Phase Dispatch below.*
+8. **Build** (Step 3) — software-engineer in a worktree (TDD). *Standard dispatch for gear BUILD; gear PIPELINE critical uses Best-of-N / PDR-RTV — see Build Phase Dispatch below.*
 9. **Code-review** — Build's final step (second model, different priors).
 10. **Security Review** — separate phase (orthogonal concern).
 11. **Final Gate** (Step 3) — verify + test + accept + patch-critique, in parallel.
@@ -39,45 +39,29 @@ Everything below expands these steps with the conditional branches.
 
 ## Process
 
-### Step 1.0: Tier Guard (MANDATORY first step)
+### Step 1.0: Gear Guard (MANDATORY first step)
 
-Before any pipeline work, read `tier_emitted` from `$state_dir/{task-id}/intake.md` frontmatter (set by `/harness:intake` Step 1.5 Fingerprint per `protocols/work-class-routing.md`). The tier determines whether `/harness:pipeline` continues or exits with a re-route.
+Before any pipeline work, read `gear_emitted` from `$state_dir/{task-id}/intake.md` frontmatter (set by `/harness:intake` Step 1.5 Gear Read per `protocols/work-class-routing.md`). The gear determines whether `/harness:pipeline` continues or exits with a re-route.
 
-| Tier | Route | Status |
+| Gear | Route | Status |
 |---|---|---|
-| **T0** (Question / Spike) | Re-route to direct answer or `/harness:tech-spike` | Pipeline halts (NO state file created) |
-| **T1** (Doc-only) | Re-route to lightweight worktree subagent (tracked-doc edits) | Pipeline halts (NO state file created) |
-| **T2** (Config-only) | Re-route to `/harness:harness-config` | Pipeline halts (NO state file created) |
-| **T3** (Mechanical sweep) | Re-route to `/harness:batch-pipeline` | Pipeline halts (NO state file created) |
-| **T3H** (Trivial code change) | Continue to trimmed lane (Build + diff-only standard code-reviewer + Ship; SKIP Plan, Plan-Validation, Security-Review) | Pipeline proceeds (state file created) |
-| **T4** (Bug fix) | Continue to Step 1 (lightweight pipeline) | Pipeline proceeds |
-| **T5** (Standard feature) | Continue to Step 1 (standard pipeline) | Pipeline proceeds |
-| **T6** (Critical / cross-cutting) | Continue to Step 1 (heavy: Best-of-N or PDR-RTV) | Pipeline proceeds |
+| **PAIR** (question / docs / config / mechanical sweep / trivial code) | Halt + re-route to the sub-behaviour matching the request shape: direct answer, `/harness:tech-spike`, a lightweight worktree subagent (tracked-doc edits), `/harness:harness-config`, or `/harness:batch-pipeline` | Pipeline halts (NO state file created) |
+| **BUILD** (bug fix / standard feature) | Continue to Step 1 (lightweight or standard pipeline) | Pipeline proceeds |
+| **PIPELINE** (critical / cross-cutting) | Continue to Step 1 (heavy: Best-of-N or PDR-RTV) | Pipeline proceeds |
 
 Status line — always emit one of:
 
 ```
-[Pipeline] Tier guard: T0 → direct answer / /harness:tech-spike
-[Pipeline] Tier guard: T1 → lightweight worktree subagent (tracked-doc edits)
-[Pipeline] Tier guard: T2 → /harness:harness-config
-[Pipeline] Tier guard: T3 → /harness:batch-pipeline
-[Pipeline] Tier guard: T3H → /harness:pipeline (trimmed lane)
-[Pipeline] Tier guard: T4 → /harness:pipeline (lightweight)
-[Pipeline] Tier guard: T5 → /harness:pipeline (standard)
-[Pipeline] Tier guard: T6 → /harness:pipeline (heavy)
+[Pipeline] Gear guard: PAIR → halt + re-route to sub-behaviour
+[Pipeline] Gear guard: BUILD → /harness:pipeline (lightweight/standard)
+[Pipeline] Gear guard: PIPELINE → /harness:pipeline (heavy)
 ```
 
-T3H is a CONTINUE tier: it creates a pipeline state file and runs the trimmed lane — Build (full TDD, Iron Law 1 failing-test-first) + diff-only standard code-reviewer + Ship + Reflect. Plan, Plan-Validation, and Security-Review are skipped because the change is ≤1 file / ≤15 changed lines / no tests / no security surface / internal-shape-only. Iron Law 1 still applies inside Build.
+For PAIR, **Pipeline halts (NO state file created)** — the dispatch target (direct answer / `/harness:tech-spike` / lightweight worktree subagent / `/harness:harness-config` / `/harness:batch-pipeline`, chosen by request shape) is invoked instead. Pipeline state file (`$state_dir/{task-id}/pipeline.md`) is created only at Step 2c (which runs for BUILD and PIPELINE). This Step 1.0 is the cost-discipline lever — a PAIR-shaped doc edit no longer burns ~12-15 subagent spawns through a full pipeline shape.
 
-**Scope-overflow abort (T3H → T4 upshift):** If the build engineer's actual diff exceeds 1 file OR 15 changed lines mid-build, ABORT the trimmed lane and upshift to T4 — re-enter the standard pipeline at Plan (so the change receives Plan + Plan-Validation + Security-Review). The prediction is not ground truth; the diff is.
+BUILD covers both the former T4 (bug fix) and T5 (standard feature) tiers, routing into the standard (non-heavy) pipeline; PIPELINE is the sole gear that uses the heavy Best-of-N/PDR-RTV Build variants.
 
-**Reflect + telemetry:** T3H STILL runs Reflect (Iron Law 7) and emits the deploy_outcome companion record carrying tier_emitted: T3H so /harness:forensics computes a T3H-specific escape rate.
-
-For T0-T3, **Pipeline halts (NO state file created)** — the dispatch target (direct answer / `/harness:harness-config` / `/harness:batch-pipeline` / lightweight worktree subagent) is invoked instead. Pipeline state file (`$state_dir/{task-id}/pipeline.md`) is created only at Step 2c (which runs for T3H and T4-T6). This Step 1.0 is the cost-discipline lever — T1 doc edits no longer burn ~12-15 subagent spawns through a full pipeline shape.
-
-T4 and T5 both route into the standard (non-heavy) pipeline (neither uses the T6 heavy Build variants); the fingerprinter does not emit T5 today (Phase 3 deferred).
-
-If `tier_emitted` is missing from intake.md (legacy intake or fingerprint error), default to T4+ behaviour (safety-bias — never under-dispatch). Log the missing-tier condition to the pipeline state file once it is created.
+If `gear_emitted` is missing from intake.md (legacy intake or gear-select failure), default to **PIPELINE** behaviour (safety-bias — never under-dispatch, mirroring `gear-select.sh`'s own fail-safe polarity). Log the missing-gear condition to the pipeline state file once it is created.
 
 ### Step 1: Classify Work and Determine Pipeline
 
@@ -93,12 +77,11 @@ If `tier_emitted` is missing from intake.md (legacy intake or fingerprint error)
 | Planning | `/harness:epic-breakdown` | Plan only (produces stories for future pipelines) |
 
 **Pipeline scale tiers:**
-- **T3H (trimmed lane)**: ≤1 file, ≤15 changed lines, internal-shape-only → Build (full TDD) + diff-only standard code-reviewer + Ship + Reflect. SKIP Plan, Plan-Validation, Security-Review.
 - **Micro**: 1 file, less than 5 lines changed, no behavior change → Plan + Plan Validation + Build (incl. code-review) + Security Review + Ship
 - **Small**: 1-3 files, isolated change → Plan + Plan Validation + Build (incl. code-review) + Security Review + Verify + Ship
 - **Medium/Large**: Full pipeline. No phase is skipped.
 
-All T4-T6 tiers include Plan + Plan Validation. The `/harness:learn` system may create instincts to adjust this per project/pattern.
+All BUILD/PIPELINE gears include Plan + Plan Validation — no scale tier skips them (trivial code changes route out at the PAIR gear before `/harness:pipeline` is ever invoked, per Step 1.0 Gear Guard). The `/harness:learn` system may create instincts to adjust pipeline scale per project/pattern.
 
 ### Step 2: Pre-flight Checks (MANDATORY before pipeline state is created)
 
@@ -226,7 +209,7 @@ If the project CLAUDE.md contains a `## Service Context` section with upstream/d
 
 ### Step 2c-bis: Plan Cache Lookup (Stage 0 of Plan Phase)
 
-BEFORE dispatching architect or recon, invoke `skills/plan-cache-lookup/SKILL.md`. The skill resolves `CLAUDE_PLAN_CACHE_MODE`, computes the `(task_class, repo_hash, tier, critical)` cache key, and emits exactly one of:
+BEFORE dispatching architect or recon, invoke `skills/plan-cache-lookup/SKILL.md`. The skill resolves `CLAUDE_PLAN_CACHE_MODE`, computes the `(task_class, repo_hash, gear, critical)` cache key, and emits exactly one of:
 
 - `PLAN_CACHE_HIT` — the Haiku adapter has written `$state_dir/{task-id}/plan.md` with `cache_hit: true` and the resume-safety stub `$state_dir/{task-id}/architect-context.md`. Skip Stage 1 (recon) and Stage 2 (architect); advance directly to Step 2d (Plan Validation). Plan Validation challengers MUST skip the citation-alignment grader on `cache_hit: true` plans (Domain D7).
 - `PLAN_CACHE_MISS` — `reason ∈ {no-template, disabled, shadow-mode, adapter-rejected, ...}`. Fall through to the normal Plan Phase Dispatch (Stage 1 recon + Stage 2 architect) IN THIS SAME PIPELINE. Iron Law 6: `adapter-rejected` is never deferred to a follow-up pipeline.

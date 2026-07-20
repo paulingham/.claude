@@ -66,7 +66,7 @@ printf '{"task_id":"test-task","verdict":"VERIFIED_OK","git_head":"%s","timestam
 # We also need a harness-paths stub to keep the source chain happy.
 # quality-gate-checks.sh does NOT source harness-paths itself, so we only need
 # to stub the functions it calls that live outside the file:
-#   _qg_resolve_intake_path, _qg_extract_intake_tier — both defined in the same file, no extra deps.
+#   _qg_resolve_intake_path, _qg_extract_intake_gear — both defined in the same file, no extra deps.
 # jq must be available (it is on CI and dev macs).
 
 # ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ run_freshness() {
     export CLAUDE_DISABLE_FRESHNESS_QG=0
     export CLAUDE_PIPELINE_TASK_ID="test-task"
     export HARNESS_DATA="${FIXTURE_TMP}/data"
-    # Point intake to a nonexistent file so tier check is skipped (returns "")
+    # Point intake to a nonexistent file so gear check is skipped (returns "")
     # shellcheck source=../_lib/quality-gate-checks.sh
     source "$CHECKS_LIB"
     _qg_check_freshness "$cmd" 2>/dev/null
@@ -580,18 +580,18 @@ echo ""
 # ---------------------------------------------------------------------------
 # AC-C1: _qg_resolve_intake_path HARNESS_DATA probe (finding 6, fix-cycle round 1)
 # Seed intake.md ONLY under HARNESS_DATA/pipeline-state/{task-id}/ (no bare path).
-# _qg_resolve_intake_path must return the HARNESS_DATA path so _qg_extract_intake_tier
-# can read the tier. Bare-path fallback must NOT shadow it.
+# _qg_resolve_intake_path must return the HARNESS_DATA path so _qg_extract_intake_gear
+# can read the gear. Bare-path fallback must NOT shadow it.
 # RED: before fix, function returned bare path "pipeline-state/test-task/intake.md"
-#      which doesn't exist → tier extraction returns empty → broken.
-# GREEN: after fix, function probes HARNESS_DATA first → tier extracted correctly.
+#      which doesn't exist → gear extraction returns empty → broken.
+# GREEN: after fix, function probes HARNESS_DATA first → gear extracted correctly.
 # ---------------------------------------------------------------------------
 echo "-- AC-C1: _qg_resolve_intake_path finds intake.md at HARNESS_DATA only --"
 
 _AC_C1_HD="${TMPDIR:-/tmp}/ac-c1-harness-$$"
 _AC_C1_INTAKE_DIR="${_AC_C1_HD}/pipeline-state/intake-test-task"
 mkdir -p "$_AC_C1_INTAKE_DIR"
-printf -- '---\ntask_id: intake-test-task\ntier_emitted: T5\n---\n' \
+printf -- '---\ntask_id: intake-test-task\ngear_emitted: BUILD\n---\n' \
   > "${_AC_C1_INTAKE_DIR}/intake.md"
 
 AC_C1_PATH=$(
@@ -607,17 +607,17 @@ else
     "${_AC_C1_HD}/pipeline-state/intake-test-task/intake.md" "$AC_C1_PATH"
 fi
 
-AC_C1_TIER=$(
+AC_C1_GEAR=$(
   export HARNESS_DATA="$_AC_C1_HD"
   unset CLAUDE_WORKSTREAM 2>/dev/null || true
   source "$CHECKS_LIB"
   intake=$(_qg_resolve_intake_path "intake-test-task")
-  _qg_extract_intake_tier "$intake"
+  _qg_extract_intake_gear "$intake"
 )
-if [[ "$AC_C1_TIER" == "T5" ]]; then
-  pass "AC-C1 tier: tier T5 extracted from HARNESS_DATA intake.md"
+if [[ "$AC_C1_GEAR" == "BUILD" ]]; then
+  pass "AC-C1 gear: gear BUILD extracted from HARNESS_DATA intake.md"
 else
-  fail "AC-C1 tier: tier extracted from HARNESS_DATA intake.md" "T5" "$AC_C1_TIER"
+  fail "AC-C1 gear: gear extracted from HARNESS_DATA intake.md" "BUILD" "$AC_C1_GEAR"
 fi
 
 rm -rf "$_AC_C1_HD"
@@ -635,7 +635,7 @@ echo "-- GAP-3: AC-C1 workstream variant: CLAUDE_WORKSTREAM=my-ws + intake at wo
 _GAP3_HD="${TMPDIR:-/tmp}/gap3-harness-$$"
 _GAP3_WS_DIR="${_GAP3_HD}/pipeline-state/workstreams/my-ws/ws-test-task"
 mkdir -p "$_GAP3_WS_DIR"
-printf -- '---\ntask_id: ws-test-task\ntier_emitted: T4\n---\n' \
+printf -- '---\ntask_id: ws-test-task\ngear_emitted: BUILD\n---\n' \
   > "${_GAP3_WS_DIR}/intake.md"
 
 GAP3_PATH=$(
@@ -651,17 +651,17 @@ else
   fail "GAP-3: _qg_resolve_intake_path workstream path" "$EXPECTED_GAP3" "$GAP3_PATH"
 fi
 
-GAP3_TIER=$(
+GAP3_GEAR=$(
   export HARNESS_DATA="$_GAP3_HD"
   export CLAUDE_WORKSTREAM="my-ws"
   source "$CHECKS_LIB"
   intake=$(_qg_resolve_intake_path "ws-test-task")
-  _qg_extract_intake_tier "$intake"
+  _qg_extract_intake_gear "$intake"
 )
-if [[ "$GAP3_TIER" == "T4" ]]; then
-  pass "GAP-3 tier: tier T4 extracted from workstream HARNESS_DATA intake.md"
+if [[ "$GAP3_GEAR" == "BUILD" ]]; then
+  pass "GAP-3 gear: gear BUILD extracted from workstream HARNESS_DATA intake.md"
 else
-  fail "GAP-3 tier: tier extracted from workstream intake.md" "T4" "$GAP3_TIER"
+  fail "GAP-3 gear: gear extracted from workstream intake.md" "BUILD" "$GAP3_GEAR"
 fi
 
 rm -rf "$_GAP3_HD"

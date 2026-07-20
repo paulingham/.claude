@@ -52,7 +52,7 @@ _gear_select_has_override() {
 
 _gear_select_classify() {
   local prompt_lower="$1"
-  if [[ "$prompt_lower" =~ (auth|token|secret|payment|crypto|password|session|billing|oauth|jwt|migration|schema|cross-repo|multi-repo|critical) ]]; then
+  if [[ "$prompt_lower" =~ (auth|token|secret|payment|crypto|password|session|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature|migration|schema|cross-repo|multi-repo|critical) ]]; then
     printf 'PIPELINE'; return 0
   fi
   if [[ "$prompt_lower" =~ (build|implement|add|create|refactor|migrate).*(feature|endpoint|component|service|caching|layer|dashboard) ]] \

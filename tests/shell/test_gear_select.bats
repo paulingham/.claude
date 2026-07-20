@@ -208,3 +208,61 @@ _json_escape() {
   [ "$status" -eq 0 ]
   [ "$output" = "PIPELINE" ]
 }
+
+# --- Canonical 17-keyword list (lockstep with protocols/work-class-routing.md) ---
+# WHY: gear-select.sh's security regex started as an 11-term subset of the
+# canonical 17-keyword list defined in work-class-routing.md. G8.* pin the 7
+# terms that were missing (cors, csrf, cookie, admin, rbac, cert, signature)
+# so the fold-in can't silently regress to the old subset.
+
+@test "G8.1 escalates to PIPELINE on cors signal" {
+  run _gear_select_for "fix the cors headers on this endpoint"
+  [ "$status" -eq 0 ]
+  [ "$output" = "PIPELINE" ]
+}
+
+@test "G8.2 escalates to PIPELINE on csrf signal" {
+  run _gear_select_for "add csrf protection to the form"
+  [ "$status" -eq 0 ]
+  [ "$output" = "PIPELINE" ]
+}
+
+@test "G8.3 escalates to PIPELINE on cookie signal" {
+  run _gear_select_for "change how the cookie is set on login"
+  [ "$status" -eq 0 ]
+  [ "$output" = "PIPELINE" ]
+}
+
+@test "G8.4 escalates to PIPELINE on admin signal" {
+  run _gear_select_for "restrict this page to admin users"
+  [ "$status" -eq 0 ]
+  [ "$output" = "PIPELINE" ]
+}
+
+@test "G8.5 escalates to PIPELINE on rbac signal" {
+  run _gear_select_for "update the rbac rules for this role"
+  [ "$status" -eq 0 ]
+  [ "$output" = "PIPELINE" ]
+}
+
+@test "G8.6 escalates to PIPELINE on cert signal" {
+  run _gear_select_for "renew the cert before it expires"
+  [ "$status" -eq 0 ]
+  [ "$output" = "PIPELINE" ]
+}
+
+@test "G8.7 escalates to PIPELINE on signature signal" {
+  run _gear_select_for "verify the signature on incoming webhooks"
+  [ "$status" -eq 0 ]
+  [ "$output" = "PIPELINE" ]
+}
+
+@test "G8.8 canonical 17-keyword list is present verbatim in the classify regex" {
+  # WHY: pins the full canonical set (lockstep with work-class-routing.md);
+  # RED if any keyword is dropped or the fold-in used a different spelling.
+  for kw in auth token secret payment session crypto password billing oauth jwt \
+            cors csrf cookie admin rbac cert signature; do
+    grep -qE "_gear_select_classify\(\)" "$LIB"
+    grep -qE "$kw" "$LIB" || { echo "gear-select.sh classify regex missing keyword: ${kw}"; return 1; }
+  done
+}

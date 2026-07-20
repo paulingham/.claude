@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Slice A — AC1 (Phase D Wave 2: migrated tier -> gear)
+# GEAR MIGRATION — protocols/operational-protocol.md
 # Asserts protocols/operational-protocol.md contains a `## Work-Class Routing
 # (Overview)` section between the Fibonacci-removal paragraph (L27 area) and
 # `## Error Recovery Principles`, with a 3-row gear table and a source-of-truth
@@ -41,24 +41,24 @@ setup() {
     | grep -qE 'orthogonal to (the )?Complexity Budget'
 }
 
-@test "Routing section names the gear-select classifier" {
+@test "Routing section names Step 1.5 Gear Read" {
   awk '/^## Work-Class Routing \(Overview\)$/,/^## Error Recovery Principles$/' "$TARGET" \
     | grep -qE 'gear-select\.sh'
 }
 
-@test "Routing section has exactly 3 gear rows (PAIR/BUILD/PIPELINE)" {
+@test "Routing section has exactly 3 gear rows (PAIR, BUILD, PIPELINE)" {
   local count
   count=$(awk '/^## Work-Class Routing \(Overview\)$/,/^## Error Recovery Principles$/' "$TARGET" \
     | grep -cE '^\|[[:space:]]*\*\*(PAIR|BUILD|PIPELINE)\*\*')
   [ "$count" -eq 3 ]
 }
 
-@test "Routing section has PAIR row" {
+@test "Routing section has PAIR gear row" {
   awk '/^## Work-Class Routing \(Overview\)$/,/^## Error Recovery Principles$/' "$TARGET" \
     | grep -qE '^\|[[:space:]]*\*\*PAIR\*\*'
 }
 
-@test "Routing section has PIPELINE row" {
+@test "Routing section has PIPELINE gear row" {
   awk '/^## Work-Class Routing \(Overview\)$/,/^## Error Recovery Principles$/' "$TARGET" \
     | grep -qE '^\|[[:space:]]*\*\*PIPELINE\*\*'
 }

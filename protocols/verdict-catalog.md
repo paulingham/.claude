@@ -17,7 +17,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 
 | Verdict | Polarity | Emitter skill | Phase | Downstream branch |
 |---------|----------|---------------|-------|-------------------|
-| `ROUTED` | info | `intake` | intake | `/harness:pipeline`, `/harness:tech-spike`, `/harness:epic-breakdown`, or direct answer — payload includes `tier: T0..T6, T3H` (set by `/harness:intake` Step 1.5) |
+| `ROUTED` | info | `intake` | intake | `/harness:pipeline`, `/harness:tech-spike`, `/harness:epic-breakdown`, or direct answer — payload includes `gear: PAIR|BUILD|PIPELINE` (set by `hooks/_lib/gear-select.sh`, read by `/harness:intake` Step 1.5) |
 | `STORIES_READY` | info | `epic-breakdown` | plan | One `/harness:pipeline` per story |
 | `ESTIMATED` | info | `estimation` | plan | Pipeline continues with budget |
 | `STORY_READY` | info | `story-writing` | plan | `/harness:build-implementation` |
@@ -32,7 +32,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 | `SPIKE_COMPLETE` | info | `tech-spike` | utility | Findings feed back into planning |
 | `PLAN_APPROVED` | success | `plan-self-validation` | plan-validation | `/harness:build-implementation` |
 | `PLAN_HOLES` | failure | `plan-self-validation` | plan-validation | Architect re-plans (max 1 revision, then escalate to heavy challengers) |
-| `ROUTING_UPSHIFTED` | info | `plan-self-validation` | plan-validation | Plan-phase re-fingerprint detected tier upshift T{n}→T{m}; pipeline re-dispatches downstream phases at new tier (per `protocols/work-class-routing.md` § Plan-phase re-fingerprint sanity check) |
+| `ROUTING_UPSHIFTED` | info | `plan-self-validation` | plan-validation | Plan-phase re-fingerprint detected gear upshift {gear_initial}→PIPELINE; pipeline re-dispatches downstream phases at new gear (per `protocols/work-class-routing.md` § Plan-phase re-gear sanity check) |
 | `PLAN_FEASIBILITY_REJECTED` | failure | `plan-self-validation` | plan-validation | LIGHT-gate self-judgment: architect-context.md Feasibility Finding says FEASIBILITY_REJECTED and the self-validation rubric concurs. Premise/feasibility veto distinct from CHANGES_REQUESTED: surfaces to user, writes feasibility_drift forensic field, does NOT trigger silent architect re-work. No overturn-to-feasible in light gate. |
 | `PLAN_FEASIBILITY_REJECTED` | failure | `product-reviewer` (agent), `software-engineer` (agent) | plan-validation | HEAVY-gate agent-emitted: either challenger emits it when the request's PREMISE is false, regardless of the architect's call. Overturnable BOTH directions (Step 2d). Surfaces to user, writes feasibility_drift. Agent-emitted — reverse-audit exempt (see Notes). |
 | `BUILD_COMPLETE` | success | `build-implementation` | build | `/harness:code-review` + `/harness:security-review` |
@@ -183,7 +183,7 @@ When adding a new skill or extending an existing skill's verdict set, update thi
 
 ## Notes
 
-- `ROUTED` carries a `tier: T0..T6, T3H` field in its payload, set by the `/harness:intake` Step 1.5 fingerprint (per `protocols/work-class-routing.md`). The field gates downstream dispatch: T0-T3 exit `/harness:pipeline`; T3H and T4-T6 proceed (T3H continues through the trimmed lane: Build + diff-only code-review + Ship).
+- `ROUTED` carries a `gear: PAIR|BUILD|PIPELINE` field in its payload, classified by `hooks/_lib/gear-select.sh` and read by the `/harness:intake` Step 1.5 gear read (per `protocols/work-class-routing.md`). The field gates downstream dispatch: PAIR exits before `/harness:pipeline` is ever invoked; BUILD and PIPELINE proceed into `/harness:pipeline` at lightweight/standard or heavy dispatch respectively.
 - `WRONG_SKILL` and `EXTRACTION_BLOCKED` appear in two emitters each (microservices-scaffold + module-extraction; module-extraction + service-extraction). The audit step accepts a verdict shared across multiple emitters as long as every entry's emitter list resolves to a real skill.
 - `ORCHESTRATOR_APPLY_REQUIRED` is emitted by the `fix-engineer` agent (via its spawn output), not a skill — agents emit verdicts through their structured output rather than a `verdict:` frontmatter field. The catalog tracks it for forensic completeness; the verdict-consistency audit step skips reverse-direction enforcement for agent-emitted entries (`Emitter skill` does not need to resolve to a `skills/<name>/SKILL.md` when it names an agent).
 - `RECON_COMPLETE` and `RECON_NULL` are emitted by the `architect-context-recon` agent (Stage 1 of Plan Phase Dispatch), same agent-emitted-verdict pattern as `ORCHESTRATOR_APPLY_REQUIRED`. The catalog tracks them for forensic completeness.

@@ -21,8 +21,8 @@ REPO_ROOT = subprocess.check_output(
 INTAKE_SKILL = os.path.join(REPO_ROOT, "skills", "intake", "SKILL.md")
 
 REQUIRED_KEYS = [
-    "tier_emitted",
-    "tier_initial",
+    "gear_emitted",
+    "gear_initial",
     "detector_phase",
     "detector_confidence",
     "user_phrasing_signals",
@@ -55,9 +55,9 @@ class IntakeFrontmatterTest(unittest.TestCase):
                 missing.append(key)
         self.assertEqual(missing, [], f"missing keys in SKILL.md: {missing}")
 
-    def test_phase_3_explicitly_deferred(self):
+    def test_missing_gear_fail_safe_explicitly_documented(self):
         text = _read_skill()
-        self.assertRegex(text, r"Phase 3 deferred")
+        self.assertRegex(text, r"Missing-gear fail-safe")
 
 
 if __name__ == "__main__":
