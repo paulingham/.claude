@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
-# Slice A — AC1
+# Slice A — AC1 (Phase D Wave 2: migrated tier -> gear)
 # Asserts protocols/operational-protocol.md contains a `## Work-Class Routing
 # (Overview)` section between the Fibonacci-removal paragraph (L27 area) and
-# `## Error Recovery Principles`, with a 7-row tier table and a source-of-truth
+# `## Error Recovery Principles`, with a 3-row gear table and a source-of-truth
 # pointer to protocols/work-class-routing.md.
 
 setup() {
@@ -41,26 +41,26 @@ setup() {
     | grep -qE 'orthogonal to (the )?Complexity Budget'
 }
 
-@test "Routing section names Step 1.5 Fingerprint" {
+@test "Routing section names the gear-select classifier" {
   awk '/^## Work-Class Routing \(Overview\)$/,/^## Error Recovery Principles$/' "$TARGET" \
-    | grep -qE 'Step 1\.5'
+    | grep -qE 'gear-select\.sh'
 }
 
-@test "Routing section has exactly 8 tier rows (T0..T6, T3H)" {
+@test "Routing section has exactly 3 gear rows (PAIR/BUILD/PIPELINE)" {
   local count
   count=$(awk '/^## Work-Class Routing \(Overview\)$/,/^## Error Recovery Principles$/' "$TARGET" \
-    | grep -cE '^\|[[:space:]]*\*\*(T[0-6]|T3H)\*\*')
-  [ "$count" -eq 8 ]
+    | grep -cE '^\|[[:space:]]*\*\*(PAIR|BUILD|PIPELINE)\*\*')
+  [ "$count" -eq 3 ]
 }
 
-@test "Routing section has tier T0 row" {
+@test "Routing section has PAIR row" {
   awk '/^## Work-Class Routing \(Overview\)$/,/^## Error Recovery Principles$/' "$TARGET" \
-    | grep -qE '^\|[[:space:]]*\*\*T0\*\*'
+    | grep -qE '^\|[[:space:]]*\*\*PAIR\*\*'
 }
 
-@test "Routing section has tier T6 row" {
+@test "Routing section has PIPELINE row" {
   awk '/^## Work-Class Routing \(Overview\)$/,/^## Error Recovery Principles$/' "$TARGET" \
-    | grep -qE '^\|[[:space:]]*\*\*T6\*\*'
+    | grep -qE '^\|[[:space:]]*\*\*PIPELINE\*\*'
 }
 
 @test "Routing section contains source-of-truth pointer" {

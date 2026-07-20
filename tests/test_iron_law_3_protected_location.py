@@ -5,8 +5,11 @@ E1: rules/core.md line 11 (Iron Law 3) must contain:
     - The word "net-new" (new concept introduced by the fix)
     - A reference to "is-protected-path.sh" (enforcement pointer)
 
-E3: T1 dispatch target must say "worktree subagent" not "orchestrator direct edit"
-    in both work-class-routing.md and CLAUDE.md.
+E3: the tracked-doc-edit dispatch target must say "worktree subagent" not
+    "orchestrator direct edit" in both work-class-routing.md and CLAUDE.md.
+    Phase D Wave 2 retired the literal "T1" row label (tier -> gear
+    vocabulary flip); the PAIR row's tracked-doc-edit dispatch capability
+    is the successor surface these assertions pin.
 """
 from pathlib import Path
 import re
@@ -48,33 +51,54 @@ class IronLaw3UpdatedInRulesCore(unittest.TestCase):
 
 
 class T1DispatchTargetUpdated(unittest.TestCase):
-    """E3: T1 row in work-class-routing.md and CLAUDE.md says 'worktree subagent'."""
+    """E3: the tracked-doc-edit dispatch capability in work-class-routing.md
+    and CLAUDE.md says 'worktree subagent'.
 
-    def test_work_class_routing_t1_row(self):
+    Phase D Wave 2 note: the literal "T1" row label was retired when the
+    tier vocabulary flipped to gears. The tracked-doc-edit capability now
+    lives inside the PAIR gear's sub-behaviour table/row, not a standalone
+    "T1" row — these assertions locate it by the "doc" + "worktree" phrase
+    pair instead of by tier label.
+    """
+
+    def test_work_class_routing_doc_edit_row(self):
         text = (REPO_ROOT / "protocols" / "work-class-routing.md").read_text()
-        # The T1 row must mention worktree subagent (not raw orchestrator direct edit)
-        t1_lines = [l for l in text.splitlines() if "T1" in l and "|" in l]
+        # The tracked-doc-edit capability must mention worktree subagent
+        # (not raw orchestrator direct edit).
+        doc_lines = [
+            l for l in text.splitlines()
+            if "|" in l and "doc" in l.lower() and "worktree" in l.lower()
+        ]
         self.assertTrue(
-            any("worktree" in l.lower() for l in t1_lines),
-            f"work-class-routing.md T1 row must mention 'worktree'; found: {t1_lines}",
+            doc_lines,
+            "work-class-routing.md must have a tracked-doc-edit row/line "
+            "mentioning 'worktree'",
         )
 
-    def test_claude_md_t1_row(self):
+    def test_claude_md_doc_edit_row(self):
         text = (REPO_ROOT / "CLAUDE.md").read_text()
-        t1_lines = [l for l in text.splitlines() if "T1" in l and "|" in l]
+        doc_lines = [
+            l for l in text.splitlines()
+            if "|" in l and "doc" in l.lower() and "worktree" in l.lower()
+        ]
         self.assertTrue(
-            any("worktree" in l.lower() for l in t1_lines),
-            f"CLAUDE.md T1 row must mention 'worktree'; found: {t1_lines}",
+            doc_lines,
+            "CLAUDE.md must have a tracked-doc-edit row/line mentioning "
+            "'worktree'",
         )
 
-    def test_work_class_routing_t1_no_longer_says_orchestrator_direct(self):
+    def test_work_class_routing_no_longer_says_orchestrator_direct(self):
         text = (REPO_ROOT / "protocols" / "work-class-routing.md").read_text()
-        t1_lines = [l for l in text.splitlines() if "T1" in l and "|" in l]
-        for line in t1_lines:
+        doc_lines = [
+            l for l in text.splitlines()
+            if "|" in l and "doc" in l.lower()
+        ]
+        for line in doc_lines:
             self.assertNotIn(
                 "Orchestrator direct edit",
                 line,
-                f"work-class-routing.md T1 row must not say 'Orchestrator direct edit'; line: {line}",
+                "work-class-routing.md doc-edit row must not say "
+                f"'Orchestrator direct edit'; line: {line}",
             )
 
 
