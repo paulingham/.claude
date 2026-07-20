@@ -2,21 +2,21 @@
 
 How the harness decides **which dispatch shape a task gets**. The goal is to prevent a doc edit from paying feature-sized dispatch cost while preserving full pipeline rigour for real engineering work.
 
-> **SSOT note (Phase D Wave 2):** This protocol previously described a seven-tier (T0-T6, T3H) fingerprint computed inside `/harness:intake` Step 1.5. That computation has been superseded by the **three-gear classifier** (`hooks/_lib/gear-select.sh`), which runs on `UserPromptSubmit` and persists its verdict to `gear-${sid}` session state before intake or pipeline dispatch begins. This document now describes the gear architecture. The legacy tier-based Step 1.5 fingerprint prose in `skills/intake/SKILL.md` and the Step 1.0 Tier Guard in `skills/pipeline/SKILL.md` still exist and are consumed by a live forensics hook (`hooks/_lib/intake-fingerprint-emit.py`) — their tier→gear migration is out of scope for this wave and tracked separately.
+This protocol is read by `/harness:intake` (gear-read step) and `/harness:pipeline` (route step). It is auto-loaded when either skill spawns. Classification itself happens earlier, in the **three-gear classifier** (`hooks/_lib/gear-select.sh`), which runs on `UserPromptSubmit` and persists its verdict to `gear-${sid}` session state before intake or pipeline dispatch begins.
 
 ## Why this exists
 
-A doc-only sweep and a feature share the same pipeline shape if their budget+critical happen to match, absent a class-first check. User phrasing (`critical`, `important`) is trusted directly unless cross-checked. Result: low-stakes work can route through Plan → heavy challenger team → multi-slice Build → 5-agent Final Gate, burning 12-15 subagent spawns for what amounts to a find/replace.
+Without a work-class read, a doc-only sweep and a feature would share the same pipeline shape if their budget+critical happen to match. User phrasing (`critical`, `important`) is trusted directly — there is no classifier cross-check. Result: low-stakes work routes through Plan → heavy challenger team → multi-slice Build → 5-agent Final Gate, burning 12-15 subagent spawns for what amounts to a find/replace.
 
 ## Design principle
 
-> **Task class is orthogonal to budget. Auto-detection overrides user phrasing. Every override is logged.**
+> **Gear is orthogonal to budget. Auto-classification overrides user phrasing. Every override is logged.**
 
 Three rules govern routing:
 
 1. **Class first, budget second.** Classify the work into one of three gears — **PAIR**, **BUILD**, **PIPELINE** — based on **what the request implies** (keyword/shape evidence in the prompt), not what the user said about stakes. Budget informs *intra-gear* shape (e.g. multi-slice Build), not *which gear*.
 2. **Default light, escalate on evidence.** Polarity is inverted from the legacy tier fingerprint: the default gear is **PAIR** (the lightest), escalating to BUILD or PIPELINE only when a detector positively fires. A gate that cannot evaluate its input (empty/malformed prompt) fails to the **heaviest** gear (PIPELINE) — fail SAFE means fail HEAVY, never silently light.
-3. **Bidirectional override with forensics.** Natural-language overrides ("just pair", "build it", "full pipeline") force a specific gear. Overrides are logged.
+3. **Bidirectional override with forensics.** A one-word NL override (`just pair`, `build it`, `full pipeline`) is resolved by `gear-select.sh` itself before intake ever runs; `[force-pipeline]` is a separate safety-override token read later, at `/harness:intake` Step 1.5. Both log to `metrics/{session}/intake-overrides.jsonl`.
 
 ## The three gears
 
@@ -25,6 +25,8 @@ Three rules govern routing:
 | **PAIR** | Yes (default) | Question / doc / config / mechanical / trivial code | "How does X work?", README edits, settings.json keys, rename sweeps, ≤1-file/≤15-line trivial code | Direct answer, or one of the PAIR sub-behaviours below |
 | **BUILD** | No — escalate on evidence | Bug fix / standard feature | Failing test + targeted fix, new AC in an isolated module, "build it", "implement this feature" | One worktree subagent, TDD, code-review, PR |
 | **PIPELINE** | No — escalate on evidence | Critical / cross-cutting | Auth, payment, security, multi-repo, schema/migration work, "full pipeline" | Full multi-agent `/harness:pipeline` (Plan → Plan Validation → Build → Security Review → Final Gate → Ship → Deploy → Reflect) |
+
+PAIR is the fast path — it never enters `/harness:pipeline`. BUILD and PIPELINE are today's `/harness:pipeline`, unchanged in substance from the former T4-T6 dispatch shapes.
 
 ### PAIR sub-behaviours (dispatch capabilities preserved from the tier model)
 
@@ -41,11 +43,11 @@ BUILD and PIPELINE are single dispatch targets — BUILD always means one worktr
 
 ## Gear classification (`hooks/_lib/gear-select.sh`)
 
-Runs on every `UserPromptSubmit`, before `/harness:intake` or `/harness:pipeline` dispatch. No fingerprint computation inside intake — the gear is already resolved and persisted by the time intake runs.
+Classification happens as a `UserPromptSubmit` hook, `hooks/_lib/gear-select.sh`, BEFORE `/harness:intake` or `/harness:pipeline` dispatch ever runs — it persists the verdict to state key `gear-${sid}`. `/harness:intake` Step 1.5 (Gear Read) then reads that persisted value; it does not re-derive it. No fingerprint computation happens inside intake — the gear is already resolved and persisted by the time intake runs.
 
 ### Override detection (checked first)
 
-Natural-language override phrases in the prompt force a specific gear regardless of classification evidence:
+Natural-language override phrases in the prompt force a specific gear regardless of classification evidence, resolved by `_gear_select_has_override` INSIDE `gear-select.sh` before the escalation regex is even evaluated:
 
 | Phrase pattern | Forced gear |
 |---|---|
@@ -55,13 +57,15 @@ Natural-language override phrases in the prompt force a specific gear regardless
 
 ### Evidence-based classification (when no override matches)
 
-1. **PIPELINE evidence** — prompt contains any of: `auth`, `token`, `secret`, `payment`, `crypto`, `password`, `session`, `billing`, `oauth`, `jwt`, `migration`, `schema`, `cross-repo`, `multi-repo`, `critical`.
+Regex-based, `hooks/_lib/gear-select.sh::_gear_select_classify` — no model call, $0:
+
+1. **PIPELINE evidence** — prompt contains any of the **canonical 17-keyword list**: `auth`, `token`, `secret`, `payment`, `crypto`, `password`, `session`, `billing`, `oauth`, `jwt`, `cors`, `csrf`, `cookie`, `admin`, `rbac`, `cert`, `signature` — or `migration`, `schema`, `cross-repo`, `multi-repo`, `critical`. Kept lockstep across `hooks/_lib/gear-select.sh`, `skills/intake/SKILL.md`, and this file.
 2. **BUILD evidence** — prompt matches a build/implement/add/create/refactor/migrate verb paired with a feature/endpoint/component/service/caching/layer/dashboard noun, OR names "new endpoint" / "new component" / "new feature", OR references "three/multiple/several files".
 3. **Default** — PAIR.
 
 ### Fail-safe
 
-An empty or unparseable prompt (or a `gear_select` invocation with no stdin) emits **PIPELINE**, never PAIR — an unevaluable classification input must never silently downshift.
+An empty or unparseable prompt (or a `gear_select` invocation with no stdin) emits **PIPELINE**, never PAIR — an unevaluable classification input must never silently downshift. There is no tiebreaker call; ambiguous input fails safe to PIPELINE rather than falling through to a paid resolution step.
 
 ### Persistence
 
@@ -71,14 +75,14 @@ The resolved gear is written to `gear-${sid}` session state (keyed by session id
 
 | Phase | PAIR | BUILD | PIPELINE |
 |---|---|---|---|
-| Plan (architect) | — | light | full |
-| Plan Validation | — | `/harness:plan-self-validation` | heavy if `budget>=7`, else `/harness:plan-self-validation` |
-| Build | PAIR sub-behaviour (see table above) | single worktree subagent | Best-of-N or PDR-RTV (gated by budget+critical) |
-| Polish | — | if `budget>=7` | yes |
-| Code Review | reviewer reads diff only (PAIR sub-behaviours that produce a diff) | code-reviewer | code-reviewer + adversarial |
-| Security Review | only if hooks touched | only if security-sensitive | yes |
-| Final Gate | verify (smoke only) | full 4-agent | full 5-agent (+ spec-blind) |
-| Ship (PR) | yes (PAIR sub-behaviours that produce a diff) | yes | yes |
+| Plan (architect) | — | light/full (by scale) | full |
+| Plan Validation | — | `/harness:plan-self-validation` or heavy if `budget≥7` | heavy always |
+| Build | sub-behaviour dispatch (see gear table above) | single agent or multi-slice | Best-of-N or PDR-RTV |
+| Polish | — | if `budget≥7` | yes |
+| Code Review | reviewer reads diff only (PAIR-shaped sub-behaviours) | code-reviewer | code-reviewer + adversarial |
+| Security Review | only if hooks touched | yes | yes |
+| Final Gate | verify (smoke only, PAIR-shaped sub-behaviours) | full 4-agent | full 5-agent (+ spec-blind) |
+| Ship (PR) | yes | yes | yes |
 | Deploy | — | conditional | yes |
 | Reflect | yes (terse, Haiku, 100 tok cap) | yes | yes |
 
@@ -86,15 +90,14 @@ The resolved gear is written to `gear-${sid}` session state (keyed by session id
 
 | Token in user prompt | Effect | Forensic record |
 |---|---|---|
-| (default) | Auto-detect via `gear-select.sh` | Gear persisted to `gear-${sid}` |
-| "just pair" / "pair on this" | Force PAIR regardless of evidence | Override logged |
-| "build it" / "build this properly" | Force BUILD regardless of evidence | Override logged |
-| "ship it properly" / "take it all the way" / "full pipeline" | Force PIPELINE regardless of evidence | Override logged |
-| User phrasing claims "critical" but gear = PAIR | **Gear wins** at the top level; `critical` still shapes intra-gear dispatch inside BUILD/PIPELINE | — |
+| (default) | Auto-classify via `gear-select.sh` | `intake-overrides.jsonl` records classifier verdict |
+| `[force-pipeline]` | Force `gear: PIPELINE` regardless of the persisted classifier verdict (read at `/harness:intake` Step 1.5, not inside `gear-select.sh`) | `intake-overrides.jsonl` `direction: upshift` |
+| one-word NL override (`just pair`, `build it`, `full pipeline`, ...) | Resolved inside `gear-select.sh` before the escalation regex runs | `intake-overrides.jsonl` records the resolved gear + `phrasing_honoured: true` |
+| User phrasing claims "critical" but gear = PAIR | **Gear wins**, `critical: false` set, override logged | `intake-overrides.jsonl` `direction: phrasing-rejected` |
 
-## Plan-phase re-classification sanity check
+## Plan-phase re-gear sanity check
 
-The gear is classified from the user prompt on `UserPromptSubmit`, before the architect's Plan reveals actual scope. If the Plan's affected-files list implies a heavier gear than the one persisted at prompt time, upshift the rest of the pipeline and emit `ROUTING_UPSHIFTED`. Downshifts at this stage are not honoured — once a pipeline is dispatched at BUILD or PIPELINE, it completes at that gear or higher.
+Gear classification runs on the user prompt at `UserPromptSubmit` (via `gear-select.sh`, before `/harness:intake` or `/harness:pipeline` ever runs). Architect's Plan reveals the actual scope. **Re-check the Plan's affected-files list against the rules/core.md safety-upshift floor** as Step 0 of Plan Validation. If the floor fires, upshift the rest of the pipeline to PIPELINE and emit `ROUTING_UPSHIFTED`. Downshifts at this stage are not honoured — once a pipeline is dispatched at BUILD+, it completes at BUILD+.
 
 Catches the failure mode: user says "tidy up the docs" but architect's plan actually touches 8 source files.
 
@@ -110,33 +113,64 @@ Catches the failure mode: user says "tidy up the docs" but architect's plan actu
 | Pipeline Phase Order text | **BUILD** |
 | "Where to Look Next" index (just redirectors) | **PAIR** allowed |
 
+Detection: a second-pass Haiku call (~300 tokens) reads the diff content and looks for Iron-Law-touching tokens (`Iron Law`, `IRON LAW`, `NEVER`, `ATTRIBUTION`). If matched, upshift to PIPELINE. Same pattern applies to `protocols/atdd-procedure.md` (Iron Law 1 source) and `protocols/verdict-catalog.md` (verdict additions = BUILD; verdict removals = PIPELINE).
+
+## Forensic logging schema
+
+Every gear resolution and every override writes a JSONL line to `metrics/{session}/intake-overrides.jsonl`:
+
+```json
+{
+  "timestamp": "ISO-8601",
+  "task_id": "...",
+  "gear_emitted": "PAIR|BUILD|PIPELINE",
+  "gear_initial": "PAIR|BUILD|PIPELINE",
+  "detector_phase": "rules|fallthrough",
+  "detector_confidence": "high|medium|low",
+  "user_phrasing_signals": ["critical", "important", ...],
+  "phrasing_honoured": true|false,
+  "override_token": "[force-pipeline]|null",
+  "safety_override_fired": true|false,
+  "predicted_files": ["path/a.md", "path/b.json"],
+  "fingerprint_cost_tokens": 0
+}
+```
+
+Read by `/harness:forensics` to detect:
+- Silent miscategorisation (downshift followed by escalation later in pipeline)
+- Override abuse (high `[force-pipeline]` rate from a single source)
+- Classifier blind spots (high `fallthrough` rate)
+
 ## Quality safety analysis
 
 | Failure mode | Mitigation |
 |---|---|
-| Auth change classified as PAIR | PIPELINE evidence list includes `auth`, `secret`, `token`, `crypto`, `password`, `session`, `payment`, `billing`, `oauth`, `jwt` — any match forces PIPELINE regardless of other signals |
-| Feature classified as PAIR because of phrasing | BUILD/PIPELINE evidence requires positive shape signal (build verb + feature noun, or security keyword); absent that, PAIR is a deliberate default, not a miss |
-| Mechanical sweep silently broke behaviour | The batch-pipeline PAIR sub-behaviour still runs diff-only Code Review + smoke-level Final Gate verify — not full behaviour validation, by design |
-| Plan got skipped for work that needed it | PIPELINE always runs Plan + Plan Validation. BUILD inherits plan from the user prompt for uniform sweeps (which IS the spec for that shape) |
-| Classification hides real complexity | Plan-phase re-classification catches scope creep; upshifts mid-pipeline |
+| Auth change classified as config-only | Security-signal keyword match on `auth`, `secrets`, `crypto`, `.env`, `password`, `token`, `session` (and the full 17-keyword list) → forces PIPELINE |
+| Feature classified as doc-only because of phrasing | PAIR default only applies absent a feature-verb+feature-noun match or multi-file mention; a single code file signal escalates to BUILD |
+| Hook script edit classified as config-only | Gear classification runs on the prompt, not file diffs directly — `gear-select.sh` errs toward BUILD/PIPELINE on ambiguity per its fail-safe polarity |
+| Test file edit classified as trivial | `gear-select.sh`'s fail-safe default (PIPELINE on any unevaluable input) plus the plan-phase safety-upshift floor (Step 0 of Plan Validation) catch this downstream even if the prompt-level classifier under-escalates |
+| Trivial-code edit hides a security change | The canonical 17-keyword list forces PIPELINE regardless of prompt brevity — `auth\|token\|secret\|payment\|session\|crypto\|password\|billing\|oauth\|jwt\|cors\|csrf\|cookie\|admin\|rbac\|cert\|signature` |
+| Plan got skipped for work that needed it | BUILD/PIPELINE plan unchanged — no gear skips Plan. PAIR requires no plan because the change is the spec |
+| Gear read hides real complexity | Plan-phase re-gear check catches scope creep; upshifts mid-pipeline |
+
+## Hook implementation
+
+`hooks/intake-fingerprint-audit.sh` (PostToolUse Skill matcher for `/harness:intake`):
+
+- Reads emitted `task_class` from intake output
+- Reads override metadata
+- Writes one JSONL line per gear resolution
+- **Advisory/logging only** — no enforcement, no exit-2
+- Respects `CLAUDE_HOOK_PROFILE=minimal` (exits 0 silently)
+- After 30 days of clean data (classifier accuracy ≥95%), schedule a follow-up to demote to cron-scheduled audit rather than per-intake
 
 ## Interaction with existing protocols
 
-- **Iron Law 5** ("NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.") applies to **BUILD and PIPELINE**. PAIR dispatches outside `/harness:pipeline` and is governed by its own sub-behaviour's verdict catalog entry. This is not an exception to the Iron Law — it is a clarification that the Iron Law's scope is the pipeline, not all work.
-- **Iron Law 3** (orchestrator never writes source code; protected-location enforcement via `hooks/_lib/is-protected-path.sh`) governs the PAIR tracked-doc sub-behaviour. Tracked-doc edits route to a lightweight worktree subagent which commits the change with full audit trail.
+- **Iron Law 5** ("NO PHASE SKIPPED. NO GATE BYPASSED. NO SKILL OMITTED.") applies to **BUILD/PIPELINE**. PAIR dispatches outside `/harness:pipeline` and is governed by its own sub-behaviour's verdict catalog entry. This is not an exception to the Iron Law — it is a clarification that the Iron Law's scope is the pipeline, not all work.
+- **Iron Law 3** (orchestrator never writes source code; protected-location enforcement via `hooks/_lib/is-protected-path.sh`) governs the PAIR doc-only sub-behaviour. Tracked-doc edits route to a lightweight worktree subagent which commits the change with full audit trail.
 - **Complexity Budget** still computes (`/harness:intake` Step 2). It controls *intra-gear* dispatch shape (multi-slice Build at BUILD, Best-of-N vs PDR-RTV at PIPELINE). It no longer controls *which* gear.
-- **`critical` flag** still computes and shapes intra-gear dispatch (Best-of-N/PDR-RTV eligibility inside PIPELINE).
-- **`bestofn` and `pdr_rtv` flags** only fire inside **PIPELINE** AND budget>=7. BUILD forces both flags false regardless of critical or budget. `bestofn` also requires `critical==true`; the `[best-of-n]` override token bypasses the gear+budget gate. SSOT: `hooks/_lib/bestofn_gate.py`.
-
-## Appendix: legacy tier fingerprint detector spec (still consumed by `skills/intake/SKILL.md` Step 1.5)
-
-`skills/intake/SKILL.md` Step 1.5 still runs a tier fingerprint (T0-T6, T3H) and writes `tier_emitted`/`tier_initial` to `intake.md` frontmatter, which `hooks/_lib/intake-fingerprint-emit.py` reads verbatim and appends to `metrics/{session}/intake-overrides.jsonl` forensics. That fingerprint's detector spec — including this canonical safety-override keyword list — lives here because Step 1.5 names this file as its literal source ("Run the regex/glob detectors from `protocols/work-class-routing.md` § Fingerprint Phase 1"). Migrating this appendix requires migrating the hook's field names and its ~45 pinned tests in the same change; deferred to a dedicated wave.
-
-**Canonical safety-override keyword list (lockstep with `skills/intake/SKILL.md` Phase-2 prose):** `auth|token|secret|payment|session|crypto|password|billing|oauth|jwt|cors|csrf|cookie|admin|rbac|cert|signature`
-
-Phase-2 safety override always wins and upshifts to T4+ regardless of a T3H-shaped match: any of the above keywords appearing in change-target context, or scope touching `hooks/*.sh` body changes, `rules/core.md`/`protocols/atdd-procedure.md`/`protocols/verdict-catalog.md`, any test file, or `auth/*`/`secrets/*`/`*crypto*`/`*.env`.
-
-`round_up_to_T4_when_ANY` contract-eligibility rule (Option-A CONTRACT RULE): a T3H-shaped change rounds up to T4 if it touches an OpenAPI path, a "DB schema", a "public function signature", a "proto", a "cross-repo contract", or a versioned-public schema. An internal JSON shape not published in OpenAPI/Swagger, not proto/event-schema, not versioned/public, and not cross-repo-consumed remains T3H-eligible. When in doubt, round UP.
+- **`critical` flag** still computes but is **gear-filtered**. If gear = PAIR and no safety-override file in scope, `critical: true` from user phrasing is rejected and logged.
+- **`bestofn` and `pdr_rtv` flags** only fire at PIPELINE AND budget>=7. BUILD forces both false regardless of critical or budget. `bestofn` also requires `critical==true`; the `[best-of-n]` override token bypasses the gear+budget gate. SSOT: `hooks/_lib/bestofn_gate.py`.
 
 ## Where to look next
 
@@ -146,7 +180,8 @@ Phase-2 safety override always wins and upshifts to T4+ regardless of a T3H-shap
 | Complexity Budget dimensions | `protocols/operational-protocol.md` |
 | Pipeline phases (BUILD/PIPELINE) | `protocols/pipeline-protocol.md` |
 | Parallel dispatch (BUILD/PIPELINE fan-out) | `protocols/parallel-dispatch-protocol.md` |
-| Verdicts emitted by intake | `protocols/verdict-catalog.md` § routing entries |
-| Legacy tier fingerprint (still live, forensics-coupled, migration deferred) | `skills/intake/SKILL.md` Step 1.5; `hooks/_lib/intake-fingerprint-emit.py` |
+| Verdicts emitted by intake | `protocols/verdict-catalog.md` § fingerprint + routing entries |
+| Gear Read (Step 1.5) | `skills/intake/SKILL.md`; `hooks/_lib/intake-fingerprint-emit.py` |
+| Hook implementation | `hooks/intake-fingerprint-audit.sh` |
 | Orchestrator dispatch on gear | `skills/pipeline/SKILL.md` Step 3 |
-| PAIR tracked-doc sub-behaviour | Iron Law 3 in `rules/core.md`; `hooks/_lib/is-protected-path.sh` |
+| PAIR worktree-subagent dispatch | Iron Law 3 in `rules/core.md`; `hooks/_lib/is-protected-path.sh` |
