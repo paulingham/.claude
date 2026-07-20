@@ -417,7 +417,7 @@ For each promotion-eligible, non-suppressed item, Step 7d writes one file to `pi
 2. The source memory/instinct identifier and store.
 3. The proposed bucket and target type (from the ladder).
 4. The recurrence evidence (backlink count or `evidence_count`).
-5. The instruction: "Re-run this prompt through `/harness:intake` so it inherits its own tier and reviewer gates."
+5. The instruction: "Re-run this prompt through `/harness:intake` so it inherits its own gear and reviewer gates."
 6. **The operator step (loop-closure):** "After you ship the resulting PR, manually add `promoted: \"#<PR>\"` to this memory's frontmatter so it stops re-surfacing. If you decide NOT to promote it, add `dismiss_promotion: true` instead."
 
 The draft is NEVER auto-executed. Step 7d NEVER emits a draft that modifies a security/correctness gate directly — it proposes a *new* test/guard, leaving any existing-gate change for the human to author.
