@@ -101,3 +101,37 @@ When approaching your turn limit (within last 20 turns):
 2. Include in the commit message: completed ACs, remaining ACs, current test count, any known issues
 3. Run tests before committing — only commit if tests pass (or note failures in message)
 4. This allows a continuation agent to pick up from committed state instead of starting fresh
+
+## Write Result File (last durable action — after final commit, before your report)
+
+Your loop can go idle after a clean tool_result and never advance to emit your prose report — this is an upstream Claude Code background-agent loop-scheduling gap (issues #61547/#44783), not something fixable in your own behavior. The signal is never lost; your loop just never reaches the point where it would emit it, until an external message pokes it. Writing `build-result.json` is a MITIGATION: because you write it as your last durable action, before that possible stall point, the orchestrator has a reliable completion signal even if your loop never resumes to emit the prose. After your final commit, and before writing your prose report, write `build-result.json` as your last durable action.
+
+**Absolute path — never self-resolve.** The orchestrator's spawn prompt supplies an ABSOLUTE `state_dir` path. Use it exactly as given. Do NOT construct or guess a `pipeline-state/...` path relative to your own cwd — the orchestrator and the agent do not share a cwd, and a self-resolved relative path silently writes to the wrong location, which the orchestrator reads as MISSING every time (looks like a permanent stall, never fixed).
+
+Write atomically via `os.replace` so a crash mid-write never leaves a partial file:
+
+```
+python3 -c "
+import json, os
+path = '<absolute state_dir>/<task_id>/build-result.json'
+tmp = path + '.tmp'
+result = {
+    'schema_version': 1,
+    'agent_role': 'database-engineer',
+    'verdict': 'BUILD_COMPLETE',
+    'branch': '<branch>',
+    'head_sha': '<head_sha>',
+    'base_sha': '<base_sha>',
+    'green': True,
+    'unresolved': [],
+    'generated_at': __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
+}
+with open(tmp, 'w') as f:
+    json.dump(result, f)
+os.replace(tmp, path)
+"
+```
+
+On failure (tests still red, iteration cap exhausted, escalation required): set `verdict` to `BUILD_FAILED` and populate `unresolved` with the specific failing ACs/tests, still writing the file atomically the same way.
+
+**Never skip this write** — it is the machine-readable source of truth the orchestrator reads instead of parsing your prose report.

@@ -129,6 +129,40 @@ The Diagnosis is not optional planning theatre — it forces you to read the std
 3. Do NOT add comments to the source code explaining "this was changed because reviewer X said Y". The diff speaks. Comments rot.
 4. Output the commit SHA and a `## Verdict` block (see below).
 
+### Step 3.3: Write Result File (last durable action — after final commit, before your report)
+
+Your loop can go idle after a clean tool_result and never advance to emit your `## Output` report — this is an upstream Claude Code background-agent loop-scheduling gap (issues #61547/#44783), not something fixable in your own behavior. The signal is never lost; your loop just never reaches the point where it would emit it, until an external message pokes it. Writing `build-result.json` is a MITIGATION: because you write it as your last durable action, before that possible stall point, the orchestrator has a reliable completion signal even if your loop never resumes to emit the report. After your final commit (Step 3.1-3.2 above), and before writing your `## Output` report, write `build-result.json` as your last durable action.
+
+**Absolute path — never self-resolve.** The orchestrator's spawn prompt supplies an ABSOLUTE `state_dir` path. Use it exactly as given. Do NOT construct or guess a `pipeline-state/...` path relative to your own cwd — the orchestrator and the agent do not share a cwd, and a self-resolved relative path silently writes to the wrong location, which the orchestrator reads as MISSING every time (looks like a permanent stall, never fixed).
+
+Write atomically via `os.replace` so a crash mid-write never leaves a partial file:
+
+```
+python3 -c "
+import json, os
+path = '<absolute state_dir>/<task_id>/build-result.json'
+tmp = path + '.tmp'
+result = {
+    'schema_version': 1,
+    'agent_role': 'fix-engineer',
+    'verdict': 'BUILD_COMPLETE',
+    'branch': '<branch>',
+    'head_sha': '<head_sha>',
+    'base_sha': '<base_sha>',
+    'green': True,
+    'unresolved': [],
+    'generated_at': __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
+}
+with open(tmp, 'w') as f:
+    json.dump(result, f)
+os.replace(tmp, path)
+"
+```
+
+On failure (`FIX_REJECTED_TECHNICAL`, `ORCHESTRATOR_APPLY_REQUIRED`, or the fix still leaves tests red): set `verdict` to `BUILD_FAILED` and populate `unresolved` with the specific unresolved findings/tests, still writing the file atomically the same way. This write happens regardless of which of the three `## Output` verdicts (`FIX_APPLIED | FIX_REJECTED_TECHNICAL | ORCHESTRATOR_APPLY_REQUIRED`) you are about to report.
+
+**Never skip this write** — it is the machine-readable source of truth the orchestrator reads instead of parsing your prose report.
+
 ## Edit Denial Escape Hatch
 
 The harness's permission system does not always propagate `mode: acceptEdits` to spawned subagents — Edit/Write calls have been observed to be rejected even though no PreToolUse hook blocked the call (`orchestrator-discipline.sh` allows `.md` paths and worktree paths; `config-protection.sh` skips worktree paths; nothing else in the hook set fires for fix-engineer). When this happens you cannot make progress with Edit/Write, and shelling around it via `sed`/`awk`/heredocs targeting `.json`/`.sh` is forbidden — `bash-write-guard.sh` will block those, and even if it didn't, silently writing source via Bash defeats the audit trail.
