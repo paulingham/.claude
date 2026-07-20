@@ -79,7 +79,7 @@ ALLOWLIST_5=(
   "skills/epic-breakdown/SKILL.md:53"
   "skills/epic-breakdown/SKILL.md:74"
   # Diff-size threshold for the "Micro" task class, not function shape.
-  "skills/pipeline/SKILL.md:97"
+  "skills/pipeline/SKILL.md:80"
   # The NEW per-language contract (Ruby ≤ 5 / TS ≤ 12) — the law, not a fossil.
   "rules/safety.md:20"
   "skills/build-implementation/SKILL.md:80"
