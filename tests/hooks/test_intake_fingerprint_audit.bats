@@ -42,7 +42,7 @@ teardown() {
 }
 
 @test "test_hook_writes_jsonl_when_skill_is_intake" {
-  local input='{"tool_name":"Skill","tool_response":"[Intake] task_id: foo-bar\n[Intake] Tier: T5"}'
+  local input='{"tool_name":"Skill","tool_response":"[Intake] task_id: foo-bar\n[Intake] Gear: BUILD"}'
   run bash -c "echo '$input' | bash '$HOOK'"
   [ "$status" -eq 0 ]
   local jsonl_path="$CLAUDE_HOOK_LOG_DIR/test-session/intake-overrides.jsonl"

@@ -114,9 +114,6 @@ ALLOWLIST_8=(
   "hooks/function-body-check.sh:72"
   # Maestro YAML flows are exempt from the function/file limits.
   "skills/react-native-patterns/SKILL.md:198"
-  # T3H detector worked-example ("~8 lines → T3H eligible") — a diff-size
-  # threshold illustration, not a function-shape law.
-  "skills/intake/SKILL.md:71"
 )
 
 # Shared sweep surface for both prose sweeps.
