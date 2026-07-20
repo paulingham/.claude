@@ -50,7 +50,7 @@ Plan phase has up to three stages: Stage 0 (cache lookup) on every pipeline, Sta
 
 ### Stage 0: Plan Cache Lookup
 
-Invoke `skills/plan-cache-lookup/SKILL.md` BEFORE recon or architect dispatch. The skill computes the cache key `(task_class, repo_hash, tier, critical)` and emits one of:
+Invoke `skills/plan-cache-lookup/SKILL.md` BEFORE recon or architect dispatch. The skill computes the cache key `(task_class, repo_hash, gear, critical)` and emits one of:
 
 - `PLAN_CACHE_HIT` — the Haiku adapter (driven from the skill on `mode=on`) has written `$state_dir/{task-id}/plan.md` with `cache_hit: true` in its frontmatter and the resume-safety stub `$state_dir/{task-id}/architect-context.md` (plan.md § Slice slice-c AC C8). Skip Stages 1 and 2 — proceed directly to Plan Validation.
 - `PLAN_CACHE_MISS` — `reason ∈ {no-template, disabled, shadow-mode, adapter-rejected, ...}`. Fall through to Stage 1 (when the heavy gate applies) and Stage 2. Iron Law 6: `adapter-rejected` falls through in this same pipeline; never deferred.
@@ -924,26 +924,26 @@ After both APPROVE: shut down both reviewers.
 
 ## Final Gate Phase Dispatch
 
-**Tier-conditional fan-out**: T4 and T5 spawn 4 agents (verify + test + accept +
-patch-critique). T6 spawns 5 agents (the 4 core agents plus spec-blind). The orchestrator
-reads `tier_emitted` from `$state_dir/{task-id}/intake.md` using the
-`_qg_extract_intake_tier` pattern from `hooks/_lib/quality-gate-checks.sh:64-71`.
+**Gear-conditional fan-out**: BUILD spawns 4 agents (verify + test + accept +
+patch-critique). PIPELINE spawns 5 agents (the 4 core agents plus spec-blind). The orchestrator
+reads `gear_emitted` from `$state_dir/{task-id}/intake.md` using the
+`_qg_extract_intake_gear` pattern from `hooks/_lib/quality-gate-checks.sh:193-201`.
 
 ```
-// Extract tier from intake.md (same sed pattern as _qg_extract_intake_tier)
-tier=$(sed -n -E 's/^[[:space:]]*tier_emitted:[[:space:]]*"?(T[0-6]|T3H)"?[[:space:]]*$/\1/p' \
+// Extract gear from intake.md (same sed pattern as _qg_extract_intake_gear)
+gear=$(sed -n -E 's/^[[:space:]]*gear_emitted:[[:space:]]*"?(PAIR|BUILD|PIPELINE)"?[[:space:]]*$/\1/p' \
   $state_dir/{task-id}/intake.md | head -n 1)
 
-// Step 1: Create tasks (4 always; 5th only when tier==T6)
+// Step 1: Create tasks (4 always; 5th only when gear==PIPELINE)
 TaskCreate({ title: "Verify: contract + smoke + mutation", description: "..." })
 TaskCreate({ title: "Test: coverage analysis + gap filling", description: "..." })
 TaskCreate({ title: "Accept: AC validation + UX review", description: "..." })
 TaskCreate({ title: "Patch critique: test results + diff", description: "..." })
-// if [ "$tier" = "T6" ]; then
+// if [ "$gear" = "PIPELINE" ]; then
 TaskCreate({ title: "Spec-blind validate: ACs only, no source", description: "..." })
 // fi
 
-// Step 2: Spawn 4 core agents always; spec-blind only when tier==T6
+// Step 2: Spawn 4 core agents always; spec-blind only when gear==PIPELINE
 Agent({
   name: "verifier",
   team_name: "pipeline-{task-id}",
@@ -993,8 +993,8 @@ Agent({
     personas in parallel — see § Multi-Persona Patch Critic Dispatch below."
 })
 
-// Spec-blind validator: spawned only when tier == T6
-// if [ "$tier" = "T6" ]; then
+// Spec-blind validator: spawned only when gear == PIPELINE
+// if [ "$gear" = "PIPELINE" ]; then
 Agent({
   name: "spec-blind-validator",
   team_name: "pipeline-{task-id}",
@@ -1028,14 +1028,14 @@ The orchestrator collects verdicts and emits a one-line-per-teammate summary blo
 The `SPEC_BLIND_INSUFFICIENT_SURFACE` verdict renders verbatim as
 `spec-blind: SKIPPED (no public surface)` so the operator sees the no-op explicitly
 (per AC18 — silent skip would let the gate become an unattended no-op on
-convention-poor projects). The spec-blind line is rendered **only when tier==T6**.
+convention-poor projects). The spec-blind line is rendered **only when gear==PIPELINE**.
 
 ```
 [Final Gate] verifier         -> VERIFIED
 [Final Gate] test-analyst     -> COVERED
 [Final Gate] product-reviewer -> APPROVED
 [Final Gate] patch-critic     -> PATCH_APPROVED
-// rendered only when tier == T6:
+// rendered only when gear == PIPELINE:
 [Final Gate] spec-blind       -> SPEC_BLIND_VALIDATED
                               (or: spec-blind: SKIPPED (no public surface))
                               (or: spec-blind: HALT — operator escalation required)

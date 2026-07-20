@@ -226,7 +226,7 @@ If the project CLAUDE.md contains a `## Service Context` section with upstream/d
 
 ### Step 2c-bis: Plan Cache Lookup (Stage 0 of Plan Phase)
 
-BEFORE dispatching architect or recon, invoke `skills/plan-cache-lookup/SKILL.md`. The skill resolves `CLAUDE_PLAN_CACHE_MODE`, computes the `(task_class, repo_hash, tier, critical)` cache key, and emits exactly one of:
+BEFORE dispatching architect or recon, invoke `skills/plan-cache-lookup/SKILL.md`. The skill resolves `CLAUDE_PLAN_CACHE_MODE`, computes the `(task_class, repo_hash, gear, critical)` cache key, and emits exactly one of:
 
 - `PLAN_CACHE_HIT` — the Haiku adapter has written `$state_dir/{task-id}/plan.md` with `cache_hit: true` and the resume-safety stub `$state_dir/{task-id}/architect-context.md`. Skip Stage 1 (recon) and Stage 2 (architect); advance directly to Step 2d (Plan Validation). Plan Validation challengers MUST skip the citation-alignment grader on `cache_hit: true` plans (Domain D7).
 - `PLAN_CACHE_MISS` — `reason ∈ {no-template, disabled, shadow-mode, adapter-rejected, ...}`. Fall through to the normal Plan Phase Dispatch (Stage 1 recon + Stage 2 architect) IN THIS SAME PIPELINE. Iron Law 6: `adapter-rejected` is never deferred to a follow-up pipeline.

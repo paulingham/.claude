@@ -190,13 +190,13 @@ _qg_resolve_intake_path() {
   printf 'pipeline-state/%s/intake.md\n' "$task"
 }
 
-_qg_extract_intake_tier() {
-  # Reads `tier_emitted: Tn` (preferred) or `tier: Tn` (short form) from
-  # intake.md frontmatter. Tolerates whitespace and quoted values. Anchored
-  # to line-start so `tier_initial:` cannot match.
+_qg_extract_intake_gear() {
+  # Reads `gear_emitted: PAIR|BUILD|PIPELINE` (preferred) or `gear:` (short
+  # form) from intake.md frontmatter. Tolerates whitespace and quoted values.
+  # Anchored to line-start so `gear_initial:` cannot match.
   local intake="$1"
   [[ -f "$intake" ]] || return 0
-  sed -n -E 's/^[[:space:]]*tier_emitted:[[:space:]]*"?(T[0-6]|T3H)"?[[:space:]]*$/\1/p; s/^[[:space:]]*tier:[[:space:]]*"?(T[0-6]|T3H)"?[[:space:]]*$/\1/p' \
+  sed -n -E 's/^[[:space:]]*gear_emitted:[[:space:]]*"?(PAIR|BUILD|PIPELINE)"?[[:space:]]*$/\1/p; s/^[[:space:]]*gear:[[:space:]]*"?(PAIR|BUILD|PIPELINE)"?[[:space:]]*$/\1/p' \
     "$intake" | head -n 1
 }
 
@@ -244,7 +244,7 @@ _qg_find_evidence_path() {
 
 _qg_check_freshness() {
   [[ "${CLAUDE_DISABLE_FRESHNESS_QG:-0}" == "1" ]] && return 0
-  local command="${1:-}" wt="" head verdict path intake tier task
+  local command="${1:-}" wt="" head verdict path intake gear task
   task="${CLAUDE_PIPELINE_TASK_ID:-}"
   # Extract worktree path from COMMAND cd-prefix (two-pass: quoted then unquoted).
   # grep -m1 finds the FIRST matching line regardless of position in a multiline
@@ -259,9 +259,10 @@ _qg_check_freshness() {
     fi
     [[ -d "$wt" ]] || wt=""
   fi
-  # Tier short-circuit (T0/T1 docs-only).
-  intake=$(_qg_resolve_intake_path "${task:-unknown}"); tier=$(_qg_extract_intake_tier "$intake")
-  [[ "$tier" == "T0" || "$tier" == "T1" ]] && { echo "[freshness] PASS (tier=$tier; docs-only, /verify not applicable)" >&2; return 0; }
+  # Gear short-circuit (PAIR halts before Build → no evidence can exist; requiring
+  # it would be a permanent false-block).
+  intake=$(_qg_resolve_intake_path "${task:-unknown}"); gear=$(_qg_extract_intake_gear "$intake")
+  [[ "$gear" == "PAIR" ]] && { echo "[freshness] PASS (gear=$gear; docs-only, /verify not applicable)" >&2; return 0; }
   # Locate evidence: worktree-local first, then root fallback (Defect 2 fix).
   if [[ -n "$wt" ]]; then
     path=$(_qg_find_evidence_path "$wt" "$task")
