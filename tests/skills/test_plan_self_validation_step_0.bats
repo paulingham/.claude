@@ -1,9 +1,9 @@
 #!/usr/bin/env bats
-# Slice B — AC7 (plan-self-validation Step 0 + state-file template + verdict enum)
+# GEAR MIGRATION: plan-self-validation Step 0 re-fingerprint -> re-gear-check
 # Verifies:
 #   - "### Step 0: Re-fingerprint sanity check" exists BETWEEN "## Process" and "### Step 1: Read the Plan"
-#   - rules/core.md path-pattern check is documented (per HIGH-1)
-#   - State-file template has tier_initial, tier_replanned, routing_upshifted
+#   - rules/core.md path-pattern check is documented (per HIGH-1) — this floor is KEPT
+#   - State-file template has gear_initial, gear_replanned, routing_upshifted
 #   - Verdict enum extended to include ROUTING_UPSHIFTED
 
 setup() {
@@ -31,7 +31,7 @@ setup() {
 
 @test "test_state_file_template_includes_routing_keys" {
   local key
-  for key in tier_initial tier_replanned routing_upshifted; do
+  for key in gear_initial gear_replanned routing_upshifted; do
     grep -qE "${key}:" "$PSV_SKILL" || { echo "missing key: ${key}"; return 1; }
   done
 }
@@ -42,9 +42,8 @@ setup() {
   grep -E 'PLAN_APPROVED.*PLAN_HOLES.*ROUTING_UPSHIFTED|PLAN_APPROVED.*ROUTING_UPSHIFTED|ROUTING_UPSHIFTED.*PLAN_APPROVED' "$PSV_SKILL"
 }
 
-@test "test_step_0_documents_phase_1_and_phase_2_rerun" {
-  grep -E 'Phase 1' "$PSV_SKILL"
-  grep -E 'Phase 2' "$PSV_SKILL"
+@test "test_step_0_documents_safety_upshift_floor_to_pipeline" {
+  grep -E 'upshift.*PIPELINE|PIPELINE.*upshift' "$PSV_SKILL"
 }
 
 @test "test_step_0_documents_affected_files_input" {

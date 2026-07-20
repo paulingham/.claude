@@ -1,11 +1,12 @@
-"""Slice B — AC7 (state-file routing fields + rules/core.md upshift fixture)
+"""GEAR MIGRATION — state-file routing fields + rules/core.md upshift fixture
 Tests:
   - test_state_file_carries_routing_fields: parses SKILL.md state template and
-    asserts the YAML keys tier_initial/tier_replanned/routing_upshifted are
+    asserts the YAML keys gear_initial/gear_replanned/routing_upshifted are
     present in the template block.
-  - test_rules_core_md_path_triggers_t6_upshift: simulated fixture plan with
-    ## Affected Files listing rules/core.md → tier_replanned should be T6
-    (documented per HIGH-1).
+  - test_rules_core_md_path_triggers_pipeline_upshift: simulated fixture plan
+    with ## Affected Files listing rules/core.md -> gear_replanned should be
+    PIPELINE (documented per HIGH-1; this safety floor survives the T0-T6
+    retirement unchanged).
 """
 import os
 import re
@@ -26,16 +27,16 @@ def _read():
 class PlanSelfValidationUpshiftTest(unittest.TestCase):
     def test_state_file_carries_routing_fields(self):
         text = _read()
-        for key in ("tier_initial", "tier_replanned", "routing_upshifted"):
+        for key in ("gear_initial", "gear_replanned", "routing_upshifted"):
             self.assertRegex(text, rf"(?m)^\s*{key}\s*:", f"missing key: {key}")
 
-    def test_rules_core_md_path_triggers_t6_upshift(self):
+    def test_rules_core_md_path_triggers_pipeline_upshift(self):
         text = _read()
         # The Step 0 documentation must explicitly state that touching
-        # rules/core.md upshifts to T6 (conservative safety override).
-        # Pattern: explicit mention of rules/core.md as upshift trigger AND T6
+        # rules/core.md upshifts to PIPELINE (conservative safety override).
+        # Pattern: explicit mention of rules/core.md as upshift trigger AND PIPELINE
         self.assertRegex(text, r"rules/core\.md")
-        self.assertRegex(text, r"T6")
+        self.assertRegex(text, r"PIPELINE")
 
     def test_verdict_enum_extended(self):
         text = _read()
