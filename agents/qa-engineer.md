@@ -168,7 +168,7 @@ When approaching your turn limit (within last 20 turns):
 
 ## Write Result File (last durable action — after final commit, before your report)
 
-Your prose report can stall before it is emitted — the orchestrator's only reliable completion signal is a file on disk. After your final commit, and before writing your prose report, write `build-result.json` as your last durable action.
+Your loop can go idle after a clean tool_result and never advance to emit your prose report — this is an upstream Claude Code background-agent loop-scheduling gap (issues #61547/#44783), not something fixable in your own behavior. The signal is never lost; your loop just never reaches the point where it would emit it, until an external message pokes it. Writing `build-result.json` is a MITIGATION: because you write it as your last durable action, before that possible stall point, the orchestrator has a reliable completion signal even if your loop never resumes to emit the prose. After your final commit, and before writing your prose report, write `build-result.json` as your last durable action.
 
 **Absolute path — never self-resolve.** The orchestrator's spawn prompt supplies an ABSOLUTE `state_dir` path. Use it exactly as given. Do NOT construct or guess a `pipeline-state/...` path relative to your own cwd — the orchestrator and the agent do not share a cwd, and a self-resolved relative path silently writes to the wrong location, which the orchestrator reads as MISSING every time (looks like a permanent stall, never fixed).
 

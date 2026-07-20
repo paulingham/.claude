@@ -3,7 +3,13 @@
 
 Mirrors hooks/_lib/resolve-freshness.py::_load_evidence. The orchestrator
 uses this as the source of truth for build completion instead of parsing
-agent prose, which can stall before it is emitted.
+agent prose. This is a MITIGATION for an upstream Claude Code
+background-agent loop-scheduling gap (issues #61547/#44783), not a
+root-cause fix: a subagent's loop can go idle after a clean tool_result
+and never advance to emit its prose report. The signal is never lost --
+the loop just never reaches the point where it would emit it -- so a
+durable file written before that point gives the orchestrator a
+completion signal regardless.
 
 SAFETY: never returns COMPLETE for an absent, unreadable, or malformed
 file (Iron Law 8 — a gate that cannot evaluate its condition fails closed).

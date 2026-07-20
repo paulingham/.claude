@@ -81,7 +81,7 @@ The orchestrator includes the relevant context section when spawning the next ph
 
 ### Detecting Build Completion
 
-A write-capable build agent's prose report can stall before it is ever emitted, leaving the orchestrator with no completion signal to parse. The orchestrator does NOT wait on or parse agent prose to decide `in_progress` -> `completed` for a Build phase. Instead:
+A write-capable build agent's loop can go idle after a clean tool_result and never advance to emit its prose report — this is an upstream Claude Code background-agent loop-scheduling gap (issues #61547/#44783), not a harness defect, and it is not fixable from inside this repo. The signal itself is never lost; the agent's loop simply never reaches the point where it would emit it, until an external message pokes it. The durable `build-result.json` file is a MITIGATION for this gap, not a fix for it: because writing the file is the agent's last durable action, the orchestrator has a completion signal on disk even when the agent's loop never resumes to write the prose. The orchestrator does NOT wait on or parse agent prose to decide `in_progress` -> `completed` for a Build phase. Instead:
 
 1. **Read the file FIRST.** Before touching any prose output, call `hooks/_lib/build_result_reader.py::read_build_result(state_dir_abs, task_id)`. This is the machine-readable source of truth (see `skills/build-implementation/SKILL.md` § Completion Signal (SSOT)).
 2. **COMPLETE -> advance.** `status == "COMPLETE"` means the build agent's last durable action succeeded — advance the phase to `completed` and proceed to the next phase using the returned `branch`/`head_sha`.
