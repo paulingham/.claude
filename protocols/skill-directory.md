@@ -8,7 +8,7 @@ Verdict semantics for every entry below are defined in `protocols/verdict-catalo
 
 | Skill | When to Invoke | Verdict |
 |-------|----------------|---------|
-| `/harness:intake` | **Entry point** — first skill for any user request; emits Step 1.5 fingerprint (tier T0..T6) alongside criticality/budget | ROUTED |
+| `/harness:intake` | **Entry point** — first skill for any user request; reads Step 1.5 gear (PAIR/BUILD/PIPELINE) alongside criticality/budget | ROUTED |
 | `/harness:pipeline` | **Conductor** — drives all phases in sequence | PIPELINE_COMPLETE |
 | `/harness:epic-breakdown` | Decomposing epics into stories | STORIES_READY |
 | `/harness:estimation` | Sizing stories with Complexity Budget | ESTIMATED |
@@ -27,7 +27,7 @@ Verdict semantics for every entry below are defined in `protocols/verdict-catalo
 | `/harness:tech-spike` | Time-boxed technical research | SPIKE_COMPLETE |
 | `/harness:project-setup` | Scaffolding project-level CLAUDE.md | PROJECT_SETUP_COMPLETE |
 | `/harness:pipeline-resume` | Resume interrupted pipeline from state files | RESUMED |
-| `/harness:plan-self-validation` | Lightweight Plan Validation: architect re-reads its own plan against a structured holes-finding rubric. Used when `critical == false AND Budget < 7`; runs re-fingerprint sanity check on architect plan | PLAN_APPROVED / PLAN_HOLES / ROUTING_UPSHIFTED |
+| `/harness:plan-self-validation` | Lightweight Plan Validation: architect re-reads its own plan against a structured holes-finding rubric. Used when `critical == false AND Budget < 7`; runs re-fingerprint sanity check on architect plan (re-gear-check against the rules/core.md safety-upshift floor) | PLAN_APPROVED / PLAN_HOLES / ROUTING_UPSHIFTED |
 | `/harness:spec-grounding` | Plan phase Stage 0 (Step 2c-ter) — dispatched by orchestrator after plan-cache lookup miss, before the architect runs. Grounds raw ACs against codebase evidence (pathlib/re traversal + `recall.search()` fallback). Writes `$state_dir/{task-id}/spec-grounding.md` with EARS-tagged, citation-suffixed ACs. Non-blocking: GROUNDING_GAPS proceeds to architect with gaps flagged | GROUNDED / GROUNDING_GAPS |
 | `/harness:harness-config` | Modify hooks, settings.json, non-.md config | CONFIG_APPLIED |
 | `/harness:deploy` | CD phase: staging/production deploy with rollback | DEPLOYED / ROLLED_BACK |

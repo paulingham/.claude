@@ -120,15 +120,15 @@ Every spawn prompt MUST include: "Read `~/.claude/agents/[role].md` for your ful
 
 Orchestrator coordinates; never writes code/tests. Flow, dispatch mechanisms, orchestrator boundaries: `protocols/pipeline-overview.md` § How the System Works.
 
-### Gear Routing (PAIR/BUILD/PIPELINE)
+### Work-Class Routing (PAIR/BUILD/PIPELINE)
 
-`gear-select.sh` classifies each request into PAIR (default)/BUILD/PIPELINE and writes `gear-${sid}`; the orchestrator reads it — no tier computation. Full protocol: `protocols/work-class-routing.md`.
+`hooks/_lib/gear-select.sh` classifies every prompt into one of three gears BEFORE `/harness:intake` runs; `/harness:intake` Step 1.5 (Gear Read) reads the persisted verdict. PAIR bypasses `/harness:pipeline` entirely; BUILD and PIPELINE enter at progressively heavier dispatch. Full protocol: `protocols/work-class-routing.md`.
 
-| Gear | Default? | Class | Dispatch target |
-|---|---|---|---|
-| **PAIR** | Yes | Question / doc / config / mechanical / trivial code | Direct answer, `/harness:tech-spike`, worktree subagent (tracked-doc edits), `/harness:harness-config`, or `/harness:batch-pipeline` |
-| **BUILD** | No — escalate on evidence | Bug fix / standard feature | `/harness:pipeline` (lightweight-to-standard) |
-| **PIPELINE** | No — escalate on evidence | Critical / cross-cutting | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |
+| Gear | Class | Dispatch target |
+|---|---|---|
+| **PAIR** | Question / Spike / Doc-only / Config-only / Mechanical sweep / Trivial code | Direct answer, `/harness:tech-spike`, a lightweight worktree subagent (tracked-doc edits), `/harness:harness-config`, or `/harness:batch-pipeline` (sub-behaviour chosen by request shape) |
+| **BUILD** | Bug fix / Standard feature | `/harness:pipeline` (lightweight or standard) |
+| **PIPELINE** | Critical / cross-cutting | `/harness:pipeline` (heavy: Best-of-N or PDR-RTV) |
 
 ### Delivery Pipeline
 
