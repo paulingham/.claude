@@ -18,8 +18,8 @@ setup() {
   cat > "$CLAUDE_CONFIG_DIR/pipeline-state/foo-bar/intake.md" <<'EOF'
 ---
 task_id: foo-bar
-tier_emitted: T5
-tier_initial: T5
+gear_emitted: BUILD
+gear_initial: BUILD
 detector_phase: rules
 detector_confidence: high
 user_phrasing_signals: []
@@ -49,7 +49,7 @@ teardown() {
   [ -f "$jsonl_path" ]
   [ "$(wc -l < "$jsonl_path")" -eq 1 ]
   python3 -c "import json,sys; rec=json.loads(open('$jsonl_path').read().strip()); \
-    keys=['timestamp','task_id','tier_emitted','tier_initial','detector_phase','detector_confidence', \
+    keys=['timestamp','task_id','gear_emitted','gear_initial','detector_phase','detector_confidence', \
           'user_phrasing_signals','phrasing_honoured','override_token','safety_override_fired', \
           'predicted_files','fingerprint_cost_tokens']; \
     missing=[k for k in keys if k not in rec]; sys.exit(1 if missing else 0)"

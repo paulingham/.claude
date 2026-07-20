@@ -3,7 +3,7 @@ Per-function unit tests for the 4-function decomposition:
   parse_frontmatter, build_record, append_jsonl, main
 Asserts:
   - JSONL line shape via json.loads (all 13 keys present)
-  - enum constraints on tier_emitted, detector_phase ∈ {rules, fallthrough}
+  - enum constraints on gear_emitted, detector_phase ∈ {rules, fallthrough}
   - parse_frontmatter handles missing, malformed, key-missing fixtures
   - build_record applies sentinel defaults
   - append_jsonl writes one line per call, JSON-valid
@@ -47,8 +47,8 @@ class ParseFrontmatterTest(unittest.TestCase):
         with open(self.path, "w") as f:
             f.write(
                 "---\n"
-                "tier_emitted: T1\n"
-                "tier_initial: T1\n"
+                "gear_emitted: BUILD\n"
+                "gear_initial: BUILD\n"
                 "detector_phase: rules\n"
                 "detector_confidence: high\n"
                 "user_phrasing_signals: []\n"
@@ -62,7 +62,7 @@ class ParseFrontmatterTest(unittest.TestCase):
             )
         fields, err = mod.parse_frontmatter(self.path)
         self.assertIsNone(err)
-        self.assertEqual(fields.get("tier_emitted"), "T1")
+        self.assertEqual(fields.get("gear_emitted"), "BUILD")
         self.assertEqual(fields.get("detector_phase"), "rules")
 
     def test_parse_frontmatter_unit_missing(self):
@@ -109,7 +109,7 @@ class BuildRecordTest(unittest.TestCase):
         self.assertEqual(rec["timestamp"], "2026-05-14T09:30:00Z")
         # All 12 required keys present
         for key in [
-            "tier_emitted", "tier_initial", "detector_phase", "detector_confidence",
+            "gear_emitted", "gear_initial", "detector_phase", "detector_confidence",
             "user_phrasing_signals", "phrasing_honoured", "override_token",
             "safety_override_fired", "predicted_files", "fingerprint_cost_tokens",
         ]:
@@ -118,8 +118,8 @@ class BuildRecordTest(unittest.TestCase):
     def test_build_record_unit_well_formed(self):
         mod = _load_module()
         fields = {
-            "tier_emitted": "T5",
-            "tier_initial": "T5",
+            "gear_emitted": "BUILD",
+            "gear_initial": "BUILD",
             "detector_phase": "rules",
             "detector_confidence": "high",
             "user_phrasing_signals": [],
@@ -131,7 +131,7 @@ class BuildRecordTest(unittest.TestCase):
         }
         rec = mod.build_record(fields, None, "2026-05-14T09:30:00Z", "foo-bar")
         self.assertNotIn("parse_error", rec)
-        self.assertEqual(rec["tier_emitted"], "T5")
+        self.assertEqual(rec["gear_emitted"], "BUILD")
 
 
 class AppendJsonlTest(unittest.TestCase):
@@ -158,8 +158,8 @@ class EmitJsonlSchemaTest(unittest.TestCase):
             with open(intake_md, "w") as f:
                 f.write(
                     "---\n"
-                    "tier_emitted: T5\n"
-                    "tier_initial: T5\n"
+                    "gear_emitted: BUILD\n"
+                    "gear_initial: BUILD\n"
                     "detector_phase: rules\n"
                     "detector_confidence: high\n"
                     "user_phrasing_signals: []\n"
@@ -179,7 +179,7 @@ class EmitJsonlSchemaTest(unittest.TestCase):
             with open(jsonl_path) as f:
                 rec = json.loads(f.read().strip())
             for key in [
-                "timestamp", "task_id", "tier_emitted", "tier_initial",
+                "timestamp", "task_id", "gear_emitted", "gear_initial",
                 "detector_phase", "detector_confidence", "user_phrasing_signals",
                 "phrasing_honoured", "override_token", "safety_override_fired",
                 "predicted_files", "fingerprint_cost_tokens",
@@ -196,7 +196,7 @@ class MainExitCodeTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             intake_md = os.path.join(tmp, "intake.md")
             with open(intake_md, "w") as f:
-                f.write("---\ntier_emitted: T5\n---\n")
+                f.write("---\ngear_emitted: BUILD\n---\n")
             rc = mod.main([HELPER, os.path.join(tmp, "m"), "ts", "foo", intake_md])
             self.assertEqual(rc, 0)
 
@@ -221,11 +221,11 @@ class MainExitCodeTest(unittest.TestCase):
 class SentinelDefaultsTest(unittest.TestCase):
     """Mutation-killer: sentinel defaults MUST match plan §C1 exactly."""
 
-    def test_sentinel_tier_emitted_is_unknown_when_missing(self):
+    def test_sentinel_gear_emitted_is_unknown_when_missing(self):
         mod = _load_module()
         rec = mod.build_record({}, None, "ts", "foo")
-        self.assertEqual(rec["tier_emitted"], "<unknown>")
-        self.assertEqual(rec["tier_initial"], "<unknown>")
+        self.assertEqual(rec["gear_emitted"], "<unknown>")
+        self.assertEqual(rec["gear_initial"], "<unknown>")
 
     def test_sentinel_phrasing_honoured_is_false_when_missing(self):
         mod = _load_module()
@@ -294,17 +294,17 @@ class FrontmatterRegexTest(unittest.TestCase):
         mod = _load_module()
         with open(self.path, "w") as f:
             # Leading content BEFORE --- — must be treated as malformed
-            f.write("preamble\n---\ntier_emitted: T5\n---\n")
+            f.write("preamble\n---\ngear_emitted: BUILD\n---\n")
         fields, err = mod.parse_frontmatter(self.path)
         self.assertEqual(err, "intake-md-malformed")
 
     def test_well_formed_frontmatter_parses(self):
         mod = _load_module()
         with open(self.path, "w") as f:
-            f.write("---\ntier_emitted: T5\n---\n")
+            f.write("---\ngear_emitted: BUILD\n---\n")
         fields, err = mod.parse_frontmatter(self.path)
         self.assertIsNone(err)
-        self.assertEqual(fields["tier_emitted"], "T5")
+        self.assertEqual(fields["gear_emitted"], "BUILD")
 
 
 class JsonlNewlineTest(unittest.TestCase):
@@ -350,8 +350,8 @@ class ParseFrontmatterContainmentTest(unittest.TestCase):
         with open(self.outside, "w") as f:
             f.write(
                 "---\n"
-                "tier_emitted: T6\n"
-                "tier_initial: T6\n"
+                "gear_emitted: PIPELINE\n"
+                "gear_initial: PIPELINE\n"
                 "detector_phase: rules\n"
                 "detector_confidence: high\n"
                 "user_phrasing_signals: []\n"
@@ -378,7 +378,7 @@ class ParseFrontmatterContainmentTest(unittest.TestCase):
         fields, err = mod.parse_frontmatter(escape_path)
         self.assertEqual(err, "intake-md-missing")
         # Frontmatter must NOT have been read.
-        self.assertNotIn("tier_emitted", fields)
+        self.assertNotIn("gear_emitted", fields)
 
     def test_symlink_pointing_outside_returns_missing(self):
         """A symlinked intake.md whose realpath escapes the tree is rejected."""
@@ -389,7 +389,7 @@ class ParseFrontmatterContainmentTest(unittest.TestCase):
         os.symlink(self.outside, symlink_path)
         fields, err = mod.parse_frontmatter(symlink_path)
         self.assertEqual(err, "intake-md-missing")
-        self.assertNotIn("tier_emitted", fields)
+        self.assertNotIn("gear_emitted", fields)
 
     def test_legitimate_intake_md_still_reads(self):
         """Containment gate MUST NOT block legitimate in-tree paths."""
@@ -398,8 +398,8 @@ class ParseFrontmatterContainmentTest(unittest.TestCase):
         with open(legit, "w") as f:
             f.write(
                 "---\n"
-                "tier_emitted: T5\n"
-                "tier_initial: T5\n"
+                "gear_emitted: BUILD\n"
+                "gear_initial: BUILD\n"
                 "detector_phase: rules\n"
                 "detector_confidence: high\n"
                 "user_phrasing_signals: []\n"
@@ -412,7 +412,7 @@ class ParseFrontmatterContainmentTest(unittest.TestCase):
             )
         fields, err = mod.parse_frontmatter(legit)
         self.assertIsNone(err)
-        self.assertEqual(fields["tier_emitted"], "T5")
+        self.assertEqual(fields["gear_emitted"], "BUILD")
 
 
 class AppendJsonlNoFollowTest(unittest.TestCase):
@@ -455,10 +455,10 @@ class BuildRecordCapTest(unittest.TestCase):
     def test_string_field_is_capped_at_1024_chars(self):
         mod = _load_module()
         huge = "x" * 100_000
-        fields = {"tier_emitted": huge}
+        fields = {"gear_emitted": huge}
         rec = mod.build_record(fields, None, "ts", "foo")
-        self.assertEqual(len(rec["tier_emitted"]), 1024)
-        self.assertTrue(rec["tier_emitted"].startswith("x"))
+        self.assertEqual(len(rec["gear_emitted"]), 1024)
+        self.assertTrue(rec["gear_emitted"].startswith("x"))
 
     def test_list_field_is_capped_at_100_items(self):
         mod = _load_module()
@@ -477,9 +477,9 @@ class BuildRecordCapTest(unittest.TestCase):
 
     def test_small_values_pass_through_unchanged(self):
         mod = _load_module()
-        fields = {"tier_emitted": "T5", "user_phrasing_signals": ["a", "b"]}
+        fields = {"gear_emitted": "BUILD", "user_phrasing_signals": ["a", "b"]}
         rec = mod.build_record(fields, None, "ts", "foo")
-        self.assertEqual(rec["tier_emitted"], "T5")
+        self.assertEqual(rec["gear_emitted"], "BUILD")
         self.assertEqual(rec["user_phrasing_signals"], ["a", "b"])
 
 
