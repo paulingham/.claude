@@ -28,7 +28,7 @@ override_token: null
 safety_override_fired: false
 predicted_files: []
 fingerprint_cost_tokens: 0
-criticality_filtered_by_tier: false
+criticality_filtered_by_gear: false
 ---
 EOF
   unset CLAUDE_HOOK_PROFILE

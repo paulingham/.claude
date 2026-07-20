@@ -31,7 +31,7 @@ REQUIRED_KEYS = [
     "safety_override_fired",
     "predicted_files",
     "fingerprint_cost_tokens",
-    "criticality_filtered_by_tier",
+    "criticality_filtered_by_gear",
     "task_id",
 ]
 
