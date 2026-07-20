@@ -1,18 +1,19 @@
 #!/usr/bin/env bats
-# Slice B — AC6 (pipeline Step 1.0 Tier Guard)
+# GEAR MIGRATION: pipeline Step 1.0 Tier Guard -> Gear Guard
 # Verifies skills/pipeline/SKILL.md contains:
-#   - "### Step 1.0: Tier Guard" header BEFORE "### Step 1: Classify Work"
-#   - All seven tier routes T0..T6 named
-#   - Explicit "Pipeline halts (NO state file created)" verbiage for T0-T3
-#   - [Pipeline] Tier guard: status line marker
+#   - "### Step 1.0: Gear Guard" header BEFORE "### Step 1: Classify Work"
+#   - All three gear routes PAIR/BUILD/PIPELINE named
+#   - Explicit "Pipeline halts (NO state file created)" verbiage for PAIR
+#   - [Pipeline] Gear guard: status line marker
+#   - missing-gear default routes to PIPELINE (safety-bias)
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   PIPELINE_SKILL="$REPO_ROOT/skills/pipeline/SKILL.md"
 }
 
-@test "test_step_1_0_tier_guard_present" {
-  grep -E '^### Step 1\.0: Tier Guard' "$PIPELINE_SKILL"
+@test "test_step_1_0_gear_guard_present" {
+  grep -E '^### Step 1\.0: Gear Guard' "$PIPELINE_SKILL"
 }
 
 @test "test_step_1_0_orders_before_step_1" {
@@ -23,33 +24,39 @@ setup() {
   [ "$s10" -lt "$s1" ]
 }
 
-@test "test_step_1_0_names_all_eight_tier_routes" {
-  local tier
-  for tier in T0 T1 T2 T3 T3H T4 T5 T6; do
-    grep -qE "${tier}\b" "$PIPELINE_SKILL" || { echo "missing tier: ${tier}"; return 1; }
+@test "test_step_1_0_names_all_three_gear_routes" {
+  local gear
+  for gear in PAIR BUILD PIPELINE; do
+    grep -qE "\*\*${gear}\*\*" "$PIPELINE_SKILL" || { echo "missing gear: ${gear}"; return 1; }
   done
 }
 
-@test "test_step_1_0_forbids_state_file_for_T0_T3" {
+@test "test_step_1_0_forbids_state_file_for_PAIR" {
   grep -E 'Pipeline halts \(NO state file created\)' "$PIPELINE_SKILL"
 }
 
 @test "test_step_1_0_emits_status_line" {
-  grep -E '\[Pipeline\] Tier guard:' "$PIPELINE_SKILL"
+  grep -E '\[Pipeline\] Gear guard:' "$PIPELINE_SKILL"
 }
 
-@test "test_step_1_0_routes_T0_to_answer_or_techspike" {
-  grep -E 'T0.*tech-spike|T0.*direct answer|tech-spike.*T0|direct answer.*T0' "$PIPELINE_SKILL"
+@test "test_step_1_0_routes_PAIR_to_subbehaviour" {
+  grep -E 'PAIR.*halt.*re-route|PAIR.*sub-behaviour' "$PIPELINE_SKILL"
 }
 
-@test "test_step_1_0_routes_T1_to_worktree_subagent" {
-  grep -E 'T1.*worktree|worktree.*T1' "$PIPELINE_SKILL"
+@test "test_step_1_0_routes_BUILD_to_lightweight_or_standard" {
+  grep -E 'BUILD.*lightweight|BUILD.*standard' "$PIPELINE_SKILL"
 }
 
-@test "test_step_1_0_routes_T2_to_harness_config" {
-  grep -E 'T2.*harness-config|harness-config.*T2' "$PIPELINE_SKILL"
+@test "test_step_1_0_routes_PIPELINE_to_heavy" {
+  grep -E 'PIPELINE.*heavy|heavy.*PIPELINE' "$PIPELINE_SKILL"
 }
 
-@test "test_step_1_0_routes_T3_to_batch_pipeline" {
-  grep -E 'T3.*batch-pipeline|batch-pipeline.*T3' "$PIPELINE_SKILL"
+@test "test_step_1_0_missing_gear_defaults_to_PIPELINE" {
+  grep -E 'gear_emitted.*missing.*PIPELINE|missing.*default.*PIPELINE|default to \*\*PIPELINE\*\*' "$PIPELINE_SKILL"
+}
+
+@test "test_step_1_0_has_no_T3H_trimmed_lane_prose" {
+  # WHY: the T3H CONTINUE-tier + scope-overflow-abort concept is retired
+  # entirely with the T0-T6 fingerprint. RED if it survives the rewrite.
+  ! grep -qE 'T3H|trimmed lane|Scope-overflow abort' "$PIPELINE_SKILL"
 }
