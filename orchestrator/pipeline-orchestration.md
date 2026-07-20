@@ -79,6 +79,17 @@ The orchestrator includes the relevant context section when spawning the next ph
 - `in_progress` -> `completed`: Phase verdict is success (all teammates report complete)
 - `in_progress` -> stays `in_progress`: Recovery loop (CHANGES_REQUESTED, GAPS_FOUND, etc.)
 
+### Detecting Build Completion
+
+A write-capable build agent's prose report can stall before it is ever emitted, leaving the orchestrator with no completion signal to parse. The orchestrator does NOT wait on or parse agent prose to decide `in_progress` -> `completed` for a Build phase. Instead:
+
+1. **Read the file FIRST.** Before touching any prose output, call `hooks/_lib/build_result_reader.py::read_build_result(state_dir_abs, task_id)`. This is the machine-readable source of truth (see `skills/build-implementation/SKILL.md` § Completion Signal (SSOT)).
+2. **COMPLETE -> advance.** `status == "COMPLETE"` means the build agent's last durable action succeeded — advance the phase to `completed` and proceed to the next phase using the returned `branch`/`head_sha`.
+3. **MISSING / CORRUPT / absent -> branch-recovery, never silent success.** An absent or corrupt `build-result.json` is NEVER treated as `BUILD_COMPLETE` — this is Iron Law 8 (a gate that cannot evaluate its condition fails closed), and `build_result_reader.py` itself is written so it can never return `COMPLETE` for these inputs. Instead, inspect the worktree directly: `git -C "$WORKTREE" log <base>..HEAD` to determine whether the agent's commits landed despite the stalled/missing report. If commits are present, treat the phase as recoverable (resume from the last commit, or re-dispatch a continuation); if no commits are present, the build genuinely did not complete and the phase stays `in_progress` pending a fresh dispatch.
+4. **FAILED -> recovery loop.** `status == "FAILED"` means the agent itself reported `BUILD_FAILED`; read `unresolved` and route into the standard CHANGES_REQUESTED / fix-engineer recovery loop (§ After CHANGES_REQUESTED) rather than branch-recovery.
+
+**Spawn-prompt contract.** Every Build-phase spawn prompt MUST include the ABSOLUTE `state_dir` path (never a path the agent is expected to resolve relative to its own cwd — the orchestrator and the agent do not share a cwd). See `agents/software-engineer.md` § Write Result File and the equivalent section in the other 5 write-capable agent defs for the agent-side contract this satisfies.
+
 ### Team State
 
 The pipeline team's state is tracked alongside the pipeline state:

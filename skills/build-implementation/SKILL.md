@@ -427,7 +427,13 @@ After Step 5 completes:
 - **BUILD_COMPLETE**: All ACs have passing tests, cohesion-based shape rules met, ATDD audit trail visible (RED + GREEN + mutation), code-reviewer APPROVED, AND sandbox-verify returned SANDBOX_VERIFIED or SANDBOX_SKIPPED.
 - **BUILD_FAILED**: Checklist items remain unresolved OR code-review never APPROVED after 2 rounds OR sandbox-verify never returned a non-FAILED verdict within the combined 2-round budget. List which items failed.
 
+### Completion Signal (SSOT)
+
+The build agent's last durable action, per agent def § Write Result File, is writing `$state_dir/{task-id}/build-result.json` — this file, not the prose report below, is the **machine-readable source of truth** the orchestrator reads to detect completion. A prose report can stall before it is emitted; the file on disk cannot. The orchestrator reads `build-result.json` via `hooks/_lib/build_result_reader.py` FIRST, before it attempts to parse any prose (see `orchestrator/pipeline-orchestration.md` § Detecting Build Completion).
+
 ## Phase Output
+
+The block below is a **human-facing summary; it is not the machine signal**. The orchestrator's advancement decision is driven by `build-result.json` (§ Completion Signal (SSOT) above), not by parsing this text.
 
 ```
 Verdict: BUILD_COMPLETE / BUILD_FAILED
