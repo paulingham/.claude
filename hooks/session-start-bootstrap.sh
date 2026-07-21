@@ -110,6 +110,15 @@ else
   echo "Utils: /forensics (post-incident investigation) | /workstream (parallel feature isolation) | /security-alert-fix (fix open CodeQL/secret-scanning alerts)"
 fi
 
+echo ""
+echo "HOW WORK IS ROUTED — 3 GEARS (auto-classified from your request):"
+echo "  PAIR     — questions, doc/config tweaks, trivial single-file edits. Fast,"
+echo "             interactive, no heavy pipeline. This is the DEFAULT."
+echo "  BUILD    — a bug fix or a standard feature. Full pipeline at normal weight."
+echo "  PIPELINE — critical or cross-cutting work. Full pipeline at maximum rigour."
+echo "  Override the auto-choice in one line (e.g. \"just pair on this\", \"run the"
+echo "  full pipeline\"). Full rules: protocols/work-class-routing.md"
+
 # Learning system
 # shellcheck source=_lib/project-hash.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/project-hash.sh"
