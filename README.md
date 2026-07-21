@@ -113,7 +113,7 @@ instinct — a backward feedback loop from review into build. Details:
   settings.json      Hook registration, permissions, env vars
 
   agents/            # 19 specialized agent definitions (role, checklist, model)
-  skills/            # 73 skills — the procedural workflows the orchestrator invokes
+  skills/            # 74 skills — the procedural workflows the orchestrator invokes
   hooks/             # 87 enforcement scripts (the mechanical guardrails)
   protocols/         # 19 deep-dive protocol docs, loaded on demand
   orchestrator/      # orchestrator-only dispatch procedures
@@ -174,7 +174,7 @@ You rarely call skills by hand — the orchestrator routes for you. But the entr
 - **`/harness:pipeline`** — drive a request through every phase autonomously.
 - **`/harness:pipeline-resume`** — pick an interrupted run back up from its state files.
 
-The full skill catalogue (73 skills, grouped by phase) lives in
+The full skill catalogue (74 skills, grouped by phase) lives in
 [`protocols/skill-directory.md`](protocols/skill-directory.md). Quality limits and behaviour
 are tunable via env vars in `settings.json` — file/function size limits, hook profiles,
 auto-extraction — documented in [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md).
@@ -236,7 +236,7 @@ The intake → pipeline enforcement flow is **always-on and not configurable** �
 
 ---
 
-## Skills (73)
+## Skills (74)
 
 Skills are the procedural workflows the orchestrator invokes per phase — `/harness:intake`,
 `/harness:build-implementation`, `/harness:code-review`, `/harness:patch-critique`, and the
