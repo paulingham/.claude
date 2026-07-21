@@ -15,6 +15,9 @@
 #
 # Must run AFTER gear-select in the UserPromptSubmit array so the gear-${sid}
 # state key already exists when we read it — registered as the LAST entry.
+#
+# enforces: protocols/work-class-routing.md
+# protects: gear-visibility, user-feedback
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/_lib/harness-paths.sh"
