@@ -427,7 +427,13 @@ After Step 5 completes:
 - **BUILD_COMPLETE**: All ACs have passing tests, cohesion-based shape rules met, ATDD audit trail visible (RED + GREEN + mutation), code-reviewer APPROVED, AND sandbox-verify returned SANDBOX_VERIFIED or SANDBOX_SKIPPED.
 - **BUILD_FAILED**: Checklist items remain unresolved OR code-review never APPROVED after 2 rounds OR sandbox-verify never returned a non-FAILED verdict within the combined 2-round budget. List which items failed.
 
+### Completion Signal (SSOT)
+
+The build agent's last durable action, per agent def § Write Result File, is writing `$state_dir/{task-id}/build-result.json` — this file, not the prose report below, is the **machine-readable source of truth** the orchestrator reads to detect completion. This is a MITIGATION, not a root-cause fix: the root cause is an upstream Claude Code background-agent loop-scheduling gap (issues #61547/#44783) where a subagent's loop sometimes does not advance to its next inference after a clean tool_result until an external message pokes it — the prose report's signal is never *lost*, the loop simply never reaches the point where it would emit that signal. The file on disk sidesteps this because writing it is a durable action the agent completes before the point where the loop can stall, so the orchestrator has a completion signal even if the agent's loop never resumes to write the prose. The orchestrator reads `build-result.json` via `hooks/_lib/build_result_reader.py` FIRST, before it attempts to parse any prose (see `orchestrator/pipeline-orchestration.md` § Detecting Build Completion).
+
 ## Phase Output
+
+The block below is a **human-facing summary; it is not the machine signal**. The orchestrator's advancement decision is driven by `build-result.json` (§ Completion Signal (SSOT) above), not by parsing this text.
 
 ```
 Verdict: BUILD_COMPLETE / BUILD_FAILED

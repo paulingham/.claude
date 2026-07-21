@@ -79,6 +79,37 @@ The orchestrator includes the relevant context section when spawning the next ph
 - `in_progress` -> `completed`: Phase verdict is success (all teammates report complete)
 - `in_progress` -> stays `in_progress`: Recovery loop (CHANGES_REQUESTED, GAPS_FOUND, etc.)
 
+### Detecting Build Completion
+
+A write-capable build agent's loop can go idle after a clean tool_result and never advance to emit its prose report — this is an upstream Claude Code background-agent loop-scheduling gap (issues #61547/#44783), not a harness defect, and it is not fixable from inside this repo. The signal itself is never lost; the agent's loop simply never reaches the point where it would emit it, until an external message pokes it. The durable `build-result.json` file is a MITIGATION for this gap, not a fix for it: because writing the file is the agent's last durable action, the orchestrator has a completion signal on disk even when the agent's loop never resumes to write the prose. The orchestrator does NOT wait on or parse agent prose to decide `in_progress` -> `completed` for a Build phase. Instead:
+
+1. **Read the file FIRST.** Before touching any prose output, call `hooks/_lib/build_result_reader.py::read_build_result(state_dir_abs, task_id)`. This is the machine-readable source of truth (see `skills/build-implementation/SKILL.md` § Completion Signal (SSOT)).
+2. **COMPLETE -> advance.** `status == "COMPLETE"` means the build agent's last durable action succeeded — advance the phase to `completed` and proceed to the next phase using the returned `branch`/`head_sha`.
+3. **MISSING / CORRUPT / absent -> branch-recovery, never silent success.** An absent or corrupt `build-result.json` is NEVER treated as `BUILD_COMPLETE` — this is Iron Law 8 (a gate that cannot evaluate its condition fails closed), and `build_result_reader.py` itself is written so it can never return `COMPLETE` for these inputs. Instead, inspect the worktree directly: `git -C "$WORKTREE" log <base>..HEAD` to determine whether the agent's commits landed despite the stalled/missing report. If commits are present, treat the phase as recoverable (resume from the last commit, or re-dispatch a continuation); if no commits are present, the build genuinely did not complete and the phase stays `in_progress` pending a fresh dispatch.
+4. **FAILED -> recovery loop.** `status == "FAILED"` means the agent itself reported `BUILD_FAILED`; read `unresolved` and route into the standard CHANGES_REQUESTED / fix-engineer recovery loop (§ After CHANGES_REQUESTED) rather than branch-recovery.
+
+**Spawn-prompt contract.** Every Build-phase spawn prompt MUST include the ABSOLUTE `state_dir` path (never a path the agent is expected to resolve relative to its own cwd — the orchestrator and the agent do not share a cwd). See `agents/software-engineer.md` § Write Result File and the equivalent section in the other 5 write-capable agent defs for the agent-side contract this satisfies.
+
+#### Auto-Continue
+
+When a build agent appears idle (a stall/timeout/heartbeat check finds no new activity), the orchestrator does not guess — it runs the same `build_result_reader.py` status through `hooks/_lib/continuation_decision.py::continuation_decision(reader_status, commits_present)` to decide what, if anything, to do next. This helper is a PURE function: no file I/O, and it is NEVER registered as a hook (idle-mid-run is invisible to the harness — the only subagent lifecycle hook is SubagentStop, which fires on stop only). It is advisory logic the orchestrator LLM consults, not an enforcement mechanism.
+
+| reader_status | commits_present | decision | orchestrator action |
+|---|---|---|---|
+| `COMPLETE` | n/a | `DONE` | advance the phase to `completed` |
+| `MISSING` / `CORRUPT` | `true` | `CONTINUE` | re-dispatch a continuation, resuming from the last commit — NOT a fresh re-spawn |
+| `MISSING` / `CORRUPT` | `false` | `RECOVER` | the build genuinely did not complete; fresh dispatch (capped, per `runtime-guard-respawn.sh`) |
+| `FAILED` | n/a | `RECOVER` | route into the standard fix-engineer recovery loop |
+| not yet written (agent still WORKING) | n/a | `WAIT` | **not directly observable** — do nothing, wait for the next heartbeat |
+
+**WORKING is not directly observable.** There is no signal that distinguishes "still working, about to write the file" from "stalled forever" — both look identical from the outside (no reader file, idle mtime). `continuation_decision` resolves this ambiguity safely by returning `WAIT` for any status it cannot positively classify as `COMPLETE`, `FAILED`, `MISSING`, or `CORRUPT`.
+
+**NEVER poke a WAIT / unconfirmed-alive agent.** An idle mtime is not a stall — the agent's loop may resume on its own before the next check. Re-dispatching or messaging an agent whose worktree is still genuinely in use collides with the live worktree (uncommitted work, in-flight file edits) and can corrupt the build. Only act on `CONTINUE` or `RECOVER`, never on `WAIT`.
+
+**Default subagent mode RE-DISPATCHES a continuation; SendMessage-poke is TEAM-mode only.** The default background-subagent dispatch channel has no mid-run communication path (see `protocols/parallel-dispatch-protocol.md`) — there is no way to "nudge" a running default subagent, so a `CONTINUE` decision means spawning a fresh continuation agent against the same worktree/branch, picked up from the last commit. `SendMessage` is only available when running in visible Team mode (`CLAUDE_VISIBLE_TEAMS=1` / `/harness:pipeline --visible`); outside that mode, do not attempt to message an in-progress agent.
+
+**Breadcrumb.** If auto-continue misfires (spurious `CONTINUE`) or loops forever (repeated `CONTINUE` with no forward progress), check: (1) the current `build_result_reader.py` status directly against the state file on disk, (2) `git -C "$WORKTREE" log <base>..HEAD` for actual commit progress between checks, and (3) that the original spawn prompt passed an ABSOLUTE `state_dir` path (a relative or mis-resolved path makes the reader permanently see `MISSING` even when the agent is healthy).
+
 ### Team State
 
 The pipeline team's state is tracked alongside the pipeline state:
