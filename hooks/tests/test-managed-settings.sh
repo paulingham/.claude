@@ -29,17 +29,14 @@ fi
 echo "A2: plugin delivery keys"
 if python3 - "$FILE" <<'PYEOF'
 import json, sys
+# WHY: the live managed-settings.json deliberately OMITS extraKnownMarketplaces /
+# strictKnownMarketplaces — those keys break the dot-named repo clone (see ROLLOUT.md).
+# Delivery is asserted via enabledPlugins only; the marketplace add happens in the
+# SessionStart bootstrap command (covered by A10), not via *KnownMarketplaces keys.
 d = json.load(open(sys.argv[1]))
-assert "extraKnownMarketplaces" in d, "missing extraKnownMarketplaces"
 assert "enabledPlugins" in d, "missing enabledPlugins"
-assert "strictKnownMarketplaces" in d, "missing strictKnownMarketplaces"
-assert "paulingham" in d["extraKnownMarketplaces"], "extraKnownMarketplaces missing paulingham"
 assert "harness@paulingham" in d["enabledPlugins"], "enabledPlugins missing harness@paulingham"
 assert d["enabledPlugins"]["harness@paulingham"] is True, "harness@paulingham not true"
-assert any(e.get("source") == "github" and e.get("repo") == "paulingham/.claude"
-           for e in d["strictKnownMarketplaces"]), "strictKnownMarketplaces missing github entry"
-assert any(e.get("source") == "hostPattern" and e.get("hostPattern") == r"^github\.com$"
-           for e in d["strictKnownMarketplaces"]), "strictKnownMarketplaces missing hostPattern entry"
 PYEOF
 then
   pass "A2 plugin delivery keys present"
