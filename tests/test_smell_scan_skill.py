@@ -197,14 +197,14 @@ class AC6ReadmeCountBump(unittest.TestCase):
     def test_readme_has_skills_72_heading(self):
         self.assertRegex(
             self._readme(),
-            r"(?m)^## Skills \(73\)$",
-            "README must have `## Skills (73)` heading")
+            r"(?m)^## Skills \(74\)$",
+            "README must have `## Skills (74)` heading")
 
     def test_readme_has_72_skills_comment(self):
         self.assertRegex(
             self._readme(),
-            r"#\s*73\s+skills",
-            "README must have `# 73 skills` comment in architecture diagram")
+            r"#\s*74\s+skills",
+            "README must have `# 74 skills` comment in architecture diagram")
 
 
 class AC7SmellNamesInBody(unittest.TestCase):

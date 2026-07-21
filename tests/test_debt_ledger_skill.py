@@ -201,12 +201,12 @@ class AC4ReadmeCount(unittest.TestCase):
         return README.read_text()
 
     def test_readme_skills_72_heading(self):
-        self.assertRegex(self._readme(), r"(?m)^## Skills \(73\)$",
-                         "README must have `## Skills (73)` heading")
+        self.assertRegex(self._readme(), r"(?m)^## Skills \(74\)$",
+                         "README must have `## Skills (74)` heading")
 
     def test_readme_72_skills_comment(self):
-        self.assertRegex(self._readme(), r"#\s*73\s+skills",
-                         "README must have `# 73 skills` comment")
+        self.assertRegex(self._readme(), r"#\s*74\s+skills",
+                         "README must have `# 74 skills` comment")
 
 
 if __name__ == "__main__":
