@@ -4,7 +4,6 @@
     "CLAUDE_HOOK_PROFILE": "standard",
     "ENABLE_TOOL_SEARCH": "true",
     "_doc_ENABLE_TOOL_SEARCH": "Pin explicit. Default already defers all MCP tools behind ToolSearch (lowest upfront-token cost). `auto` was REJECTED at intake because its 10%-context-window threshold mode loads small servers upfront — INCREASES tool-definition tokens vs default. This pin guards against a future Claude Code default flip. Source: https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search. Requires Sonnet 4+ or Opus 4+ (Haiku unsupported). See protocols/_proposals/2026-05-15-mcp-tool-config.md for full rationale.",
-    "CLAUDE_PIPELINE_TASK_ID": "",
     "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
     "CLAUDE_PIPELINE_MODE": "autonomous",
     "_doc_CLAUDE_PIPELINE_MODE": "Pipeline execution mode. Values: autonomous (no human gates) | interactive (pauses at decision points). Default: autonomous. Values are case-sensitive. Edit here (user layer) — managed no longer pins this key.",
