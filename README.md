@@ -22,9 +22,31 @@ That's the whole thing. The rest of this README expands those five ideas.
 
 ---
 
+## First, the request is sized: three gears
+
+Not every request deserves the full pipeline. Before anything else, each request is
+classified into one of **three gears** — this is the routing decision that determines how
+much machinery runs.
+
+| Gear | For | What runs |
+|------|-----|-----------|
+| **Pair** | Questions, doc tweaks, config changes, trivial one-file edits | A direct answer or a single lightweight change — no heavy pipeline, no gates you don't need. Interactive: the assistant can ask you a question. |
+| **Build** | A bug fix or a standard feature | The full pipeline at normal weight — plan, build, review, gate, ship. |
+| **Pipeline** | Critical or cross-cutting work | The full pipeline at maximum rigour — plan validation, tournament-style build variants, the works. |
+
+The gear is chosen automatically from the shape of your request; you can override it with a
+single word ("just pair on this", "run the full pipeline"). **Pair is the default** — most
+requests don't need the heavy machinery, and the system only reaches for it when the work
+warrants it. Full routing rules: [`protocols/work-class-routing.md`](protocols/work-class-routing.md).
+
+Everything below describes what **Build** and **Pipeline** gears run. Pair skips most of it.
+
+---
+
 ## The pipeline
 
-One request flows through these phases. No phase is skipped; no gate is bypassed.
+In Build and Pipeline gears, one request flows through these phases. No phase is skipped; no
+gate is bypassed.
 
 ```
 Intake ─▶ Plan ─▶ Build ─▶ Review ─▶ Final Gate ─▶ Ship ─▶ Deploy ─▶ Reflect
@@ -45,8 +67,8 @@ classify  design  TDD     code +      verify +     open    deploy +   capture
 | **Deploy** | Deploy, verify, auto-rollback on failure | orchestrator | `DEPLOYED` / `ROLLED_BACK` |
 | **Reflect** | Record an observation for the learning loop | orchestrator | — |
 
-Trivial work (a question, a doc tweak, a config change) is detected at Intake and skips the
-heavy pipeline. Full phase contract: [`rules/core.md`](rules/core.md) and
+Which of these phases run — and how heavily — is set by the gear (above). Full phase
+contract: [`rules/core.md`](rules/core.md) and
 [`protocols/pipeline-protocol.md`](protocols/pipeline-protocol.md).
 
 ---
@@ -114,10 +136,10 @@ instinct — a backward feedback loop from review into build. Details:
 
   agents/            # 19 specialized agent definitions (role, checklist, model)
   skills/            # 74 skills — the procedural workflows the orchestrator invokes
-  hooks/             # 87 enforcement scripts (the mechanical guardrails)
+  hooks/             # 89 enforcement scripts (the mechanical guardrails)
   protocols/         # 19 deep-dive protocol docs, loaded on demand
   orchestrator/      # orchestrator-only dispatch procedures
-  knowledge/         # 41 domain pattern references (auth, caching, payments, …)
+  knowledge/         # 42 domain pattern references (auth, caching, payments, …)
 
   learning/          Observations + learned instincts (per project)
   session-memory/    Engineering context that survives compaction
